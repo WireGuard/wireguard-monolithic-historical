@@ -1,0 +1,102 @@
+/* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <resolv.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <netdb.h>
+
+#include "subcommands.h"
+#include "base64.h"
+#include "kernel.h"
+#include "../uapi.h"
+
+int showconf_main(int argc, char *argv[])
+{
+	static const uint8_t zero[WG_KEY_LEN] = { 0 };
+	char b64[b64_len(WG_KEY_LEN)] = { 0 };
+	char ip[INET6_ADDRSTRLEN];
+	struct wgdevice *device = NULL;
+	struct wgpeer *peer;
+	struct wgipmask *ipmask;
+	size_t i, j;
+	int ret = 1;
+
+	if (argc != 2) {
+		fprintf(stderr, "Usage: %s %s <interface>\n", PROG_NAME, argv[0]);
+		return 1;
+	}
+
+	if (!kernel_has_wireguard_interface(argv[1])) {
+		fprintf(stderr, "`%s` is not a valid WireGuard interface\n", argv[1]);
+		fprintf(stderr, "Usage: %s %s <interface>\n", PROG_NAME, argv[0]);
+		return 1;
+	}
+
+	if (kernel_get_device(&device, argv[1])) {
+		perror("Unable to get device");
+		goto cleanup;
+	}
+
+	printf("[Interface]\n");
+	if (device->port)
+		printf("ListenPort = %d\n", device->port);
+	if (memcmp(device->private_key, zero, WG_KEY_LEN)) {
+		b64_ntop(device->private_key, WG_KEY_LEN, b64, b64_len(WG_KEY_LEN));
+		printf("PrivateKey = %s\n", b64);
+	}
+	if (memcmp(device->preshared_key, zero, WG_KEY_LEN)) {
+		b64_ntop(device->preshared_key, WG_KEY_LEN, b64, b64_len(WG_KEY_LEN));
+		printf("PresharedKey = %s\n", b64);
+	}
+	printf("\n");
+	for_each_wgpeer(device, peer, i) {
+		b64_ntop(peer->public_key, WG_KEY_LEN, b64, b64_len(WG_KEY_LEN));
+		printf("[Peer]\nPublicKey = %s\n", b64);
+		if (peer->num_ipmasks)
+			printf("AllowedIPs = ");
+		for_each_wgipmask(peer, ipmask, j) {
+			if (ipmask->family == AF_INET) {
+				if (!inet_ntop(AF_INET, &ipmask->ip4, ip, INET6_ADDRSTRLEN))
+					continue;
+			} else if (ipmask->family == AF_INET6) {
+				if (!inet_ntop(AF_INET6, &ipmask->ip6, ip, INET6_ADDRSTRLEN))
+					continue;
+			} else
+				continue;
+			printf("%s/%d", ip, ipmask->cidr);
+			if (j + 1 < (size_t)peer->num_ipmasks)
+				printf(", ");
+		}
+		if (peer->num_ipmasks)
+			printf("\n");
+
+		if (peer->endpoint.ss_family == AF_INET || peer->endpoint.ss_family == AF_INET6) {
+			char host[4096 + 1];
+			char service[512 + 1];
+			static char buf[sizeof(host) + sizeof(service) + 4];
+			socklen_t addr_len = 0;
+			memset(buf, 0, sizeof(buf));
+			if (peer->endpoint.ss_family == AF_INET)
+				addr_len = sizeof(struct sockaddr_in);
+			else if (peer->endpoint.ss_family == AF_INET6)
+				addr_len = sizeof(struct sockaddr_in6);
+			if (!getnameinfo((struct sockaddr *)&peer->endpoint, addr_len, host, sizeof(host), service, sizeof(service), NI_DGRAM | NI_NUMERICSERV | NI_NUMERICHOST)) {
+				snprintf(buf, sizeof(buf) - 1, (peer->endpoint.ss_family == AF_INET6 && strchr(host, ':')) ? "[%s]:%s" : "%s:%s", host, service);
+				printf("Endpoint = %s\n", buf);
+			}
+		}
+
+		if (i + 1 < device->num_peers)
+			printf("\n");
+	}
+	ret = 0;
+
+cleanup:
+	free(device);
+	return ret;
+}

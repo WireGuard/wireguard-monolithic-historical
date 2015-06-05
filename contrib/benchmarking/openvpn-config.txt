@@ -1,0 +1,2 @@
+Server: openvpn --dev tun --ifconfig 192.168.3.1 192.168.3.2 --secret static.key --cipher AES-256-CBC --auth SHA256 --port 61721
+Client: openvpn --dev tun --ifconfig 192.168.3.2 192.168.3.1 --secret static.key --cipher AES-256-CBC --auth SHA256 --port 61721 --remote 10.10.10.1

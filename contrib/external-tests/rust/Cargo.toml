@@ -1,0 +1,10 @@
+[package]
+name = "wireguard-keepalive"
+version = "0.1.0"
+authors = ["jason@zx2c4.com"]
+[dependencies]
+screech = { git = "https://github.com/trevp/screech" }
+rust-crypto = "*"
+byteorder = "*"
+rustc-serialize = "*"
+time = "*"

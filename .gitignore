@@ -1,0 +1,10 @@
+cscope.out
+*.o
+*.ko
+*.mod.c
+Module.symvers
+*.cmd
+.tmp_versions
+*.swp
+modules.order
+modules.builtin
