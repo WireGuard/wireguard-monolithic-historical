@@ -218,7 +218,7 @@ static void symmetric_key_init(struct noise_symmetric_key *key)
 {
 	spin_lock_init(&key->counter.receive.lock);
 	atomic64_set(&key->counter.counter, 0);
-	key->counter.receive.backtrack = 0;
+	memset(key->counter.receive.backtrack, 0, sizeof(key->counter.receive.backtrack));
 	key->birthdate = get_jiffies_64();
 	key->is_valid = true;
 }

@@ -12,11 +12,11 @@
 #include <linux/bitmap.h>
 #include <linux/scatterlist.h>
 
-/* This is appendix C of RFC 2401 - a sliding window bitmap. */
+/* This is RFC6479, a replay detection bitmap algorithm that avoids bitshifts */
 static inline bool counter_validate(union noise_counter *counter, u64 their_counter)
 {
 	bool ret = false;
-	u64 difference;
+	unsigned long index, index_current, top, i;
 	spin_lock_bh(&counter->receive.lock);
 
 	if (unlikely(counter->receive.counter >= REJECT_AFTER_MESSAGES + 1 || their_counter >= REJECT_AFTER_MESSAGES))
@@ -24,22 +24,21 @@ static inline bool counter_validate(union noise_counter *counter, u64 their_coun
 
 	++their_counter;
 
-	if (likely(their_counter > counter->receive.counter)) {
-		difference = their_counter - counter->receive.counter;
-		if (likely(difference < BITS_PER_LONG)) {
-			counter->receive.backtrack <<= difference;
-			counter->receive.backtrack |= 1;
-		} else
-			counter->receive.backtrack = 1;
-		counter->receive.counter = their_counter;
-		ret = true;
+	if (unlikely((COUNTER_WINDOW_SIZE + their_counter) < counter->receive.counter))
 		goto out;
+
+	index = their_counter >> ilog2(COUNTER_REDUNDANT_BITS);
+
+	if (likely(their_counter > counter->receive.counter)) {
+		index_current = counter->receive.counter >> ilog2(COUNTER_REDUNDANT_BITS);
+		top = min_t(unsigned long, index - index_current, COUNTER_BITS_TOTAL / BITS_PER_LONG);
+		for (i = 1; i <= top; ++i)
+			counter->receive.backtrack[(i + index_current) & ((COUNTER_BITS_TOTAL / BITS_PER_LONG) - 1)] = 0;
+		counter->receive.counter = their_counter;
 	}
 
-	difference = counter->receive.counter - their_counter;
-	if (unlikely(difference >= BITS_PER_LONG))
-		goto out;
-	ret = !test_and_set_bit(difference, &counter->receive.backtrack);
+	index &= (COUNTER_BITS_TOTAL / BITS_PER_LONG) - 1;
+	ret = !test_and_set_bit(their_counter & (COUNTER_REDUNDANT_BITS - 1), &counter->receive.backtrack[index]);
 
 out:
 	spin_unlock_bh(&counter->receive.lock);
@@ -50,46 +49,83 @@ out:
 void packet_counter_selftest(void)
 {
 	bool success = true;
-	unsigned int i = 0;
-	union noise_counter counter = { { 0 } };
-	spin_lock_init(&counter.receive.lock);
+	unsigned int test_num = 0, i;
+	union noise_counter counter;
 
-#define T(n, v) do { ++i; if (counter_validate(&counter, n) != v) { pr_info("nonce counter self-test %u: FAIL\n", i); success = false; } } while (0)
+#define T_INIT do { memset(&counter, 0, sizeof(union noise_counter)); spin_lock_init(&counter.receive.lock); } while (0)
+#define T_LIM (COUNTER_WINDOW_SIZE + 1)
+#define T(n, v) do { ++test_num; if (counter_validate(&counter, n) != v) { pr_info("nonce counter self-test %u: FAIL\n", test_num); success = false; } } while (0)
+	T_INIT;
+	/*  1 */ T(0, true);
+	/*  2 */ T(1, true);
+	/*  3 */ T(1, false);
+	/*  4 */ T(9, true);
+	/*  5 */ T(8, true);
+	/*  6 */ T(7, true);
+	/*  7 */ T(7, false);
+	/*  8 */ T(T_LIM, true);
+	/*  9 */ T(T_LIM - 1, true);
+	/* 10 */ T(T_LIM - 1, false);
+	/* 11 */ T(T_LIM - 2, true);
+	/* 12 */ T(2, true);
+	/* 13 */ T(2, false);
+	/* 14 */ T(T_LIM + 16, true);
+	/* 15 */ T(3, false);
+	/* 16 */ T(T_LIM + 16, false);
+	/* 17 */ T(T_LIM * 4, true);
+	/* 18 */ T(T_LIM * 4 - (T_LIM - 1), true);
+	/* 19 */ T(10, false);
+	/* 20 */ T(T_LIM * 4 - T_LIM, false);
+	/* 21 */ T(T_LIM * 4 - (T_LIM + 1), false);
+	/* 22 */ T(T_LIM * 4 - (T_LIM - 2), true);
+	/* 23 */ T(T_LIM * 4 + 1 - T_LIM, false);
+	/* 24 */ T(0, false);
+	/* 25 */ T(REJECT_AFTER_MESSAGES, false);
+	/* 26 */ T(REJECT_AFTER_MESSAGES - 1, true);
+	/* 27 */ T(REJECT_AFTER_MESSAGES, false);
+	/* 28 */ T(REJECT_AFTER_MESSAGES - 1, false);
+	/* 29 */ T(REJECT_AFTER_MESSAGES - 2, true);
+	/* 30 */ T(REJECT_AFTER_MESSAGES + 1, false);
+	/* 31 */ T(REJECT_AFTER_MESSAGES + 2, false);
+	/* 32 */ T(REJECT_AFTER_MESSAGES - 2, false);
+	/* 33 */ T(REJECT_AFTER_MESSAGES - 3, true);
+	/* 34 */ T(0, false);
+
+	T_INIT;
+	for (i = 1; i <= COUNTER_WINDOW_SIZE; ++i)
+		T(i, true);
 	T(0, true);
+	T(0, false);
+
+	T_INIT;
+	for (i = 2; i <= COUNTER_WINDOW_SIZE + 1; ++i)
+		T(i, true);
 	T(1, true);
-	T(1, false);
-	T(9, true);
-	T(8, true);
-	T(7, true);
-	T(7, false);
-	T(BITS_PER_LONG, true);
-	T(BITS_PER_LONG - 1, true);
-	T(BITS_PER_LONG - 1, false);
-	T(BITS_PER_LONG - 2, true);
-	T(2, true);
-	T(2, false);
-	T(BITS_PER_LONG + 16, true);
-	T(3, false);
-	T(BITS_PER_LONG + 16, false);
-	T(BITS_PER_LONG * 4, true);
-	T(BITS_PER_LONG * 4 - (BITS_PER_LONG - 1), true);
-	T(10, false);
-	T(BITS_PER_LONG * 4 - BITS_PER_LONG, false);
-	T(BITS_PER_LONG * 4 - (BITS_PER_LONG + 1), false);
-	T(BITS_PER_LONG * 4 - (BITS_PER_LONG - 2), true);
-	T(BITS_PER_LONG * 4 + 1 - BITS_PER_LONG, false);
 	T(0, false);
-	T(REJECT_AFTER_MESSAGES, false);
-	T(REJECT_AFTER_MESSAGES - 1, true);
-	T(REJECT_AFTER_MESSAGES, false);
-	T(REJECT_AFTER_MESSAGES - 1, false);
-	T(REJECT_AFTER_MESSAGES - 2, true);
-	T(REJECT_AFTER_MESSAGES + 1, false);
-	T(REJECT_AFTER_MESSAGES + 2, false);
-	T(REJECT_AFTER_MESSAGES - 2, false);
-	T(REJECT_AFTER_MESSAGES - 3, true);
+
+	T_INIT;
+	for (i = COUNTER_WINDOW_SIZE + 1; i-- > 0 ;)
+		T(i, true);
+
+	T_INIT;
+	for (i = COUNTER_WINDOW_SIZE + 2; i-- > 1 ;)
+		T(i, true);
 	T(0, false);
+
+	T_INIT;
+	for (i = COUNTER_WINDOW_SIZE + 1; i-- > 1 ;)
+		T(i, true);
+	T(COUNTER_WINDOW_SIZE + 1, true);
+	T(0, false);
+
+	T_INIT;
+	for (i = COUNTER_WINDOW_SIZE + 1; i-- > 1 ;)
+		T(i, true);
+	T(0, true);
+	T(COUNTER_WINDOW_SIZE + 1, true);
 #undef T
+#undef T_LIM
+#undef T_INIT
 
 	if (success)
 		pr_info("nonce counter self-tests: pass\n");
@@ -343,15 +379,7 @@ static void finish_decrypt_packet(struct packet_data_decryption_ctx *ctx)
 	if (likely(!ret))
 		used_new_key = noise_received_with_keypair(&ctx->keypair->entry.peer->keypairs, ctx->keypair);
 	else {
-		/* TODO: currently either the nonce window is not big enough, or we're sending things in
-		 * the wrong order. Try uncommenting the below code to see for yourself. This is a problem
-		 * that needs to be solved.
-		 *
-		 * Debug with:
-		 *     #define XSTR(s) STR(s)
-		 *     #define STR(s) #s
-		 *     net_dbg_ratelimited("Packet has invalid nonce %Lu (max %Lu, backtrack %" XSTR(BITS_PER_LONG) "pbl)\n", ctx->nonce, ctx->keypair->receiving.counter.receive.counter, &ctx->keypair->receiving.counter.receive.backtrack);
-		 */
+		net_dbg_ratelimited("Packet has invalid nonce %Lu (max %Lu)\n", ctx->nonce, ctx->keypair->receiving.counter.receive.counter);
 		peer_put(ctx->keypair->entry.peer);
 		goto err;
 	}

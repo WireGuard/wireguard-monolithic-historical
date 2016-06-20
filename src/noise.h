@@ -37,9 +37,15 @@ enum noise_lengths {
 	NOISE_HASH_LEN = BLAKE2S_OUTBYTES
 };
 
+enum counter_values {
+	COUNTER_BITS_TOTAL = 2048,
+	COUNTER_REDUNDANT_BITS = BITS_PER_LONG,
+	COUNTER_WINDOW_SIZE = COUNTER_BITS_TOTAL - COUNTER_REDUNDANT_BITS
+};
+
 enum wireguard_limits {
 	REKEY_AFTER_MESSAGES = U64_MAX - 0xffff,
-	REJECT_AFTER_MESSAGES = U64_MAX - 0xf, /* It's important that this value is always at *least* one less than U64_MAX. */
+	REJECT_AFTER_MESSAGES = U64_MAX - COUNTER_WINDOW_SIZE - 1,
 	REKEY_TIMEOUT = 5 * HZ,
 	REKEY_AFTER_TIME = 120 * HZ,
 	REJECT_AFTER_TIME = 180 * HZ,
@@ -50,7 +56,7 @@ enum wireguard_limits {
 union noise_counter {
 	struct {
 		u64 counter;
-		unsigned long backtrack;
+		unsigned long backtrack[COUNTER_BITS_TOTAL / BITS_PER_LONG];
 		spinlock_t lock;
 	} receive;
 	atomic64_t counter;
