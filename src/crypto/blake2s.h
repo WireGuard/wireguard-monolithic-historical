@@ -30,7 +30,7 @@ void blake2s_final(struct blake2s_state *state, uint8_t *out, uint8_t outlen);
 void blake2s_hmac(uint8_t *out, const uint8_t *in, const uint8_t *key, const uint8_t outlen, const uint64_t inlen, const uint64_t keylen);
 
 #ifdef DEBUG
-void blake2s_selftest(void);
+bool blake2s_selftest(void);
 #endif
 
 #endif

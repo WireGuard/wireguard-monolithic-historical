@@ -35,7 +35,7 @@ struct wireguard_peer *routing_table_lookup_dst(struct routing_table *table, str
 struct wireguard_peer *routing_table_lookup_src(struct routing_table *table, struct sk_buff *skb);
 
 #ifdef DEBUG
-void routing_table_selftest(void);
+bool routing_table_selftest(void);
 #endif
 
 #endif

@@ -131,7 +131,7 @@ static const uint8_t test_vectors[64][8] = {
 	{ 0x72, 0x45, 0x06, 0xeb, 0x4c, 0x32, 0x8a, 0x95 }
 };
 
-void siphash24_selftest(void)
+bool siphash24_selftest(void)
 {
 	uint8_t in[64], k[16];
 	uint64_t out;
@@ -151,5 +151,6 @@ void siphash24_selftest(void)
 	}
 	if (success)
 		pr_info("siphash24 self-tests: pass\n");
+	return success;
 }
 #endif

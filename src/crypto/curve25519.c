@@ -1282,7 +1282,7 @@ static const struct curve25519_test_vector curve25519_test_vectors[] = {
 		.result = { 0 }
 	}
 };
-void curve25519_selftest(void)
+bool curve25519_selftest(void)
 {
 	bool success = true;
 	size_t i = 0;
@@ -1294,11 +1294,12 @@ void curve25519_selftest(void)
 		if (memcmp(out, curve25519_test_vectors[i].result, CURVE25519_POINT_SIZE)) {
 			pr_info("curve25519 self-test %zu: FAIL\n", i + 1);
 			success = false;
-			return;
+			break;
 		}
 	}
 
 	if (success)
 		pr_info("curve25519 self-tests: pass\n");
+	return success;
 }
 #endif

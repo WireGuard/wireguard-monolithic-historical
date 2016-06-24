@@ -46,7 +46,7 @@ out:
 }
 
 #ifdef DEBUG
-void packet_counter_selftest(void)
+bool packet_counter_selftest(void)
 {
 	bool success = true;
 	unsigned int test_num = 0, i;
@@ -129,6 +129,7 @@ void packet_counter_selftest(void)
 
 	if (success)
 		pr_info("nonce counter self-tests: pass\n");
+	return success;
 }
 #endif
 

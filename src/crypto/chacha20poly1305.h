@@ -29,7 +29,7 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 				 const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN]);
 
 #ifdef DEBUG
-void chacha20poly1305_selftest(void);
+bool chacha20poly1305_selftest(void);
 #endif
 
 #endif

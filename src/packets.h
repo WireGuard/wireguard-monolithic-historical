@@ -55,7 +55,7 @@ void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_de
 #define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + max(sizeof(struct packet_data_encryption_ctx), SKB_HEADER_LEN), 4)
 
 #ifdef DEBUG
-void packet_counter_selftest(void);
+bool packet_counter_selftest(void);
 #endif
 
 #endif

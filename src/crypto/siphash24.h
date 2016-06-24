@@ -10,7 +10,7 @@ enum siphash24_lengths {
 uint64_t siphash24(const uint8_t *data, size_t len, const uint8_t key[SIPHASH24_KEY_LEN]);
 
 #ifdef DEBUG
-void siphash24_selftest(void);
+bool siphash24_selftest(void);
 #endif
 
 #endif

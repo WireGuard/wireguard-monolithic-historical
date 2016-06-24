@@ -537,12 +537,12 @@ static inline struct in6_addr *ip6(uint32_t a, uint32_t b, uint32_t c, uint32_t 
 	return &ip;
 }
 
-void routing_table_selftest(void)
+bool routing_table_selftest(void)
 {
 	struct routing_table t;
 	struct wireguard_peer *a = NULL, *b = NULL, *c = NULL, *d = NULL, *e = NULL, *f = NULL, *g = NULL, *h = NULL;
 	size_t i = 0;
-	bool success = true;
+	bool success = false;
 	struct in6_addr ip;
 	__be64 part;
 
@@ -576,6 +576,7 @@ void routing_table_selftest(void)
 	insert(4, h, 64, 15, 123, 211, 25); /* maskself is required */
 #undef insert
 
+	success = true;
 #define test(version, mem, ipa, ipb, ipc, ipd) do { \
 	bool _s = routing_table_lookup_v##version(&t, ip##version(ipa, ipb, ipc, ipd)) == mem; \
 	++i; \
@@ -629,5 +630,7 @@ free:
 	kfree(f);
 	kfree(g);
 	kfree(h);
+
+	return success;
 }
 #endif

@@ -14,7 +14,7 @@ void curve25519_generate_secret(uint8_t secret[CURVE25519_POINT_SIZE]);
 void curve25519_generate_public(uint8_t pub[CURVE25519_POINT_SIZE], const uint8_t secret[CURVE25519_POINT_SIZE]);
 
 #ifdef DEBUG
-void curve25519_selftest(void);
+bool curve25519_selftest(void);
 #endif
 
 #endif
