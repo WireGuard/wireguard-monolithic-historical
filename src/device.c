@@ -109,8 +109,6 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		return -ELOOP;
 	}
 
-	dev->trans_start = jiffies;
-
 	peer = routing_table_lookup_dst(&wg->peer_routing_table, skb);
 	if (unlikely(!peer)) {
 		skb_unsendable(skb, dev);
