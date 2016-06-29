@@ -37,14 +37,9 @@ static bool chacha20poly1305_use_ssse3 = false;
 static bool chacha20poly1305_use_sse2 = false;
 void chacha20poly1305_init(void)
 {
-	chacha20poly1305_use_sse2 = cpu_has_xmm2;
+	chacha20poly1305_use_sse2 = boot_cpu_has(X86_FEATURE_XMM2);
 	chacha20poly1305_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
-	chacha20poly1305_use_avx2 = cpu_has_avx && cpu_has_avx2 &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
-			cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
-#else
-			cpu_has_xfeatures(XSTATE_SSE | XSTATE_YMM, NULL);
-#endif
+	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX2);
 }
 #else
 void chacha20poly1305_init(void) { }
