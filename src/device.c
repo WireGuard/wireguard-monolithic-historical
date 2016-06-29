@@ -199,9 +199,9 @@ static void destruct(struct net_device *dev)
 	wg->incoming_port = 0;
 	destroy_workqueue(wg->workqueue);
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	destroy_workqueue(wg->parallelqueue);
 	padata_free(wg->parallel_send);
 	padata_free(wg->parallel_receive);
+	destroy_workqueue(wg->parallelqueue);
 #endif
 	routing_table_free(&wg->peer_routing_table);
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
@@ -308,12 +308,12 @@ err:
 	if (wg->workqueue)
 		destroy_workqueue(wg->workqueue);
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	if (wg->parallelqueue)
-		destroy_workqueue(wg->parallelqueue);
 	if (wg->parallel_send)
 		padata_free(wg->parallel_send);
 	if (wg->parallel_receive)
 		padata_free(wg->parallel_receive);
+	if (wg->parallelqueue)
+		destroy_workqueue(wg->parallelqueue);
 #endif
 	if (wg->cookie_checker.device)
 		cookie_checker_uninit(&wg->cookie_checker);
