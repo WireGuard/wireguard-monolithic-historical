@@ -1,6 +1,8 @@
 config WIREGUARD
 	bool "WireGuard secure VPN tunnel"
 	select NET_UDP_TUNNEL
+	select NETFILTER_XT_MATCH_HASHLIMIT
+	select IPV6
 	default y
 	---help---
 	  WireGuard is a secure, fast, and easy to use replacement for IPSec
@@ -26,6 +28,7 @@ config WIREGUARD_DEBUG
 config WIREGUARD_PARALLEL
 	bool "Enable parallel engine"
 	depends on SMP && WIREGUARD
+	select PADATA
 	default y
 	---help---
 	  This will allow WireGuard to utilize all CPU cores when encrypting
