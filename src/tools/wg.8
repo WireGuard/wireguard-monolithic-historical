@@ -55,7 +55,8 @@ Sets configuration values for the specified \fI<interface>\fP. Multiple
 for a peer, that peer is removed, not configured. If \fIlisten-port\fP
 is not specified, the port will be automatically generated when the
 interface comes up. Both \fIprivate-key\fP and \fIpreshared-key\fP must
-be a files, for security reasons, but if you're using
+be a files, because command line arguments are not considered private on
+most systems but if you are using
 .BR bash (1),
 you may safely pass in a string by specifying as \fIprivate-key\fP or
 \fIpreshared-key\fP the expression: <(echo PRIVATEKEYSTRING). If
@@ -124,11 +125,12 @@ private key, and usually transmitted out of band to the author of the
 configuration file. Required.
 .IP \(bu
 AllowedIPs \(em a comma-separated list of IP (v4 or v6) addresses with
-CIDR masks. The catch-all \fI0.0.0.0/0\fP may be specified for matching
-all IPv4 addresses, and \fI::/0\fP may be specified for matching all
-IPv6 addresses. Required.
+CIDR masks from which this peer is allowed to send incoming traffic and
+to which outgoing traffic for this peer is directed. The catch-all
+\fI0.0.0.0/0\fP may be specified for matching all IPv4 addresses, and
+\fI::/0\fP may be specified for matching all IPv6 addresses. Required.
 .IP \(bu
-Endpoint \(em an endpoint IP or hostname, followed by a comma, and then a
+Endpoint \(em an endpoint IP or hostname, followed by a colon, and then a
 port number. Optional.
 
 .SH CONFIGURATION FILE FORMAT EXAMPLE
