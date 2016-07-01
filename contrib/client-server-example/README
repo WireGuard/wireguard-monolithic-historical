@@ -1,0 +1,16 @@
+                === IMPORTANT NOTE ===
+
+Do not use these scripts in production. They are simply a
+demonstration of how easy the `wg(8)` tool is at the command
+line, but by no means should you actually attempt to use
+these. They are horribly insecure and defeat the purpose
+of WireGuard.
+
+                     STAY AWAY!
+
+Distros: do not distribute these with your packages.
+
+
+
+That all said, this is a pretty cool example of just how
+darn easy WireGuard can be.

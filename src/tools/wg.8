@@ -131,7 +131,9 @@ to which outgoing traffic for this peer is directed. The catch-all
 \fI::/0\fP may be specified for matching all IPv6 addresses. Required.
 .IP \(bu
 Endpoint \(em an endpoint IP or hostname, followed by a colon, and then a
-port number. Optional.
+port number. This endpoint will be updated automatically to the most recent
+source IP address and port of correctly authenticated packets from the peer.
+Optional.
 
 .SH CONFIGURATION FILE FORMAT EXAMPLE
 This example may be used as a model for writing configuration files.
