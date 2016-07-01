@@ -47,16 +47,16 @@ static inline int skb_data_offset(struct sk_buff *skb, size_t *data_offset, size
 
 	udp = udp_hdr(skb);
 	*data_offset = (u8 *)udp - skb->data;
-	if (*data_offset + sizeof(struct udphdr) > skb->len) {
+	if (unlikely(*data_offset + sizeof(struct udphdr) > skb->len)) {
 		net_dbg_ratelimited("Packet isn't big enough to have UDP fields from %pISpfsc\n", &addr);
 		return -EINVAL;
 	}
 	*data_len = ntohs(udp->len);
-	if (*data_len < sizeof(struct udphdr)) {
+	if (unlikely(*data_len < sizeof(struct udphdr))) {
 		net_dbg_ratelimited("UDP packet is reporting too small of a size from %pISpfsc\n", &addr);
 		return -EINVAL;
 	}
-	if (*data_len > skb->len - *data_offset) {
+	if (unlikely(*data_len > skb->len - *data_offset)) {
 		net_dbg_ratelimited("UDP packet is lying about its size from %pISpfsc\n", &addr);
 		return -EINVAL;
 	}
