@@ -23,12 +23,13 @@ static const struct {
 	{ "pubkey", pubkey_main, "Reads a private key from stdin and writes a public key to stdout" }
 };
 
-static void show_usage(void)
+static void show_usage(FILE *file)
 {
-	fprintf(stderr, "Usage: %s <cmd> [<args>]\n\n", PROG_NAME);
-	fprintf(stderr, "Available subcommands:\n");
+	fprintf(file, "Usage: %s <cmd> [<args>]\n\n", PROG_NAME);
+	fprintf(file, "Available subcommands:\n");
 	for (size_t i = 0; i < sizeof(subcommands) / sizeof(subcommands[0]); ++i)
-		fprintf(stderr, "  %s: %s\n", subcommands[i].subcommand, subcommands[i].description);
+		fprintf(file, "  %s: %s\n", subcommands[i].subcommand, subcommands[i].description);
+	fprintf(file, "You may pass `--help' to any of these subcommands to view usage.\n");
 }
 
 int main(int argc, char *argv[])
@@ -37,8 +38,8 @@ int main(int argc, char *argv[])
 	PROG_NAME = argv[0];
 
 	if (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "help"))) {
-		show_usage();
-		return 1;
+		show_usage(stdout);
+		return 0;
 	}
 
 	if (argc == 1) {
@@ -61,6 +62,6 @@ findsubcommand:
 	}
 
 	fprintf(stderr, "Invalid subcommand: `%s`\n", argv[1]);
-	show_usage();
+	show_usage(stderr);
 	return 1;
 }

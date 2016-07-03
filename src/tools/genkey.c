@@ -11,6 +11,7 @@
 
 #include "curve25519.h"
 #include "base64.h"
+#include "subcommands.h"
 
 #ifdef __NR_getrandom
 static inline ssize_t get_random_bytes(uint8_t *out, size_t len)
@@ -37,6 +38,11 @@ int genkey_main(int argc, char *argv[])
 	char private_key_base64[b64_len(CURVE25519_POINT_SIZE)];
 	struct stat stat;
 
+	if (argc != 1) {
+		fprintf(stderr, "Usage: %s %s\n", PROG_NAME, argv[0]);
+		return 1;
+	}
+
 	if (!fstat(STDOUT_FILENO, &stat) && S_ISREG(stat.st_mode) && stat.st_mode & S_IRWXO)
 		fputs("Warning: writing to world accessible file.\nConsider setting the umask to 077 and trying again.\n", stderr);
 
@@ -47,9 +53,8 @@ int genkey_main(int argc, char *argv[])
 	if (argc && !strcmp(argv[0], "genkey"))
 		curve25519_normalize_secret(private_key);
 
-	if (b64_ntop(private_key, sizeof(private_key), private_key_base64, sizeof(private_key_base64)) < 0) {
-		errno = EINVAL;
-		perror("b64");
+	if (b64_ntop(private_key, sizeof(private_key), private_key_base64, sizeof(private_key_base64)) != sizeof(private_key_base64) - 1) {
+		fprintf(stderr, "%s: Could not convert key to base64\n", PROG_NAME);
 		return 1;
 	}
 

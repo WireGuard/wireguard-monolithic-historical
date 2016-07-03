@@ -93,12 +93,8 @@ static inline uint16_t parse_port(const char *value)
 static inline bool parse_key(uint8_t key[WG_KEY_LEN], const char *value)
 {
 	uint8_t tmp[WG_KEY_LEN + 1];
-	if (strlen(value) != b64_len(WG_KEY_LEN) - 1) {
-		fprintf(stderr, "Key is not the correct length: `%s`\n", value);
-		return false;
-	}
-	if (b64_pton(value, tmp, WG_KEY_LEN + 1) < 0) {
-		fprintf(stderr, "Could not parse base64 key: `%s`\n", value);
+	if (strlen(value) != b64_len(WG_KEY_LEN) - 1 || b64_pton(value, tmp, WG_KEY_LEN + 1) != WG_KEY_LEN) {
+		fprintf(stderr, "Key is not the correct length or format: `%s`\n", value);
 		return false;
 	}
 	memcpy(key, tmp, WG_KEY_LEN);
