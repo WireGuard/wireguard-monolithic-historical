@@ -47,6 +47,10 @@ static inline int skb_data_offset(struct sk_buff *skb, size_t *data_offset, size
 
 	udp = udp_hdr(skb);
 	*data_offset = (u8 *)udp - skb->data;
+	if (unlikely(*data_offset > U16_MAX)) {
+		net_dbg_ratelimited("Packet has offset at impossible location from %pISpfsc\n", &addr);
+		return -EINVAL;
+	}
 	if (unlikely(*data_offset + sizeof(struct udphdr) > skb->len)) {
 		net_dbg_ratelimited("Packet isn't big enough to have UDP fields from %pISpfsc\n", &addr);
 		return -EINVAL;
