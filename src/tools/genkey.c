@@ -6,31 +6,29 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <syscall.h>
-#include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "curve25519.h"
 #include "base64.h"
 #include "subcommands.h"
 
-#ifdef __NR_getrandom
-static inline ssize_t get_random_bytes(uint8_t *out, size_t len)
-{
-	return syscall(__NR_getrandom, out, len, 0);
-}
-#else
-#include <fcntl.h>
 static inline ssize_t get_random_bytes(uint8_t *out, size_t len)
 {
 	ssize_t ret;
-	int fd = open("/dev/urandom", O_RDONLY);
+	int fd;
+#ifdef __NR_getrandom
+	ret = syscall(__NR_getrandom, out, len, 0);
+	if (ret >= 0)
+		return ret;
+#endif
+	fd = open("/dev/urandom", O_RDONLY);
 	if (fd < 0)
 		return fd;
 	ret = read(fd, out, len);
 	close(fd);
 	return ret;
 }
-#endif
 
 int genkey_main(int argc, char *argv[])
 {
