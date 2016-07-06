@@ -4,10 +4,11 @@ BINDIR ?= $(PREFIX)/bin
 LIBDIR ?= $(PREFIX)/lib
 MANDIR ?= $(PREFIX)/share/man
 
+CFLAGS += $(shell pkg-config --cflags libmnl 2>/dev/null)
 CFLAGS += -std=gnu11
 CFLAGS += -pedantic -Wall -Wextra
 CFLAGS += -MMD
-LDLIBS += -lresolv -lmnl
+LDLIBS += -lresolv $(shell pkg-config --libs libmnl 2>/dev/null || echo -lmnl)
 
 wg: $(patsubst %.c,%.o,$(wildcard *.c))
 
