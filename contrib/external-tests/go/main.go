@@ -103,8 +103,8 @@ func main() {
 	pingMessage, _ := (&icmp.Message{
 		Type: ipv4.ICMPTypeEcho,
 		Body: &icmp.Echo{
-			ID:   1,
-			Seq:  1,
+			ID:   921,
+			Seq:  438,
 			Data: []byte("WireGuard"),
 		},
 	}).Marshal(nil)
@@ -156,7 +156,7 @@ func main() {
 		log.Fatalf("unexpected reply body type %T", replyMessage.Body)
 	}
 
-	if echo.ID != 1 || echo.Seq != 1 || string(echo.Data) != "WireGuard" {
+	if echo.ID != 921 || echo.Seq != 438 || string(echo.Data) != "WireGuard" {
 		log.Fatalf("incorrect echo response: %#v", echo)
 	}
 }
