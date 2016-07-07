@@ -17,8 +17,6 @@ static __always_inline void normalize_secret(uint8_t secret[CURVE25519_POINT_SIZ
 	secret[31] |= 64;
 }
 
-static const uint8_t zeros[CURVE25519_POINT_SIZE] = { 0 };
-
 #ifdef __SIZEOF_INT128__
 typedef uint64_t limb;
 typedef limb felem[5];
