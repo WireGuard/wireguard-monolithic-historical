@@ -80,7 +80,7 @@ func main() {
 	keepalivePacket := make([]byte, 13)
 	keepalivePacket[0] = 4 // Type: Data
 	binary.LittleEndian.PutUint32(keepalivePacket[1:], theirIndex)
-	binary.LittleEndian.PutUint64(keepalivePacket[3:], 0) // Nonce
+	binary.LittleEndian.PutUint64(keepalivePacket[5:], 0) // Nonce
 	keepalivePacket = sendCipher.Encrypt(keepalivePacket, nil, nil)
 	if _, err := conn.Write(keepalivePacket); err != nil {
 		log.Fatalf("error writing keepalive packet: %s", err)
