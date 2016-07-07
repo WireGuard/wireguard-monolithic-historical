@@ -30,7 +30,7 @@ func main() {
 		StaticKeypair: noise.DHKey{Private: ourPrivate, Public: ourPublic},
 		PeerStatic:    theirPublic,
 	})
-	conn, err := net.Dial("udp", "test.wireguard.io:51820")
+	conn, err := net.Dial("udp", "demo.wireguard.io:12913")
 	if err != nil {
 		log.Fatalf("error dialing udp socket: %s", err)
 	}

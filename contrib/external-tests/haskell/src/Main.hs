@@ -50,8 +50,8 @@ payload = do
 
 main :: IO ()
 main = do
-  let ip = "test.wireguard.io"
-  let port = "51820"
+  let ip = "demo.wireguard.io"
+  let port = "12913"
   let mykey = "WAmgVYXkbT2bCtdcDwolI88/iVi/aV3/PHcUBTQSYmo="
   let serverkey = "qRCwZSKInrMAq5sepfCdaCsRJaoLe5jhtzfiw7CjbwM="
   let psk = "FpCyhws9cxwWoV4xELtfJvjJN+zQVRPISllRWgeopVE="

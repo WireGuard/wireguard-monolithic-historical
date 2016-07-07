@@ -19,7 +19,7 @@ fn memcpy(out: &mut [u8], data: &[u8]) {
 }
 
 fn main() {
-	let send_addr = "test.wireguard.io:51820".to_socket_addrs().unwrap().next().unwrap();
+	let send_addr = "demo.wireguard.io:12913".to_socket_addrs().unwrap().next().unwrap();
 	let listen_addr = "0.0.0.0:0".to_socket_addrs().unwrap().next().unwrap();
 	let socket = UdpSocket::bind(listen_addr).unwrap();
 	let mut empty_payload = [0; 0];
