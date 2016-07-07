@@ -59,7 +59,7 @@ func main() {
 	// write handshake initiation packet
 	now := time.Now()
 	tai64n := make([]byte, 12)
-	binary.BigEndian.PutUint64(tai64n[:], uint64(now.Unix()))
+	binary.BigEndian.PutUint64(tai64n[:], 4611686018427387914+uint64(now.Unix()))
 	binary.BigEndian.PutUint32(tai64n[8:], uint32(now.UnixNano()))
 	initiationPacket := make([]byte, 5)
 	initiationPacket[0] = 1                                 // Type: Initiation
