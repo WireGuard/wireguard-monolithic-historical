@@ -118,15 +118,13 @@ func main() {
 		Dst:      net.IPv4(10, 189, 129, 1),
 	}).Marshal()
 	binary.BigEndian.PutUint16(pingHeader[2:], uint16(ipv4.HeaderLen+len(pingMessage))) // fix the length endianness on BSDs
-	binary.BigEndian.PutUint16(pingHeader[10:], ipChecksum(append(pingHeader, pingMessage...)))
-	if err != nil {
-		panic(err)
-	}
+	pingData := append(pingHeader, pingMessage...)
+	binary.BigEndian.PutUint16(pingData[10:], ipChecksum(pingData))
 	pingPacket := make([]byte, 13)
 	pingPacket[0] = 4 // Type: Data
 	binary.LittleEndian.PutUint32(pingPacket[1:], theirIndex)
 	binary.LittleEndian.PutUint64(pingPacket[5:], 0) // Nonce
-	pingPacket = sendCipher.Encrypt(pingPacket, nil, append(pingHeader, pingMessage...))
+	pingPacket = sendCipher.Encrypt(pingPacket, nil, pingData)
 	if _, err := conn.Write(pingPacket); err != nil {
 		log.Fatalf("error writing ping message: %s", err)
 	}
