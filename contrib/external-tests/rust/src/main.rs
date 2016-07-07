@@ -42,7 +42,7 @@ fn main() {
 
 	let now = time::get_time();
 	let mut tai64n = [0; 12];
-	BigEndian::write_i64(&mut tai64n[0..], now.sec);
+	BigEndian::write_i64(&mut tai64n[0..], 4611686018427387914ULL + now.sec);
 	BigEndian::write_i32(&mut tai64n[8..], now.nsec);
 	let mut initiation_packet = [0; 145];
 	initiation_packet[0] = 1; /* Type: Initiation */
