@@ -16,6 +16,24 @@ import (
 	"golang.org/x/net/ipv4"
 )
 
+func ipChecksum(buf []byte) uint16 {
+	sum := uint32(0)
+	for ; len(buf) >= 2; buf = buf[2:] {
+		sum += uint32(buf[0])<<8 | uint32(buf[1])
+	}
+	if len(buf) > 0 {
+		sum += uint32(buf[0]) << 8
+	}
+	for sum > 0xffff {
+		sum = (sum >> 16) + (sum & 0xffff)
+	}
+	csum := ^uint16(sum)
+	if csum == 0 {
+		csum = 0xffff
+	}
+	return csum
+}
+
 func main() {
 	ourPrivate, _ := base64.StdEncoding.DecodeString("WAmgVYXkbT2bCtdcDwolI88/iVi/aV3/PHcUBTQSYmo=")
 	ourPublic, _ := base64.StdEncoding.DecodeString("K5sF9yESrSBsOXPd6TcpKNgqoy1Ik3ZFKl4FolzrRyI=")
@@ -95,12 +113,12 @@ func main() {
 		Len:      ipv4.HeaderLen,
 		TotalLen: ipv4.HeaderLen + len(pingMessage),
 		Protocol: 1, // ICMP
-		TTL:      2,
-		Checksum: 0xa15b, // the packet is always the same, hard-code checksum
+		TTL:      20,
 		Src:      net.IPv4(10, 189, 129, 2),
 		Dst:      net.IPv4(10, 189, 129, 1),
 	}).Marshal()
 	binary.BigEndian.PutUint16(pingHeader[2:], uint16(ipv4.HeaderLen+len(pingMessage))) // fix the length endianness on BSDs
+	binary.BigEndian.PutUint16(pingHeader[10:], ipChecksum(append(pingHeader, pingMessage...)))
 	if err != nil {
 		panic(err)
 	}
