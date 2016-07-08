@@ -127,11 +127,13 @@ struct packet_bundle {
 static inline void send_off_bundle(struct packet_bundle *bundle, struct wireguard_peer *peer)
 {
 	struct sk_buff *skb, *next;
+	bool is_keepalive;
 	for (skb = bundle->first; skb; skb = next) {
 		/* We store the next pointer locally because socket_send_skb_to_peer
 		 * consumes the packet before the top of the loop comes again. */
 		next = skb->next;
-		if (likely(!socket_send_skb_to_peer(peer, skb, 0 /* TODO: Should we copy the DSCP value from the enclosed packet? */)))
+		is_keepalive = skb->len == message_data_len(0);
+		if (likely(!socket_send_skb_to_peer(peer, skb, 0 /* TODO: Should we copy the DSCP value from the enclosed packet? */) && !is_keepalive))
 			timers_data_sent(peer);
 	}
 }
