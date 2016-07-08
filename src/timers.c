@@ -102,7 +102,7 @@ void timers_data_received(struct wireguard_peer *peer)
 		peer->timer_need_another_keepalive = true;
 }
 
-void timers_any_authorized_packet_received(struct wireguard_peer *peer)
+void timers_any_authenticated_packet_received(struct wireguard_peer *peer)
 {
 	if (likely(peer->timer_new_handshake.data))
 		del_timer(&peer->timer_new_handshake);
