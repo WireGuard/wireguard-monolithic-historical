@@ -23,6 +23,7 @@ void packet_send_handshake_initiation(struct wireguard_peer *peer)
 
 	if (noise_handshake_create_initiation(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
+		timers_any_authenticated_packet_traversal(peer);
 		socket_send_buffer_to_peer(peer, &packet, sizeof(struct message_handshake_initiation), HANDSHAKE_DSCP);
 		timers_handshake_initiated(peer);
 	}
@@ -39,6 +40,7 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
 		if (noise_handshake_begin_session(&peer->handshake, &peer->keypairs, false)) {
 			timers_ephemeral_key_created(peer);
+			timers_any_authenticated_packet_traversal(peer);
 			socket_send_buffer_to_peer(peer, &packet, sizeof(struct message_handshake_response), HANDSHAKE_DSCP);
 		}
 	}
@@ -136,6 +138,7 @@ static inline void send_off_bundle(struct packet_bundle *bundle, struct wireguar
 		 * consumes the packet before the top of the loop comes again. */
 		next = skb->next;
 		is_keepalive = skb->len == message_data_len(0);
+		timers_any_authenticated_packet_traversal(peer);
 		if (likely(!socket_send_skb_to_peer(peer, skb, 0 /* TODO: Should we copy the DSCP value from the enclosed packet? */) && !is_keepalive))
 			timers_data_sent(peer);
 	}

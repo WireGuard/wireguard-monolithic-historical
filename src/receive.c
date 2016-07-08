@@ -152,6 +152,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, void *data, si
 
 	rx_stats(peer, len);
 	timers_any_authenticated_packet_received(peer);
+	timers_any_authenticated_packet_traversal(peer);
 	update_latest_addr(peer, skb);
 	peer_put(peer);
 }
@@ -259,6 +260,7 @@ packet_processed:
 	dev_kfree_skb(skb);
 continue_processing:
 	timers_any_authenticated_packet_received(peer);
+	timers_any_authenticated_packet_traversal(peer);
 	socket_set_peer_addr(peer, addr);
 	peer_put(peer);
 }

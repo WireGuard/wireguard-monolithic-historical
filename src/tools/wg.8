@@ -68,12 +68,12 @@ public-key cryptography, for post-quantum resistance. If \fIallowed-ips\fP
 is specified, but the value is the empty string, all allowed ips are removed
 from the peer. The use of \fIpersistent-keepalive\fP is optional and is by
 default off; setting it to 0 or "off", disables it. Otherwise it represents,
-in seconds, between 10 and 3600 inclusive, how often to send an empty UDP
-packet to the peer, for the purpose of keeping a stateful firewall or NAT
+in seconds, between 10 and 3600 inclusive, how often to send an authenticated
+empty packet to the peer, for the purpose of keeping a stateful firewall or NAT
 mapping valid persistently. For example, if the interface very rarely sends
 traffic, but it might at anytime receive traffic from a peer, and it is behind
 NAT, the interface might benefit from having a persistent keepalive interval
-of 25 seconds.
+of 25 seconds; however, most users will not need this.
 .TP
 \fBsetconf\fP \fI<interface>\fP \fI<configuration-filename>\fP
 Sets the current configuration of \fI<interface>\fP to the contents of
@@ -143,12 +143,12 @@ source IP address and port of correctly authenticated packets from the peer.
 Optional.
 .IP \(bu
 PersistentKeepalive \(em a seconds interval, between 10 and 3600 inclusive, of
-how often to send an empty UDP packet to the peer for the purpose of keeping a
+how often to send an authenticated empty packet to the peer for the purpose of keeping a
 stateful firewall or NAT mapping valid persistently. For example, if the interface
 very rarely sends traffic, but it might at anytime receive traffic from a peer,
 and it is behind NAT, the interface might benefit from having a persistent keepalive
 interval of 25 seconds. If set to 0 or "off", this option is disabled. By default or
-when unspecified, this option is off. Optional.
+when unspecified, this option is off. Most users will not need this. Optional.
 
 .SH CONFIGURATION FILE FORMAT EXAMPLE
 This example may be used as a model for writing configuration files.

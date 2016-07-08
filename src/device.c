@@ -41,7 +41,7 @@ static int open_peer(struct wireguard_peer *peer, void *data)
 	timers_init_peer(peer);
 	packet_send_queue(peer);
 	if (peer->persistent_keepalive_interval)
-		socket_send_buffer_to_peer(peer, NULL, 0, 0);
+		packet_send_keepalive(peer);
 	return 0;
 }
 

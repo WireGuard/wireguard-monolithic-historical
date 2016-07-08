@@ -4,7 +4,6 @@
 #include "socket.h"
 #include "packets.h"
 #include "messages.h"
-#include "timers.h"
 
 #include <linux/net.h>
 #include <linux/if_vlan.h>
@@ -251,10 +250,8 @@ int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8
 	read_lock_bh(&peer->endpoint_lock);
 
 	ret = send(dev, skb, dst, &peer->endpoint_flow.fl4, &peer->endpoint_flow.fl6, &peer->endpoint_addr, rcu_dereference(peer->device->sock4), rcu_dereference(peer->device->sock6), dscp);
-	if (!ret) {
-		timers_any_packet_sent(peer);
+	if (!ret)
 		peer->tx_bytes += skb_len;
-	}
 
 	read_unlock_bh(&peer->endpoint_lock);
 	rcu_read_unlock();
@@ -268,8 +265,7 @@ int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer, size_t
 	if (!skb)
 		return -ENOMEM;
 	skb_reserve(skb, SKB_HEADER_LEN);
-	if (likely(buffer))
-		memcpy(skb_put(skb, len), buffer, len);
+	memcpy(skb_put(skb, len), buffer, len);
 	return socket_send_skb_to_peer(peer, skb, dscp);
 }
 
