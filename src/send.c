@@ -110,12 +110,15 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 
 void packet_send_keepalive(struct wireguard_peer *peer)
 {
-	struct sk_buff *skb = alloc_skb(DATA_PACKET_HEAD_ROOM + MESSAGE_MINIMUM_LENGTH, GFP_ATOMIC);
-	if (unlikely(!skb))
-		return;
-	skb_reserve(skb, DATA_PACKET_HEAD_ROOM);
-	skb->dev = netdev_pub(peer->device);
-	skb_queue_tail(&peer->tx_packet_queue, skb);
+	struct sk_buff *skb;
+	if (!skb_queue_len(&peer->tx_packet_queue)) {
+		skb = alloc_skb(DATA_PACKET_HEAD_ROOM + MESSAGE_MINIMUM_LENGTH, GFP_ATOMIC);
+		if (unlikely(!skb))
+			return;
+		skb_reserve(skb, DATA_PACKET_HEAD_ROOM);
+		skb->dev = netdev_pub(peer->device);
+		skb_queue_tail(&peer->tx_packet_queue, skb);
+	}
 	packet_send_queue(peer);
 }
 
