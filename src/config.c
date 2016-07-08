@@ -106,8 +106,11 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	if (in_peer.persistent_keepalive_interval != (uint16_t)-1) {
 		if (in_peer.persistent_keepalive_interval && (in_peer.persistent_keepalive_interval < 10 || in_peer.persistent_keepalive_interval > 3600))
 			ret = -EINVAL;
-		else
+		else {
+			if (!peer->persistent_keepalive_interval && in_peer.persistent_keepalive_interval && netdev_pub(wg)->flags & IFF_UP)
+				socket_send_buffer_to_peer(peer, NULL, 0, 0);
 			peer->persistent_keepalive_interval = in_peer.persistent_keepalive_interval;
+		}
 	}
 
 	if (netdev_pub(wg)->flags & IFF_UP)
