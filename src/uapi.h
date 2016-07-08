@@ -98,6 +98,7 @@ struct wgpeer {
 	__u32 replace_ipmasks : 1; /* Set */
 
 	__u16 num_ipmasks; /* Get/Set */
+	__u16 persistent_keepalive_interval; /* Get/Set -- 0 = off, 0xffff = unset */
 };
 
 struct wgdevice {

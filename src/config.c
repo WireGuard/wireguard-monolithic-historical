@@ -103,6 +103,13 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 			break;
 	}
 
+	if (in_peer.persistent_keepalive_interval != (uint16_t)-1) {
+		if (in_peer.persistent_keepalive_interval && (in_peer.persistent_keepalive_interval < 10 || in_peer.persistent_keepalive_interval > 3600))
+			ret = -EINVAL;
+		else
+			peer->persistent_keepalive_interval = in_peer.persistent_keepalive_interval;
+	}
+
 	if (netdev_pub(wg)->flags & IFF_UP)
 		packet_send_queue(peer);
 
@@ -241,6 +248,7 @@ static int populate_peer(struct wireguard_peer *peer, void *ctx)
 	out_peer.last_handshake_time = peer->walltime_last_handshake;
 	out_peer.tx_bytes = peer->tx_bytes;
 	out_peer.rx_bytes = peer->rx_bytes;
+	out_peer.persistent_keepalive_interval = peer->persistent_keepalive_interval;
 
 	ipmasks_data.out_len = data->out_len;
 	ipmasks_data.data = data->data;

@@ -76,6 +76,15 @@ static void queued_expired_kill_ephemerals(struct work_struct *work)
 	peer_put(peer);
 }
 
+static void expired_send_persistent_keepalive(unsigned long ptr)
+{
+	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
+
+	if (unlikely(!peer->persistent_keepalive_interval))
+		return;
+	socket_send_buffer_to_peer(peer, NULL, 0, 0);
+}
+
 void timers_data_sent(struct wireguard_peer *peer)
 {
 	if (likely(peer->timer_send_keepalive.data))
@@ -121,6 +130,12 @@ void timers_ephemeral_key_created(struct wireguard_peer *peer)
 	do_gettimeofday(&peer->walltime_last_handshake);
 }
 
+void timers_any_packet_sent(struct wireguard_peer *peer)
+{
+	if (peer->persistent_keepalive_interval && likely(peer->timer_persistent_keepalive.data))
+		mod_timer(&peer->timer_persistent_keepalive, jiffies + HZ * peer->persistent_keepalive_interval);
+}
+
 void timers_init_peer(struct wireguard_peer *peer)
 {
 	init_timer(&peer->timer_retransmit_handshake);
@@ -138,6 +153,10 @@ void timers_init_peer(struct wireguard_peer *peer)
 	init_timer(&peer->timer_kill_ephemerals);
 	peer->timer_kill_ephemerals.function = expired_kill_ephemerals;
 	peer->timer_kill_ephemerals.data = (unsigned long)peer;
+
+	init_timer(&peer->timer_persistent_keepalive);
+	peer->timer_persistent_keepalive.function = expired_send_persistent_keepalive;
+	peer->timer_persistent_keepalive.data = (unsigned long)peer;
 
 	INIT_WORK(&peer->clear_peer_work, queued_expired_kill_ephemerals);
 }
@@ -159,6 +178,10 @@ void timers_uninit_peer(struct wireguard_peer *peer)
 	if (peer->timer_kill_ephemerals.data) {
 		del_timer(&peer->timer_kill_ephemerals);
 		peer->timer_kill_ephemerals.data = 0;
+	}
+	if (peer->timer_persistent_keepalive.data) {
+		del_timer(&peer->timer_persistent_keepalive);
+		peer->timer_persistent_keepalive.data = 0;
 	}
 }
 void timers_uninit_peer_wait(struct wireguard_peer *peer)
