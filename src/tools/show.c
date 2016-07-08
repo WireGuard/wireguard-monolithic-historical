@@ -121,13 +121,11 @@ static char *endpoint(const struct sockaddr_storage *addr)
 	return buf;
 }
 
-static char *ago(const struct timeval *t)
+static size_t pretty_time(char *buf, const size_t len, unsigned long long left)
 {
-	static char buf[1024];
-	unsigned long long left, years, days, hours, minutes, seconds;
 	size_t offset = 0;
+	unsigned long long years, days, hours, minutes, seconds;
 
-	left = time(NULL) - t->tv_sec;
 	years = left / (365 * 24 * 60 * 60);
 	left = left % (365 * 24 * 60 * 60);
 	days = left / (24 * 60 * 60);
@@ -138,20 +136,37 @@ static char *ago(const struct timeval *t)
 	seconds = left % 60;
 
 	if (years)
-		offset += snprintf(buf + offset, sizeof(buf) - offset, "%s%llu " TERMINAL_FG_CYAN "year%s" TERMINAL_RESET, offset ? ", " : "", years, years == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN "year%s" TERMINAL_RESET, offset ? ", " : "", years, years == 1 ? "" : "s");
 	if (days)
-		offset += snprintf(buf + offset, sizeof(buf) - offset, "%s%llu " TERMINAL_FG_CYAN  "day%s" TERMINAL_RESET, offset ? ", " : "", days, days == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN  "day%s" TERMINAL_RESET, offset ? ", " : "", days, days == 1 ? "" : "s");
 	if (hours)
-		offset += snprintf(buf + offset, sizeof(buf) - offset, "%s%llu " TERMINAL_FG_CYAN  "hour%s" TERMINAL_RESET, offset ? ", " : "", hours, hours == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN  "hour%s" TERMINAL_RESET, offset ? ", " : "", hours, hours == 1 ? "" : "s");
 	if (minutes)
-		offset += snprintf(buf + offset, sizeof(buf) - offset, "%s%llu " TERMINAL_FG_CYAN "minute%s" TERMINAL_RESET, offset ? ", " : "", minutes, minutes == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN "minute%s" TERMINAL_RESET, offset ? ", " : "", minutes, minutes == 1 ? "" : "s");
 	if (seconds)
-		offset += snprintf(buf + offset, sizeof(buf) - offset, "%s%llu " TERMINAL_FG_CYAN  "second%s" TERMINAL_RESET, offset ? ", " : "", seconds, seconds == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN  "second%s" TERMINAL_RESET, offset ? ", " : "", seconds, seconds == 1 ? "" : "s");
+
+	return offset;
+}
+
+static char *ago(const struct timeval *t)
+{
+	static char buf[1024];
+	size_t offset;
+
+	offset = pretty_time(buf, sizeof(buf), time(NULL) - t->tv_sec);
 	if (offset)
 		snprintf(buf + offset, sizeof(buf) - offset, " ago");
 	else
 		snprintf(buf, sizeof(buf), "Now");
 
+	return buf;
+}
+
+static char *every(uint16_t seconds)
+{
+	static char buf[1024] = "every ";
+	pretty_time(buf + strlen("every "), sizeof(buf) - strlen("every "), seconds);
 	return buf;
 }
 
@@ -176,7 +191,7 @@ static char *bytes(uint64_t b)
 static const char *COMMAND_NAME = NULL;
 static void show_usage(void)
 {
-	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | preshared-key | listen-port | peers | endpoints | allowed-ips | latest-handshake | bandwidth]\n", PROG_NAME, COMMAND_NAME);
+	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | preshared-key | listen-port | peers | endpoints | allowed-ips | latest-handshake | bandwidth | persistent-keepalive]\n", PROG_NAME, COMMAND_NAME);
 }
 
 static void pretty_print(struct wgdevice *device)
@@ -216,6 +231,8 @@ static void pretty_print(struct wgdevice *device)
 			terminal_printf("%s received, ", bytes(peer->rx_bytes));
 			terminal_printf("%s sent\n", bytes(peer->tx_bytes));
 		}
+		if (peer->persistent_keepalive_interval)
+			terminal_printf("  " TERMINAL_BOLD "persistent keepalive" TERMINAL_RESET ": %s\n", every(peer->persistent_keepalive_interval));
 		if (i + 1 < device->num_peers)
 			terminal_printf("\n");
 	}
@@ -274,6 +291,15 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 			if (with_interface)
 				printf("%s\t", device->interface);
 			printf("%s\t%" PRIu64 "\t%" PRIu64 "\n", key(peer->public_key), (uint64_t)peer->rx_bytes, (uint64_t)peer->tx_bytes);
+		}
+	} else if (!strcmp(param, "persistent-keepalive")) {
+		for_each_wgpeer(device, peer, i) {
+			if (with_interface)
+				printf("%s\t", device->interface);
+			if (peer->persistent_keepalive_interval)
+				printf("%s\t%u\n", key(peer->public_key), peer->persistent_keepalive_interval);
+			else
+				printf("%s\toff\n", key(peer->public_key));
 		}
 	} else if (!strcmp(param, "peers")) {
 		for_each_wgpeer(device, peer, i) {

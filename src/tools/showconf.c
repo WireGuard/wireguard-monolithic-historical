@@ -91,6 +91,9 @@ int showconf_main(int argc, char *argv[])
 			}
 		}
 
+		if (peer->persistent_keepalive_interval)
+			printf("PersistentKeepalive = %u\n", peer->persistent_keepalive_interval);
+
 		if (i + 1 < device->num_peers)
 			printf("\n");
 	}

@@ -182,6 +182,27 @@ static inline bool parse_endpoint(struct sockaddr_storage *endpoint, const char 
 	return true;
 }
 
+static inline bool parse_persistent_keepalive(__u16 *interval, const char *value)
+{
+	unsigned long ret;
+	char *end;
+
+	if (!strcasecmp(value, "off")) {
+		*interval = 0;
+		return true;
+	}
+
+	ret = strtoul(value, &end, 10);
+	if (!*value || *value == '-' || *end || (ret && (ret < 10 || ret > 3600))) {
+		fprintf(stderr, "The persistent keepalive interval must be 0/off or 10-3600. Found: `%s`\n", value);
+		return false;
+	}
+
+	*interval = (__u16)ret;
+	return true;
+}
+
+
 static inline bool parse_ipmasks(struct inflatable_device *buf, size_t peer_offset, const char *value)
 {
 	struct wgpeer *peer;
@@ -263,6 +284,7 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 		ctx->is_peer_section = true;
 		ctx->is_device_section = false;
 		peer_from_offset(ctx->buf.dev, ctx->peer_offset)->replace_ipmasks = true;
+		peer_from_offset(ctx->buf.dev, ctx->peer_offset)->persistent_keepalive_interval = (__u16)-1;
 		return true;
 	}
 
@@ -288,6 +310,8 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 			ret = parse_key(peer_from_offset(ctx->buf.dev, ctx->peer_offset)->public_key, value);
 		else if (key_match("AllowedIPs"))
 			ret = parse_ipmasks(&ctx->buf, ctx->peer_offset, value);
+		else if (key_match("PersistentKeepalive"))
+			ret = parse_persistent_keepalive(&peer_from_offset(ctx->buf.dev, ctx->peer_offset)->persistent_keepalive_interval, value);
 		else
 			goto error;
 	} else
@@ -476,6 +500,7 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 				perror("use_space");
 				goto error;
 			}
+			peer_from_offset(buf.dev, peer_offset)->persistent_keepalive_interval = (__u16)-1;
 			++buf.dev->num_peers;
 			if (!parse_key(peer_from_offset(buf.dev, peer_offset)->public_key, argv[1]))
 				goto error;
@@ -499,6 +524,11 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 				goto error;
 			}
 			free(line);
+			argv += 2;
+			argc -= 2;
+		} else if (!strcmp(argv[0], "persistent-keepalive") && argc >= 2 && buf.dev->num_peers) {
+			if (!parse_persistent_keepalive(&peer_from_offset(buf.dev, peer_offset)->persistent_keepalive_interval, argv[1]))
+				goto error;
 			argv += 2;
 			argc -= 2;
 		} else {
