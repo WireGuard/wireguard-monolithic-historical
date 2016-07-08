@@ -9,7 +9,7 @@ IFS=: read -r status server_pubkey server_port internal_ip <&3
 [[ $status == OK ]]
 ip link del dev wg0 2>/dev/null || true
 ip link add dev wg0 type wireguard
-wg set wg0 private-key /tmp/wg_private_key peer "$server_pubkey" allowed-ips 0.0.0.0/0 endpoint "demo.wireguard.io:$server_port"
+wg set wg0 private-key /tmp/wg_private_key peer "$server_pubkey" allowed-ips 0.0.0.0/0 endpoint "demo.wireguard.io:$server_port" persistent-keepalive 25
 ip address add "$internal_ip"/24 dev wg0
 ip link set up dev wg0
 if [ "$1" == "default-route" ]; then
