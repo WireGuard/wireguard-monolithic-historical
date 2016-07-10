@@ -154,10 +154,12 @@ void timers_init_peer(struct wireguard_peer *peer)
 	init_timer(&peer->timer_send_keepalive);
 	peer->timer_send_keepalive.function = expired_send_keepalive;
 	peer->timer_send_keepalive.data = (unsigned long)peer;
+	set_timer_slack(&peer->timer_send_keepalive, HZ / 4);
 
 	init_timer(&peer->timer_new_handshake);
 	peer->timer_new_handshake.function = expired_new_handshake;
 	peer->timer_new_handshake.data = (unsigned long)peer;
+	set_timer_slack(&peer->timer_new_handshake, HZ / 4);
 
 	init_timer(&peer->timer_kill_ephemerals);
 	peer->timer_kill_ephemerals.function = expired_kill_ephemerals;
@@ -166,6 +168,7 @@ void timers_init_peer(struct wireguard_peer *peer)
 	init_timer(&peer->timer_persistent_keepalive);
 	peer->timer_persistent_keepalive.function = expired_send_persistent_keepalive;
 	peer->timer_persistent_keepalive.data = (unsigned long)peer;
+	set_timer_slack(&peer->timer_persistent_keepalive, max_t(int, HZ / 2, peer->persistent_keepalive_interval / 256));
 
 	INIT_WORK(&peer->clear_peer_work, queued_expired_kill_ephemerals);
 }
