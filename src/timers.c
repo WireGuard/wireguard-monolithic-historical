@@ -82,7 +82,7 @@ static void expired_send_persistent_keepalive(unsigned long ptr)
 
 	if (unlikely(!peer->persistent_keepalive_interval))
 		return;
-	pr_debug("Sending keep alive packet to peer %Lu (%pISpfsc), since we haven't sent or received authenticated data for %u seconds\n", peer->internal_id, &peer->endpoint_addr, peer->persistent_keepalive_interval);
+	pr_debug("Sending keep alive packet to peer %Lu (%pISpfsc), since we haven't sent or received authenticated data for %lu seconds\n", peer->internal_id, &peer->endpoint_addr, peer->persistent_keepalive_interval / HZ);
 	packet_send_keepalive(peer);
 }
 
@@ -134,7 +134,7 @@ void timers_ephemeral_key_created(struct wireguard_peer *peer)
 void timers_any_authenticated_packet_traversal(struct wireguard_peer *peer)
 {
 	if (peer->persistent_keepalive_interval && likely(peer->timer_persistent_keepalive.data))
-		mod_timer(&peer->timer_persistent_keepalive, jiffies + HZ * peer->persistent_keepalive_interval);
+		mod_timer(&peer->timer_persistent_keepalive, jiffies + peer->persistent_keepalive_interval);
 }
 
 void timers_init_peer(struct wireguard_peer *peer)
