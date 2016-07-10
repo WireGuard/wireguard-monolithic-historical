@@ -248,7 +248,7 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 	}
 
 	dev->last_rx = jiffies;
-	if (netif_rx(skb) == NET_RX_SUCCESS)
+	if (likely(netif_rx(skb) == NET_RX_SUCCESS))
 		rx_stats(peer, skb->len);
 	else {
 		++dev->stats.rx_dropped;
