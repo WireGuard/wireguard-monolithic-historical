@@ -275,7 +275,7 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 	static const u8 addr;
 #endif
 
-	if (unlikely(skb_data_offset(skb, &offset, &len) < 0 || !len))
+	if (unlikely(skb_data_offset(skb, &offset, &len) < 0))
 		goto err;
 	switch (message_determine_type(skb->data + offset, len)) {
 	case MESSAGE_HANDSHAKE_INITIATION:
