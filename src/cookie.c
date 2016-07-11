@@ -164,6 +164,7 @@ void cookie_message_create(struct message_handshake_cookie *dst, struct sk_buff 
 	dst->header.type = MESSAGE_HANDSHAKE_COOKIE;
 	dst->receiver_index = index;
 	get_random_bytes(dst->salt, COOKIE_SALT_LEN);
+	blake2s(dst->salt, dst->salt, NULL, COOKIE_SALT_LEN, COOKIE_SALT_LEN, 0); /* Avoid directly transmitting RNG output. */
 
 	down_read(&checker->device->static_identity.lock);
 	if (unlikely(!checker->device->static_identity.has_identity)) {
