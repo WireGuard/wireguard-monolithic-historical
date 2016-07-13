@@ -86,7 +86,7 @@ core-cloc: clean
 check:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) C=2 CF="-D__CHECK_ENDIAN__" CONFIG_WIREGUARD_DEBUG=y
 
-include debug.mk
+include tests/debug.mk
 
 .PHONY: all module module-debug tools install clean core-cloc check
 endif

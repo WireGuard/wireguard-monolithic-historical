@@ -15,18 +15,18 @@ ifeq ($(D),0)
 MAYBE_DEBUG :=
 endif
 
-quick: debug
-	sudo modprobe ip6_udp_tunnel
-	sudo modprobe udp_tunnel
-	sudo modprobe x_tables
-	-sudo rmmod wireguard
-	sudo insmod wireguard.ko
-	bash netns.sh $(QUICK_ARGS)
+test: debug
+	-sudo modprobe ip6_udp_tunnel
+	-sudo modprobe udp_tunnel
+	-sudo modprobe x_tables
+	-sudo modprobe ipv6
+	-sudo modprobe xt_hashlimit
+	./tests/netns.sh
 
-remote-quick:
+remote-test:
 	ssh $(SSH_OPTS1) -Nf $(REMOTE_HOST1)
 	rsync --rsh="ssh $(SSH_OPTS1)" $(RSYNC_OPTS) . $(REMOTE_HOST1):wireguard-build/
-	ssh $(SSH_OPTS1) $(REMOTE_HOST1) 'make -C wireguard-build quick -j$$(nproc) "QUICK_ARGS=$(QUICK_ARGS)"'
+	ssh $(SSH_OPTS1) $(REMOTE_HOST1) 'make -C wireguard-build test -j$$(nproc)'
 	ssh $(SSH_OPTS1) -O exit $(REMOTE_HOST1)
 
 remote-run-1:
