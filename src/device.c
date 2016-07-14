@@ -77,10 +77,9 @@ static void skb_unsendable(struct sk_buff *skb, struct net_device *dev)
 	/* This conntrack stuff is because the rate limiting needs to be applied
 	 * to the original src IP, so we have to restore saddr in the IP header. */
 	struct nf_conn *ct = NULL;
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	enum ip_conntrack_info ctinfo;
+
 	ct = nf_ct_get(skb, &ctinfo);
-#endif
 	++dev->stats.tx_errors;
 
 	if (skb->len < sizeof(struct iphdr))

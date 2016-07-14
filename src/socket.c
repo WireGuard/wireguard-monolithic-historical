@@ -62,6 +62,7 @@ static inline struct dst_entry *route(struct wireguard_device *wg, struct flowi4
 			dst = ERR_PTR(PTR_ERR(rt));
 		dst = &rt->dst;
 	} else if (addr->ss_family == AF_INET6) {
+#if IS_ENABLED(CONFIG_IPV6)
 		int ret;
 		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addr;
 
@@ -84,6 +85,7 @@ static inline struct dst_entry *route(struct wireguard_device *wg, struct flowi4
 #endif
 		if (unlikely(ret))
 			dst = ERR_PTR(ret);
+#endif
 	}
 	return dst;
 }
@@ -122,7 +124,7 @@ static inline int send(struct net_device *dev, struct sk_buff *skb, struct dst_e
 			ret = -ENONET;
 			goto err;
 		}
-
+#if IS_ENABLED(CONFIG_IPV6)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 		return udp_tunnel6_xmit_skb(dst, sock6, skb, dev,
 					    &fl6->saddr, &fl6->daddr,
@@ -143,6 +145,9 @@ static inline int send(struct net_device *dev, struct sk_buff *skb, struct dst_e
 				     fl6->fl6_sport, fl6->fl6_dport,
 				     false);
 		return 0;
+#endif
+#else
+		goto err;
 #endif
 	}
 
@@ -391,11 +396,14 @@ static inline void set_sock_opts(struct socket *sock)
 
 int socket_init(struct wireguard_device *wg)
 {
+	struct socket *new4 = NULL;
 	struct udp_port_cfg port4 = {
 		.family = AF_INET,
 		.local_ip.s_addr = htonl(INADDR_ANY),
 		.use_udp_checksums = true
 	};
+#if IS_ENABLED(CONFIG_IPV6)
+	struct socket *new6 = NULL;
 	struct udp_port_cfg port6 = {
 		.family = AF_INET6,
 		.local_ip6 = IN6ADDR_ANY_INIT,
@@ -405,6 +413,7 @@ int socket_init(struct wireguard_device *wg)
 		.ipv6_v6only = true
 #endif
 	};
+#endif
 	struct udp_tunnel_sock_cfg cfg = {
 		.sk_user_data = wg,
 		.encap_type = 1,
@@ -412,7 +421,6 @@ int socket_init(struct wireguard_device *wg)
 	};
 
 	int ret = 0;
-	struct socket *new4 = NULL, *new6 = NULL;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
 	int old_bindv6only;
 #endif
@@ -427,7 +435,11 @@ int socket_init(struct wireguard_device *wg)
 
 	if (!wg->incoming_port)
 		wg->incoming_port = generate_default_incoming_port(wg);
-	port4.local_udp_port = port6.local_udp_port = htons(wg->incoming_port);
+	port4.local_udp_port =
+#if IS_ENABLED(CONFIG_IPV6)
+		port6.local_udp_port =
+#endif
+		htons(wg->incoming_port);
 
 	ret = udp_sock_create(wg->creating_net, &port4, &new4);
 	if (ret < 0) {
@@ -435,6 +447,11 @@ int socket_init(struct wireguard_device *wg)
 		goto out;
 	}
 
+	set_sock_opts(new4);
+	setup_udp_tunnel_sock(wg->creating_net, new4, &cfg);
+	rcu_assign_pointer(wg->sock4, new4->sk);
+
+#if IS_ENABLED(CONFIG_IPV6)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
 	/* Since udp_port_cfg only learned of ipv6_v6only in 4.3, we do this horrible
 	 * hack here and set the sysctl variable temporarily to something that will
@@ -452,12 +469,10 @@ int socket_init(struct wireguard_device *wg)
 		goto out;
 	}
 
-	set_sock_opts(new4);
 	set_sock_opts(new6);
-	setup_udp_tunnel_sock(wg->creating_net, new4, &cfg);
 	setup_udp_tunnel_sock(wg->creating_net, new6, &cfg);
-	rcu_assign_pointer(wg->sock4, new4->sk);
 	rcu_assign_pointer(wg->sock6, new6->sk);
+#endif
 
 out:
 	mutex_unlock(&wg->socket_update_lock);

@@ -1,8 +1,13 @@
 config WIREGUARD
-	bool "WireGuard secure VPN tunnel"
+	bool "IP: WireGuard secure network tunnel"
+	depends on NET && INET
 	select NET_UDP_TUNNEL
 	select NETFILTER_XT_MATCH_HASHLIMIT
-	select IPV6
+	select NETFILTER
+	select NETFILTER_XTABLES
+	select NETFILTER_ADVANCED
+	select NF_CONNTRACK
+	select CRYPTO_BLKCIPHER
 	default y
 	---help---
 	  WireGuard is a secure, fast, and easy to use replacement for IPSec
@@ -13,17 +18,6 @@ config WIREGUARD
 
 	  It's safe to say Y or M here, as the driver is very lightweight and
 	  is only in use when an administrator chooses to add an interface.
-
-config WIREGUARD_DEBUG
-	bool "Debugging checks and verbose messages for WireGuard"
-	depends on WIREGUARD
-	---help---
-	  This will write log messages for handshake and other events
-	  that occur for a WireGuard interface. It will also perform some
-	  extra validation checks and unit tests at various points. This is
-	  only useful for debugging.
-	  
-	  Say N here unless you know what you're doing.
 
 config WIREGUARD_PARALLEL
 	bool "Enable parallel engine"
@@ -36,3 +30,14 @@ config WIREGUARD_PARALLEL
 	  
 	  It's safe to say Y here, and you probably should, as the performance
 	  improvements are substantial.
+
+config WIREGUARD_DEBUG
+	bool "Debugging checks and verbose messages"
+	depends on WIREGUARD
+	---help---
+	  This will write log messages for handshake and other events
+	  that occur for a WireGuard interface. It will also perform some
+	  extra validation checks and unit tests at various points. This is
+	  only useful for debugging.
+	  
+	  Say N here unless you know what you're doing.

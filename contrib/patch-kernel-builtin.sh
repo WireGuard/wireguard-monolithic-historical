@@ -8,5 +8,5 @@ if [[ ! -e $K/net/Kconfig ]]; then
 	exit 1
 fi
 
-sed -i "/^if NET\$/a source \"$WG/Kconfig\"" "$K/net/Kconfig"
+sed -i "/^if INET\$/a source \"$WG/Kconfig\"" "$K/net/Kconfig"
 echo "obj-y += ../../../../../../../../../../../../../../../../../../../../../..$WG/" >> "$K/net/Makefile"
