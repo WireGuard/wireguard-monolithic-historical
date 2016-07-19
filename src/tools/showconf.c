@@ -31,13 +31,13 @@ int showconf_main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (!kernel_has_wireguard_interface(argv[1])) {
+	if (!has_wireguard_interface(argv[1])) {
 		fprintf(stderr, "`%s` is not a valid WireGuard interface\n", argv[1]);
 		fprintf(stderr, "Usage: %s %s <interface>\n", PROG_NAME, argv[0]);
 		return 1;
 	}
 
-	if (kernel_get_device(&device, argv[1])) {
+	if (get_device(&device, argv[1])) {
 		perror("Unable to get device");
 		goto cleanup;
 	}

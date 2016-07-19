@@ -1,24 +1,36 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include <errno.h>
+#ifdef __linux__
 #include <libmnl/libmnl.h>
 #include <linux/if_link.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#endif
 #include <netinet/in.h>
 #include <net/if.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <time.h>
+#include <dirent.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <sys/signal.h>
 
 #include "kernel.h"
 #include "../uapi.h"
+
+#define SOCK_PATH RUNSTATEDIR "/wireguard/"
+#define SOCK_SUFFIX ".sock"
 
 struct inflatable_buffer {
 	char *buffer;
@@ -37,19 +49,24 @@ static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 
 	if (!buffer->good || !buffer->next) {
 		free(buffer->next);
+		buffer->good = false;
 		return 0;
 	}
 
 	len = strlen(buffer->next) + 1;
 
-	if (len == 1)
+	if (len == 1) {
+		free(buffer->next);
+		buffer->good = false;
 		return 0;
+	}
 
 	if (buffer->len - buffer->pos <= len) {
 		expand_to = max(buffer->len * 2, buffer->len + len + 1);
 		new_buffer = realloc(buffer->buffer, expand_to);
 		if (!new_buffer) {
 			free(buffer->next);
+			buffer->good = false;
 			return -errno;
 		}
 		memset(&new_buffer[buffer->len], 0, expand_to - buffer->len);
@@ -58,10 +75,149 @@ static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 	}
 	memcpy(&buffer->buffer[buffer->pos], buffer->next, len);
 	free(buffer->next);
+	buffer->good = false;
 	buffer->pos += len;
 	return 0;
 }
 
+static int userspace_interface_fd(const char *interface)
+{
+	struct stat sbuf;
+	struct sockaddr_un addr = { .sun_family = AF_UNIX };
+	int fd = -1, ret;
+	ret = snprintf(addr.sun_path, sizeof(addr.sun_path) - 1, SOCK_PATH "%s" SOCK_SUFFIX, interface);
+	if (ret < 0)
+		goto out;
+	ret = stat(addr.sun_path, &sbuf);
+	if (ret < 0)
+		goto out;
+	ret = -EBADF;
+	if (!S_ISSOCK(sbuf.st_mode))
+		goto out;
+
+	ret = fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+	if (ret < 0)
+		goto out;
+	ret = bind(fd, (struct sockaddr *)&addr, sizeof(sa_family_t));
+	if (ret < 0)
+		goto out;
+	ret = connect(fd, (struct sockaddr *)&addr, sizeof(addr));
+	if (ret < 0) {
+		if (errno == ECONNREFUSED) /* If the process is gone, we try to clean up the socket. */
+			unlink(addr.sun_path);
+		goto out;
+	}
+out:
+	if (ret && fd >= 0)
+		close(fd);
+	if (!ret)
+		ret = fd;
+	return ret;
+}
+
+static bool userspace_has_wireguard_interface(const char *interface)
+{
+	int fd = userspace_interface_fd(interface);
+	if (fd < 0)
+		return false;
+	close(fd);
+	return true;
+}
+
+static int userspace_get_wireguard_interfaces(struct inflatable_buffer *buffer)
+{
+	DIR *dir;
+	struct dirent *ent;
+	size_t len;
+	char *end;
+	int ret = 0;
+
+	dir = opendir(SOCK_PATH);
+	if (!dir)
+		return errno == ENOENT ? 0 : errno;
+	while ((ent = readdir(dir))) {
+		len = strlen(ent->d_name);
+		if (len <= strlen(SOCK_SUFFIX))
+			continue;
+		end = &ent->d_name[len - strlen(SOCK_SUFFIX)];
+		if (strncmp(end, SOCK_SUFFIX, strlen(SOCK_SUFFIX)))
+			continue;
+		*end = '\0';
+		if (!userspace_has_wireguard_interface(ent->d_name))
+			continue;
+		buffer->next = strdup(ent->d_name);
+		buffer->good = true;
+		ret = add_next_to_inflatable_buffer(buffer);
+		if (ret < 0)
+			goto out;
+	}
+out:
+	closedir(dir);
+	return ret;
+}
+
+static int userspace_set_device(struct wgdevice *dev)
+{
+	struct wgpeer *peer;
+	size_t len;
+	ssize_t ret;
+	int ret_code;
+	int fd = userspace_interface_fd(dev->interface);
+	if (fd < 0)
+		return fd;
+	for_each_wgpeer(dev, peer, len);
+	len = (unsigned char *)peer - (unsigned char *)dev;
+	ret = -EBADMSG;
+	if (!len)
+		goto out;
+	ret = send(fd, dev, len, 0);
+	if (ret < 0)
+		goto out;
+	ret = recv(fd, &ret_code, sizeof(ret_code), 0);
+	if (ret < 0)
+		goto out;
+	ret = ret_code;
+out:
+	close(fd);
+	return (int)ret;
+}
+
+static int userspace_get_device(struct wgdevice **dev, const char *interface)
+{
+	ssize_t len;
+	int ret, fd = userspace_interface_fd(interface);
+	if (fd < 0)
+		return fd;
+	*dev = NULL;
+	ret = send(fd, NULL, 0, 0);
+	if (ret < 0)
+		goto out;
+
+	ret = len = recv(fd, NULL, 0, MSG_PEEK | MSG_TRUNC);
+	if (len < 0)
+		goto out;
+	ret = -EBADMSG;
+	if ((size_t)len < sizeof(struct wgdevice))
+		goto out;
+
+	ret = -ENOMEM;
+	*dev = calloc(len, 1);
+	if (!*dev)
+		goto out;
+
+	ret = recv(fd, *dev, len, 0);
+	if (ret < 0)
+		goto out;
+	ret = 0;
+out:
+	if (*dev && ret)
+		free(*dev);
+	close(fd);
+	errno = -ret;
+	return ret;
+}
+
+#ifdef __linux__
 static int parse_linkinfo(const struct nlattr *attr, void *data)
 {
 	struct inflatable_buffer *buffer = data;
@@ -96,8 +252,7 @@ static int read_devices_cb(const struct nlmsghdr *nlh, void *data)
 	return MNL_CB_OK;
 }
 
-/* first\0second\0third\0forth\0last\0\0 */
-char *kernel_get_wireguard_interfaces(void)
+static int kernel_get_wireguard_interfaces(struct inflatable_buffer *buffer)
 {
 	struct mnl_socket *nl = NULL;
 	char *rtnl_buffer = NULL;
@@ -105,22 +260,13 @@ char *kernel_get_wireguard_interfaces(void)
 	unsigned int portid, seq;
 	ssize_t len;
 	int ret = 0;
-	struct inflatable_buffer buffer = { 0 };
 	struct nlmsghdr *nlh;
 	struct ifinfomsg *ifm;
 
-	buffer.len = 4096;
-	buffer.buffer = calloc(buffer.len, 1);
-	if (!buffer.buffer) {
-		ret = -errno;
-		goto cleanup;
-	}
-
+	ret = -ENOMEM;
 	rtnl_buffer = calloc(4096, 1);
-	if (!rtnl_buffer) {
-		ret = -errno;
+	if (!rtnl_buffer)
 		goto cleanup;
-	}
 
 	nl = mnl_socket_open(NETLINK_ROUTE);
 	if (!nl) {
@@ -153,39 +299,41 @@ another:
 		ret = -errno;
 		goto cleanup;
 	}
-	if ((len = mnl_cb_run(rtnl_buffer, len, seq, portid, read_devices_cb, &buffer)) < 0) {
+	if ((len = mnl_cb_run(rtnl_buffer, len, seq, portid, read_devices_cb, buffer)) < 0) {
 		ret = -errno;
 		goto cleanup;
 	}
 	if (len == MNL_CB_OK + 1)
 		goto another;
+	ret = 0;
 
 cleanup:
 	free(rtnl_buffer);
 	if (nl)
 		mnl_socket_close(nl);
-	errno = -ret;
-	if (errno) {
-		perror("Error when trying to get a list of Wireguard interfaces");
-		free(buffer.buffer);
-		return NULL;
-	}
-	return buffer.buffer;
+	return ret;
 }
 
-bool kernel_has_wireguard_interface(const char *interface)
+static bool kernel_has_wireguard_interface(const char *interface)
 {
-	char *interfaces, *this_interface;
-	this_interface = interfaces = kernel_get_wireguard_interfaces();
-	if (!interfaces)
+	char *this_interface;
+	struct inflatable_buffer buffer = { .len = 4096 };
+
+	buffer.buffer = calloc(buffer.len, 1);
+	if (!buffer.buffer)
 		return false;
+	if (kernel_get_wireguard_interfaces(&buffer) < 0) {
+		free(buffer.buffer);
+		return false;
+	}
+	this_interface = buffer.buffer;
 	for (size_t len = 0; (len = strlen(this_interface)); this_interface += len + 1) {
 		if (!strcmp(interface, this_interface)) {
-			free(interfaces);
+			free(buffer.buffer);
 			return true;
 		}
 	}
-	free(interfaces);
+	free(buffer.buffer);
 	return false;
 }
 
@@ -200,7 +348,7 @@ static int do_ioctl(int req, struct ifreq *ifreq)
 	return ioctl(fd, req, ifreq);
 }
 
-int kernel_set_device(struct wgdevice *dev)
+static int kernel_set_device(struct wgdevice *dev)
 {
 	struct ifreq ifreq = { .ifr_data = (char *)dev };
 	memcpy(&ifreq.ifr_name, dev->interface, IFNAMSIZ);
@@ -208,7 +356,7 @@ int kernel_set_device(struct wgdevice *dev)
 	return do_ioctl(WG_SET_DEVICE, &ifreq);
 }
 
-int kernel_get_device(struct wgdevice **dev, const char *interface)
+static int kernel_get_device(struct wgdevice **dev, const char *interface)
 {
 	int ret;
 	struct ifreq ifreq = { 0 };
@@ -222,7 +370,6 @@ int kernel_get_device(struct wgdevice **dev, const char *interface)
 			goto out;
 		*dev = calloc(ret + sizeof(struct wgdevice), 1);
 		if (!*dev) {
-			perror("calloc");
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -239,4 +386,66 @@ int kernel_get_device(struct wgdevice **dev, const char *interface)
 out:
 	errno = -ret;
 	return ret;
+}
+#endif
+
+/* first\0second\0third\0forth\0last\0\0 */
+char *get_wireguard_interfaces(void)
+{
+	struct inflatable_buffer buffer = { .len = 4096 };
+	int ret;
+
+	ret = -ENOMEM;
+	buffer.buffer = calloc(buffer.len, 1);
+	if (!buffer.buffer)
+		goto cleanup;
+
+#ifdef __linux__
+	ret = kernel_get_wireguard_interfaces(&buffer);
+	if (ret < 0)
+		goto cleanup;
+#endif
+	ret = userspace_get_wireguard_interfaces(&buffer);
+	if (ret < 0)
+		goto cleanup;
+
+cleanup:
+	errno = -ret;
+	if (errno) {
+		perror("Error when trying to get a list of WireGuard interfaces");
+		free(buffer.buffer);
+		return NULL;
+	}
+	return buffer.buffer;
+}
+
+int get_device(struct wgdevice **dev, const char *interface)
+{
+#ifdef __linux__
+	if (userspace_has_wireguard_interface(interface))
+		return userspace_get_device(dev, interface);
+	return kernel_get_device(dev, interface);
+#else
+	return userspace_get_device(dev, interface);
+#endif
+}
+
+int set_device(struct wgdevice *dev)
+{
+#ifdef __linux__
+	if (userspace_has_wireguard_interface(dev->interface))
+		return userspace_set_device(dev);
+	return kernel_set_device(dev);
+#else
+	return userspace_set_device(dev);
+#endif
+}
+
+bool has_wireguard_interface(const char *interface)
+{
+#ifdef __linux__
+	return userspace_has_wireguard_interface(interface) || kernel_has_wireguard_interface(interface);
+#else
+	return userspace_has_wireguard_interface(interface);
+#endif
 }

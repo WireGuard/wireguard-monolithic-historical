@@ -22,7 +22,7 @@ int set_main(int argc, char *argv[])
 	strncpy(device->interface, argv[1], IFNAMSIZ -  1);
 	device->interface[IFNAMSIZ - 1] = 0;
 
-	if (kernel_set_device(device) != 0) {
+	if (set_device(device) != 0) {
 		perror("Unable to set device");
 		goto cleanup;
 	}

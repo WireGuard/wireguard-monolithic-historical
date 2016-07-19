@@ -5,9 +5,11 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <syscall.h>
 #include <string.h>
 #include <fcntl.h>
+#ifdef __linux
+#include <syscall.h>
+#endif
 
 #include "curve25519.h"
 #include "base64.h"
@@ -17,7 +19,7 @@ static inline ssize_t get_random_bytes(uint8_t *out, size_t len)
 {
 	ssize_t ret;
 	int fd;
-#ifdef __NR_getrandom
+#if defined(__NR_getrandom) && defined(__linux__)
 	ret = syscall(__NR_getrandom, out, len, 0);
 	if (ret >= 0)
 		return ret;

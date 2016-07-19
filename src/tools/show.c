@@ -326,7 +326,7 @@ int show_main(int argc, char *argv[])
 	}
 
 	if (argc == 1 || !strcmp(argv[1], "all")) {
-		char *interfaces = kernel_get_wireguard_interfaces(), *interface;
+		char *interfaces = get_wireguard_interfaces(), *interface;
 		if (!interfaces) {
 			perror("Unable to get devices");
 			return 1;
@@ -334,7 +334,7 @@ int show_main(int argc, char *argv[])
 		interface = interfaces;
 		for (size_t len = 0; (len = strlen(interface)); interface += len + 1) {
 			struct wgdevice *device = NULL;
-			if (kernel_get_device(&device, interface) < 0) {
+			if (get_device(&device, interface) < 0) {
 				perror("Unable to get device");
 				continue;
 			}
@@ -358,7 +358,7 @@ int show_main(int argc, char *argv[])
 			show_usage();
 			return 1;
 		}
-		interfaces = kernel_get_wireguard_interfaces();
+		interfaces = get_wireguard_interfaces();
 		if (!interfaces) {
 			perror("Unable to get devices");
 			return 1;
@@ -371,12 +371,12 @@ int show_main(int argc, char *argv[])
 		show_usage();
 	else {
 		struct wgdevice *device = NULL;
-		if (!kernel_has_wireguard_interface(argv[1])) {
+		if (!has_wireguard_interface(argv[1])) {
 			fprintf(stderr, "`%s` is not a valid WireGuard interface\n", argv[1]);
 			show_usage();
 			return 1;
 		}
-		if (kernel_get_device(&device, argv[1]) < 0) {
+		if (get_device(&device, argv[1]) < 0) {
 			perror("Unable to get device");
 			show_usage();
 			return 1;

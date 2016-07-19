@@ -7,10 +7,10 @@
 
 struct wgdevice;
 
-int kernel_set_device(struct wgdevice *dev);
-int kernel_get_device(struct wgdevice **dev, const char *interface);
-char *kernel_get_wireguard_interfaces(void);
-bool kernel_has_wireguard_interface(const char *interface);
+int set_device(struct wgdevice *dev);
+int get_device(struct wgdevice **dev, const char *interface);
+char *get_wireguard_interfaces(void);
+bool has_wireguard_interface(const char *interface);
 
 
 #define for_each_wgpeer(__dev, __peer, __i) for ((__i) = 0, (__peer) = (typeof(__peer))((uint8_t *)(__dev) + sizeof(struct wgdevice)); \
