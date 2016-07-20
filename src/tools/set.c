@@ -5,7 +5,7 @@
 #include <string.h>
 #include "subcommands.h"
 #include "config.h"
-#include "kernel.h"
+#include "ipc.h"
 
 int set_main(int argc, char *argv[])
 {
@@ -22,7 +22,7 @@ int set_main(int argc, char *argv[])
 	strncpy(device->interface, argv[1], IFNAMSIZ -  1);
 	device->interface[IFNAMSIZ - 1] = 0;
 
-	if (set_device(device) != 0) {
+	if (ipc_set_device(device) != 0) {
 		perror("Unable to set device");
 		goto cleanup;
 	}

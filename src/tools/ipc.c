@@ -26,7 +26,7 @@
 #include <sys/un.h>
 #include <sys/signal.h>
 
-#include "kernel.h"
+#include "ipc.h"
 #include "../uapi.h"
 
 #define SOCK_PATH RUNSTATEDIR "/wireguard/"
@@ -455,7 +455,7 @@ out:
 #endif
 
 /* first\0second\0third\0forth\0last\0\0 */
-char *get_wireguard_interfaces(void)
+char *ipc_list_devices(void)
 {
 	struct inflatable_buffer buffer = { .len = 4096 };
 	int ret;
@@ -484,7 +484,7 @@ cleanup:
 	return buffer.buffer;
 }
 
-int get_device(struct wgdevice **dev, const char *interface)
+int ipc_get_device(struct wgdevice **dev, const char *interface)
 {
 #ifdef __linux__
 	if (userspace_has_wireguard_interface(interface))
@@ -495,7 +495,7 @@ int get_device(struct wgdevice **dev, const char *interface)
 #endif
 }
 
-int set_device(struct wgdevice *dev)
+int ipc_set_device(struct wgdevice *dev)
 {
 #ifdef __linux__
 	if (userspace_has_wireguard_interface(dev->interface))
@@ -506,7 +506,7 @@ int set_device(struct wgdevice *dev)
 #endif
 }
 
-bool has_wireguard_interface(const char *interface)
+bool ipc_has_device(const char *interface)
 {
 #ifdef __linux__
 	return userspace_has_wireguard_interface(interface) || kernel_has_wireguard_interface(interface);

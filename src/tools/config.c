@@ -12,7 +12,7 @@
 #include <errno.h>
 
 #include "config.h"
-#include "kernel.h"
+#include "ipc.h"
 #include "base64.h"
 
 #define COMMENT_CHAR '#'

@@ -1,16 +1,16 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef KERNEL_H
-#define KERNEL_H
+#ifndef IPC_H
+#define IPC_H
 
 #include <stdbool.h>
 
 struct wgdevice;
 
-int set_device(struct wgdevice *dev);
-int get_device(struct wgdevice **dev, const char *interface);
-char *get_wireguard_interfaces(void);
-bool has_wireguard_interface(const char *interface);
+int ipc_set_device(struct wgdevice *dev);
+int ipc_get_device(struct wgdevice **dev, const char *interface);
+char *ipc_list_devices(void);
+bool ipc_has_device(const char *interface);
 
 
 #define for_each_wgpeer(__dev, __peer, __i) for ((__i) = 0, (__peer) = (typeof(__peer))((uint8_t *)(__dev) + sizeof(struct wgdevice)); \
