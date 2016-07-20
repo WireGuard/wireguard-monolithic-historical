@@ -80,14 +80,40 @@ static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 	return 0;
 }
 
+#ifndef __linux__
+static void close_and_unlink(int fd)
+{
+	struct sockaddr_un addr;
+	socklen_t len = sizeof(addr);
+
+	if (!getsockname(fd, (struct sockaddr *)&addr, &len))
+		unlink(addr.sun_path);
+	close(fd);
+}
+#endif
+
 static int userspace_interface_fd(const char *interface)
 {
 	struct stat sbuf;
 	struct sockaddr_un addr = { .sun_family = AF_UNIX };
+#ifndef __linux__
+	struct sockaddr_un bind_addr = { .sun_family = AF_UNIX };
+	mode_t old_umask;
+#endif
 	int fd = -1, ret;
+
+	ret = -EINVAL;
+	if (strchr(interface, '/'))
+		goto out;
 	ret = snprintf(addr.sun_path, sizeof(addr.sun_path) - 1, SOCK_PATH "%s" SOCK_SUFFIX, interface);
 	if (ret < 0)
 		goto out;
+#ifndef __linux__
+	ret = snprintf(bind_addr.sun_path, sizeof(bind_addr.sun_path) - 1, SOCK_PATH ".wg-tool-%s-%d.client", interface, getpid());
+	if (ret < 0)
+		goto out;
+	unlink(bind_addr.sun_path);
+#endif
 	ret = stat(addr.sun_path, &sbuf);
 	if (ret < 0)
 		goto out;
@@ -98,9 +124,16 @@ static int userspace_interface_fd(const char *interface)
 	ret = fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (ret < 0)
 		goto out;
+#ifdef __linux__
 	ret = bind(fd, (struct sockaddr *)&addr, sizeof(sa_family_t));
+#else
+	old_umask = umask(0077);
+	ret = bind(fd, (struct sockaddr *)&bind_addr, sizeof(bind_addr));
+	umask(old_umask);
+#endif
 	if (ret < 0)
 		goto out;
+
 	ret = connect(fd, (struct sockaddr *)&addr, sizeof(addr));
 	if (ret < 0) {
 		if (errno == ECONNREFUSED) /* If the process is gone, we try to clean up the socket. */
@@ -109,7 +142,11 @@ static int userspace_interface_fd(const char *interface)
 	}
 out:
 	if (ret && fd >= 0)
+#ifdef __linux__
 		close(fd);
+#else
+		close_and_unlink(fd);
+#endif
 	if (!ret)
 		ret = fd;
 	return ret;
@@ -120,7 +157,11 @@ static bool userspace_has_wireguard_interface(const char *interface)
 	int fd = userspace_interface_fd(interface);
 	if (fd < 0)
 		return false;
+#ifdef __linux__
 	close(fd);
+#else
+	close_and_unlink(fd);
+#endif
 	return true;
 }
 
@@ -178,14 +219,23 @@ static int userspace_set_device(struct wgdevice *dev)
 		goto out;
 	ret = ret_code;
 out:
+#ifdef __linux__
 	close(fd);
+#else
+	close_and_unlink(fd);
+#endif
 	return (int)ret;
 }
 
 static int userspace_get_device(struct wgdevice **dev, const char *interface)
 {
+#ifdef __linux__
 	ssize_t len;
-	int ret, fd = userspace_interface_fd(interface);
+#else
+	int len;
+#endif
+	ssize_t ret;
+	int fd = userspace_interface_fd(interface);
 	if (fd < 0)
 		return fd;
 	*dev = NULL;
@@ -193,9 +243,20 @@ static int userspace_get_device(struct wgdevice **dev, const char *interface)
 	if (ret < 0)
 		goto out;
 
+#ifdef __linux__
 	ret = len = recv(fd, NULL, 0, MSG_PEEK | MSG_TRUNC);
 	if (len < 0)
 		goto out;
+#else
+	ret = recv(fd, &ret, 1, MSG_PEEK);
+	if (ret < 0)
+		goto out;
+	ret = ioctl(fd, FIONREAD, &len);
+	if (ret < 0) {
+		ret = -errno;
+		goto out;
+	}
+#endif
 	ret = -EBADMSG;
 	if ((size_t)len < sizeof(struct wgdevice))
 		goto out;
@@ -212,7 +273,11 @@ static int userspace_get_device(struct wgdevice **dev, const char *interface)
 out:
 	if (*dev && ret)
 		free(*dev);
+#ifdef __linux__
 	close(fd);
+#else
+	close_and_unlink(fd);
+#endif
 	errno = -ret;
 	return ret;
 }
