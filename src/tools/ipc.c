@@ -201,6 +201,7 @@ static int userspace_set_device(struct wgdevice *dev)
 	ret = ret_code;
 out:
 	close_and_unlink(fd);
+	errno = -ret;
 	return (int)ret;
 }
 
