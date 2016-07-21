@@ -466,6 +466,7 @@ int socket_init(struct wireguard_device *wg)
 	if (ret < 0) {
 		pr_err("Could not create IPv6 socket\n");
 		udp_tunnel_sock_release(new4);
+		rcu_assign_pointer(wg->sock4, NULL);
 		goto out;
 	}
 
