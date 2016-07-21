@@ -5,6 +5,7 @@ LIBDIR ?= $(PREFIX)/lib
 MANDIR ?= $(PREFIX)/share/man
 RUNSTATEDIR ?= /var/run
 
+CFLAGS ?= -O3
 CFLAGS += -std=gnu11
 CFLAGS += -pedantic -Wall -Wextra
 CFLAGS += -MMD
