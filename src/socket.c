@@ -443,7 +443,7 @@ int socket_init(struct wireguard_device *wg)
 
 	ret = udp_sock_create(wg->creating_net, &port4, &new4);
 	if (ret < 0) {
-		pr_err("Could not create outgoing IPv4 socket\n");
+		pr_err("Could not create IPv4 socket\n");
 		goto out;
 	}
 
@@ -464,7 +464,7 @@ int socket_init(struct wireguard_device *wg)
 	wg->creating_net->ipv6.sysctl.bindv6only = old_bindv6only;
 #endif
 	if (ret < 0) {
-		pr_err("Could not create outgoing IPv6 socket\n");
+		pr_err("Could not create IPv6 socket\n");
 		udp_tunnel_sock_release(new4);
 		goto out;
 	}
