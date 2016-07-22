@@ -20,6 +20,7 @@
 #include <dirent.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/poll.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -99,7 +100,7 @@ static int userspace_interface_fd(const char *interface)
 	if (!S_ISSOCK(sbuf.st_mode))
 		goto out;
 
-	ret = fd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+	ret = fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (ret < 0)
 		goto out;
 
@@ -172,10 +173,10 @@ static int userspace_set_device(struct wgdevice *dev)
 	ret = -EBADMSG;
 	if (!len)
 		goto out;
-	ret = send(fd, dev, len, 0);
+	ret = write(fd, dev, len);
 	if (ret < 0)
 		goto out;
-	ret = recv(fd, &ret_code, sizeof(ret_code), 0);
+	ret = read(fd, &ret_code, sizeof(ret_code));
 	if (ret < 0)
 		goto out;
 	ret = ret_code;
@@ -187,50 +188,62 @@ out:
 
 static int userspace_get_device(struct wgdevice **dev, const char *interface)
 {
-#ifdef __linux__
-	ssize_t len;
-#else
+	struct pollfd pollfd = { .events = POLLIN };
 	int len;
-#endif
+	char byte = 0;
+	size_t i;
+	struct wgpeer *peer;
 	ssize_t ret;
 	int fd = userspace_interface_fd(interface);
 	if (fd < 0)
 		return fd;
 	*dev = NULL;
-	ret = send(fd, NULL, 0, 0);
+	ret = write(fd, &byte, sizeof(byte));
 	if (ret < 0)
 		goto out;
 
-#ifdef __linux__
-	ret = len = recv(fd, NULL, 0, MSG_PEEK | MSG_TRUNC);
-	if (len < 0)
+	pollfd.fd = fd;
+	if (poll(&pollfd, 1, -1) < 0)
 		goto out;
-#else
-	ret = recv(fd, &ret, 1, MSG_PEEK);
-	if (ret < 0)
+	ret = -ECONNABORTED;
+	if (!(pollfd.revents & POLLIN))
 		goto out;
+
 	ret = ioctl(fd, FIONREAD, &len);
 	if (ret < 0) {
 		ret = -errno;
 		goto out;
 	}
-#endif
 	ret = -EBADMSG;
 	if ((size_t)len < sizeof(struct wgdevice))
 		goto out;
 
 	ret = -ENOMEM;
-	*dev = calloc(len, 1);
+	*dev = malloc(len);
 	if (!*dev)
 		goto out;
 
-	ret = recv(fd, *dev, len, 0);
+	ret = read(fd, *dev, len);
 	if (ret < 0)
 		goto out;
+	if (ret != len) {
+		ret = -EBADMSG;
+		goto out;
+	}
+
+	ret = -EBADMSG;
+	for_each_wgpeer(*dev, peer, i) {
+		if ((uint8_t *)peer + sizeof(struct wgpeer) > (uint8_t *)*dev + len)
+			goto out;
+		if ((uint8_t *)peer + sizeof(struct wgpeer) + sizeof(struct wgipmask) * peer->num_ipmasks > (uint8_t *)*dev + len)
+		goto out;
+	}
 	ret = 0;
 out:
-	if (*dev && ret)
+	if (*dev && ret) {
 		free(*dev);
+		*dev = NULL;
+	}
 	close(fd);
 	errno = -ret;
 	return ret;
