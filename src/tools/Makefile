@@ -8,7 +8,7 @@ RUNSTATEDIR ?= /var/run
 CFLAGS ?= -O3
 CFLAGS += -std=gnu11
 CFLAGS += -pedantic -Wall -Wextra
-CFLAGS += -MMD
+CFLAGS += -MMD -MP
 CFLAGS += -DRUNSTATEDIR="\"$(RUNSTATEDIR)\""
 LDLIBS += -lresolv
 ifeq ($(shell uname -s),Linux)
