@@ -423,6 +423,7 @@ int socket_init(struct wireguard_device *wg)
 	int ret = 0;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
 	int old_bindv6only;
+	struct net *nobns;
 #endif
 
 	mutex_lock(&wg->socket_update_lock);
@@ -453,15 +454,20 @@ int socket_init(struct wireguard_device *wg)
 
 #if IS_ENABLED(CONFIG_IPV6)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
+	nobns = &init_net;
+#else
+	nobns = wg->creating_net;
+#endif
 	/* Since udp_port_cfg only learned of ipv6_v6only in 4.3, we do this horrible
 	 * hack here and set the sysctl variable temporarily to something that will
 	 * set the right option for us in sock_create. It's super racey! */
-	old_bindv6only = wg->creating_net->ipv6.sysctl.bindv6only;
-	wg->creating_net->ipv6.sysctl.bindv6only = 1;
+	old_bindv6only = nobns->ipv6.sysctl.bindv6only;
+	nobns->ipv6.sysctl.bindv6only = 1;
 #endif
 	ret = udp_sock_create(wg->creating_net, &port6, &new6);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
-	wg->creating_net->ipv6.sysctl.bindv6only = old_bindv6only;
+	nobns->ipv6.sysctl.bindv6only = old_bindv6only;
 #endif
 	if (ret < 0) {
 		pr_err("Could not create IPv6 socket\n");
