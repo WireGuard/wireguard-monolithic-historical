@@ -80,21 +80,10 @@ static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 	return 0;
 }
 
-static void close_and_unlink(int fd)
-{
-	struct sockaddr_un addr;
-	socklen_t len = sizeof(addr);
-
-	if (!getsockname(fd, (struct sockaddr *)&addr, &len))
-		unlink(addr.sun_path);
-	close(fd);
-}
-
 static int userspace_interface_fd(const char *interface)
 {
 	struct stat sbuf;
-	struct sockaddr_un addr = { .sun_family = AF_UNIX }, bind_addr = { .sun_family = AF_UNIX };
-	mode_t old_umask;
+	struct sockaddr_un addr = { .sun_family = AF_UNIX };
 	int fd = -1, ret;
 
 	ret = -EINVAL;
@@ -103,10 +92,6 @@ static int userspace_interface_fd(const char *interface)
 	ret = snprintf(addr.sun_path, sizeof(addr.sun_path) - 1, SOCK_PATH "%s" SOCK_SUFFIX, interface);
 	if (ret < 0)
 		goto out;
-	ret = snprintf(bind_addr.sun_path, sizeof(bind_addr.sun_path) - 1, SOCK_PATH ".wg-tool-%s-%d.client", interface, getpid());
-	if (ret < 0)
-		goto out;
-	unlink(bind_addr.sun_path);
 	ret = stat(addr.sun_path, &sbuf);
 	if (ret < 0)
 		goto out;
@@ -114,12 +99,7 @@ static int userspace_interface_fd(const char *interface)
 	if (!S_ISSOCK(sbuf.st_mode))
 		goto out;
 
-	ret = fd = socket(AF_UNIX, SOCK_DGRAM, 0);
-	if (ret < 0)
-		goto out;
-	old_umask = umask(0077);
-	ret = bind(fd, (struct sockaddr *)&bind_addr, sizeof(bind_addr));
-	umask(old_umask);
+	ret = fd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 	if (ret < 0)
 		goto out;
 
@@ -131,7 +111,7 @@ static int userspace_interface_fd(const char *interface)
 	}
 out:
 	if (ret && fd >= 0)
-		close_and_unlink(fd);
+		close(fd);
 	if (!ret)
 		ret = fd;
 	return ret;
@@ -142,7 +122,7 @@ static bool userspace_has_wireguard_interface(const char *interface)
 	int fd = userspace_interface_fd(interface);
 	if (fd < 0)
 		return false;
-	close_and_unlink(fd);
+	close(fd);
 	return true;
 }
 
@@ -200,7 +180,7 @@ static int userspace_set_device(struct wgdevice *dev)
 		goto out;
 	ret = ret_code;
 out:
-	close_and_unlink(fd);
+	close(fd);
 	errno = -ret;
 	return (int)ret;
 }
@@ -251,7 +231,7 @@ static int userspace_get_device(struct wgdevice **dev, const char *interface)
 out:
 	if (*dev && ret)
 		free(*dev);
-	close_and_unlink(fd);
+	close(fd);
 	errno = -ret;
 	return ret;
 }
