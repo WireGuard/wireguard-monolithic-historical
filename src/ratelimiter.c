@@ -19,7 +19,7 @@ static inline void cfg_init(struct hashlimit_cfg1 *cfg, int family)
 	else if (family == NFPROTO_IPV6)
 		cfg->srcmask = 96;
 	cfg->mode = XT_HASHLIMIT_HASH_SIP; /* source IP only -- we could also do source port by ORing this with XT_HASHLIMIT_HASH_SPT */
-	cfg->avg = XT_HASHLIMIT_SCALE / RATELIMITER_PACKETS_PER_SECOND; /* 50 per second per IP */
+	cfg->avg = XT_HASHLIMIT_SCALE / RATELIMITER_PACKETS_PER_SECOND; /* 75 per second per IP */
 	cfg->burst = RATELIMITER_PACKETS_BURSTABLE; /* Allow bursts of 5 at a time */
 	cfg->gc_interval = 1000; /* same as expiration date */
 	cfg->expire = 1000; /* Units of avg (seconds = 1) times 1000 */
