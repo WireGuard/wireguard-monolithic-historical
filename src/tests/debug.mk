@@ -21,7 +21,12 @@ test: debug
 	-sudo modprobe x_tables
 	-sudo modprobe ipv6
 	-sudo modprobe xt_hashlimit
-	./tests/netns.sh
+	-sudo rmmod wireguard
+	-sudo insmod wireguard.ko
+	sudo PATH="$(shell pwd)/tools:$$PATH:/usr/sbin:/sbin:/usr/bin:/bin:/usr/local/sbin:/usr/local/bin" ./tests/netns.sh
+
+test-qemu:
+	$(MAKE) -C tests/qemu
 
 remote-test:
 	ssh $(SSH_OPTS1) -Nf $(REMOTE_HOST1)
