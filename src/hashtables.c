@@ -7,7 +7,7 @@
 #include "noise.h"
 #include <linux/hashtable.h>
 
-static inline struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table, const uint8_t pubkey[NOISE_PUBLIC_KEY_LEN])
+static inline struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table, const uint8_t pubkey[static NOISE_PUBLIC_KEY_LEN])
 {
 	/* siphash24 gives us a secure 64bit number based on a random key. Since the bits are
 	 * uniformly distributed, we can then mask off to get the bits we need. */
@@ -36,7 +36,7 @@ void pubkey_hashtable_remove(struct pubkey_hashtable *table, struct wireguard_pe
 }
 
 /* Returns a strong reference to a peer */
-struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, const uint8_t pubkey[NOISE_PUBLIC_KEY_LEN])
+struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, const uint8_t pubkey[static NOISE_PUBLIC_KEY_LEN])
 {
 	struct wireguard_peer *iter_peer, *peer = NULL;
 	rcu_read_lock();

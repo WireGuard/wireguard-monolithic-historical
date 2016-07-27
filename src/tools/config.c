@@ -90,7 +90,7 @@ static inline uint16_t parse_port(const char *value)
 	return port;
 }
 
-static inline bool parse_key(uint8_t key[WG_KEY_LEN], const char *value)
+static inline bool parse_key(uint8_t key[static WG_KEY_LEN], const char *value)
 {
 	uint8_t tmp[WG_KEY_LEN + 1];
 	if (strlen(value) != b64_len(WG_KEY_LEN) - 1 || b64_pton(value, tmp, WG_KEY_LEN + 1) != WG_KEY_LEN) {

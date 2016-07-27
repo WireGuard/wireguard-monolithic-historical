@@ -32,7 +32,7 @@ void cookie_init(struct cookie *cookie)
 	init_rwsem(&cookie->lock);
 }
 
-static void compute_mac1(u8 mac1[COOKIE_LEN], const void *message, size_t len, const u8 pubkey[NOISE_PUBLIC_KEY_LEN], const u8 psk[NOISE_SYMMETRIC_KEY_LEN])
+static void compute_mac1(u8 mac1[static COOKIE_LEN], const void *message, size_t len, const u8 pubkey[static NOISE_PUBLIC_KEY_LEN], const u8 psk[static NOISE_SYMMETRIC_KEY_LEN])
 {
 	struct blake2s_state state;
 	len = len - sizeof(struct message_macs) + offsetof(struct message_macs, mac1);
@@ -46,7 +46,7 @@ static void compute_mac1(u8 mac1[COOKIE_LEN], const void *message, size_t len, c
 	blake2s_final(&state, mac1, COOKIE_LEN);
 }
 
-static void compute_mac2(u8 mac2[COOKIE_LEN], const void *message, size_t len, const u8 cookie[COOKIE_LEN])
+static void compute_mac2(u8 mac2[static COOKIE_LEN], const void *message, size_t len, const u8 cookie[static COOKIE_LEN])
 {
 	len = len - sizeof(struct message_macs) + offsetof(struct message_macs, mac2);
 	blake2s(mac2, message, cookie, COOKIE_LEN, len, COOKIE_LEN);
@@ -69,7 +69,7 @@ static inline void put_secret(struct cookie_checker *checker)
 	up_read(&checker->secret_lock);
 }
 
-static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb, struct cookie_checker *checker)
+static void make_cookie(u8 cookie[static COOKIE_LEN], struct sk_buff *skb, struct cookie_checker *checker)
 {
 	struct blake2s_state state;
 	const u8 *secret;

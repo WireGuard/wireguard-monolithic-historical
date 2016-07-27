@@ -78,7 +78,7 @@ static void sort_peers(struct wgdevice *device)
 
 static const uint8_t zero[WG_KEY_LEN] = { 0 };
 
-static char *key(const unsigned char key[WG_KEY_LEN])
+static char *key(const unsigned char key[static WG_KEY_LEN])
 {
 	static char b64[b64_len(WG_KEY_LEN)];
 	if (!memcmp(key, zero, WG_KEY_LEN))

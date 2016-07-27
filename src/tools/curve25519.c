@@ -337,7 +337,7 @@ static void fmonty(limb *x2, limb *z2, /* output 2Q */
  * This function performs the swap without leaking any side-channel
  * information.
  */
-static void swap_conditional(limb a[5], limb b[5], limb iswap)
+static void swap_conditional(limb a[static 5], limb b[static 5], limb iswap)
 {
 	unsigned i;
 	const limb swap = -iswap;
@@ -430,7 +430,7 @@ static void crecip(felem out, const felem z)
 	/* 2^255 - 21 */ fmul(out, t0, a);
 }
 
-void curve25519(uint8_t mypublic[CURVE25519_POINT_SIZE], const uint8_t secret[CURVE25519_POINT_SIZE], const uint8_t basepoint[CURVE25519_POINT_SIZE])
+void curve25519(uint8_t mypublic[static CURVE25519_POINT_SIZE], const uint8_t secret[static CURVE25519_POINT_SIZE], const uint8_t basepoint[static CURVE25519_POINT_SIZE])
 {
 	limb bp[5], x[5], z[5], zmone[5];
 	uint8_t e[32];
@@ -1104,7 +1104,7 @@ static void fmonty(limb *x2, limb *z2,  /* output 2Q */
  * reduced-degree form: the values in a[10..19] or b[10..19] aren't swapped,
  * and all all values in a[0..9],b[0..9] must have magnitude less than
  * INT32_MAX. */
-static void swap_conditional(limb a[19], limb b[19], limb iswap)
+static void swap_conditional(limb a[static 19], limb b[static 19], limb iswap)
 {
 	unsigned i;
 	const int32_t swap = (int32_t) -iswap;
@@ -1235,7 +1235,7 @@ static void crecip(limb *out, const limb *z)
 	/* 2^255 - 21 */ fmul(out,t1,z11);
 }
 
-void curve25519(uint8_t mypublic[CURVE25519_POINT_SIZE], const uint8_t secret[CURVE25519_POINT_SIZE], const uint8_t basepoint[CURVE25519_POINT_SIZE])
+void curve25519(uint8_t mypublic[static CURVE25519_POINT_SIZE], const uint8_t secret[static CURVE25519_POINT_SIZE], const uint8_t basepoint[static CURVE25519_POINT_SIZE])
 {
 	limb bp[10], x[10], z[11], zmone[10];
 	uint8_t e[32];
@@ -1251,7 +1251,7 @@ void curve25519(uint8_t mypublic[CURVE25519_POINT_SIZE], const uint8_t secret[CU
 }
 #endif
 
-void curve25519_generate_public(uint8_t *pub, const uint8_t *secret)
+void curve25519_generate_public(uint8_t pub[static CURVE25519_POINT_SIZE], const uint8_t secret[static CURVE25519_POINT_SIZE])
 {
 	static const uint8_t basepoint[CURVE25519_POINT_SIZE] = { 9 };
 	curve25519(pub, secret, basepoint);
