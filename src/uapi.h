@@ -137,12 +137,12 @@ struct wgdevice {
  *        }
  *     }
  */
-#define for_each_wgpeer(__dev, __peer, __i) for ((__i) = 0, (__peer) = (typeof(__peer))((uint8_t *)(__dev) + sizeof(struct wgdevice)); \
+#define for_each_wgpeer(__dev, __peer, __i) for ((__i) = 0, (__peer) = (struct wgpeer *)((uint8_t *)(__dev) + sizeof(struct wgdevice)); \
 						 (__i) < (__dev)->num_peers; \
-						 ++(__i), (__peer) = (typeof(__peer))((uint8_t *)(__peer) + sizeof(struct wgpeer) + (sizeof(struct wgipmask) * (__peer)->num_ipmasks)))
+						 ++(__i), (__peer) = (struct wgpeer *)((uint8_t *)(__peer) + sizeof(struct wgpeer) + (sizeof(struct wgipmask) * (__peer)->num_ipmasks)))
 
-#define for_each_wgipmask(__peer, __ipmask, __i) for ((__i) = 0, (__ipmask) = (typeof(__ipmask))((uint8_t *)(__peer) + sizeof(struct wgpeer)); \
+#define for_each_wgipmask(__peer, __ipmask, __i) for ((__i) = 0, (__ipmask) = (struct wgipmask *)((uint8_t *)(__peer) + sizeof(struct wgpeer)); \
 						 (__i) < (__peer)->num_ipmasks; \
-						 ++(__i), (__ipmask) = (typeof(__ipmask))((uint8_t *)(__ipmask) + sizeof(struct wgipmask)))
+						 ++(__i), (__ipmask) = (struct wgipmask *)((uint8_t *)(__ipmask) + sizeof(struct wgipmask)))
 
 #endif
