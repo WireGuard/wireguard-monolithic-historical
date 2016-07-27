@@ -24,6 +24,7 @@ tools:
 
 check:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) C=2 CF="-D__CHECK_ENDIAN__" CONFIG_WIREGUARD_DEBUG=y
+	$(MAKE) -C tools check
 
 include tests/debug.mk
 
