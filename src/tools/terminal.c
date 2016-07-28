@@ -13,7 +13,7 @@
 static bool color_mode(FILE *file)
 {
 	static int mode = -1;
-	char *var;
+	const char *var;
 	if (mode != -1)
 		return mode;
 	var = getenv("WG_COLOR_MODE");

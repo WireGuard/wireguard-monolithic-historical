@@ -88,6 +88,14 @@ static char *key(const unsigned char key[static WG_KEY_LEN])
 	return b64;
 }
 
+static char *masked_key(const unsigned char masked_key[static WG_KEY_LEN])
+{
+	const char *var = getenv("WG_HIDE_KEYS");
+	if (var && !strcmp(var, "never"))
+		return key(masked_key);
+	return "(hidden)";
+}
+
 static char *ip(const struct wgipmask *ip)
 {
 	static char buf[INET6_ADDRSTRLEN + 1];
@@ -205,9 +213,9 @@ static void pretty_print(struct wgdevice *device)
 	if (memcmp(device->public_key, zero, WG_KEY_LEN))
 		terminal_printf("  " TERMINAL_BOLD "public key" TERMINAL_RESET ": %s\n", key(device->public_key));
 	if (memcmp(device->private_key, zero, WG_KEY_LEN))
-		terminal_printf("  " TERMINAL_BOLD "private key" TERMINAL_RESET ": %s\n", key(device->private_key));
+		terminal_printf("  " TERMINAL_BOLD "private key" TERMINAL_RESET ": %s\n", masked_key(device->private_key));
 	if (memcmp(device->preshared_key, zero, WG_KEY_LEN))
-		terminal_printf("  " TERMINAL_BOLD "pre-shared key" TERMINAL_RESET ": %s\n", key(device->preshared_key));
+		terminal_printf("  " TERMINAL_BOLD "pre-shared key" TERMINAL_RESET ": %s\n", masked_key(device->preshared_key));
 	if (device->port)
 		terminal_printf("  " TERMINAL_BOLD "listening port" TERMINAL_RESET ": %u\n", device->port);
 	if (device->num_peers) {

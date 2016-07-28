@@ -194,6 +194,9 @@ Note that not all keys are required.
 .TP
 .I WG_COLOR_MODE
 If set to \fIalways\fP, always print ANSI colorized output. If set to \fInever\fP, never print ANSI colorized output. If set to \fIauto\fP, something invalid, or unset, then print ANSI colorized output only when writing to a TTY.
+.TP
+.I WG_HIDE_KEYS
+If set to \fInever\fP, then the pretty-printing \fBshow\fP sub-command will show private and pre-shared keys in the output. If set to \fIalways\fP, something invalid, or unset, then private and pre-shared keys will be printed as "(hidden)".
 
 .SH SEE ALSO
 .BR ip (8),
