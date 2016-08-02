@@ -2,7 +2,7 @@
 
 WG="$(readlink -f "$(dirname "$(readlink -f "$0")")/../../src/")"
 
-for i in "$WG"/*.c "$WG"/*.h "$WG"/crypto/*.c "$WG"/crypto/*.h "$WG"/crypto/*.S "$WG"/Kbuild "$WG"/Kconfig; do
+for i in "$WG"/*.c "$WG"/*.h "$WG"/selftest/*.h "$WG"/crypto/*.c "$WG"/crypto/*.h "$WG"/crypto/*.S "$WG"/Kbuild "$WG"/Kconfig; do
 	diff -u /dev/null "$i" | sed "s:${WG}:b/net/wireguard:;s:Kbuild:Makefile:"
 done
 
