@@ -6,6 +6,13 @@
 #include <net/ip.h>
 #include <linux/module.h>
 
+#if !IS_ENABLED(CONFIG_NETFILTER_XT_MATCH_HASHLIMIT)
+#error "WireGuard requires CONFIG_NETFILTER_XT_MATCH_HASHLIMIT."
+#endif
+#if IS_ENABLED(CONFIG_IPV6) && !IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+#error "WireGuard requires CONFIG_IP6_NF_IPTABLES when using CONFIG_IPV6."
+#endif
+
 enum {
 	RATELIMITER_PACKETS_PER_SECOND = 75,
 	RATELIMITER_PACKETS_BURSTABLE = 5
