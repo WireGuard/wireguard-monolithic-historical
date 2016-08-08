@@ -41,7 +41,7 @@ int ratelimiter_init(struct ratelimiter *ratelimiter, struct wireguard_device *w
 
 	ratelimiter->v4_match = xt_request_find_match(NFPROTO_IPV4, "hashlimit", 1);
 	if (IS_ERR(ratelimiter->v4_match)) {
-		pr_err("The xt_hashlimit module is required");
+		pr_err("The xt_hashlimit module for IPv4 is required");
 		return PTR_ERR(ratelimiter->v4_match);
 	}
 
@@ -54,9 +54,10 @@ int ratelimiter_init(struct ratelimiter *ratelimiter, struct wireguard_device *w
 		return ret;
 	}
 
+#if IS_ENABLED(CONFIG_IPV6)
 	ratelimiter->v6_match = xt_request_find_match(NFPROTO_IPV6, "hashlimit", 1);
 	if (IS_ERR(ratelimiter->v6_match)) {
-		pr_err("The xt_hashlimit module is required");
+		pr_err("The xt_hashlimit module for IPv6 is required");
 		module_put(ratelimiter->v4_match->me);
 		return PTR_ERR(ratelimiter->v6_match);
 	}
@@ -77,6 +78,7 @@ int ratelimiter_init(struct ratelimiter *ratelimiter, struct wireguard_device *w
 		module_put(ratelimiter->v6_match->me);
 		return ret;
 	}
+#endif
 
 	ratelimiter->net = wg->creating_net;
 	return 0;
@@ -92,11 +94,13 @@ void ratelimiter_uninit(struct ratelimiter *ratelimiter)
 	ratelimiter->v4_match->destroy(&dtor);
 	module_put(ratelimiter->v4_match->me);
 
+#if IS_ENABLED(CONFIG_IPV6)
 	dtor.match = ratelimiter->v6_match;
 	dtor.matchinfo = &ratelimiter->v6_info;
 	dtor.family = NFPROTO_IPV6;
 	ratelimiter->v6_match->destroy(&dtor);
 	module_put(ratelimiter->v6_match->me);
+#endif
 }
 
 bool ratelimiter_allow(struct ratelimiter *ratelimiter, struct sk_buff *skb)
@@ -109,11 +113,15 @@ bool ratelimiter_allow(struct ratelimiter *ratelimiter, struct sk_buff *skb)
 		action.matchinfo = &ratelimiter->v4_info;
 		action.thoff = ip_hdrlen(skb);
 		action.family = NFPROTO_IPV4;
-	} else if (ip_hdr(skb)->version == 6) {
+	}
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (ip_hdr(skb)->version == 6) {
 		action.match = ratelimiter->v6_match;
 		action.matchinfo = &ratelimiter->v6_info;
 		action.family = NFPROTO_IPV6;
-	} else
+	}
+#endif
+	else
 		return false;
 	return action.match->match(skb, &action);
 }
