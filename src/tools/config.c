@@ -193,8 +193,8 @@ static inline bool parse_persistent_keepalive(__u16 *interval, const char *value
 	}
 
 	ret = strtoul(value, &end, 10);
-	if (!*value || *value == '-' || *end || (ret && (ret < 10 || ret > 3600))) {
-		fprintf(stderr, "The persistent keepalive interval must be 0/off or 10-3600. Found: `%s`\n", value);
+	if (!*value || *value == '-' || *end || ret > 65535) {
+		fprintf(stderr, "The persistent keepalive interval must be 0/off or 1-65535. Found: `%s`\n", value);
 		return false;
 	}
 

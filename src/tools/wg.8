@@ -68,7 +68,7 @@ public-key cryptography, for post-quantum resistance. If \fIallowed-ips\fP
 is specified, but the value is the empty string, all allowed ips are removed
 from the peer. The use of \fIpersistent-keepalive\fP is optional and is by
 default off; setting it to 0 or "off", disables it. Otherwise it represents,
-in seconds, between 10 and 3600 inclusive, how often to send an authenticated
+in seconds, between 1 and 65535 inclusive, how often to send an authenticated
 empty packet to the peer, for the purpose of keeping a stateful firewall or NAT
 mapping valid persistently. For example, if the interface very rarely sends
 traffic, but it might at anytime receive traffic from a peer, and it is behind
@@ -142,7 +142,7 @@ port number. This endpoint will be updated automatically to the most recent
 source IP address and port of correctly authenticated packets from the peer.
 Optional.
 .IP \(bu
-PersistentKeepalive \(em a seconds interval, between 10 and 3600 inclusive, of
+PersistentKeepalive \(em a seconds interval, between 1 and 65535 inclusive, of
 how often to send an authenticated empty packet to the peer for the purpose of keeping a
 stateful firewall or NAT mapping valid persistently. For example, if the interface
 very rarely sends traffic, but it might at anytime receive traffic from a peer,
