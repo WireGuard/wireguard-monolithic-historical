@@ -31,10 +31,16 @@ endef
 define file_download =
 $(DISTFILES_PATH)/$(1):
 	mkdir -p $(DISTFILES_PATH)
-	[ -n "$(MIRROR)" ] && $(DOWNLOAD) $$@ $(MIRROR)/$(1) || $(DOWNLOAD) $$@ $(2)/$(1)
+	$(DOWNLOAD) $$@ $(MIRROR)$(1) || $(DOWNLOAD) $$@ $(2)$(1)
 endef
 
-$(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.xz,https://www.kernel.org/pub/linux/kernel/v4.x/))
+ifeq ($(findstring -rc,$(KERNEL_VERSION)),)
+KERNEL_URL_DIRECTORY := https://www.kernel.org/pub/linux/kernel/v4.x/
+else
+KERNEL_URL_DIRECTORY := https://www.kernel.org/pub/linux/kernel/v4.x/testing/
+endif
+
+$(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.xz,$(KERNEL_URL_DIRECTORY)))
 KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
 $(eval $(call tar_download,MUSL,musl,1.1.15,.tar.gz,https://www.musl-libc.org/releases/))
 $(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,http://ftp.netfilter.org/pub/libmnl/))
