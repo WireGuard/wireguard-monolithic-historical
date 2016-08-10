@@ -40,7 +40,7 @@ static int __init mod_init(void)
 static void __exit mod_exit(void)
 {
 	device_uninit();
-	pr_debug("Wireguard has been unloaded\n");
+	pr_debug("WireGuard has been unloaded\n");
 }
 
 module_init(mod_init);
