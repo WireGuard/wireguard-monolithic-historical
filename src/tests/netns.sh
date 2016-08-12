@@ -35,6 +35,7 @@ ip1() { pretty 1 "ip $*"; ip -n $netns1 "$@"; }
 ip2() { pretty 2 "ip $*"; ip -n $netns2 "$@"; }
 sleep() { read -t "$1" -N 0 || true; }
 waitiperf() { pretty "${1//*-}" "wait for iperf:5201"; while [[ $(ss -N "$1" -tlp 'sport = 5201') != *iperf3* ]]; do sleep 0.1; done; }
+waitncatudp() { pretty "${1//*-}" "wait for udp:1111"; while [[ $(ss -N "$1" -ulp 'sport = 1111') != *ncat* ]]; do sleep 0.1; done; }
 
 cleanup() {
 	set +e
@@ -160,6 +161,23 @@ n1 ping -W 1 -c 1 192.168.241.2
 [[ $(n2 wg show wg0 endpoints) == "$pub1	[::1]:9998" ]]
 n1 wg
 n2 wg
+
+# Test that crypto-RP filter works
+n1 wg set wg0 peer "$pub2" allowed-ips 192.168.241.0/24
+read -r -N 1 -t 1 out < <(n1 ncat -l -u -p 1111) && [[ $out == "X" ]] & listener_pid=$!
+waitncatudp $netns1
+n2 ncat -u 192.168.241.1 1111 <<<"X"
+wait $listener_pid
+more_specific_key="$(pp wg genkey | pp wg pubkey)"
+n1 wg set wg0 peer "$more_specific_key" allowed-ips 192.168.241.2/32
+n2 wg set wg0 listen-port 9997
+read -r -N 1 -t 1 out < <(n1 ncat -l -u -p 1111) && [[ $out == "X" ]] & listener_pid=$!
+waitncatudp $netns1
+n2 ncat -u 192.168.241.1 1111 <<<"X"
+! wait $listener_pid || false
+n1 wg set wg0 peer "$more_specific_key" remove
+[[ $(n1 wg show wg0 endpoints) == "$pub2	[::1]:9997" ]]
+
 
 # Test using NAT. We now change the topology to this:
 # ┌────────────────────────────────────────┐    ┌────────────────────────────────────────────────┐     ┌────────────────────────────────────────┐

@@ -48,6 +48,7 @@ $(eval $(call tar_download,IPERF,iperf,3.1.3,.tar.gz,http://downloads.es.net/pub
 $(eval $(call tar_download,BASH,bash,30a978b7d808c067219c95be88c4979b6a7aa251,.tar.gz,http://git.savannah.gnu.org/cgit/bash.git/snapshot/))
 $(eval $(call tar_download,IPROUTE2,iproute2,4.3.0,.tar.gz,http://www.kernel.org/pub/linux/utils/net/iproute2/))
 $(eval $(call tar_download,IPTABLES,iptables,1.6.0,.tar.bz2,http://ftp.netfilter.org/pub/iptables/))
+$(eval $(call tar_download,NMAP,nmap,7.25BETA1,.tar.bz2,http://nmap.org/dist/))
 
 IPUTILS_VERSION := s20160308
 IPUTILS_TAR := $(DISTFILES_PATH)/$(IPUTILS_VERSION).tar.gz
@@ -93,6 +94,7 @@ $(BUILD_PATH)/init-cpio-spec.txt:
 	echo "file /bin/ip $(IPROUTE2_PATH)/ip/ip 755 0 0" >> $@
 	echo "file /bin/ss $(IPROUTE2_PATH)/misc/ss 755 0 0" >> $@
 	echo "file /bin/ping $(IPUTILS_PATH)/ping 755 0 0" >> $@
+	echo "file /bin/ncat $(NMAP_PATH)/ncat/ncat 755 0 0" >> $@
 	echo "file /bin/xtables-multi $(IPTABLES_PATH)/iptables/xtables-multi 755 0 0" >> $@
 	echo "slink /bin/iptables xtables-multi 777 0 0" >> $@
 	echo "slink /bin/ping6 ping 777 0 0" >> $@
@@ -115,7 +117,7 @@ $(KERNEL_PATH)/.config: kernel.config | $(KERNEL_PATH)/.installed
 	cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config minimal.config
 	-[ "$(DEBUG_KERNEL)" = "yes" ] && ( cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config )
 
-$(KERNEL_BZIMAGE): $(KERNEL_PATH)/.installed $(KERNEL_PATH)/.config $(BUILD_PATH)/init-cpio-spec.txt $(MUSL_PATH)/lib/libc.so $(IPERF_PATH)/src/iperf3 $(BUILD_PATH)/tools/wg $(IPUTILS_PATH)/ping $(BASH_PATH)/bash $(IPROUTE2_PATH)/ip/ip $(IPTABLES_PATH)/iptables/xtables-multi $(BUILD_PATH)/init ../netns.sh $(WIREGUARD_SOURCES) $(TOOLS_SOURCES)
+$(KERNEL_BZIMAGE): $(KERNEL_PATH)/.installed $(KERNEL_PATH)/.config $(BUILD_PATH)/init-cpio-spec.txt $(MUSL_PATH)/lib/libc.so $(IPERF_PATH)/src/iperf3 $(BUILD_PATH)/tools/wg $(IPUTILS_PATH)/ping $(BASH_PATH)/bash $(IPROUTE2_PATH)/ip/ip $(IPTABLES_PATH)/iptables/xtables-multi $(NMAP_PATH)/ncat/ncat $(BUILD_PATH)/init ../netns.sh $(WIREGUARD_SOURCES) $(TOOLS_SOURCES)
 	$(MAKE) -C $(KERNEL_PATH)
 
 $(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.installed
@@ -209,6 +211,17 @@ $(IPTABLES_PATH)/.installed: $(IPTABLES_TAR)
 $(IPTABLES_PATH)/iptables/xtables-multi: $(IPTABLES_PATH)/.installed $(MUSL_CC) $(LIBMNL_PATH)/src/.libs/libmnl.a | $(KERNEL_PATH)/.installed
 	cd $(IPTABLES_PATH) && PKG_CONFIG_LIBDIR="$(LIBMNL_PATH)" CC="$(MUSL_CC)" CFLAGS="$(CFLAGS)" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared --disable-nftables --disable-bpf-compiler --disable-nfsynproxy --disable-libipq --with-kernel=$(KERNEL_PATH)
 	$(MAKE) -C $(IPTABLES_PATH)
+	strip -s $@
+
+$(NMAP_PATH)/.installed: $(NMAP_TAR)
+	flock -x $<.lock true
+	tar -C $(BUILD_PATH) -xf $<
+	touch $@
+
+$(NMAP_PATH)/ncat/ncat: $(NMAP_PATH)/.installed $(MUSL_CC) | $(KERNEL_PATH)/.installed
+	cd $(NMAP_PATH) && CC="$(MUSL_CC)" CFLAGS="$(CFLAGS)" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared --without-ndiff --without-zenmap --without-nping --with-libpcap=included --with-libpcre=included --with-libdnet=included --without-liblua --with-liblinear=included --without-nmap-update --without-openssl --with-pcap=linux
+	$(MAKE) -C $(NMAP_PATH) build-ncat
+	strip -s $@
 
 clean:
 	rm -rf $(BUILD_PATH)

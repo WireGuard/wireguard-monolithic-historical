@@ -21,6 +21,8 @@ test: debug
 	-sudo modprobe x_tables
 	-sudo modprobe ipv6
 	-sudo modprobe xt_hashlimit
+	-sudo modprobe nf_conntrack_ipv4
+	-sudo modprobe nf_conntrack_ipv6
 	-sudo rmmod wireguard
 	-sudo insmod wireguard.ko
 	sudo PATH="$(shell pwd)/tools:$$PATH:/usr/sbin:/sbin:/usr/bin:/bin:/usr/local/sbin:/usr/local/bin" ./tests/netns.sh
