@@ -78,8 +78,7 @@ void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *i
 
 #ifdef DEBUG
 	struct sockaddr_storage addr = { 0 };
-	if (initiating_skb)
-		socket_addr_from_skb(&addr, initiating_skb);
+	socket_addr_from_skb(&addr, initiating_skb);
 	net_dbg_ratelimited("Sending cookie response for denied handshake message for %pISpfsc\n", &addr);
 #endif
 	cookie_message_create(&packet, initiating_skb, data, data_len, sender_index, &wg->cookie_checker);
