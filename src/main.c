@@ -43,12 +43,6 @@ static void __exit mod_exit(void)
 	pr_debug("WireGuard has been unloaded\n");
 }
 
-/* We want our selftest debug messages loaded after serial drivers. */
-#if !defined(MODULE) && defined(DEBUG)
-#undef module_init
-#define module_init(a) late_initcall(a)
-#endif
-
 module_init(mod_init);
 module_exit(mod_exit);
 MODULE_LICENSE("GPL v2");

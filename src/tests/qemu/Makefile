@@ -1,7 +1,7 @@
 PWD := $(shell pwd)
 
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.7
+KERNEL_VERSION ?= 4.7.1
 BUILD_PATH ?= $(PWD)/build
 DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
@@ -118,10 +118,10 @@ $(KERNEL_PATH)/.config: kernel.config | $(KERNEL_PATH)/.installed
 	-[ "$(DEBUG_KERNEL)" = "yes" ] && ( cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config )
 
 $(KERNEL_BZIMAGE): $(KERNEL_PATH)/.installed $(KERNEL_PATH)/.config $(BUILD_PATH)/init-cpio-spec.txt $(MUSL_PATH)/lib/libc.so $(IPERF_PATH)/src/iperf3 $(BUILD_PATH)/tools/wg $(IPUTILS_PATH)/ping $(BASH_PATH)/bash $(IPROUTE2_PATH)/ip/ip $(IPTABLES_PATH)/iptables/xtables-multi $(NMAP_PATH)/ncat/ncat $(BUILD_PATH)/init ../netns.sh $(WIREGUARD_SOURCES) $(TOOLS_SOURCES)
-	$(MAKE) -C $(KERNEL_PATH)
+	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH)
 
 $(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.installed
-	$(MAKE) -C $(KERNEL_PATH) INSTALL_HDR_PATH=$(BUILD_PATH) headers_install
+	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH) INSTALL_HDR_PATH=$(BUILD_PATH) headers_install
 	touch $@
 
 $(MUSL_PATH)/lib/libc.so: $(MUSL_TAR) | $(BUILD_PATH)/include/linux/.installed
@@ -165,7 +165,7 @@ $(BUILD_PATH)/tools/wg: $(MUSL_CC) $(TOOLS_SOURCES) $(LIBMNL_PATH)/src/.libs/lib
 	strip -s $@
 
 $(BUILD_PATH)/init: init.c $(MUSL_CC)
-	$(MUSL_CC) -o $@ $<
+	$(MUSL_CC) -o $@ -O3 -std=gnu11 $<
 	strip -s $@
 
 $(IPUTILS_PATH)/.installed: $(IPUTILS_TAR)
