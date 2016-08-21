@@ -112,37 +112,52 @@ tests() {
 	# TCP over IPv4
 	n2 iperf3 -s -1 -B 192.168.241.2 &
 	waitiperf $netns2
-	n1 iperf3 -Z -i 1 -n 500M "$@" -c 192.168.241.2
+	n1 iperf3 -Z -i 1 -n 1G "$@" -c 192.168.241.2
 
 	# TCP over IPv6
 	n1 iperf3 -s -1 -B abcd::1 &
 	waitiperf $netns1
-	n2 iperf3 -Z -i 1 -n 500M "$@" -c abcd::1
+	n2 iperf3 -Z -i 1 -n 1G "$@" -c abcd::1
 
 	# UDP over IPv4
 	n1 iperf3 -s -1 -B 192.168.241.1 &
 	waitiperf $netns1
-	n2 iperf3 -Z -i 1 -n 500M "$@" -b 0 -u -c 192.168.241.1
+	n2 iperf3 -Z -i 1 -n 1G "$@" -b 0 -u -c 192.168.241.1
 
 	# UDP over IPv6
 	n2 iperf3 -s -1 -B abcd::2 &
 	waitiperf $netns2
-	n1 iperf3 -Z -i 1 -n 500M "$@" -b 0 -u -c abcd::2
+	n1 iperf3 -Z -i 1 -n 1G "$@" -b 0 -u -c abcd::2
 
 	# Status after
 	n1 wg
 	n2 wg
 }
 
+[[ $(ip1 link show dev wg0) =~ mtu\ ([0-9]+) ]] && orig_mtu="${BASH_REMATCH[1]}"
+big_mtu=$(( 34816 - 1500 + $orig_mtu ))
+
 # Test using IPv4 as outer transport
 n1 wg set wg0 peer "$pub2" endpoint 127.0.0.1:2
 n2 wg set wg0 peer "$pub1" endpoint 127.0.0.1:1
 tests
+ip1 link set wg0 mtu $big_mtu
+ip2 link set wg0 mtu $big_mtu
+tests
+
+ip1 link set wg0 mtu $orig_mtu
+ip2 link set wg0 mtu $orig_mtu
 
 # Test using IPv6 as outer transport
 n1 wg set wg0 peer "$pub2" endpoint [::1]:2
 n2 wg set wg0 peer "$pub1" endpoint [::1]:1
 tests
+ip1 link set wg0 mtu $big_mtu
+ip2 link set wg0 mtu $big_mtu
+tests
+
+ip1 link set wg0 mtu $orig_mtu
+ip2 link set wg0 mtu $orig_mtu
 
 # Test using IPv4 that roaming works
 ip0 -4 addr del 127.0.0.1/8 dev lo
