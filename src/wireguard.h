@@ -26,7 +26,7 @@
 #include "crypto/curve25519.h"
 #include "crypto/siphash24.h"
 #include "noise.h"
-#include "routing-table.h"
+#include "routingtable.h"
 #include "hashtables.h"
 #include "peer.h"
 #include "cookie.h"

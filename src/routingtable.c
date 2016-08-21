@@ -1,7 +1,7 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
 #include "wireguard.h"
-#include "routing-table.h"
+#include "routingtable.h"
 
 struct routing_table_node {
 	struct routing_table_node __rcu *bit[2];
