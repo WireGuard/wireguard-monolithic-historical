@@ -36,6 +36,10 @@
 #define net_dbg_ratelimited(fmt, ...) do { if (0) no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); } while (0)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
+#define get_random_long() (((u64)get_random_int() << 32) | get_random_int())
+#endif
+
 struct wireguard_device {
 	struct sock __rcu *sock4, *sock6;
 	u16 incoming_port;

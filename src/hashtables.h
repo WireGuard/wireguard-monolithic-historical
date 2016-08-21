@@ -21,7 +21,6 @@ struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, c
 struct index_hashtable {
 	DECLARE_HASHTABLE(hashtable, 10);
 	uint8_t key[SIPHASH24_KEY_LEN];
-	atomic64_t counter;
 	spinlock_t lock;
 };
 struct index_hashtable_entry;
