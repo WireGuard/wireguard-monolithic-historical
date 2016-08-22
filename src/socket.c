@@ -5,6 +5,7 @@
 #include "packets.h"
 #include "messages.h"
 
+#include <linux/ctype.h>
 #include <linux/net.h>
 #include <linux/if_vlan.h>
 #include <linux/if_ether.h>
@@ -364,7 +365,7 @@ static uint16_t generate_default_incoming_port(struct wireguard_device *wg)
 		return port;
 	digit_begin = name + len - 1;
 	while (digit_begin >= name) {
-		if (*digit_begin >= '0' && *digit_begin <= '9')
+		if (isdigit(*digit_begin))
 			--digit_begin;
 		else
 			break;
