@@ -1,0 +1,32 @@
+struct def {
+	const char *name;
+	long long value;
+};
+extern const struct def defs[];
+
+#ifdef __KERNEL__
+#include "../../../src/wireguard.h"
+const struct def defs[] = {
+	{ "SOCK_DEVICE_OFFSET", offsetof(struct sock, sk_user_data) },
+	{ "DEVICE_NAME_OFFSET", -ALIGN(sizeof(struct net_device), NETDEV_ALIGN) + offsetof(struct net_device, name) },
+	{ "IFNAMSIZ", IFNAMSIZ },
+	{ "DEVICE_PEERS_OFFSET", offsetof(struct wireguard_device, peer_list) },
+	{ "PEERS_PEER_OFFSET", -offsetof(struct wireguard_peer, peer_list) },
+	{ "PEER_CURRENTKEY_OFFSET", offsetof(struct wireguard_peer, keypairs.current_keypair) },
+	{ "PEER_PREVIOUSKEY_OFFSET", offsetof(struct wireguard_peer, keypairs.previous_keypair) },
+	{ "PEER_NEXTKEY_OFFSET", offsetof(struct wireguard_peer, keypairs.next_keypair) },
+	{ "KEY_LOCALID_OFFSET", offsetof(struct noise_keypair, entry.index) },
+	{ "KEY_REMOTEID_OFFSET", offsetof(struct noise_keypair, remote_index) },
+	{ "KEY_SENDING_OFFSET", offsetof(struct noise_keypair, sending.key) },
+	{ "KEY_RECEIVING_OFFSET", offsetof(struct noise_keypair, receiving.key) },
+	{ NULL, 0 }
+};
+#else
+#include <stdio.h>
+int main(int argc, char *argv[])
+{
+	for (const struct def *def = defs; def->name; ++def)
+		printf("#define %s %lld\n", def->name, def->value);
+	return 0;
+}
+#endif
