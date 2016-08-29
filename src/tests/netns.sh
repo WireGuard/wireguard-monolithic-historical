@@ -112,22 +112,22 @@ tests() {
 	# TCP over IPv4
 	n2 iperf3 -s -1 -B 192.168.241.2 &
 	waitiperf $netns2
-	n1 iperf3 -Z -i 1 -n 1G "$@" -c 192.168.241.2
+	n1 iperf3 -Z -i 1 -n 1G -c 192.168.241.2
 
 	# TCP over IPv6
 	n1 iperf3 -s -1 -B abcd::1 &
 	waitiperf $netns1
-	n2 iperf3 -Z -i 1 -n 1G "$@" -c abcd::1
+	n2 iperf3 -Z -i 1 -n 1G -c abcd::1
 
 	# UDP over IPv4
 	n1 iperf3 -s -1 -B 192.168.241.1 &
 	waitiperf $netns1
-	n2 iperf3 -Z -i 1 -n 1G "$@" -b 0 -u -c 192.168.241.1
+	n2 iperf3 -Z -i 1 -n 1G -b 0 -u -c 192.168.241.1
 
 	# UDP over IPv6
 	n2 iperf3 -s -1 -B abcd::2 &
 	waitiperf $netns2
-	n1 iperf3 -Z -i 1 -n 1G "$@" -b 0 -u -c abcd::2
+	n1 iperf3 -Z -i 1 -n 1G -b 0 -u -c abcd::2
 
 	# Status after
 	n1 wg
