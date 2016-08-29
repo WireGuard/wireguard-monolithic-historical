@@ -9,6 +9,7 @@
 #include "cookie.h"
 #include <net/udp.h>
 #include <net/sock.h>
+#include <net/ip_tunnels.h>
 #include <linux/uio.h>
 #include <linux/inetdevice.h>
 #include <linux/socket.h>
@@ -128,6 +129,13 @@ struct packet_bundle {
 	struct sk_buff *first;
 };
 
+struct packet_cb {
+	struct packet_bundle *bundle;
+	struct packet_bundle data;
+	u8 ds;
+};
+#define PACKET_CB(skb) ((struct packet_cb *)skb->cb)
+
 static inline void send_off_bundle(struct packet_bundle *bundle, struct wireguard_peer *peer)
 {
 	struct sk_buff *skb, *next;
@@ -139,7 +147,7 @@ static inline void send_off_bundle(struct packet_bundle *bundle, struct wireguar
 		 * consumes the packet before the top of the loop comes again. */
 		next = skb->next;
 		is_keepalive = skb->len == message_data_len(0);
-		if (likely(!socket_send_skb_to_peer(peer, skb, 0 /* TODO: Should we copy the DSCP value from the enclosed packet? */) && !is_keepalive))
+		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
 			data_sent = true;
 	}
 	if (likely(data_sent))
@@ -148,11 +156,10 @@ static inline void send_off_bundle(struct packet_bundle *bundle, struct wireguar
 
 static void message_create_data_done(struct sk_buff *skb, struct wireguard_peer *peer)
 {
-	struct packet_bundle *bundle = *((struct packet_bundle **)skb->cb);
 	/* A packet completed successfully, so we deincrement the counter of packets
 	 * remaining, and if we hit zero we can send it off. */
-	if (atomic_dec_and_test(&bundle->count))
-		send_off_bundle(bundle, peer);
+	if (atomic_dec_and_test(&PACKET_CB(skb)->bundle->count))
+		send_off_bundle(PACKET_CB(skb)->bundle, peer);
 	keep_key_fresh(peer);
 }
 
@@ -181,7 +188,8 @@ int packet_send_queue(struct wireguard_peer *peer)
 	/* The first pointer of the control block is a pointer to the bundle
 	 * and after that, in the first packet only, is where we actually store
 	 * the bundle data. This saves us a call to kmalloc. */
-	bundle = (struct packet_bundle *)(first->cb + sizeof(void *));
+	BUILD_BUG_ON(sizeof(struct packet_cb) > sizeof(skb->cb));
+	bundle = &PACKET_CB(first)->data;
 	atomic_set(&bundle->count, skb_queue_len(&local_queue));
 	bundle->first = first;
 
@@ -195,7 +203,10 @@ int packet_send_queue(struct wireguard_peer *peer)
 		next = skb->next;
 
 		/* We set the first pointer in cb to point to the bundle data. */
-		*(struct packet_bundle **)skb->cb = bundle;
+		PACKET_CB(skb)->bundle = bundle;
+
+		/* Extract the TOS value before encryption, for ECN encapsulation. */
+		PACKET_CB(skb)->ds = ip_tunnel_ecn_encap(0 /* No outer TOS: no leak. TODO: should we use flowi->tos as outer? */, ip_hdr(skb), skb);
 
 		/* We submit it for encryption and sending. */
 		switch (packet_create_data(skb, peer, message_create_data_done, parallel)) {
@@ -248,8 +259,8 @@ int packet_send_queue(struct wireguard_peer *peer)
 				/* If it's the first one that failed, we need to move the bundle data
 				 * to the next packet. Then, all subsequent assignments of the bundle
 				 * pointer will be to the moved data. */
-				*(struct packet_bundle *)(next->cb + sizeof(void *)) = *bundle;
-				bundle = (struct packet_bundle *)(next->cb + sizeof(void *));
+				PACKET_CB(next)->data = *bundle;
+				bundle = &PACKET_CB(next)->data;
 				bundle->first = next;
 			}
 			/* We remove the skb from the list and free it. */

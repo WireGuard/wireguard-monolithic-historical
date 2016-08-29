@@ -234,7 +234,7 @@ out:
 }
 
 
-int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8 dscp)
+int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8 ds)
 {
 	struct net_device *dev = netdev_pub(peer->device);
 	struct dst_entry *dst;
@@ -255,7 +255,7 @@ int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8
 	rcu_read_lock();
 	read_lock_bh(&peer->endpoint_lock);
 
-	ret = send(dev, skb, dst, &peer->endpoint_flow.fl4, &peer->endpoint_flow.fl6, &peer->endpoint_addr, rcu_dereference(peer->device->sock4), rcu_dereference(peer->device->sock6), dscp);
+	ret = send(dev, skb, dst, &peer->endpoint_flow.fl4, &peer->endpoint_flow.fl6, &peer->endpoint_addr, rcu_dereference(peer->device->sock4), rcu_dereference(peer->device->sock6), ds);
 	if (!ret)
 		peer->tx_bytes += skb_len;
 
@@ -265,14 +265,14 @@ int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8
 	return ret;
 }
 
-int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer, size_t len, u8 dscp)
+int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer, size_t len, u8 ds)
 {
 	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 	skb_reserve(skb, SKB_HEADER_LEN);
 	memcpy(skb_put(skb, len), buffer, len);
-	return socket_send_skb_to_peer(peer, skb, dscp);
+	return socket_send_skb_to_peer(peer, skb, ds);
 }
 
 static int send_to_sockaddr(struct sk_buff *skb, struct wireguard_device *wg, struct sockaddr_storage *addr, struct sock *sock4, struct sock *sock6)

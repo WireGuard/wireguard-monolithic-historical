@@ -6,6 +6,7 @@
 #include "timers.h"
 #include "messages.h"
 #include "cookie.h"
+#include <net/ip_tunnels.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/udp.h>
@@ -175,6 +176,11 @@ void packet_process_queued_handshake_packets(struct work_struct *work)
 	}
 }
 
+struct packet_cb {
+	u8 ds;
+};
+#define PACKET_CB(skb) ((struct packet_cb *)skb->cb)
+
 static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer, struct sockaddr_storage *addr, bool used_new_key, int err)
 {
 	struct net_device *dev;
@@ -214,9 +220,11 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 
 	skb->dev = dev;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	if (ip_hdr(skb)->version == 4)
+	if (ip_hdr(skb)->version == 4) {
 		skb->protocol = htons(ETH_P_IP);
-	else if (ip_hdr(skb)->version == 6) {
+		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
+			IP_ECN_set_ce(ip_hdr(skb));
+	} else if (ip_hdr(skb)->version == 6) {
 		if (unlikely(skb->len < sizeof(struct ipv6hdr))) {
 			++dev->stats.rx_errors;
 			++dev->stats.rx_length_errors;
@@ -224,6 +232,8 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 			goto packet_processed;
 		}
 		skb->protocol = htons(ETH_P_IPV6);
+		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
+			IP6_ECN_set_ce(skb, ipv6_hdr(skb));
 	} else {
 		++dev->stats.rx_errors;
 		++dev->stats.rx_length_errors;
@@ -294,6 +304,7 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 		queue_work(wg->workqueue, &wg->incoming_handshakes_work);
 		break;
 	case MESSAGE_DATA:
+		PACKET_CB(skb)->ds = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
 		packet_consume_data(skb, offset, wg, receive_data_packet);
 		break;
 	default:
