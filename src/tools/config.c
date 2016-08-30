@@ -213,7 +213,6 @@ static inline bool parse_ipmasks(struct inflatable_device *buf, size_t peer_offs
 		return false;
 	};
 	peer = peer_from_offset(buf->dev, peer_offset);
-	peer->num_ipmasks = 0;
 	peer->replace_ipmasks = true;
 	if (!strlen(value)) {
 		free(mutable);
