@@ -1,10 +1,12 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "wireguard.h"
 #include "cookie.h"
+#include "peer.h"
+#include "device.h"
 #include "messages.h"
 #include "crypto/blake2s.h"
 #include "crypto/chacha20poly1305.h"
+
 #include <linux/jiffies.h>
 #include <net/ipv6.h>
 #include <crypto/algapi.h>

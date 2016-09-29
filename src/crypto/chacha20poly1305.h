@@ -5,6 +5,8 @@
 
 #include <linux/types.h>
 
+struct scatterlist;
+
 enum chacha20poly1305_lengths {
 	CHACHA20POLY1305_KEYLEN = 32,
 	CHACHA20POLY1305_AUTHTAGLEN = 16

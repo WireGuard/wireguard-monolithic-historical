@@ -3,8 +3,8 @@
  * Copyright 2015 Martin Willi.
  */
 
-#include "../wireguard.h"
 #include "chacha20poly1305.h"
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/version.h>

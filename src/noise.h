@@ -7,51 +7,16 @@
 #ifndef NOISE_H
 #define NOISE_H
 
-#include "crypto/curve25519.h"
-#include "crypto/chacha20poly1305.h"
-#include "crypto/blake2s.h"
+#include "messages.h"
+#include "hashtables.h"
+
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <linux/rwsem.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
-
-enum index_hashtable_type {
-	INDEX_HASHTABLE_HANDSHAKE = (1 << 0),
-	INDEX_HASHTABLE_KEYPAIR = (1 << 1)
-};
-
-struct index_hashtable_entry {
-	struct wireguard_peer *peer;
-	struct hlist_node index_hash;
-	enum index_hashtable_type type;
-	__le32 index;
-};
-
-enum noise_lengths {
-	NOISE_PUBLIC_KEY_LEN = CURVE25519_POINT_SIZE,
-	NOISE_SYMMETRIC_KEY_LEN = CHACHA20POLY1305_KEYLEN,
-	NOISE_TIMESTAMP_LEN = sizeof(u64) + sizeof(u32),
-	NOISE_AUTHTAG_LEN = CHACHA20POLY1305_AUTHTAGLEN,
-	NOISE_HASH_LEN = BLAKE2S_OUTBYTES
-};
-
-enum counter_values {
-	COUNTER_BITS_TOTAL = 2048,
-	COUNTER_REDUNDANT_BITS = BITS_PER_LONG,
-	COUNTER_WINDOW_SIZE = COUNTER_BITS_TOTAL - COUNTER_REDUNDANT_BITS
-};
-
-enum wireguard_limits {
-	REKEY_AFTER_MESSAGES = U64_MAX - 0xffff,
-	REJECT_AFTER_MESSAGES = U64_MAX - COUNTER_WINDOW_SIZE - 1,
-	REKEY_TIMEOUT = 5 * HZ,
-	REKEY_AFTER_TIME = 120 * HZ,
-	REJECT_AFTER_TIME = 180 * HZ,
-	INITIATIONS_PER_SECOND = HZ / 50,
-	MAX_PEERS_PER_DEVICE = U16_MAX
-};
+#include <linux/kref.h>
 
 union noise_counter {
 	struct {
@@ -127,8 +92,6 @@ struct noise_handshake {
 	/* Protects all members except the immutable (after noise_peer_init): remote_static, static_identity */
 	struct rw_semaphore lock;
 };
-
-#define noise_encrypted_len(plain_len) (plain_len + NOISE_AUTHTAG_LEN)
 
 struct wireguard_peer;
 struct wireguard_device;

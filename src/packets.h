@@ -8,6 +8,7 @@
 #include "socket.h"
 
 #include <linux/types.h>
+#include <linux/padata.h>
 
 enum {
 	MAX_QUEUED_HANDSHAKES = 4096,

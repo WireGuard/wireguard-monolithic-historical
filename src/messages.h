@@ -7,8 +7,45 @@
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
-#include "noise.h"
-#include "cookie.h"
+#include "crypto/curve25519.h"
+#include "crypto/chacha20poly1305.h"
+#include "crypto/blake2s.h"
+
+#include <linux/kernel.h>
+#include <linux/param.h>
+
+enum noise_lengths {
+	NOISE_PUBLIC_KEY_LEN = CURVE25519_POINT_SIZE,
+	NOISE_SYMMETRIC_KEY_LEN = CHACHA20POLY1305_KEYLEN,
+	NOISE_TIMESTAMP_LEN = sizeof(u64) + sizeof(u32),
+	NOISE_AUTHTAG_LEN = CHACHA20POLY1305_AUTHTAGLEN,
+	NOISE_HASH_LEN = BLAKE2S_OUTBYTES
+};
+
+#define noise_encrypted_len(plain_len) (plain_len + NOISE_AUTHTAG_LEN)
+
+enum cookie_values {
+	COOKIE_SECRET_MAX_AGE = 2 * 60 * HZ,
+	COOKIE_SECRET_LATENCY = 5 * HZ,
+	COOKIE_SALT_LEN = 32,
+	COOKIE_LEN = 16
+};
+
+enum counter_values {
+	COUNTER_BITS_TOTAL = 2048,
+	COUNTER_REDUNDANT_BITS = BITS_PER_LONG,
+	COUNTER_WINDOW_SIZE = COUNTER_BITS_TOTAL - COUNTER_REDUNDANT_BITS
+};
+
+enum limits {
+	REKEY_AFTER_MESSAGES = U64_MAX - 0xffff,
+	REJECT_AFTER_MESSAGES = U64_MAX - COUNTER_WINDOW_SIZE - 1,
+	REKEY_TIMEOUT = 5 * HZ,
+	REKEY_AFTER_TIME = 120 * HZ,
+	REJECT_AFTER_TIME = 180 * HZ,
+	INITIATIONS_PER_SECOND = HZ / 50,
+	MAX_PEERS_PER_DEVICE = U16_MAX
+};
 
 enum message_type {
 	MESSAGE_INVALID = 0,

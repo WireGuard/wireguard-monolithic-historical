@@ -1,15 +1,16 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "wireguard.h"
 #include "packets.h"
 #include "device.h"
+#include "peer.h"
 #include "timers.h"
 #include "messages.h"
 #include "cookie.h"
-#include <net/ip_tunnels.h>
+
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/udp.h>
+#include <net/ip_tunnels.h>
 
 static inline void rx_stats(struct wireguard_peer *peer, size_t len)
 {

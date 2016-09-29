@@ -1,19 +1,14 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef WGCOOKIE
-#define WGCOOKIE
+#ifndef WGCOOKIE_H
+#define WGCOOKIE_H
 
-#include "noise.h"
-#include "peer.h"
+#include "messages.h"
 #include "ratelimiter.h"
 #include <linux/rwsem.h>
 
-enum {
-	COOKIE_SECRET_MAX_AGE = 2 * 60 * HZ,
-	COOKIE_SECRET_LATENCY = 5 * HZ,
-	COOKIE_SALT_LEN = 32,
-	COOKIE_LEN = 16
-};
+struct wireguard_peer;
+struct wireguard_device;
 
 struct wireguard_device;
 struct sk_buff;

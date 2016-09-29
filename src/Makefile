@@ -27,7 +27,7 @@ check:
 	$(MAKE) -C tools check
 
 cloc: clean
-	cloc ./*.c ./*.h
+	cloc $(filter-out compat.h, $(wildcard *.c) $(wildcard *.h))
 
 include tests/debug.mk
 

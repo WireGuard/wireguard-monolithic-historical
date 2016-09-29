@@ -1,6 +1,5 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "wireguard.h"
 #include "config.h"
 #include "device.h"
 #include "socket.h"

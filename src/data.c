@@ -1,16 +1,18 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "wireguard.h"
 #include "noise.h"
+#include "device.h"
+#include "peer.h"
 #include "messages.h"
 #include "packets.h"
 #include "hashtables.h"
-#include <crypto/algapi.h>
-#include <net/xfrm.h>
+
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 #include <linux/bitmap.h>
 #include <linux/scatterlist.h>
+#include <net/xfrm.h>
+#include <crypto/algapi.h>
 
 /* This is RFC6479, a replay detection bitmap algorithm that avoids bitshifts */
 static inline bool counter_validate(union noise_counter *counter, u64 their_counter)

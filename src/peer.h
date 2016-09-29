@@ -3,13 +3,15 @@
 #ifndef PEER_H
 #define PEER_H
 
-#include "wireguard.h"
 #include "noise.h"
 #include "cookie.h"
+
 #include <linux/types.h>
 #include <linux/netfilter.h>
 #include <linux/spinlock.h>
 #include <linux/kref.h>
+
+struct wireguard_device;
 
 struct wireguard_peer {
 	struct wireguard_device *device;

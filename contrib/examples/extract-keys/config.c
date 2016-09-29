@@ -5,7 +5,9 @@ struct def {
 extern const struct def defs[];
 
 #ifdef __KERNEL__
-#include "../../../src/wireguard.h"
+#include "../../../src/device.h"
+#include "../../../src/peer.h"
+#include "../../../src/noise.h"
 const struct def defs[] = {
 	{ "SOCK_DEVICE_OFFSET", offsetof(struct sock, sk_user_data) },
 	{ "DEVICE_NAME_OFFSET", -ALIGN(sizeof(struct net_device), NETDEV_ALIGN) + offsetof(struct net_device, name) },

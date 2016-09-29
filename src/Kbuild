@@ -1,6 +1,7 @@
 ccflags-y := -O3 -fvisibility=hidden
 ccflags-$(CONFIG_WIREGUARD_DEBUG) := -DDEBUG -g
 ccflags-y += -Wframe-larger-than=8192
+ccflags-y += -D'pr_fmt(fmt)=KBUILD_MODNAME ": " fmt' -include $(src)/compat.h
 wireguard-y := main.o noise.o device.o peer.o timers.o data.o send.o receive.o socket.o config.o hashtables.o routingtable.o ratelimiter.o cookie.o
 wireguard-y += crypto/curve25519.o crypto/chacha20poly1305.o crypto/blake2s.o crypto/siphash24.o
 ifeq ($(CONFIG_X86_64),y)

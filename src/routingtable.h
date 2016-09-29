@@ -3,7 +3,6 @@
 #ifndef ROUTINGTABLE_H
 #define ROUTINGTABLE_H
 
-#include "wireguard.h"
 #include <linux/mutex.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>

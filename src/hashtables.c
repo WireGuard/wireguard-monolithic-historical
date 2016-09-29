@@ -1,10 +1,10 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "wireguard.h"
 #include "hashtables.h"
 #include "peer.h"
-#include "crypto/siphash24.h"
 #include "noise.h"
+#include "crypto/siphash24.h"
+
 #include <linux/hashtable.h>
 
 static inline struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table, const uint8_t pubkey[static NOISE_PUBLIC_KEY_LEN])

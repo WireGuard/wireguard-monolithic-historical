@@ -1,19 +1,20 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "wireguard.h"
 #include "packets.h"
 #include "timers.h"
 #include "device.h"
+#include "peer.h"
 #include "socket.h"
 #include "messages.h"
 #include "cookie.h"
-#include <net/udp.h>
-#include <net/sock.h>
-#include <net/ip_tunnels.h>
+
 #include <linux/uio.h>
 #include <linux/inetdevice.h>
 #include <linux/socket.h>
 #include <linux/jiffies.h>
+#include <net/udp.h>
+#include <net/sock.h>
+#include <net/ip_tunnels.h>
 
 void packet_send_handshake_initiation(struct wireguard_peer *peer)
 {

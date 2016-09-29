@@ -1,11 +1,12 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "wireguard.h"
 #include "peer.h"
+#include "device.h"
 #include "packets.h"
 #include "timers.h"
 #include "hashtables.h"
 #include "noise.h"
+
 #include <linux/kref.h>
 #include <linux/lockdep.h>
 #include <linux/rcupdate.h>
@@ -42,11 +43,7 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 
 struct wireguard_peer *peer_get(struct wireguard_peer *peer)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "Calling peer_get without holding the RCU read lock.");
-#else
-	rcu_lockdep_assert(rcu_read_lock_held(), "Calling peer_get without holding the RCU read lock.");
-#endif
 	if (!peer)
 		return NULL;
 	if (!kref_get_unless_zero(&peer->refcount))

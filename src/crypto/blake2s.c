@@ -3,8 +3,8 @@
  * Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#include "../wireguard.h"
 #include "blake2s.h"
+
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>

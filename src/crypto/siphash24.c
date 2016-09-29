@@ -1,7 +1,7 @@
 /* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "../wireguard.h"
 #include "siphash24.h"
+
 #include <linux/kernel.h>
 
 #define ROTL(x,b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
