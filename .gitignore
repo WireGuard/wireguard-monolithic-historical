@@ -8,5 +8,4 @@ Module.symvers
 *.swp
 modules.order
 modules.builtin
-src/tests/qemu/build/
-src/tests/qemu/distfiles/
+maint/
