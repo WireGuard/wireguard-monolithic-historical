@@ -80,11 +80,7 @@ static inline struct dst_entry *route(struct wireguard_device *wg, struct flowi4
 		/* TODO: addr6->sin6_flowinfo */
 
 		security_sk_classify_flow(sock6, flowi6_to_flowi(fl6));
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 		ret = ipv6_stub->ipv6_dst_lookup(sock_net(sock6), sock6, &dst, fl6);
-#else
-		ret = ipv6_stub->ipv6_dst_lookup(sock6, &dst, fl6);
-#endif
 		if (unlikely(ret))
 			dst = ERR_PTR(ret);
 #endif
@@ -104,50 +100,24 @@ static inline int send(struct net_device *dev, struct sk_buff *skb, struct dst_e
 			ret = -ENONET;
 			goto err;
 		}
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
-		ret = udp_tunnel_xmit_skb((struct rtable *)dst, sock4, skb,
-					  fl4->saddr, fl4->daddr,
-					  dscp, ip4_dst_hoplimit(dst), 0,
-					  fl4->fl4_sport, fl4->fl4_dport,
-					  false, false);
-		iptunnel_xmit_stats(ret, &dev->stats, dev->tstats);
-		return ret > 0 ? 0 : -ECOMM;
-#else
 		udp_tunnel_xmit_skb((struct rtable *)dst, sock4, skb,
 				    fl4->saddr, fl4->daddr,
 				    dscp, ip4_dst_hoplimit(dst), 0,
 				    fl4->fl4_sport, fl4->fl4_dport,
 				    false, false);
 		return 0;
-#endif
 	} else if (addr->ss_family == AF_INET6) {
 		if (unlikely(!sock6)) {
 			ret = -ENONET;
 			goto err;
 		}
 #if IS_ENABLED(CONFIG_IPV6)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
-		return udp_tunnel6_xmit_skb(dst, sock6, skb, dev,
-					    &fl6->saddr, &fl6->daddr,
-					    dscp, ip6_dst_hoplimit(dst),
-					    fl6->fl6_sport, fl6->fl6_dport,
-					    false) == 0 ? 0 : -ECOMM;
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
-		udp_tunnel6_xmit_skb(dst, sock6, skb, dev,
-				     &fl6->saddr, &fl6->daddr,
-				     dscp, ip6_dst_hoplimit(dst),
-				     fl6->fl6_sport, fl6->fl6_dport,
-				     false);
-		return 0;
-#else
 		udp_tunnel6_xmit_skb(dst, sock6, skb, dev,
 				     &fl6->saddr, &fl6->daddr,
 				     dscp, ip6_dst_hoplimit(dst), 0,
 				     fl6->fl6_sport, fl6->fl6_dport,
 				     false);
 		return 0;
-#endif
 #else
 		goto err;
 #endif
@@ -398,6 +368,7 @@ static inline void set_sock_opts(struct socket *sock)
 
 int socket_init(struct wireguard_device *wg)
 {
+	int ret = 0;
 	struct socket *new4 = NULL;
 	struct udp_port_cfg port4 = {
 		.family = AF_INET,
@@ -411,9 +382,7 @@ int socket_init(struct wireguard_device *wg)
 		.local_ip6 = IN6ADDR_ANY_INIT,
 		.use_udp6_tx_checksums = true,
 		.use_udp6_rx_checksums = true,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 		.ipv6_v6only = true
-#endif
 	};
 #endif
 	struct udp_tunnel_sock_cfg cfg = {
@@ -421,12 +390,6 @@ int socket_init(struct wireguard_device *wg)
 		.encap_type = 1,
 		.encap_rcv = receive
 	};
-
-	int ret = 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
-	int old_bindv6only;
-	struct net *nobns;
-#endif
 
 	mutex_lock(&wg->socket_update_lock);
 
@@ -455,29 +418,13 @@ int socket_init(struct wireguard_device *wg)
 	rcu_assign_pointer(wg->sock4, new4->sk);
 
 #if IS_ENABLED(CONFIG_IPV6)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
-	nobns = &init_net;
-#else
-	nobns = wg->creating_net;
-#endif
-	/* Since udp_port_cfg only learned of ipv6_v6only in 4.3, we do this horrible
-	 * hack here and set the sysctl variable temporarily to something that will
-	 * set the right option for us in sock_create. It's super racey! */
-	old_bindv6only = nobns->ipv6.sysctl.bindv6only;
-	nobns->ipv6.sysctl.bindv6only = 1;
-#endif
 	ret = udp_sock_create(wg->creating_net, &port6, &new6);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
-	nobns->ipv6.sysctl.bindv6only = old_bindv6only;
-#endif
 	if (ret < 0) {
 		pr_err("Could not create IPv6 socket\n");
 		udp_tunnel_sock_release(new4);
 		rcu_assign_pointer(wg->sock4, NULL);
 		goto out;
 	}
-
 	set_sock_opts(new6);
 	setup_udp_tunnel_sock(wg->creating_net, new6, &cfg);
 	rcu_assign_pointer(wg->sock6, new6->sk);
