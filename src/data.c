@@ -234,7 +234,7 @@ int packet_create_data(struct sk_buff *skb, struct wireguard_peer *peer, void(*c
 	ctx->keypair = keypair;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	if (parallel && cpumask_weight(cpu_online_mask) > 1) {
+	if ((parallel || padata_queue_len(peer->device->parallel_send) > 0) && cpumask_weight(cpu_online_mask) > 1) {
 		unsigned int cpu = choose_cpu(keypair->remote_index);
 		ret = start_encryption(peer->device->parallel_send, &ctx->padata, cpu);
 		if (unlikely(ret < 0))

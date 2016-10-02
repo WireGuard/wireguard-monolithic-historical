@@ -129,4 +129,17 @@ static inline struct net_device *netdev_pub(void *dev)
 	return (struct net_device *)((char *)dev - ALIGN(sizeof(struct net_device), NETDEV_ALIGN));
 }
 
+/* https://lkml.org/lkml/2016/10/1/187 */
+#ifdef CONFIG_WIREGUARD_PARALLEL
+#include <linux/padata.h>
+static inline int padata_queue_len(struct padata_instance *pinst)
+{
+	int len;
+	rcu_read_lock_bh();
+	len = atomic_read(&rcu_dereference_bh(pinst->pd)->refcnt);
+	rcu_read_unlock_bh();
+	return len;
+}
+#endif
+
 #endif
