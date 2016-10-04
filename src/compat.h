@@ -116,11 +116,12 @@ __attribute__((unused)) static inline int udp_sock_create_new(struct net *net, s
 #define IP6_ECN_set_ce(a, b) IP6_ECN_set_ce(b)
 #endif
 
-/* https://lkml.org/lkml/2016/9/28/904 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0)
 #define time_is_before_jiffies64(a) time_after64(get_jiffies_64(), a)
 #define time_is_after_jiffies64(a) time_before64(get_jiffies_64(), a)
 #define time_is_before_eq_jiffies64(a) time_after_eq64(get_jiffies_64(), a)
 #define time_is_after_eq_jiffies64(a) time_before_eq64(get_jiffies_64(), a)
+#endif
 
 /* https://lkml.org/lkml/2015/6/12/415 */
 #include <linux/netdevice.h>
