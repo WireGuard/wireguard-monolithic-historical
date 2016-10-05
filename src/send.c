@@ -159,8 +159,12 @@ static void message_create_data_done(struct sk_buff *skb, struct wireguard_peer 
 {
 	/* A packet completed successfully, so we deincrement the counter of packets
 	 * remaining, and if we hit zero we can send it off. */
-	if (atomic_dec_and_test(&PACKET_CB(skb)->bundle->count))
+	if (atomic_dec_and_test(&PACKET_CB(skb)->bundle->count)) {
 		send_off_bundle(PACKET_CB(skb)->bundle, peer);
+		/* We queue the remaining ones only after sending, to retain packet order. */
+		if (unlikely(peer->need_resend_queue))
+			packet_send_queue(peer);
+	}
 	keep_key_fresh(peer);
 }
 
@@ -171,6 +175,8 @@ int packet_send_queue(struct wireguard_peer *peer)
 	struct sk_buff *skb, *next, *first;
 	unsigned long flags;
 	bool parallel = true;
+
+	peer->need_resend_queue = false;
 
 	/* Steal the current queue into our local one. */
 	skb_queue_head_init(&local_queue);
@@ -222,10 +228,15 @@ int packet_send_queue(struct wireguard_peer *peer)
 			/* ENOKEY means that we don't have a valid session for the peer, which
 			 * means we should initiate a session, and then requeue everything. */
 			ratelimit_packet_send_handshake_initiation(peer);
-			/* Fall through */
+			goto requeue;
 		case -EBUSY:
 			/* EBUSY happens when the parallel workers are all filled up, in which
 			 * case we should requeue everything. */
+
+			/* First, we mark that we should try to do this later, when existing
+			 * jobs are done. */
+			peer->need_resend_queue = true;
+		requeue:
 			if (skb->prev) {
 				/* Since we're requeuing skb and everything after skb, we make
 				 * sure that the previously successfully sent packets don't link
