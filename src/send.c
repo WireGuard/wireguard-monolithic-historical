@@ -101,7 +101,7 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 
 	/* We don't want both peers initiating a new handshake at the same time */
 	if (!keypair->i_am_the_initiator)
-		rekey_after_time += REKEY_TIMEOUT * 2;
+		rekey_after_time += REKEY_TIMEOUT / 2 + REKEY_TIMEOUT * 2;
 
 	if (atomic64_read(&keypair->sending.counter.counter) > REKEY_AFTER_MESSAGES ||
 	    time_is_before_eq_jiffies64(keypair->sending.birthdate + rekey_after_time)) {
