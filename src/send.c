@@ -121,6 +121,7 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 		skb_reserve(skb, DATA_PACKET_HEAD_ROOM);
 		skb->dev = netdev_pub(peer->device);
 		skb_queue_tail(&peer->tx_packet_queue, skb);
+		net_dbg_ratelimited("Sending keepalive packet to peer %Lu (%pISpfsc)\n", peer->internal_id, &peer->endpoint_addr);
 	}
 	packet_send_queue(peer);
 }

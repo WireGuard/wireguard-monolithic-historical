@@ -44,7 +44,6 @@ static void expired_send_keepalive(unsigned long ptr)
 {
 	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
 
-	pr_debug("Sending keep alive packet to peer %Lu (%pISpfsc), since we received data, but haven't sent any for %d seconds\n", peer->internal_id, &peer->endpoint_addr, KEEPALIVE / HZ);
 	packet_send_keepalive(peer);
 	if (peer->timer_need_another_keepalive) {
 		peer->timer_need_another_keepalive = false;
@@ -89,7 +88,6 @@ static void expired_send_persistent_keepalive(unsigned long ptr)
 
 	if (unlikely(!peer->persistent_keepalive_interval))
 		return;
-	pr_debug("Sending keep alive packet to peer %Lu (%pISpfsc), since we haven't sent or received authenticated data for %lu seconds\n", peer->internal_id, &peer->endpoint_addr, peer->persistent_keepalive_interval / HZ);
 	packet_send_keepalive(peer);
 }
 

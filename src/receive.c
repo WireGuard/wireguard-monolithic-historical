@@ -199,7 +199,7 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 	if (unlikely(used_new_key))
 		packet_send_queue(peer);
 
-	/* A packet with length 0 is a keep alive packet */
+	/* A packet with length 0 is a keepalive packet */
 	if (unlikely(!skb->len)) {
 		net_dbg_ratelimited("Receiving keepalive packet from peer %Lu (%pISpfsc)\n", peer->internal_id, addr);
 		goto packet_processed;
