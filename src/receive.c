@@ -123,6 +123,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, void *data, si
 			return;
 		}
 		net_dbg_ratelimited("Receiving handshake initiation from peer %Lu (%pISpfsc)\n", peer->internal_id, &addr);
+		timers_handshake_received(peer);
 		update_latest_addr(peer, skb);
 		packet_send_handshake_response(peer);
 		break;
@@ -138,6 +139,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, void *data, si
 			return;
 		}
 		net_dbg_ratelimited("Receiving handshake response from peer %Lu (%pISpfsc)\n", peer->internal_id, &addr);
+		timers_handshake_received(peer);
 		if (noise_handshake_begin_session(&peer->handshake, &peer->keypairs, true)) {
 			timers_ephemeral_key_created(peer);
 			timers_handshake_complete(peer);

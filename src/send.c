@@ -90,7 +90,6 @@ void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *i
 static inline void keep_key_fresh(struct wireguard_peer *peer)
 {
 	struct noise_keypair *keypair;
-	unsigned long rekey_after_time = REKEY_AFTER_TIME;
 
 	rcu_read_lock();
 	keypair = rcu_dereference(peer->keypairs.current_keypair);
@@ -99,14 +98,20 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 		return;
 	}
 
-	/* We don't want both peers initiating a new handshake at the same time */
-	if (!keypair->i_am_the_initiator)
-		rekey_after_time += REKEY_TIMEOUT / 2 + REKEY_TIMEOUT * 2;
-
 	if (atomic64_read(&keypair->sending.counter.counter) > REKEY_AFTER_MESSAGES ||
-	    time_is_before_eq_jiffies64(keypair->sending.birthdate + rekey_after_time)) {
+	    time_is_before_eq_jiffies64(keypair->sending.birthdate + REKEY_AFTER_TIME)) {
 		rcu_read_unlock();
-		ratelimit_packet_send_handshake_initiation(peer);
+		/* The initiator can try it immediately, but the responder has to wait a bit,
+		 * to prevent the thundering herd effect. */
+		if (keypair->i_am_the_initiator)
+			ratelimit_packet_send_handshake_initiation(peer);
+		else {
+			/* If it's going to be dead soon, we rekey early. */
+			if (time_is_before_eq_jiffies64(keypair->sending.birthdate + REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - REKEY_TIMEOUT))
+				timers_delay_handshake(peer, REKEY_TIMEOUT / 2);
+			else /* Otherwise rekey at the usual staggered delay. */
+				timers_delay_handshake(peer, REKEY_TIMEOUT / 2 + REKEY_TIMEOUT * 2);
+		}
 	} else
 		rcu_read_unlock();
 }
