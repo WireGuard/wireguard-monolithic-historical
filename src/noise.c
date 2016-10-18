@@ -120,15 +120,30 @@ static void add_new_keypair(struct noise_keypairs *keypairs, struct noise_keypai
 	next_keypair = rcu_dereference_protected(keypairs->next_keypair, lockdep_is_held(&keypairs->keypair_update_lock));
 	current_keypair =  rcu_dereference_protected(keypairs->current_keypair, lockdep_is_held(&keypairs->keypair_update_lock));
 	if (new_keypair->i_am_the_initiator) {
+		/* If we're the initiator, it means we've sent a handshake, and received
+		 * a confirmation response, which means this new keypair can now be used. */
 		if (next_keypair) {
+			/* If there already was a next keypair pending, we demote it to be
+			 * the previous keypair, and free the existing current.
+			 * TODO: note that this means KCI can result in this transition. It
+			 * would perhaps be more sound to always just get rid of the unused
+			 * next keypair instead of putting it in the previous slot, but this
+			 * might be a bit less robust. Something to think about and decide on. */
 			rcu_assign_pointer(keypairs->next_keypair, NULL);
 			rcu_assign_pointer(keypairs->previous_keypair, next_keypair);
 			noise_keypair_put(current_keypair);
-		} else
+		} else	/* If there wasn't an existing next keypair, we replace the
+			 * previous with the current one. */
 			rcu_assign_pointer(keypairs->previous_keypair, current_keypair);
+		/* At this point we can get rid of the old previous keypair, and set up
+		 * the new keypair. */
 		noise_keypair_put(previous_keypair);
 		rcu_assign_pointer(keypairs->current_keypair, new_keypair);
 	} else {
+		/* If we're the responder, it means we can't use the new keypair until
+		 * we receive confirmation via the first data packet, so we get rid of
+		 * the existing previous one, the possibly existing next one, and slide
+		 * in the new next one. */
 		rcu_assign_pointer(keypairs->next_keypair, new_keypair);
 		noise_keypair_put(next_keypair);
 		rcu_assign_pointer(keypairs->previous_keypair, NULL);
@@ -147,6 +162,9 @@ bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_k
 	rcu_read_lock();
 	if (unlikely(received_keypair == rcu_dereference(keypairs->next_keypair))) {
 		ret = true;
+		/* When we've finally received the confirmation, we slide the next
+		 * into the current, the current into the previous, and get rid of
+		 * the old previous. */
 		old_keypair = rcu_dereference(keypairs->previous_keypair);
 		rcu_assign_pointer(keypairs->previous_keypair, rcu_dereference(keypairs->current_keypair));
 		noise_keypair_put(old_keypair);
