@@ -142,7 +142,11 @@ static void receive_handshake_packet(struct wireguard_device *wg, void *data, si
 			timers_ephemeral_key_created(peer);
 			timers_handshake_complete(peer);
 			peer->sent_lastminute_handshake = false;
-			packet_send_queue(peer);
+			/* Calling this function will either send any existing packets in the queue
+			 * and not send a keepalive, which is the best case, Or, if there's nothing
+			 * in the queue, it will send a keepalive, in order to give immediate
+			 * confirmation of the session. */
+			packet_send_keepalive(peer);
 		}
 		break;
 	default:
