@@ -31,6 +31,7 @@ void packet_send_keepalive(struct wireguard_peer *peer);
 void packet_send_handshake_initiation(struct wireguard_peer *peer);
 void packet_send_handshake_response(struct wireguard_peer *peer);
 void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *initiating_skb, void *data, size_t data_len, __le32 sender_index);
+void packet_send_handshake_initiation_ratelimited(struct wireguard_peer *peer);
 
 void packet_queue_send_handshake_initiation(struct wireguard_peer *peer);
 void packet_process_queued_handshake_packets(struct work_struct *work);

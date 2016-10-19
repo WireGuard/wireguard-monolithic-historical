@@ -13,9 +13,7 @@ void timers_data_sent(struct wireguard_peer *peer);
 void timers_data_received(struct wireguard_peer *peer);
 void timers_any_authenticated_packet_received(struct wireguard_peer *peer);
 void timers_handshake_initiated(struct wireguard_peer *peer);
-void timers_handshake_received(struct wireguard_peer *peer);
 void timers_handshake_complete(struct wireguard_peer *peer);
-void timers_delay_handshake(struct wireguard_peer *peer, unsigned int delay);
 void timers_ephemeral_key_created(struct wireguard_peer *peer);
 void timers_any_authenticated_packet_traversal(struct wireguard_peer *peer);
 

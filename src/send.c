@@ -31,6 +31,12 @@ void packet_send_handshake_initiation(struct wireguard_peer *peer)
 	}
 }
 
+void packet_send_handshake_initiation_ratelimited(struct wireguard_peer *peer)
+{
+	if (time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT))
+		packet_queue_send_handshake_initiation(peer);
+}
+
 void packet_send_handshake_response(struct wireguard_peer *peer)
 {
 	struct message_handshake_response packet;
@@ -68,12 +74,6 @@ void packet_queue_send_handshake_initiation(struct wireguard_peer *peer)
 		peer_put(peer); /* If the work was already queued, we want to drop the extra reference */
 }
 
-static inline void ratelimit_packet_send_handshake_initiation(struct wireguard_peer *peer)
-{
-	if (time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT))
-		packet_queue_send_handshake_initiation(peer);
-}
-
 void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *initiating_skb, void *data, size_t data_len, __le32 sender_index)
 {
 	struct message_handshake_cookie packet;
@@ -90,30 +90,18 @@ void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *i
 static inline void keep_key_fresh(struct wireguard_peer *peer)
 {
 	struct noise_keypair *keypair;
+	bool send = false;
 
 	rcu_read_lock();
 	keypair = rcu_dereference(peer->keypairs.current_keypair);
-	if (unlikely(!keypair || !keypair->sending.is_valid)) {
-		rcu_read_unlock();
-		return;
-	}
+	if (likely(keypair && keypair->sending.is_valid) &&
+	   (unlikely(atomic64_read(&keypair->sending.counter.counter) > REKEY_AFTER_MESSAGES) ||
+	   (keypair->i_am_the_initiator && unlikely(time_is_before_eq_jiffies64(keypair->sending.birthdate + REKEY_AFTER_TIME)))))
+		send = true;
+	rcu_read_unlock();
 
-	if (atomic64_read(&keypair->sending.counter.counter) > REKEY_AFTER_MESSAGES ||
-	    time_is_before_eq_jiffies64(keypair->sending.birthdate + REKEY_AFTER_TIME)) {
-		rcu_read_unlock();
-		/* The initiator can try it immediately, but the responder has to wait a bit,
-		 * to prevent the thundering herd effect. */
-		if (keypair->i_am_the_initiator)
-			ratelimit_packet_send_handshake_initiation(peer);
-		else {
-			/* If it's going to be dead soon, we rekey early. */
-			if (time_is_before_eq_jiffies64(keypair->sending.birthdate + REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - REKEY_TIMEOUT))
-				timers_delay_handshake(peer, REKEY_TIMEOUT / 2);
-			else /* Otherwise rekey at the usual staggered delay. */
-				timers_delay_handshake(peer, REKEY_TIMEOUT / 2 + REKEY_TIMEOUT * 2);
-		}
-	} else
-		rcu_read_unlock();
+	if (send)
+		packet_send_handshake_initiation_ratelimited(peer);
 }
 
 void packet_send_keepalive(struct wireguard_peer *peer)
@@ -233,7 +221,7 @@ int packet_send_queue(struct wireguard_peer *peer)
 		case -ENOKEY:
 			/* ENOKEY means that we don't have a valid session for the peer, which
 			 * means we should initiate a session, and then requeue everything. */
-			ratelimit_packet_send_handshake_initiation(peer);
+			packet_send_handshake_initiation_ratelimited(peer);
 			goto requeue;
 		case -EBUSY:
 			/* EBUSY happens when the parallel workers are all filled up, in which

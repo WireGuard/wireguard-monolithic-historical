@@ -11,7 +11,6 @@
  * Timer for initiating new handshake if we have sent a packet but after have not received one (even empty) for `(KEEPALIVE_TIMEOUT + REKEY_TIMEOUT)` ms
  * Timer for zeroing out all ephemeral keys after `(REJECT_AFTER_TIME * 3)` ms if no new keys have been received
  * Timer for, if enabled, sending an empty authenticated packet every user-specified seconds
- * Timer for starting a new handshake based on a delay
  */
 
 /* This rounds the time down to the closest power of two of the closest quarter second. */
@@ -56,12 +55,6 @@ static void expired_new_handshake(unsigned long ptr)
 	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
 
 	pr_debug("Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->internal_id, &peer->endpoint_addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
-	packet_queue_send_handshake_initiation(peer);
-}
-
-static void expired_delay_handshake(unsigned long ptr)
-{
-	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
 	packet_queue_send_handshake_initiation(peer);
 }
 
@@ -126,36 +119,18 @@ void timers_any_authenticated_packet_received(struct wireguard_peer *peer)
 /* Should be called after a handshake initiation message is sent. */
 void timers_handshake_initiated(struct wireguard_peer *peer)
 {
-	if (likely(peer->timer_delay_handshake.data))
-		del_timer(&peer->timer_delay_handshake);
 	if (likely(peer->timer_send_keepalive.data))
 		del_timer(&peer->timer_send_keepalive);
 	if (likely(peer->timer_retransmit_handshake.data))
 		mod_timer(&peer->timer_retransmit_handshake, slack_time(jiffies + REKEY_TIMEOUT + HZ / 4));
 }
 
-/* Should be called after a handshake message of any kind is received. */
-void timers_handshake_received(struct wireguard_peer *peer)
-{
-	if (likely(peer->timer_delay_handshake.data))
-		del_timer(&peer->timer_delay_handshake);
-}
-
 /* Should be called after a handshake response message is received and processed. */
 void timers_handshake_complete(struct wireguard_peer *peer)
 {
-	if (likely(peer->timer_delay_handshake.data))
-		del_timer(&peer->timer_delay_handshake);
 	if (likely(peer->timer_retransmit_handshake.data))
 		del_timer(&peer->timer_retransmit_handshake);
 	peer->timer_handshake_attempts = 0;
-}
-
-/* Should be called in order to initiate a handshake a little bit in the future. */
-void timers_delay_handshake(struct wireguard_peer *peer, unsigned int delay)
-{
-	if (likely(peer->timer_delay_handshake.data) && !timer_pending(&peer->timer_delay_handshake))
-		mod_timer(&peer->timer_delay_handshake, jiffies + delay);
 }
 
 /* Should be called after an ephemeral key is created, which is before sending a handshake response or after receiving a handshake response. */
@@ -178,10 +153,6 @@ void timers_init_peer(struct wireguard_peer *peer)
 	init_timer(&peer->timer_retransmit_handshake);
 	peer->timer_retransmit_handshake.function = expired_retransmit_handshake;
 	peer->timer_retransmit_handshake.data = (unsigned long)peer;
-
-	init_timer(&peer->timer_delay_handshake);
-	peer->timer_delay_handshake.function = expired_delay_handshake;
-	peer->timer_delay_handshake.data = (unsigned long)peer;
 
 	init_timer(&peer->timer_send_keepalive);
 	peer->timer_send_keepalive.function = expired_send_keepalive;
@@ -207,10 +178,6 @@ void timers_uninit_peer(struct wireguard_peer *peer)
 	if (peer->timer_retransmit_handshake.data) {
 		del_timer(&peer->timer_retransmit_handshake);
 		peer->timer_retransmit_handshake.data = 0;
-	}
-	if (peer->timer_delay_handshake.data) {
-		del_timer(&peer->timer_delay_handshake);
-		peer->timer_delay_handshake.data = 0;
 	}
 	if (peer->timer_send_keepalive.data) {
 		del_timer(&peer->timer_send_keepalive);

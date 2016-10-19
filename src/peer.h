@@ -29,11 +29,12 @@ struct wireguard_peer {
 	struct cookie latest_cookie;
 	struct hlist_node pubkey_hash;
 	uint64_t rx_bytes, tx_bytes;
-	struct timer_list timer_retransmit_handshake, timer_delay_handshake, timer_send_keepalive, timer_new_handshake, timer_kill_ephemerals, timer_persistent_keepalive;
+	struct timer_list timer_retransmit_handshake, timer_send_keepalive, timer_new_handshake, timer_kill_ephemerals, timer_persistent_keepalive;
 	unsigned int timer_handshake_attempts;
 	unsigned long persistent_keepalive_interval;
 	bool timer_need_another_keepalive;
 	bool need_resend_queue;
+	bool sent_lastminute_handshake;
 	struct timeval walltime_last_handshake;
 	struct sk_buff_head tx_packet_queue;
 	struct kref refcount;
