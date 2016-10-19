@@ -5,15 +5,10 @@
 #include "peer.h"
 #include "packets.h"
 
-enum {
-	KEEPALIVE = 10 * HZ,
-	MAX_TIMER_HANDSHAKES = (90 * HZ) / REKEY_TIMEOUT
-};
-
 /*
  * Timer for retransmitting the handshake if we don't hear back after `REKEY_TIMEOUT` ms
- * Timer for sending empty packet if we have received a packet but after have not sent one for `KEEPALIVE` ms
- * Timer for initiating new handshake if we have sent a packet but after have not received one (even empty) for `(KEEPALIVE + REKEY_TIMEOUT)` ms
+ * Timer for sending empty packet if we have received a packet but after have not sent one for `KEEPALIVE_TIMEOUT` ms
+ * Timer for initiating new handshake if we have sent a packet but after have not received one (even empty) for `(KEEPALIVE_TIMEOUT + REKEY_TIMEOUT)` ms
  * Timer for zeroing out all ephemeral keys after `(REJECT_AFTER_TIME * 3)` ms if no new keys have been received
  * Timer for, if enabled, sending an empty authenticated packet every user-specified seconds
  */
@@ -51,7 +46,7 @@ static void expired_send_keepalive(unsigned long ptr)
 	packet_send_keepalive(peer);
 	if (peer->timer_need_another_keepalive) {
 		peer->timer_need_another_keepalive = false;
-		mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE);
+		mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
 	}
 }
 
@@ -59,7 +54,7 @@ static void expired_new_handshake(unsigned long ptr)
 {
 	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
 
-	pr_debug("Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->internal_id, &peer->endpoint_addr, (KEEPALIVE + REKEY_TIMEOUT) / HZ);
+	pr_debug("Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->internal_id, &peer->endpoint_addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
 	packet_queue_send_handshake_initiation(peer);
 }
 
@@ -102,14 +97,14 @@ void timers_data_sent(struct wireguard_peer *peer)
 		del_timer(&peer->timer_send_keepalive);
 
 	if (likely(peer->timer_new_handshake.data) && !timer_pending(&peer->timer_new_handshake))
-		mod_timer(&peer->timer_new_handshake, jiffies + KEEPALIVE + REKEY_TIMEOUT);
+		mod_timer(&peer->timer_new_handshake, jiffies + KEEPALIVE_TIMEOUT + REKEY_TIMEOUT);
 }
 
 /* Should be called after an authenticated data packet is received. */
 void timers_data_received(struct wireguard_peer *peer)
 {
 	if (likely(peer->timer_send_keepalive.data) && !timer_pending(&peer->timer_send_keepalive))
-		mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE);
+		mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
 	else
 		peer->timer_need_another_keepalive = true;
 }
