@@ -113,7 +113,7 @@ struct wgpeer {
 struct wgdevice {
 	char interface[IFNAMSIZ]; /* Get */
 
-	__u8 public_key[WG_KEY_LEN]; /* Get/Set */
+	__u8 public_key[WG_KEY_LEN]; /* Get */
 	__u8 private_key[WG_KEY_LEN]; /* Get/Set */
 	__u8 preshared_key[WG_KEY_LEN]; /* Get/Set */
 
