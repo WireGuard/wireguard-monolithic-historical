@@ -143,4 +143,11 @@ static inline int padata_queue_len(struct padata_instance *pinst)
 }
 #endif
 
+/* PaX compatibility */
+#ifdef CONSTIFY_PLUGIN
+#include <linux/cache.h>
+#undef __read_mostly
+#define __read_mostly
+#endif
+
 #endif
