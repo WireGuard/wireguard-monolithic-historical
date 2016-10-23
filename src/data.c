@@ -70,9 +70,9 @@ static inline void skb_reset(struct sk_buff *skb)
 	skb->mac_len = 0;
 	skb->dev = NULL;
 	skb->hdr_len = skb_headroom(skb);
-	skb->mac_header = (typeof(skb->mac_header))~0U;
-	skb->transport_header = (typeof(skb->transport_header))~0U;
+	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
+	skb_probe_transport_header(skb, 0);
 }
 
 static inline void skb_encrypt(struct sk_buff *skb, struct packet_data_encryption_ctx *ctx)
