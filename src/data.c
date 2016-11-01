@@ -191,10 +191,9 @@ int packet_create_data(struct sk_buff *skb, struct wireguard_peer *peer, void(*c
 	unsigned int num_frags;
 
 	rcu_read_lock();
-	keypair = rcu_dereference(peer->keypairs.current_keypair);
+	keypair = noise_keypair_get(rcu_dereference(peer->keypairs.current_keypair));
 	if (unlikely(!keypair))
 		goto err_rcu;
-	kref_get(&keypair->refcount);
 	rcu_read_unlock();
 
 	if (unlikely(!get_encryption_nonce(&nonce, &keypair->sending)))
@@ -367,12 +366,11 @@ void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_de
 		goto err;
 	ret = -EINVAL;
 	rcu_read_lock();
-	keypair = (struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx);
+	keypair = noise_keypair_get((struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx));
 	if (unlikely(!keypair)) {
 		rcu_read_unlock();
 		goto err;
 	}
-	kref_get(&keypair->refcount);
 	rcu_read_unlock();
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	if (cpumask_weight(cpu_online_mask) > 1) {

@@ -95,6 +95,16 @@ void noise_keypair_put(struct noise_keypair *keypair)
 	kref_put(&keypair->refcount, keypair_free_kref);
 }
 
+struct noise_keypair *noise_keypair_get(struct noise_keypair *keypair)
+{
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "Calling noise_keypair_get without holding the RCU read lock.");
+	if (unlikely(!keypair))
+		return NULL;
+	if (unlikely(!kref_get_unless_zero(&keypair->refcount)))
+		return NULL;
+	return keypair;
+}
+
 void noise_keypairs_clear(struct noise_keypairs *keypairs)
 {
 	struct noise_keypair *old;
