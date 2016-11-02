@@ -49,15 +49,26 @@ struct wireguard_peer *peer_get(struct wireguard_peer *peer)
 	return peer;
 }
 
+struct wireguard_peer *peer_rcu_get(struct wireguard_peer *peer)
+{
+	rcu_read_lock();
+	peer = peer_get(peer);
+	rcu_read_unlock();
+	return peer;
+}
+
+/* We have a separate "remove" function to get rid of the final reference because
+ * peer_list, clearing handshakes, and flushing all require mutexes which requires
+ * sleeping, which must only be done from certain contexts. */
 void peer_remove(struct wireguard_peer *peer)
 {
 	if (unlikely(!peer))
 		return;
 	lockdep_assert_held(&peer->device->device_update_lock);
-
-	list_del(&peer->peer_list);
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
+	list_del(&peer->peer_list);
+	timers_uninit_peer(peer);
 	routing_table_remove_by_peer(&peer->device->peer_routing_table, peer);
 	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
 	if (peer->device->workqueue)
@@ -70,12 +81,10 @@ static void rcu_release(struct rcu_head *rcu)
 {
 	struct wireguard_peer *peer = container_of(rcu, struct wireguard_peer, rcu);
 	pr_debug("Peer %Lu (%pISpfsc) destroyed\n", peer->internal_id, &peer->endpoint_addr);
-	timers_uninit_peer(peer);
 	skb_queue_purge(&peer->tx_packet_queue);
 	if (peer->endpoint_dst)
 		dst_release(peer->endpoint_dst);
-	memzero_explicit(peer, sizeof(struct wireguard_peer));
-	kfree(peer);
+	kzfree(peer);
 }
 
 static void kref_release(struct kref *refcount)
@@ -98,9 +107,7 @@ int peer_for_each_unlocked(struct wireguard_device *wg, int (*fn)(struct wiregua
 
 	lockdep_assert_held(&wg->device_update_lock);
 	list_for_each_entry_safe(peer, temp, &wg->peer_list, peer_list) {
-		rcu_read_lock();
-		peer = peer_get(peer);
-		rcu_read_unlock();
+		peer = peer_rcu_get(peer);
 		if (unlikely(!peer))
 			continue;
 		ret = fn(peer, data);

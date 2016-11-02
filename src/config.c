@@ -70,16 +70,9 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	if (!peer) { /* Peer doesn't exist yet. Add a new one. */
 		if (in_peer.remove_me)
 			return -ENODEV; /* Tried to remove a non existing peer. */
-		peer = peer_create(wg, in_peer.public_key);
+		peer = peer_rcu_get(peer_create(wg, in_peer.public_key));
 		if (!peer)
 			return -ENOMEM;
-		rcu_read_lock();
-		peer = peer_get(peer);
-		rcu_read_unlock();
-		if (!peer) {
-			pr_err("Peer disappeared while creating\n");
-			return -EAGAIN;
-		}
 		if (netdev_pub(wg)->flags & IFF_UP)
 			timers_init_peer(peer);
 	} else

@@ -46,6 +46,8 @@ struct wireguard_peer {
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[static NOISE_PUBLIC_KEY_LEN]);
 
 struct wireguard_peer *peer_get(struct wireguard_peer *peer);
+struct wireguard_peer *peer_rcu_get(struct wireguard_peer *peer);
+
 void peer_put(struct wireguard_peer *peer);
 void peer_remove(struct wireguard_peer *peer);
 void peer_remove_all(struct wireguard_device *wg);

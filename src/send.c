@@ -33,8 +33,11 @@ void packet_send_handshake_initiation(struct wireguard_peer *peer)
 
 void packet_send_handshake_initiation_ratelimited(struct wireguard_peer *peer)
 {
-	if (time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT))
-		packet_queue_send_handshake_initiation(peer);
+	if (time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT)) {
+		peer = peer_rcu_get(peer);
+		if (likely(peer))
+			packet_queue_send_handshake_initiation(peer);
+	}
 }
 
 void packet_send_handshake_response(struct wireguard_peer *peer)
@@ -62,13 +65,9 @@ void packet_send_queued_handshakes(struct work_struct *work)
 	peer_put(peer);
 }
 
+/* Consumes peer reference. */
 void packet_queue_send_handshake_initiation(struct wireguard_peer *peer)
 {
-	rcu_read_lock();
-	peer = peer_get(peer);
-	rcu_read_unlock();
-	if (!peer)
-		return;
 	/* Queues up calling packet_send_queued_handshakes(peer), where we do a peer_put(peer) after: */
 	if (!queue_work(peer->device->workqueue, &peer->transmit_handshake_work))
 		peer_put(peer); /* If the work was already queued, we want to drop the extra reference */

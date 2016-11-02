@@ -19,10 +19,14 @@ static inline unsigned long slack_time(unsigned long time)
 	return time & ~(roundup_pow_of_two(HZ / 4) - 1);
 }
 
+#define peer_get_from_ptr(ptr) \
+	struct wireguard_peer *peer = peer_rcu_get((struct wireguard_peer *)ptr); \
+	if (unlikely(!peer)) \
+		return;
+
 static void expired_retransmit_handshake(unsigned long ptr)
 {
-	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
-
+	peer_get_from_ptr(ptr);
 	pr_debug("Handshake for peer %Lu (%pISpfsc) did not complete after %d seconds, retrying\n", peer->internal_id, &peer->endpoint_addr, REKEY_TIMEOUT / HZ);
 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
 		del_timer(&peer->timer_send_keepalive);
@@ -33,48 +37,40 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		 * of a partial exchange. */
 		if (likely(peer->timer_kill_ephemerals.data))
 			mod_timer(&peer->timer_kill_ephemerals, jiffies + (REJECT_AFTER_TIME * 3));
+		peer_put(peer);
 		return;
 	}
-	packet_queue_send_handshake_initiation(peer);
+	packet_queue_send_handshake_initiation(peer); /* Takes our reference. */
 	++peer->timer_handshake_attempts;
 }
 
 static void expired_send_keepalive(unsigned long ptr)
 {
-	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
-
+	peer_get_from_ptr(ptr);
 	packet_send_keepalive(peer);
 	if (peer->timer_need_another_keepalive) {
 		peer->timer_need_another_keepalive = false;
 		mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
 	}
+	peer_put(peer);
 }
 
 static void expired_new_handshake(unsigned long ptr)
 {
-	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
-
+	peer_get_from_ptr(ptr);
 	pr_debug("Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->internal_id, &peer->endpoint_addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
-	packet_queue_send_handshake_initiation(peer);
+	packet_queue_send_handshake_initiation(peer); /* Takes our reference. */
 }
 
 static void expired_kill_ephemerals(unsigned long ptr)
 {
-	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
-
-	rcu_read_lock();
-	peer = peer_get(peer);
-	rcu_read_unlock();
-	if (!peer)
-		return;
-
-	if (!queue_work(peer->device->workqueue, &peer->clear_peer_work))
+	peer_get_from_ptr(ptr);
+	if (!queue_work(peer->device->workqueue, &peer->clear_peer_work)) /* Takes our reference. */
 		peer_put(peer); /* If the work was already on the queue, we want to drop the extra reference */
 }
 static void queued_expired_kill_ephemerals(struct work_struct *work)
 {
 	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, clear_peer_work);
-
 	pr_debug("Zeroing out all keys for peer %Lu (%pISpfsc), since we haven't received a new one in %d seconds\n", peer->internal_id, &peer->endpoint_addr, (REJECT_AFTER_TIME * 3) / HZ);
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
@@ -83,11 +79,10 @@ static void queued_expired_kill_ephemerals(struct work_struct *work)
 
 static void expired_send_persistent_keepalive(unsigned long ptr)
 {
-	struct wireguard_peer *peer = (struct wireguard_peer *)ptr;
-
-	if (unlikely(!peer->persistent_keepalive_interval))
-		return;
-	packet_send_keepalive(peer);
+	peer_get_from_ptr(ptr);
+	if (likely(peer->persistent_keepalive_interval))
+		packet_send_keepalive(peer);
+	peer_put(peer);
 }
 
 /* Should be called after an authenticated data packet is sent. */
