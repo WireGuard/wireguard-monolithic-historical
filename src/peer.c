@@ -44,16 +44,14 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 struct wireguard_peer *peer_get(struct wireguard_peer *peer)
 {
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "Calling peer_get without holding the RCU read lock.");
-	if (unlikely(!peer))
-		return NULL;
-	if (unlikely(!kref_get_unless_zero(&peer->refcount)))
+	if (unlikely(!peer || !kref_get_unless_zero(&peer->refcount)))
 		return NULL;
 	return peer;
 }
 
 void peer_remove(struct wireguard_peer *peer)
 {
-	if (!peer)
+	if (unlikely(!peer))
 		return;
 	lockdep_assert_held(&peer->device->device_update_lock);
 
@@ -88,7 +86,7 @@ static void kref_release(struct kref *refcount)
 
 void peer_put(struct wireguard_peer *peer)
 {
-	if (!peer)
+	if (unlikely(!peer))
 		return;
 	kref_put(&peer->refcount, kref_release);
 }
