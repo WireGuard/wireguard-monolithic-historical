@@ -24,7 +24,7 @@ clean:
 	rm -f wg *.o *.d
 
 install: wg
-	install -v -d "$(DESTDIR)$(BINDIR)" && install -s -m 0755 -v wg "$(DESTDIR)$(BINDIR)/wg"
+	install -v -d "$(DESTDIR)$(BINDIR)" && install -m 0755 -v wg "$(DESTDIR)$(BINDIR)/wg"
 	install -v -d "$(DESTDIR)$(MANDIR)/man8" && install -m 0644 -v wg.8 "$(DESTDIR)$(MANDIR)/man8/wg.8"
 
 check: clean
