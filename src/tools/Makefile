@@ -4,6 +4,7 @@ BINDIR ?= $(PREFIX)/bin
 LIBDIR ?= $(PREFIX)/lib
 MANDIR ?= $(PREFIX)/share/man
 RUNSTATEDIR ?= /var/run
+PKG_CONFIG ?= pkg-config
 
 CFLAGS ?= -O3
 CFLAGS += -std=gnu11
@@ -12,8 +13,8 @@ CFLAGS += -MMD -MP
 CFLAGS += -DRUNSTATEDIR="\"$(RUNSTATEDIR)\""
 LDLIBS += -lresolv
 ifeq ($(shell uname -s),Linux)
-LIBMNL_CFLAGS := $(shell pkg-config --cflags libmnl 2>/dev/null)
-LIBMNL_LDLIBS := $(shell pkg-config --libs libmnl 2>/dev/null || echo -lmnl)
+LIBMNL_CFLAGS := $(shell $(PKG_CONFIG) --cflags libmnl 2>/dev/null)
+LIBMNL_LDLIBS := $(shell $(PKG_CONFIG) --libs libmnl 2>/dev/null || echo -lmnl)
 CFLAGS += $(LIBMNL_CFLAGS)
 LDLIBS += $(LIBMNL_LDLIBS)
 endif
