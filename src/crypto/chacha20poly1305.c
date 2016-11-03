@@ -741,7 +741,7 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 			blkcipher_walk_done(&chacha20_desc, &walk, walk.nbytes % CHACHA20_BLOCK_SIZE);
 		}
 		if (walk.nbytes) {
-			poly1305_update(&poly1305_state, walk.dst.virt.addr, walk.nbytes, have_simd);
+			poly1305_update(&poly1305_state, walk.src.virt.addr, walk.nbytes, have_simd);
 			chacha20_crypt(&chacha20_state, walk.dst.virt.addr, walk.src.virt.addr, walk.nbytes, have_simd);
 			blkcipher_walk_done(&chacha20_desc, &walk, 0);
 		}
