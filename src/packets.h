@@ -39,22 +39,10 @@ void packet_send_queued_handshakes(struct work_struct *work);
 
 
 /* data.c */
-struct packet_data_encryption_ctx {
-	struct padata_priv padata;
-	struct sk_buff *skb;
-	void (*callback)(struct sk_buff *, struct wireguard_peer *);
-	struct wireguard_peer *peer;
-	unsigned int plaintext_len, trailer_len;
-	uint8_t num_frags;
-	struct sk_buff *trailer;
-	struct noise_keypair *keypair;
-	uint64_t nonce;
-};
-
-int packet_create_data(struct sk_buff *skb, struct wireguard_peer *peer, void(*callback)(struct sk_buff *, struct wireguard_peer *), bool parallel);
+int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer, void(*callback)(struct sk_buff_head *, struct wireguard_peer *));
 void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_device *wg, void(*callback)(struct sk_buff *, struct wireguard_peer *, struct sockaddr_storage *, bool used_new_key, int err));
 
-#define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + max(sizeof(struct packet_data_encryption_ctx), SKB_HEADER_LEN), 4)
+#define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
 
 #ifdef DEBUG
 bool packet_counter_selftest(void);

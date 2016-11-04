@@ -14,7 +14,6 @@
 #include <linux/jiffies.h>
 #include <net/udp.h>
 #include <net/sock.h>
-#include <net/ip_tunnels.h>
 
 void packet_send_handshake_initiation(struct wireguard_peer *peer)
 {
@@ -118,175 +117,71 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 	packet_send_queue(peer);
 }
 
-struct packet_bundle {
-	atomic_t count;
-	struct sk_buff *first;
-};
-
-struct packet_cb {
-	struct packet_bundle *bundle;
-	struct packet_bundle data;
-	u8 ds;
-};
-#define PACKET_CB(skb) ((struct packet_cb *)skb->cb)
-
-static inline void send_off_bundle(struct packet_bundle *bundle, struct wireguard_peer *peer)
+static void message_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *peer)
 {
-	struct sk_buff *skb, *next;
+	struct sk_buff *skb, *tmp;
 	bool is_keepalive, data_sent = false;
-	if (likely(bundle->first))
-		timers_any_authenticated_packet_traversal(peer);
-	for (skb = bundle->first; skb; skb = next) {
-		/* We store the next pointer locally because socket_send_skb_to_peer
-		 * consumes the packet before the top of the loop comes again. */
-		next = skb->next;
+
+	timers_any_authenticated_packet_traversal(peer);
+	skb_queue_walk_safe(queue, skb, tmp) {
 		is_keepalive = skb->len == message_data_len(0);
-		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
+		if (likely(!socket_send_skb_to_peer(peer, skb, *(u8 *)skb->cb) && !is_keepalive))
 			data_sent = true;
 	}
 	if (likely(data_sent))
 		timers_data_sent(peer);
-}
 
-static void message_create_data_done(struct sk_buff *skb, struct wireguard_peer *peer)
-{
-	/* A packet completed successfully, so we deincrement the counter of packets
-	 * remaining, and if we hit zero we can send it off. */
-	if (atomic_dec_and_test(&PACKET_CB(skb)->bundle->count)) {
-		send_off_bundle(PACKET_CB(skb)->bundle, peer);
-		/* We queue the remaining ones only after sending, to retain packet order. */
-		if (unlikely(peer->need_resend_queue))
-			packet_send_queue(peer);
-	}
 	keep_key_fresh(peer);
+
+	if (unlikely(peer->need_resend_queue))
+		packet_send_queue(peer);
 }
 
 int packet_send_queue(struct wireguard_peer *peer)
 {
-	struct packet_bundle *bundle;
-	struct sk_buff_head local_queue;
-	struct sk_buff *skb, *next, *first;
+	struct sk_buff_head queue;
 	unsigned long flags;
-	bool parallel = true;
 
 	peer->need_resend_queue = false;
 
 	/* Steal the current queue into our local one. */
-	skb_queue_head_init(&local_queue);
+	skb_queue_head_init(&queue);
 	spin_lock_irqsave(&peer->tx_packet_queue.lock, flags);
-	skb_queue_splice_init(&peer->tx_packet_queue, &local_queue);
+	skb_queue_splice_init(&peer->tx_packet_queue, &queue);
 	spin_unlock_irqrestore(&peer->tx_packet_queue.lock, flags);
 
-	first = skb_peek(&local_queue);
-	if (unlikely(!first))
-		goto out;
+	if (unlikely(!skb_queue_len(&queue)))
+		return NETDEV_TX_OK;
 
-	/* Remove the circularity from the queue, so that we can iterate on
-	 * on the skbs themselves. */
-	local_queue.prev->next = local_queue.next->prev = NULL;
+	/* We submit it for encryption and sending. */
+	switch (packet_create_data(&queue, peer, message_create_data_done)) {
+	case 0:
+		break;
+	case -ENOKEY:
+		/* ENOKEY means that we don't have a valid session for the peer, which
+		 * means we should initiate a session, and then requeue everything. */
+		packet_send_handshake_initiation_ratelimited(peer);
+		goto requeue;
+	case -EBUSY:
+		/* EBUSY happens when the parallel workers are all filled up, in which
+		 * case we should requeue everything. */
 
-	/* The first pointer of the control block is a pointer to the bundle
-	 * and after that, in the first packet only, is where we actually store
-	 * the bundle data. This saves us a call to kmalloc. */
-	BUILD_BUG_ON(sizeof(struct packet_cb) > sizeof(skb->cb));
-	bundle = &PACKET_CB(first)->data;
-	atomic_set(&bundle->count, skb_queue_len(&local_queue));
-	bundle->first = first;
-
-	/* Non-parallel path for the case of only one packet that's small */
-	if (skb_queue_len(&local_queue) == 1 && first->len <= 256)
-		parallel = false;
-
-	for (skb = first; skb; skb = next) {
-		/* We store the next pointer locally because we might free skb
-		 * before the top of the loop comes again. */
-		next = skb->next;
-
-		/* We set the first pointer in cb to point to the bundle data. */
-		PACKET_CB(skb)->bundle = bundle;
-
-		/* Extract the TOS value before encryption, for ECN encapsulation. */
-		PACKET_CB(skb)->ds = ip_tunnel_ecn_encap(0 /* No outer TOS: no leak. TODO: should we use flowi->tos as outer? */, ip_hdr(skb), skb);
-
-		/* We submit it for encryption and sending. */
-		switch (packet_create_data(skb, peer, message_create_data_done, parallel)) {
-		case 0:
-			/* If all goes well, we can simply deincrement the queue counter. Even
-			 * though skb_dequeue() would do this for us, we don't want to break the
-			 * links between packets, so we just traverse the list normally and
-			 * deincrement the counter manually each time a packet is consumed. */
-			--local_queue.qlen;
-			break;
-		case -ENOKEY:
-			/* ENOKEY means that we don't have a valid session for the peer, which
-			 * means we should initiate a session, and then requeue everything. */
-			packet_send_handshake_initiation_ratelimited(peer);
-			goto requeue;
-		case -EBUSY:
-			/* EBUSY happens when the parallel workers are all filled up, in which
-			 * case we should requeue everything. */
-
-			/* First, we mark that we should try to do this later, when existing
-			 * jobs are done. */
-			peer->need_resend_queue = true;
-		requeue:
-			if (skb->prev) {
-				/* Since we're requeuing skb and everything after skb, we make
-				 * sure that the previously successfully sent packets don't link
-				 * to the requeued packets, which will be sent independently the
-				 * next time this function is called. */
-				skb->prev->next = NULL;
-				skb->prev = NULL;
-			}
-			if (atomic_sub_and_test(local_queue.qlen, &bundle->count)) {
-				/* We remove the requeued packets from the count of total packets
-				 * that were successfully submitted, which means we then must see
-				 * if we were the ones to get it to zero. If we are at zero, we
-				 * only send the previous successful packets if there actually were
-				 * packets that succeeded before skb. */
-				if (skb != first)
-					send_off_bundle(bundle, peer);
-			}
-			/* We stick the remaining skbs from local_queue at the top of the peer's
-			 * queue again, setting the top of local_queue to be the skb that begins
-			 * the requeueing. */
-			local_queue.next = skb;
-			spin_lock_irqsave(&peer->tx_packet_queue.lock, flags);
-			skb_queue_splice(&local_queue, &peer->tx_packet_queue);
-			spin_unlock_irqrestore(&peer->tx_packet_queue.lock, flags);
-			goto out;
-		default:
-			/* If we failed for any other reason, we want to just free the packet and
-			 * forget about it, so we first deincrement the queue counter as in the
-			 * successful case above. */
-			--local_queue.qlen;
-			if (skb == first && next) {
-				/* If it's the first one that failed, we need to move the bundle data
-				 * to the next packet. Then, all subsequent assignments of the bundle
-				 * pointer will be to the moved data. */
-				PACKET_CB(next)->data = *bundle;
-				bundle = &PACKET_CB(next)->data;
-				bundle->first = next;
-			}
-			/* We remove the skb from the list and free it. */
-			if (skb->prev)
-				skb->prev->next = skb->next;
-			if (skb->next)
-				skb->next->prev = skb->prev;
-			kfree_skb(skb);
-			if (atomic_dec_and_test(&bundle->count)) {
-				/* As above, if this failed packet pushes the count to zero, we have to
-				 * be the ones to send it off only in the case that there's something to
-				 * send. */
-				if (skb != first)
-					send_off_bundle(bundle, peer);
-			}
-			/* Only at the bottom do we update our local `first` variable, because we need it
-			 * in the check above. But it's important that bundle->first is updated earlier when
-			 * actually moving the bundle. */
-			first = bundle->first;
-		}
+		/* First, we mark that we should try to do this later, when existing
+		 * jobs are done. */
+		peer->need_resend_queue = true;
+	requeue:
+		/* We stick the remaining skbs from local_queue at the top of the peer's
+		 * queue again, setting the top of local_queue to be the skb that begins
+		 * the requeueing. */
+		spin_lock_irqsave(&peer->tx_packet_queue.lock, flags);
+		skb_queue_splice(&queue, &peer->tx_packet_queue);
+		spin_unlock_irqrestore(&peer->tx_packet_queue.lock, flags);
+		break;
+	default:
+		/* If we failed for any other reason, we want to just free the packets and
+		 * forget about them. We do this unlocked, since we're the only ones with
+		 * a reference to the local queue. */
+		__skb_queue_purge(&queue);
 	}
-out:
 	return NETDEV_TX_OK;
 }
