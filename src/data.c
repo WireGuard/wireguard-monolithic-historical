@@ -48,13 +48,13 @@ out:
 }
 #include "selftest/counter.h"
 
-static inline size_t skb_padding(struct sk_buff *skb)
+static inline unsigned int skb_padding(struct sk_buff *skb)
 {
 	/* We do this modulo business with the MTU, just in case the networking layer
 	 * gives us a packet that's bigger than the MTU. Now that we support GSO, this
 	 * shouldn't be a real problem, and this can likely be removed. But, caution! */
-	size_t last_unit = skb->len % skb->dev->mtu;
-	size_t padded_size = (last_unit + MESSAGE_PADDING_MULTIPLE - 1) & ~(MESSAGE_PADDING_MULTIPLE - 1);
+	unsigned int last_unit = skb->len % skb->dev->mtu;
+	unsigned int padded_size = (last_unit + MESSAGE_PADDING_MULTIPLE - 1) & ~(MESSAGE_PADDING_MULTIPLE - 1);
 	if (padded_size > skb->dev->mtu)
 		padded_size = skb->dev->mtu;
 	return padded_size - last_unit;
@@ -100,7 +100,7 @@ static inline void skb_encrypt(struct sk_buff *skb, struct packet_data_encryptio
 	noise_keypair_put(ctx->keypair);
 }
 
-static inline bool skb_decrypt(struct sk_buff *skb, unsigned int num_frags, uint64_t nonce, struct noise_symmetric_key *key)
+static inline bool skb_decrypt(struct sk_buff *skb, uint8_t num_frags, uint64_t nonce, struct noise_symmetric_key *key)
 {
 	struct scatterlist sg[num_frags]; /* This should be bound to at most 128 by the caller. */
 
@@ -188,7 +188,7 @@ int packet_create_data(struct sk_buff *skb, struct wireguard_peer *peer, void(*c
 	struct packet_data_encryption_ctx *ctx = NULL;
 	u64 nonce;
 	struct sk_buff *trailer = NULL;
-	size_t plaintext_len, padding_len, trailer_len;
+	unsigned int plaintext_len, padding_len, trailer_len;
 	unsigned int num_frags;
 
 	rcu_read_lock();
@@ -269,7 +269,7 @@ struct packet_data_decryption_ctx {
 	struct noise_keypair *keypair;
 	struct sockaddr_storage addr;
 	uint64_t nonce;
-	unsigned int num_frags;
+	uint8_t num_frags;
 	int ret;
 };
 

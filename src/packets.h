@@ -44,8 +44,8 @@ struct packet_data_encryption_ctx {
 	struct sk_buff *skb;
 	void (*callback)(struct sk_buff *, struct wireguard_peer *);
 	struct wireguard_peer *peer;
-	size_t plaintext_len, trailer_len;
-	unsigned int num_frags;
+	unsigned int plaintext_len, trailer_len;
+	uint8_t num_frags;
 	struct sk_buff *trailer;
 	struct noise_keypair *keypair;
 	uint64_t nonce;
