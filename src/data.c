@@ -84,12 +84,11 @@ struct packet_data_encryption_ctx {
 	uint64_t nonce;
 };
 
-static inline void skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypair)
+static inline void skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypair, bool have_simd)
 {
 	struct packet_data_encryption_ctx *ctx = (struct packet_data_encryption_ctx *)skb->cb;
 	struct scatterlist sg[ctx->num_frags]; /* This should be bound to at most 128 by the caller. */
 	struct message_data *header;
-
 
 	/* We have to remember to add the checksum to the innerpacket, in case the receiver forwards it. */
 	if (likely(!skb_checksum_setup(skb, true)))
@@ -105,7 +104,7 @@ static inline void skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypai
 	/* Now we can encrypt the scattergather segments */
 	sg_init_table(sg, ctx->num_frags);
 	skb_to_sgvec(skb, sg, sizeof(struct message_data), noise_encrypted_len(ctx->plaintext_len));
-	chacha20poly1305_encrypt_sg(sg, sg, ctx->plaintext_len, NULL, 0, ctx->nonce, keypair->sending.key);
+	chacha20poly1305_encrypt_sg(sg, sg, ctx->plaintext_len, NULL, 0, ctx->nonce, keypair->sending.key, have_simd);
 }
 
 static inline bool skb_decrypt(struct sk_buff *skb, uint8_t num_frags, uint64_t nonce, struct noise_symmetric_key *key)
@@ -159,13 +158,12 @@ struct packet_bundle_ctx {
 static inline void queue_encrypt_reset(struct sk_buff_head *queue, struct noise_keypair *keypair)
 {
 	struct sk_buff *skb;
-	/* TODO: as a later optimization, we can activate the FPU just once
-	 * for the entire loop, rather than turning it on and off for each
-	 * packet. */
+	bool have_simd = chacha20poly1305_init_simd();
 	skb_queue_walk(queue, skb) {
-		skb_encrypt(skb, keypair);
+		skb_encrypt(skb, keypair, have_simd);
 		skb_reset(skb);
 	}
+	chacha20poly1305_deinit_simd(have_simd);
 	noise_keypair_put(keypair);
 }
 
