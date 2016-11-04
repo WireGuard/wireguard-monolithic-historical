@@ -29,9 +29,15 @@ static int __init mod_init(void)
 	chacha20poly1305_init();
 	noise_init();
 
-	ret = device_init();
+	ret = packet_init_data_caches();
 	if (ret < 0)
 		return ret;
+
+	ret = device_init();
+	if (ret < 0) {
+		packet_deinit_data_caches();
+		return ret;
+	}
 
 	pr_info("WireGuard loaded. See www.wireguard.io for information.\n");
 	pr_info("(C) Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.\n");
@@ -41,6 +47,7 @@ static int __init mod_init(void)
 static void __exit mod_exit(void)
 {
 	device_uninit();
+	packet_deinit_data_caches();
 	pr_debug("WireGuard has been unloaded\n");
 }
 
