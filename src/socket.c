@@ -10,7 +10,6 @@
 #include <linux/net.h>
 #include <linux/if_vlan.h>
 #include <linux/if_ether.h>
-#include <net/dst_cache.h>
 #include <net/udp_tunnel.h>
 #include <net/ipv6.h>
 
