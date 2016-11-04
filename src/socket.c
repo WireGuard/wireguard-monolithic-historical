@@ -182,10 +182,10 @@ int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8
 	read_lock_bh(&peer->endpoint_lock);
 
 	dst = route(peer->device, &fl, &peer->endpoint_addr, rcu_dereference(peer->device->sock4), rcu_dereference(peer->device->sock6), &peer->endpoint_cache);
-	if (unlikely(!dst)) {
+	if (unlikely(IS_ERR(dst))) {
 		net_dbg_ratelimited("No route to %pISpfsc for peer %Lu\n", &peer->endpoint_addr, peer->internal_id);
 		kfree_skb(skb);
-		ret = -EHOSTUNREACH;
+		ret = PTR_ERR(dst);
 		goto out;
 	} else if (unlikely(dst->dev == dev)) {
 		net_dbg_ratelimited("Avoiding routing loop to %pISpfsc for peer %Lu\n", &peer->endpoint_addr, peer->internal_id);
