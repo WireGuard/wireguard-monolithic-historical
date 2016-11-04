@@ -11,7 +11,7 @@
 
 static int set_peer_dst(struct wireguard_peer *peer, void *data)
 {
-	socket_set_peer_dst(peer);
+	dst_cache_reset(&peer->endpoint_cache);
 	return 0;
 }
 

@@ -37,7 +37,6 @@ static void uninit(struct net_device *dev)
 
 static int open_peer(struct wireguard_peer *peer, void *data)
 {
-	socket_set_peer_dst(peer);
 	timers_init_peer(peer);
 	packet_send_queue(peer);
 	if (peer->persistent_keepalive_interval)

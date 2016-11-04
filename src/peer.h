@@ -10,17 +10,14 @@
 #include <linux/netfilter.h>
 #include <linux/spinlock.h>
 #include <linux/kref.h>
+#include <net/dst_cache.h>
 
 struct wireguard_device;
 
 struct wireguard_peer {
 	struct wireguard_device *device;
 	struct sockaddr_storage endpoint_addr;
-	struct dst_entry *endpoint_dst;
-	union {
-		struct flowi4 fl4;
-		struct flowi6 fl6;
-	} endpoint_flow;
+	struct dst_cache endpoint_cache;
 	rwlock_t endpoint_lock;
 	struct noise_handshake handshake;
 	struct noise_keypairs keypairs;

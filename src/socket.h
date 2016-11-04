@@ -20,6 +20,5 @@ int socket_send_buffer_as_reply_to_skb(struct sk_buff *in_skb, void *out_buffer,
 
 int socket_addr_from_skb(struct sockaddr_storage *sockaddr, struct sk_buff *skb);
 void socket_set_peer_addr(struct wireguard_peer *peer, struct sockaddr_storage *sockaddr);
-void socket_set_peer_dst(struct wireguard_peer *peer);
 
 #endif
