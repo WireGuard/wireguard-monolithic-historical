@@ -156,6 +156,7 @@ static void finish_encryption(struct padata_priv *padata)
 	struct packet_data_encryption_ctx *ctx = container_of(padata, struct packet_data_encryption_ctx, padata);
 
 	ctx->callback(ctx->skb, ctx->peer);
+	peer_put(ctx->peer);
 }
 
 static inline int start_encryption(struct padata_instance *padata, struct padata_priv *priv, int cb_cpu)
@@ -235,9 +236,15 @@ int packet_create_data(struct sk_buff *skb, struct wireguard_peer *peer, void(*c
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	if ((parallel || padata_queue_len(peer->device->parallel_send) > 0) && cpumask_weight(cpu_online_mask) > 1) {
 		unsigned int cpu = choose_cpu(keypair->remote_index);
-		ret = start_encryption(peer->device->parallel_send, &ctx->padata, cpu);
-		if (unlikely(ret < 0))
+		ret = -EBUSY;
+		ctx->peer = peer_rcu_get(peer);
+		if (unlikely(!ctx->peer))
 			goto err;
+		ret = start_encryption(peer->device->parallel_send, &ctx->padata, cpu);
+		if (unlikely(ret < 0)) {
+			peer_put(ctx->peer);
+			goto err;
+		}
 	} else
 #endif
 	{
