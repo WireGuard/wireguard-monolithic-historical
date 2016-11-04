@@ -18,9 +18,10 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 #include <linux/security.h>
-#ifndef GRSECURITY_VERSION
-#define get_random_long() (((u64)get_random_int() << 32) | get_random_int())
+#ifdef GRSECURITY_VERSION
+#include <linux/random.h>
 #endif
+#define get_random_long() (((u64)get_random_int() << 32) | get_random_int())
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
