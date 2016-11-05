@@ -82,7 +82,7 @@ void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *i
 	net_dbg_ratelimited("Sending cookie response for denied handshake message for %pISpfsc\n", &addr);
 #endif
 	cookie_message_create(&packet, initiating_skb, data, data_len, sender_index, &wg->cookie_checker);
-	socket_send_buffer_as_reply_to_skb(initiating_skb, &packet, sizeof(packet), wg);
+	socket_send_buffer_as_reply_to_skb(wg, initiating_skb, &packet, sizeof(packet));
 }
 
 static inline void keep_key_fresh(struct wireguard_peer *peer)

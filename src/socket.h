@@ -14,9 +14,9 @@ struct wireguard_device;
 
 int socket_init(struct wireguard_device *wg);
 void socket_uninit(struct wireguard_device *wg);
-int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *data, size_t len, u8 ds);
-int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8 ds);
-int socket_send_buffer_as_reply_to_skb(struct sk_buff *in_skb, void *out_buffer, size_t len, struct wireguard_device *wg);
+int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *data, size_t len, uint8_t ds);
+int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, uint8_t ds);
+int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg, struct sk_buff *in_skb, void *out_buffer, size_t len);
 
 int socket_addr_from_skb(struct sockaddr_storage *sockaddr, struct sk_buff *skb);
 void socket_set_peer_addr(struct wireguard_peer *peer, struct sockaddr_storage *sockaddr);
