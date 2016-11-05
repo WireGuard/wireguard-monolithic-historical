@@ -71,9 +71,8 @@ static inline u32 and(u32 v, u32 mask)
 	return v & mask;
 }
 
-
 struct chacha20_ctx {
-	u32 state[16];
+	u32 state[CHACHA20_BLOCK_SIZE / sizeof(u32)];
 } __aligned(32);
 
 static void chacha20_generic_block(struct chacha20_ctx *ctx, void *stream)
@@ -133,7 +132,7 @@ static void chacha20_generic_block(struct chacha20_ctx *ctx, void *stream)
 	ctx->state[12]++;
 }
 
-static void chacha20_keysetup(struct chacha20_ctx *ctx, const u8 key[32], const u8 nonce[8])
+static void chacha20_keysetup(struct chacha20_ctx *ctx, const u8 key[CHACHA20_KEY_SIZE], const u8 nonce[sizeof(u64)])
 {
 	static const char constant[16] = "expand 32-byte k";
 	ctx->state[0]  = le32_to_cpuvp(constant +  0);
