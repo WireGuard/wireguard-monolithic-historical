@@ -31,7 +31,7 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 #include <linux/if.h>
 #include <net/udp_tunnel.h>
-#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { int ret = udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l);  iptunnel_xmit_stats(ret, &dev->stats, dev->tstats); } while (0)
+#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__ = udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l);  iptunnel_xmit_stats(ret__, &dev__->stats, dev__->tstats); } while (0)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0) && IS_ENABLED(CONFIG_IPV6)
