@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/io.h>
 #include <sys/ioctl.h>
+#include <sys/reboot.h>
 #include <sys/utsname.h>
 #include <linux/random.h>
 #include <linux/version.h>
@@ -167,9 +168,13 @@ static bool linux_4_8_or_higher(const struct utsname *utsname)
 int main(int argc, char *argv[])
 {
 	struct utsname utsname;
+
+	/* Work around nasty QEMU/kernel race condition. */
+	if (write(1, NULL, 0) < 0)
+		reboot(RB_AUTOBOOT);
+
 	if (uname(&utsname) < 0)
 		panic("uname");
-
 	print_banner(&utsname);
 	mount_filesystems();
 	kmod_selftests();
