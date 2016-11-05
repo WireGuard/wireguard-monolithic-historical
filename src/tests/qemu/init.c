@@ -20,6 +20,8 @@
 
  __attribute__((noreturn)) static void poweroff(void)
 {
+	fflush(stdout);
+	fflush(stderr);
 	ioperm(0x604, 2, 1);
 	outw(1 << 13, 0x604);
 	sleep(30);
@@ -38,7 +40,6 @@ static void panic(const char *what)
 static void print_banner(const struct utsname *utsname)
 {
 	int len = strlen("    WireGuard Test Suite on      ") + strlen(utsname->sysname) + strlen(utsname->release);
-	putchar('\0');putchar('\0');putchar('\0');putchar('\0');putchar('\n');
 	printf("\x1b[45m\x1b[33m\x1b[1m%*.s\x1b[0m\n\x1b[45m\x1b[33m\x1b[1m    WireGuard Test Suite on %s %s    \x1b[0m\n\x1b[45m\x1b[33m\x1b[1m%*.s\x1b[0m\n\n", len, "", utsname->sysname, utsname->release, len, "");
 }
 
@@ -169,8 +170,7 @@ int main(int argc, char *argv[])
 {
 	struct utsname utsname;
 
-	/* Work around nasty QEMU/kernel race condition. */
-	if (write(1, NULL, 0) < 0)
+	if (write(1, "\0\0\0\0\n", 5) < 0)
 		reboot(RB_AUTOBOOT);
 
 	if (uname(&utsname) < 0)
