@@ -2,6 +2,7 @@
 
 
 #include <arpa/inet.h>
+#include <limits.h>
 #include <ctype.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -220,7 +221,7 @@ static inline bool parse_ipmasks(struct inflatable_device *buf, size_t peer_offs
 	}
 	sep = mutable;
 	while ((mask = strsep(&sep, ","))) {
-		unsigned long cidr;
+		unsigned long cidr = ULONG_MAX;
 		char *end, *ip = strsep(&mask, "/");
 		if (use_space(buf, sizeof(struct wgipmask)) < 0) {
 			perror("use_space");
@@ -234,27 +235,16 @@ static inline bool parse_ipmasks(struct inflatable_device *buf, size_t peer_offs
 			free(mutable);
 			return false;
 		}
-		if (ipmask->family == AF_INET) {
-			if (mask) {
-				cidr = strtoul(mask, &end, 10);
-				if (*end)
-					mask = NULL;
-				if (cidr > 32)
-					mask = NULL;
-			}
-			if (!mask)
-				cidr = 32;
-		} else if (ipmask->family == AF_INET6) {
-			if (mask) {
-				cidr = strtoul(mask, &end, 10);
-				if (*end)
-					mask = NULL;
-				if (cidr > 128)
-					mask = NULL;
-			}
-			if (!mask)
-				cidr = 128;
-		} else
+		if (mask && *mask) {
+			cidr = strtoul(mask, &end, 10);
+			if (*end)
+				cidr = ULONG_MAX;
+		}
+		if (ipmask->family == AF_INET)
+			cidr = cidr > 32 ? 32 : cidr;
+		else if (ipmask->family == AF_INET6)
+			cidr = cidr > 128 ? 128 : cidr;
+		else
 			continue;
 		ipmask->cidr = cidr;
 		++peer->num_ipmasks;
