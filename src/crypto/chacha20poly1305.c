@@ -133,7 +133,7 @@ static void chacha20_generic_block(struct chacha20_ctx *ctx, void *stream)
 	ctx->state[12]++;
 }
 
-static void chacha20_keysetup(struct chacha20_ctx *ctx, const u8 key[static 32], const u8 nonce[static 8])
+static void chacha20_keysetup(struct chacha20_ctx *ctx, const u8 key[32], const u8 nonce[8])
 {
 	static const char constant[16] = "expand 32-byte k";
 	ctx->state[0]  = le32_to_cpuvp(constant +  0);
@@ -240,7 +240,7 @@ struct poly1305_ctx {
 	u32 r4[5];
 };
 
-static void poly1305_init(struct poly1305_ctx *ctx, const u8 key[static POLY1305_KEY_SIZE])
+static void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE])
 {
 #ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	u32 t0, t1, t2, t3;
@@ -519,7 +519,7 @@ static struct blkcipher_desc chacha20_desc = {
 
 bool chacha20poly1305_encrypt(uint8_t *dst, const uint8_t *src, const size_t src_len,
 			      const uint8_t *ad, const size_t ad_len,
-			      const uint64_t nonce, const uint8_t key[static CHACHA20POLY1305_KEYLEN])
+			      const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN])
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
@@ -560,7 +560,7 @@ bool chacha20poly1305_encrypt(uint8_t *dst, const uint8_t *src, const size_t src
 
 bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
 				 const uint8_t *ad, const size_t ad_len,
-				 const uint64_t nonce, const uint8_t key[static CHACHA20POLY1305_KEYLEN],
+				 const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN],
 				 bool have_simd)
 {
 	struct poly1305_ctx poly1305_state;
@@ -614,7 +614,7 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 
 bool chacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src, const size_t src_len,
 			      const uint8_t *ad, const size_t ad_len,
-			      const uint64_t nonce, const uint8_t key[static CHACHA20POLY1305_KEYLEN])
+			      const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN])
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
@@ -666,7 +666,7 @@ bool chacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src, const size_t src
 
 bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
 				 const uint8_t *ad, const size_t ad_len,
-				 const uint64_t nonce, const uint8_t key[static CHACHA20POLY1305_KEYLEN])
+				 const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN])
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;

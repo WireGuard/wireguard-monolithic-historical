@@ -16,20 +16,20 @@ void chacha20poly1305_init(void);
 
 bool chacha20poly1305_encrypt(uint8_t *dst, const uint8_t *src, const size_t src_len,
 			      const uint8_t *ad, const size_t ad_len,
-			      const uint64_t nonce, const uint8_t key[static CHACHA20POLY1305_KEYLEN]);
+			      const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN]);
 
 bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
 				 const uint8_t *ad, const size_t ad_len,
-				 const uint64_t nonce, const uint8_t key[static CHACHA20POLY1305_KEYLEN],
+				 const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN],
 				 bool have_simd);
 
 bool chacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src, const size_t src_len,
 			      const uint8_t *ad, const size_t ad_len,
-			      const uint64_t nonce, const uint8_t key[static CHACHA20POLY1305_KEYLEN]);
+			      const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN]);
 
 bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
 				 const uint8_t *ad, const size_t ad_len,
-				 const uint64_t nonce, const uint8_t key[static CHACHA20POLY1305_KEYLEN]);
+				 const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN]);
 
 #ifdef CONFIG_X86_64
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)

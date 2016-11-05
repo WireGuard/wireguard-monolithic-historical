@@ -102,15 +102,15 @@ struct message_data;
 struct message_handshake_cookie;
 
 void noise_init(void);
-void noise_handshake_init(struct noise_handshake *handshake, struct noise_static_identity *static_identity, const u8 peer_public_key[static NOISE_PUBLIC_KEY_LEN], struct wireguard_peer *peer);
+void noise_handshake_init(struct noise_handshake *handshake, struct noise_static_identity *static_identity, const u8 peer_public_key[NOISE_PUBLIC_KEY_LEN], struct wireguard_peer *peer);
 void noise_handshake_clear(struct noise_handshake *handshake);
 void noise_keypair_put(struct noise_keypair *keypair);
 struct noise_keypair *noise_keypair_get(struct noise_keypair *keypair);
 void noise_keypairs_clear(struct noise_keypairs *keypairs);
 bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_keypair *received_keypair);
 
-void noise_set_static_identity_private_key(struct noise_static_identity *static_identity, const u8 private_key[static NOISE_PUBLIC_KEY_LEN]);
-void noise_set_static_identity_preshared_key(struct noise_static_identity *static_identity, const u8 preshared_key[static NOISE_SYMMETRIC_KEY_LEN]);
+void noise_set_static_identity_private_key(struct noise_static_identity *static_identity, const u8 private_key[NOISE_PUBLIC_KEY_LEN]);
+void noise_set_static_identity_preshared_key(struct noise_static_identity *static_identity, const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN]);
 
 bool noise_handshake_create_initiation(struct message_handshake_initiation *dst, struct noise_handshake *handshake);
 struct wireguard_peer *noise_handshake_consume_initiation(struct message_handshake_initiation *src, struct wireguard_device *wg);

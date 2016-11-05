@@ -9,9 +9,9 @@ enum curve25519_lengths {
 	CURVE25519_POINT_SIZE = 32
 };
 
-void curve25519(uint8_t mypublic[static CURVE25519_POINT_SIZE], const uint8_t secret[static CURVE25519_POINT_SIZE], const uint8_t basepoint[static CURVE25519_POINT_SIZE]);
-void curve25519_generate_secret(uint8_t secret[static CURVE25519_POINT_SIZE]);
-void curve25519_generate_public(uint8_t pub[static CURVE25519_POINT_SIZE], const uint8_t secret[static CURVE25519_POINT_SIZE]);
+void curve25519(uint8_t mypublic[CURVE25519_POINT_SIZE], const uint8_t secret[CURVE25519_POINT_SIZE], const uint8_t basepoint[CURVE25519_POINT_SIZE]);
+void curve25519_generate_secret(uint8_t secret[CURVE25519_POINT_SIZE]);
+void curve25519_generate_public(uint8_t pub[CURVE25519_POINT_SIZE], const uint8_t secret[CURVE25519_POINT_SIZE]);
 
 #ifdef DEBUG
 bool curve25519_selftest(void);

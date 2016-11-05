@@ -16,7 +16,7 @@
 	} while(0)
 
 __attribute__((optimize("unroll-loops")))
-uint64_t siphash24(const uint8_t *data, size_t len, const uint8_t key[static SIPHASH24_KEY_LEN])
+uint64_t siphash24(const uint8_t *data, size_t len, const uint8_t key[SIPHASH24_KEY_LEN])
 {
 	uint64_t v0 = 0x736f6d6570736575ULL;
 	uint64_t v1 = 0x646f72616e646f6dULL;

@@ -20,7 +20,7 @@ struct pubkey_hashtable {
 void pubkey_hashtable_init(struct pubkey_hashtable *table);
 void pubkey_hashtable_add(struct pubkey_hashtable *table, struct wireguard_peer *peer);
 void pubkey_hashtable_remove(struct pubkey_hashtable *table, struct wireguard_peer *peer);
-struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, const uint8_t pubkey[static NOISE_PUBLIC_KEY_LEN]);
+struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, const uint8_t pubkey[NOISE_PUBLIC_KEY_LEN]);
 
 struct index_hashtable {
 	DECLARE_HASHTABLE(hashtable, 10);

@@ -35,7 +35,7 @@ void noise_init(void)
 	blake2s(handshake_psk_name_hash, handshake_psk_name, NULL, NOISE_HASH_LEN, sizeof(handshake_psk_name), 0);
 }
 
-void noise_handshake_init(struct noise_handshake *handshake, struct noise_static_identity *static_identity, const u8 peer_public_key[static NOISE_PUBLIC_KEY_LEN], struct wireguard_peer *peer)
+void noise_handshake_init(struct noise_handshake *handshake, struct noise_static_identity *static_identity, const u8 peer_public_key[NOISE_PUBLIC_KEY_LEN], struct wireguard_peer *peer)
 {
 	memset(handshake, 0, sizeof(struct noise_handshake));
 	init_rwsem(&handshake->lock);
@@ -184,7 +184,7 @@ bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_k
 	return ret;
 }
 
-void noise_set_static_identity_private_key(struct noise_static_identity *static_identity, const u8 private_key[static NOISE_PUBLIC_KEY_LEN])
+void noise_set_static_identity_private_key(struct noise_static_identity *static_identity, const u8 private_key[NOISE_PUBLIC_KEY_LEN])
 {
 	down_write(&static_identity->lock);
 	if (private_key) {
@@ -199,7 +199,7 @@ void noise_set_static_identity_private_key(struct noise_static_identity *static_
 	up_write(&static_identity->lock);
 }
 
-void noise_set_static_identity_preshared_key(struct noise_static_identity *static_identity, const u8 preshared_key[static NOISE_SYMMETRIC_KEY_LEN])
+void noise_set_static_identity_preshared_key(struct noise_static_identity *static_identity, const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN])
 {
 	down_write(&static_identity->lock);
 	if (preshared_key) {
@@ -218,7 +218,7 @@ void noise_set_static_identity_preshared_key(struct noise_static_identity *stati
  */
 static void kdf(u8 *first_dst, u8 *second_dst, const u8 *data,
 		size_t first_len, size_t second_len, size_t data_len,
-		const u8 chaining_key[static NOISE_HASH_LEN])
+		const u8 chaining_key[NOISE_HASH_LEN])
 {
 	u8 secret[BLAKE2S_OUTBYTES];
 	u8 output[BLAKE2S_OUTBYTES + 1];
@@ -251,20 +251,20 @@ static void symmetric_key_init(struct noise_symmetric_key *key)
 	key->is_valid = true;
 }
 
-static void derive_keys(struct noise_symmetric_key *first_dst, struct noise_symmetric_key *second_dst, const u8 chaining_key[static NOISE_HASH_LEN])
+static void derive_keys(struct noise_symmetric_key *first_dst, struct noise_symmetric_key *second_dst, const u8 chaining_key[NOISE_HASH_LEN])
 {
 	kdf(first_dst->key, second_dst->key, NULL, NOISE_SYMMETRIC_KEY_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, chaining_key);
 	symmetric_key_init(first_dst);
 	symmetric_key_init(second_dst);
 }
 
-static void mix_key(u8 key[static NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[static NOISE_HASH_LEN], const u8 *src, size_t src_len)
+static void mix_key(u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[NOISE_HASH_LEN], const u8 *src, size_t src_len)
 {
 	kdf(chaining_key, key, src, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, src_len, chaining_key);
 }
 
-static void mix_dh(u8 key[static NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[static NOISE_HASH_LEN],
-		   const u8 private[static NOISE_PUBLIC_KEY_LEN], const u8 public[static NOISE_PUBLIC_KEY_LEN])
+static void mix_dh(u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[NOISE_HASH_LEN],
+		   const u8 private[NOISE_PUBLIC_KEY_LEN], const u8 public[NOISE_PUBLIC_KEY_LEN])
 {
 	u8 dh_calculation[NOISE_PUBLIC_KEY_LEN];
 	curve25519(dh_calculation, private, public);
@@ -272,7 +272,7 @@ static void mix_dh(u8 key[static NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[stati
 	memzero_explicit(dh_calculation, NOISE_PUBLIC_KEY_LEN);
 }
 
-static void mix_hash(u8 hash[static NOISE_HASH_LEN], const u8 *src, size_t src_len)
+static void mix_hash(u8 hash[NOISE_HASH_LEN], const u8 *src, size_t src_len)
 {
 	struct blake2s_state blake;
 	blake2s_init(&blake, NOISE_HASH_LEN);
@@ -281,8 +281,8 @@ static void mix_hash(u8 hash[static NOISE_HASH_LEN], const u8 *src, size_t src_l
 	blake2s_final(&blake, hash, NOISE_HASH_LEN);
 }
 
-static void handshake_init(u8 key[static NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[static NOISE_HASH_LEN], u8 hash[static NOISE_HASH_LEN],
-			   const u8 remote_static[static NOISE_PUBLIC_KEY_LEN], const u8 psk[static NOISE_SYMMETRIC_KEY_LEN])
+static void handshake_init(u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[NOISE_HASH_LEN], u8 hash[NOISE_HASH_LEN],
+			   const u8 remote_static[NOISE_PUBLIC_KEY_LEN], const u8 psk[NOISE_SYMMETRIC_KEY_LEN])
 {
 	memset(key, 0, NOISE_SYMMETRIC_KEY_LEN);
 	memcpy(hash, psk ? handshake_psk_name_hash : handshake_name_hash, NOISE_HASH_LEN);
@@ -297,7 +297,7 @@ static void handshake_init(u8 key[static NOISE_SYMMETRIC_KEY_LEN], u8 chaining_k
 	mix_hash(hash, remote_static, NOISE_PUBLIC_KEY_LEN);
 }
 
-static bool handshake_encrypt(u8 *dst_ciphertext, const u8 *src_plaintext, size_t src_len, u8 key[static NOISE_SYMMETRIC_KEY_LEN], u8 hash[static NOISE_HASH_LEN])
+static bool handshake_encrypt(u8 *dst_ciphertext, const u8 *src_plaintext, size_t src_len, u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 hash[NOISE_HASH_LEN])
 {
 	if (!chacha20poly1305_encrypt(dst_ciphertext, src_plaintext, src_len, hash, NOISE_HASH_LEN, 0 /* Always zero for Noise_IK */, key))
 		return false;
@@ -305,7 +305,7 @@ static bool handshake_encrypt(u8 *dst_ciphertext, const u8 *src_plaintext, size_
 	return true;
 }
 
-static bool handshake_decrypt(u8 *dst_plaintext, const u8 *src_ciphertext, size_t src_len, u8 key[static NOISE_SYMMETRIC_KEY_LEN], u8 hash[static NOISE_HASH_LEN])
+static bool handshake_decrypt(u8 *dst_plaintext, const u8 *src_ciphertext, size_t src_len, u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 hash[NOISE_HASH_LEN])
 {
 	if (!chacha20poly1305_decrypt(dst_plaintext, src_ciphertext, src_len, hash, NOISE_HASH_LEN, 0 /* Always zero for Noise_IK */, key))
 		return false;
@@ -313,13 +313,13 @@ static bool handshake_decrypt(u8 *dst_plaintext, const u8 *src_ciphertext, size_
 	return true;
 }
 
-static void handshake_nocrypt(u8 *dst, const u8 *src, size_t src_len, u8 hash[static NOISE_HASH_LEN])
+static void handshake_nocrypt(u8 *dst, const u8 *src, size_t src_len, u8 hash[NOISE_HASH_LEN])
 {
 	memcpy(dst, src, src_len);
 	mix_hash(hash, src, src_len);
 }
 
-static void tai64n_now(u8 output[static NOISE_TIMESTAMP_LEN])
+static void tai64n_now(u8 output[NOISE_TIMESTAMP_LEN])
 {
 	struct timeval now;
 	do_gettimeofday(&now);

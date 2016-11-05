@@ -14,7 +14,7 @@
 
 static atomic64_t peer_counter = ATOMIC64_INIT(0);
 
-struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[static NOISE_PUBLIC_KEY_LEN])
+struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN])
 {
 	struct wireguard_peer *peer;
 	lockdep_assert_held(&wg->device_update_lock);
