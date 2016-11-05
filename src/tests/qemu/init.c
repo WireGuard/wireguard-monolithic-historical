@@ -109,7 +109,8 @@ static void enable_logging(void)
 static void kmod_selftests(void)
 {
 	FILE *file;
-	char line[2048], *start;
+	char line[2048], *start, *pass;
+	bool success = true;
 	pretty_message("[+] Module self-tests:");
 	file = fopen("/proc/kmsg", "r");
 	if (!file)
@@ -124,9 +125,18 @@ static void kmod_selftests(void)
 		*strchrnul(start, '\n') = '\0';
 		if (strstr(start, "WireGuard loaded."))
 			break;
-		printf(" \x1b[32m*  %s\x1b[0m\n", start);
+		pass = strstr(start, ": pass");
+		if (!pass || pass[6] != '\0') {
+			success = false;
+			printf(" \x1b[31m*  %s\x1b[0m\n", start);
+		} else
+			printf(" \x1b[32m*  %s\x1b[0m\n", start);
 	}
 	fclose(file);
+	if (!success) {
+		puts("\x1b[31m\x1b[1m[-] Tests failed! :-(\x1b[0m");
+		poweroff();
+	}
 }
 
 static void launch_tests(void)
