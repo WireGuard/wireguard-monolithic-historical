@@ -29,13 +29,17 @@ static int __init mod_init(void)
 	chacha20poly1305_init();
 	noise_init();
 
+#ifdef CONFIG_WIREGUARD_PARALLEL
 	ret = packet_init_data_caches();
 	if (ret < 0)
 		return ret;
+#endif
 
 	ret = device_init();
 	if (ret < 0) {
+#ifdef CONFIG_WIREGUARD_PARALLEL
 		packet_deinit_data_caches();
+#endif
 		return ret;
 	}
 
@@ -47,7 +51,9 @@ static int __init mod_init(void)
 static void __exit mod_exit(void)
 {
 	device_uninit();
+#ifdef CONFIG_WIREGUARD_PARALLEL
 	packet_deinit_data_caches();
+#endif
 	pr_debug("WireGuard has been unloaded\n");
 }
 

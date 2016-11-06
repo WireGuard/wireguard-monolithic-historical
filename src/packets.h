@@ -41,8 +41,11 @@ void packet_send_queued_handshakes(struct work_struct *work);
 /* data.c */
 int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer, void(*callback)(struct sk_buff_head *, struct wireguard_peer *));
 void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_device *wg, void(*callback)(struct sk_buff *, struct wireguard_peer *, struct sockaddr_storage *, bool used_new_key, int err));
+
+#ifdef CONFIG_WIREGUARD_PARALLEL
 int packet_init_data_caches(void);
 void packet_deinit_data_caches(void);
+#endif
 
 #define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
 

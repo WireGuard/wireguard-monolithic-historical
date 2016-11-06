@@ -42,6 +42,7 @@ struct decryption_ctx {
 	int ret;
 };
 
+#ifdef CONFIG_WIREGUARD_PARALLEL
 static struct kmem_cache *encryption_ctx_cache;
 static struct kmem_cache *decryption_ctx_cache;
 
@@ -64,6 +65,7 @@ void packet_deinit_data_caches(void)
 	kmem_cache_destroy(encryption_ctx_cache);
 	kmem_cache_destroy(decryption_ctx_cache);
 }
+#endif
 
 /* This is RFC6479, a replay detection bitmap algorithm that avoids bitshifts */
 static inline bool counter_validate(union noise_counter *counter, u64 their_counter)
