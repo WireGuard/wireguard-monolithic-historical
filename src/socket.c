@@ -47,6 +47,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 			net_dbg_ratelimited("No route to %pISpfsc, error %d\n", addr, ret);
 			goto err;
 		} else if (unlikely(rt->dst.dev == skb->dev)) {
+			dst_release(&rt->dst);
 			ret = -ELOOP;
 			net_dbg_ratelimited("Avoiding routing loop to %pISpfsc\n", addr);
 			goto err;
@@ -105,6 +106,7 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 			net_dbg_ratelimited("No route to %pISpfsc, error %d\n", addr, ret);
 			goto err;
 		} else if (unlikely(dst->dev == skb->dev)) {
+			dst_release(dst);
 			ret = -ELOOP;
 			net_dbg_ratelimited("Avoiding routing loop to %pISpfsc\n", addr);
 			goto err;
