@@ -111,7 +111,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 
 	peer = routing_table_lookup_dst(&wg->peer_routing_table, skb);
 	if (unlikely(!peer)) {
-#ifdef DEBUG
+#if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
 		struct sockaddr_storage addr;
 		socket_addr_from_skb(&addr, skb);
 		net_dbg_ratelimited("No peer is configured for %pISc\n", &addr);

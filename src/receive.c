@@ -33,7 +33,7 @@ static inline void update_latest_addr(struct wireguard_peer *peer, struct sk_buf
 static inline int skb_data_offset(struct sk_buff *skb, size_t *data_offset, size_t *data_len)
 {
 	struct udphdr *udp;
-#ifdef DEBUG
+#if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
 	struct sockaddr_storage addr = { 0 };
 	socket_addr_from_skb(&addr, skb);
 #else
@@ -84,7 +84,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, void *data, si
 	enum cookie_mac_state mac_state;
 	bool packet_needs_cookie;
 
-#ifdef DEBUG
+#if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
 	struct sockaddr_storage addr = { 0 };
 	socket_addr_from_skb(&addr, skb);
 #else
@@ -277,7 +277,7 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 	peer_put(routed_peer); /* We don't need the extra reference. */
 
 	if (unlikely(routed_peer != peer)) {
-#ifdef DEBUG
+#if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
 		struct sockaddr_storage unencrypted_addr = { 0 };
 		socket_addr_from_skb(&unencrypted_addr, skb);
 		net_dbg_ratelimited("Packet has unallowed src IP (%pISc) from peer %Lu (%pISpfsc)\n", &unencrypted_addr, peer->internal_id, addr);
@@ -308,7 +308,7 @@ continue_processing:
 void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 {
 	size_t len, offset;
-#ifdef DEBUG
+#if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
 	struct sockaddr_storage addr = { 0 };
 	socket_addr_from_skb(&addr, skb);
 #else
