@@ -141,31 +141,18 @@ static inline int dst_cache_init(struct dst_cache *dst_cache, gfp_t gfp) { retur
 static inline void dst_cache_destroy(struct dst_cache *dst_cache) { }
 #endif
 
-/* https://lkml.org/lkml/2015/6/12/415 */
-#include <linux/netdevice.h>
-static inline struct net_device *netdev_pub(void *dev)
-{
-	return (struct net_device *)((char *)dev - ALIGN(sizeof(struct net_device), NETDEV_ALIGN));
-}
-
-/* https://lkml.org/lkml/2016/10/1/187 */
-#ifdef CONFIG_WIREGUARD_PARALLEL
-#include <linux/padata.h>
-static inline int padata_queue_len(struct padata_instance *pinst)
-{
-	int len;
-	rcu_read_lock_bh();
-	len = atomic_read(&rcu_dereference_bh(pinst->pd)->refcnt);
-	rcu_read_unlock_bh();
-	return len;
-}
-#endif
-
 /* PaX compatibility */
 #ifdef CONSTIFY_PLUGIN
 #include <linux/cache.h>
 #undef __read_mostly
 #define __read_mostly
 #endif
+
+/* https://lkml.org/lkml/2015/6/12/415 */
+#include <linux/netdevice.h>
+static inline struct net_device *netdev_pub(void *dev)
+{
+	return (struct net_device *)((char *)dev - ALIGN(sizeof(struct net_device), NETDEV_ALIGN));
+}
 
 #endif

@@ -40,6 +40,9 @@ struct wireguard_peer {
 	struct rcu_head rcu;
 	struct list_head peer_list;
 	uint64_t internal_id;
+#ifdef CONFIG_WIREGUARD_PARALLEL
+	atomic_t parallel_encryption_inflight;
+#endif
 };
 
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN]);
