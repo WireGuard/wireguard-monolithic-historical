@@ -94,7 +94,7 @@ enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, str
 	u8 computed_mac[COOKIE_LEN];
 	u8 cookie[COOKIE_LEN];
 	enum cookie_mac_state ret;
-	struct message_macs *macs = (struct message_macs *)(data_start + data_len - sizeof(struct message_macs));
+	struct message_macs *macs = (struct message_macs *)((u8 *)data_start + data_len - sizeof(struct message_macs));
 
 	ret = INVALID_MAC;
 	down_read(&checker->device->static_identity.lock);
@@ -132,7 +132,7 @@ out:
 
 void cookie_add_mac_to_packet(void *message, size_t len, struct wireguard_peer *peer)
 {
-	struct message_macs *macs = message + len - sizeof(struct message_macs);
+	struct message_macs *macs = (struct message_macs *)((u8 *)message + len - sizeof(struct message_macs));
 
 	down_read(&peer->device->static_identity.lock);
 	if (unlikely(!peer->device->static_identity.has_identity)) {
@@ -158,7 +158,7 @@ void cookie_add_mac_to_packet(void *message, size_t len, struct wireguard_peer *
 
 void cookie_message_create(struct message_handshake_cookie *dst, struct sk_buff *skb, void *data_start, size_t data_len, __le32 index, struct cookie_checker *checker)
 {
-	struct message_macs *macs = (struct message_macs *)(data_start + data_len - sizeof(struct message_macs));
+	struct message_macs *macs = (struct message_macs *)((u8 *)data_start + data_len - sizeof(struct message_macs));
 	struct blake2s_state state;
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	u8 cookie[COOKIE_LEN];
