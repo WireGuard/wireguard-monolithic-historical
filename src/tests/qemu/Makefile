@@ -68,7 +68,7 @@ qemu: $(KERNEL_BZIMAGE)
 		-machine q35,accel=kvm \
 		-cpu host \
 		-smp $(NR_CPUS) \
-		-m 64M \
+		-m 96M \
 		-object rng-random,id=rng0,filename=/dev/urandom \
 		-device virtio-rng-pci,rng=rng0 \
 		-device virtio-serial,max_ports=2 \
