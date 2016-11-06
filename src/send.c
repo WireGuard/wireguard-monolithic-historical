@@ -59,7 +59,6 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 void packet_send_queued_handshakes(struct work_struct *work)
 {
 	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, transmit_handshake_work);
-	peer->last_sent_handshake = get_jiffies_64();
 	packet_send_handshake_initiation(peer);
 	peer_put(peer);
 }
