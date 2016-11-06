@@ -320,9 +320,9 @@ err_parallel:
 			goto err;
 		}
 	} else
+serial_encrypt:
 #endif
 	{
-serial_encrypt:
 		queue_encrypt_reset(queue, keypair);
 		callback(queue, peer);
 	}
