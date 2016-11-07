@@ -215,7 +215,9 @@ static int add(struct routing_table_node __rcu **trie, uint8_t bits, const uint8
 		if (!node)
 			return -ENOMEM;
 		node->peer = peer;
-		memcpy(node->bits, key, (bits + 7) / 8);
+		memcpy(node->bits, key, (cidr + 7) / 8);
+		/* Not strictly neccessary for the data structure, but helps keep the data cleaner: */
+		node->bits[(cidr + 7) / 8 - 1] &= 0xff << ((8 - (cidr % 8)) % 8);
 		assign_cidr(node, cidr);
 		rcu_assign_pointer(*trie, node);
 		return 0;
@@ -231,7 +233,9 @@ static int add(struct routing_table_node __rcu **trie, uint8_t bits, const uint8
 	if (!newnode)
 		return -ENOMEM;
 	newnode->peer = peer;
-	memcpy(newnode->bits, key, (bits + 7) / 8);
+	memcpy(newnode->bits, key, (cidr + 7) / 8);
+	/* Not strictly neccessary for the data structure, but helps keep the data cleaner: */
+	newnode->bits[(cidr + 7) / 8 - 1] &= 0xff << ((8 - (cidr % 8)) % 8);
 	assign_cidr(newnode, cidr);
 
 	if (!node)
