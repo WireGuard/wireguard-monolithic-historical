@@ -10,6 +10,7 @@
 #include <linux/version.h>
 #include <crypto/algapi.h>
 #include <crypto/scatterwalk.h>
+#include <asm/unaligned.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/cpufeature.h>
@@ -241,28 +242,13 @@ struct poly1305_ctx {
 
 static void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE])
 {
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-	u32 t0, t1, t2, t3;
-#endif
 	memset(ctx, 0, sizeof(struct poly1305_ctx));
 	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	ctx->r[0] = (le32_to_cpuvp(key +  0) >> 0) & 0x3ffffff;
-	ctx->r[1] = (le32_to_cpuvp(key +  3) >> 2) & 0x3ffff03;
-	ctx->r[2] = (le32_to_cpuvp(key +  6) >> 4) & 0x3ffc0ff;
-	ctx->r[3] = (le32_to_cpuvp(key +  9) >> 6) & 0x3f03fff;
+	ctx->r[1] = (get_unaligned_le32(key +  3) >> 2) & 0x3ffff03;
+	ctx->r[2] = (get_unaligned_le32(key +  6) >> 4) & 0x3ffc0ff;
+	ctx->r[3] = (get_unaligned_le32(key +  9) >> 6) & 0x3f03fff;
 	ctx->r[4] = (le32_to_cpuvp(key + 12) >> 8) & 0x00fffff;
-#else
-	t0 = le32_to_cpuvp(key +  0);
-	t1 = le32_to_cpuvp(key +  4);
-	t2 = le32_to_cpuvp(key +  8);
-	t3 = le32_to_cpuvp(key + 12);
-	ctx->r[0] = t0 & 0x3ffffff; t0 >>= 26; t0 |= t1 << 6;
-	ctx->r[1] = t0 & 0x3ffff03; t1 >>= 20; t1 |= t2 << 12;
-	ctx->r[2] = t1 & 0x3ffc0ff; t2 >>= 14; t2 |= t3 << 18;
-	ctx->r[3] = t2 & 0x3f03fff; t3 >>= 8;
-	ctx->r[4] = t3 & 0x00fffff;
-#endif
 	ctx->s[0] = le32_to_cpuvp(key +  16);
 	ctx->s[1] = le32_to_cpuvp(key +  20);
 	ctx->s[2] = le32_to_cpuvp(key +  24);
@@ -275,9 +261,6 @@ static unsigned int poly1305_generic_blocks(struct poly1305_ctx *ctx, const u8 *
 	u32 s1, s2, s3, s4;
 	u32 h0, h1, h2, h3, h4;
 	u64 d0, d1, d2, d3, d4;
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-	u32 t0, t1, t2, t3;
-#endif
 
 	r0 = ctx->r[0];
 	r1 = ctx->r[1];
@@ -298,23 +281,11 @@ static unsigned int poly1305_generic_blocks(struct poly1305_ctx *ctx, const u8 *
 
 	while (likely(srclen >= POLY1305_BLOCK_SIZE)) {
 		/* h += m[i] */
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 		h0 += (le32_to_cpuvp(src +  0) >> 0) & 0x3ffffff;
-		h1 += (le32_to_cpuvp(src +  3) >> 2) & 0x3ffffff;
-		h2 += (le32_to_cpuvp(src +  6) >> 4) & 0x3ffffff;
-		h3 += (le32_to_cpuvp(src +  9) >> 6) & 0x3ffffff;
+		h1 += (get_unaligned_le32(src +  3) >> 2) & 0x3ffffff;
+		h2 += (get_unaligned_le32(src +  6) >> 4) & 0x3ffffff;
+		h3 += (get_unaligned_le32(src +  9) >> 6) & 0x3ffffff;
 		h4 += (le32_to_cpuvp(src + 12) >> 8) | hibit;
-#else
-		t0 = le32_to_cpuvp(src +  0);
-		t1 = le32_to_cpuvp(src +  4);
-		t2 = le32_to_cpuvp(src +  8);
-		t3 = le32_to_cpuvp(src + 12);
-		h0 += t0 & 0x3ffffff;
-		h1 += sr((((u64)t1 << 32) | t0), 26) & 0x3ffffff;
-		h2 += sr((((u64)t2 << 32) | t1), 20) & 0x3ffffff;
-		h3 += sr((((u64)t3 << 32) | t2), 14) & 0x3ffffff;
-		h4 += (t3 >> 8) | hibit;
-#endif
 
 		/* h *= r */
 		d0 = mlt(h0, r0) + mlt(h1, s4) + mlt(h2, s3) + mlt(h3, s2) + mlt(h4, s1);
