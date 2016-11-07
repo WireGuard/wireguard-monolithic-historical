@@ -57,6 +57,12 @@ bool routing_table_selftest(void)
 	insert(6, a, 0x24046800, 0x40040800, 0xdeadbeef, 0xdeadbeef, 128);
 	insert(4, g, 64, 15, 112, 0, 20);
 	insert(4, h, 64, 15, 123, 211, 25); /* maskself is required */
+	insert(4, a, 10, 0, 0, 0, 25);
+	insert(4, b, 10, 0, 0, 128, 25);
+	insert(4, a, 10, 1, 0, 0, 30);
+	insert(4, b, 10, 1, 0, 4, 30);
+	insert(4, c, 10, 1, 0, 8, 29);
+	insert(4, d, 10, 1, 0, 16, 29);
 #undef insert
 
 	success = true;
@@ -90,6 +96,12 @@ bool routing_table_selftest(void)
 	test(4, g, 64, 15, 123, 1);
 	test(4, h, 64, 15, 123, 128);
 	test(4, h, 64, 15, 123, 129);
+	test(4, a, 10, 0, 0, 52);
+	test(4, b, 10, 0, 0, 220);
+	test(4, a, 10, 1, 0, 2);
+	test(4, b, 10, 1, 0, 6);
+	test(4, c, 10, 1, 0, 10);
+	test(4, d, 10, 1, 0, 20);
 #undef test
 
 	/* These will hit the BUG_ON(len >= 128) in free_node if something goes wrong. */
