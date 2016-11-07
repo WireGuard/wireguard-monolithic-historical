@@ -37,11 +37,12 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		 * of a partial exchange. */
 		if (likely(peer->timer_kill_ephemerals.data))
 			mod_timer(&peer->timer_kill_ephemerals, jiffies + (REJECT_AFTER_TIME * 3));
-		peer_put(peer);
-		return;
+		goto out;
 	}
-	packet_queue_send_handshake_initiation(peer); /* Takes our reference. */
+	packet_queue_handshake_initiation(peer);
 	++peer->timer_handshake_attempts;
+out:
+	peer_put(peer);
 }
 
 static void expired_send_keepalive(unsigned long ptr)
@@ -59,7 +60,8 @@ static void expired_new_handshake(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
 	pr_debug("Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->internal_id, &peer->endpoint_addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
-	packet_queue_send_handshake_initiation(peer); /* Takes our reference. */
+	packet_queue_handshake_initiation(peer);
+	peer_put(peer);
 }
 
 static void expired_kill_ephemerals(unsigned long ptr)

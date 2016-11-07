@@ -15,12 +15,19 @@
 #include <net/udp.h>
 #include <net/sock.h>
 
-void packet_send_handshake_initiation(struct wireguard_peer *peer)
+static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 {
 	struct message_handshake_initiation packet;
 
-	net_dbg_ratelimited("Sending handshake initiation to peer %Lu (%pISpfsc)\n", peer->internal_id, &peer->endpoint_addr);
+	down_write(&peer->handshake.lock);
+	if (!time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT)) {
+		up_write(&peer->handshake.lock);
+		return; /* This function is rate limited. */
+	}
 	peer->last_sent_handshake = get_jiffies_64();
+	up_write(&peer->handshake.lock);
+
+	net_dbg_ratelimited("Sending handshake initiation to peer %Lu (%pISpfsc)\n", peer->internal_id, &peer->endpoint_addr);
 
 	if (noise_handshake_create_initiation(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
@@ -30,13 +37,27 @@ void packet_send_handshake_initiation(struct wireguard_peer *peer)
 	}
 }
 
-void packet_send_handshake_initiation_ratelimited(struct wireguard_peer *peer)
+void packet_send_queued_handshakes(struct work_struct *work)
 {
-	if (time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT)) {
-		peer = peer_rcu_get(peer);
-		if (likely(peer))
-			packet_queue_send_handshake_initiation(peer);
-	}
+	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, transmit_handshake_work);
+	packet_send_handshake_initiation(peer);
+	peer_put(peer);
+}
+
+void packet_queue_handshake_initiation(struct wireguard_peer *peer)
+{
+	/* First checking the timestamp here is just an optimization; it will
+	 * be caught while properly locked inside the actual work queue. */
+	if (!time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT))
+		return;
+
+	peer = peer_rcu_get(peer);
+	if (unlikely(!peer))
+		return;
+
+	/* Queues up calling packet_send_queued_handshakes(peer), where we do a peer_put(peer) after: */
+	if (!queue_work(peer->device->workqueue, &peer->transmit_handshake_work))
+		peer_put(peer); /* If the work was already queued, we want to drop the extra reference */
 }
 
 void packet_send_handshake_response(struct wireguard_peer *peer)
@@ -54,21 +75,6 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 			socket_send_buffer_to_peer(peer, &packet, sizeof(struct message_handshake_response), HANDSHAKE_DSCP);
 		}
 	}
-}
-
-void packet_send_queued_handshakes(struct work_struct *work)
-{
-	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, transmit_handshake_work);
-	packet_send_handshake_initiation(peer);
-	peer_put(peer);
-}
-
-/* Consumes peer reference. */
-void packet_queue_send_handshake_initiation(struct wireguard_peer *peer)
-{
-	/* Queues up calling packet_send_queued_handshakes(peer), where we do a peer_put(peer) after: */
-	if (!queue_work(peer->device->workqueue, &peer->transmit_handshake_work))
-		peer_put(peer); /* If the work was already queued, we want to drop the extra reference */
 }
 
 void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *initiating_skb, void *data, size_t data_len, __le32 sender_index)
@@ -98,7 +104,7 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 	rcu_read_unlock();
 
 	if (send)
-		packet_send_handshake_initiation_ratelimited(peer);
+		packet_queue_handshake_initiation(peer);
 }
 
 void packet_send_keepalive(struct wireguard_peer *peer)
@@ -159,7 +165,7 @@ int packet_send_queue(struct wireguard_peer *peer)
 	case -ENOKEY:
 		/* ENOKEY means that we don't have a valid session for the peer, which
 		 * means we should initiate a session, and then requeue everything. */
-		packet_send_handshake_initiation_ratelimited(peer);
+		packet_queue_handshake_initiation(peer);
 		goto requeue;
 	case -EBUSY:
 		/* EBUSY happens when the parallel workers are all filled up, in which
