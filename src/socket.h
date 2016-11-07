@@ -10,7 +10,7 @@
 
 struct wireguard_device;
 
-#define SKB_HEADER_LEN (max(sizeof(struct iphdr), sizeof(struct ipv6hdr)) + sizeof(struct udphdr) + ETH_HLEN + VLAN_HLEN + 16)
+#define SKB_HEADER_LEN (max(sizeof(struct iphdr), sizeof(struct ipv6hdr)) + sizeof(struct udphdr) + NET_SKB_PAD)
 
 int socket_init(struct wireguard_device *wg);
 void socket_uninit(struct wireguard_device *wg);
