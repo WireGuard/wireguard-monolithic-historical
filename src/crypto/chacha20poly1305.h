@@ -32,6 +32,7 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 				 const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN]);
 
 #ifdef CONFIG_X86_64
+#include <linux/version.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
