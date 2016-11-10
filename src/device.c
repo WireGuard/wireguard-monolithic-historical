@@ -112,16 +112,16 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	peer = routing_table_lookup_dst(&wg->peer_routing_table, skb);
 	if (unlikely(!peer)) {
 #if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
-		struct sockaddr_storage addr;
-		socket_addr_from_skb(&addr, skb);
-		net_dbg_ratelimited("No peer is configured for %pISc\n", &addr);
+		struct endpoint endpoint;
+		socket_endpoint_from_skb(&endpoint, skb);
+		net_dbg_ratelimited("No peer is configured for %pISc\n", &endpoint.addr_storage);
 #endif
 		skb_unsendable(skb, dev);
 		return -ENOKEY;
 	}
 
 	read_lock_bh(&peer->endpoint_lock);
-	ret = peer->endpoint_addr.ss_family != AF_INET && peer->endpoint_addr.ss_family != AF_INET6;
+	ret = peer->endpoint.addr_storage.ss_family != AF_INET && peer->endpoint.addr_storage.ss_family != AF_INET6;
 	read_unlock_bh(&peer->endpoint_lock);
 	if (unlikely(ret)) {
 		net_dbg_ratelimited("No valid endpoint has been configured or discovered for device\n");

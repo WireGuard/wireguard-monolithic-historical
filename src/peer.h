@@ -16,9 +16,21 @@
 
 struct wireguard_device;
 
+struct endpoint {
+	union {
+		struct sockaddr_storage addr_storage;
+		struct sockaddr_in addr4;
+		struct sockaddr_in6 addr6;
+	};
+	union {
+		struct in_addr src4;
+		struct in6_addr src6;
+	};
+};
+
 struct wireguard_peer {
 	struct wireguard_device *device;
-	struct sockaddr_storage endpoint_addr;
+	struct endpoint endpoint;
 	struct dst_cache endpoint_cache;
 	rwlock_t endpoint_lock;
 	struct noise_handshake handshake;

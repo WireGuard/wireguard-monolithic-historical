@@ -34,9 +34,9 @@ struct encryption_ctx {
 struct decryption_ctx {
 	struct padata_priv padata;
 	struct sk_buff *skb;
-	void (*callback)(struct sk_buff *skb, struct wireguard_peer *, struct sockaddr_storage *, bool used_new_key, int err);
+	void (*callback)(struct sk_buff *skb, struct wireguard_peer *, struct endpoint *, bool used_new_key, int err);
 	struct noise_keypair *keypair;
-	struct sockaddr_storage addr;
+	struct endpoint endpoint;
 	uint64_t nonce;
 	uint8_t num_frags;
 	int ret;
@@ -372,7 +372,7 @@ static void finish_decrypt_packet(struct decryption_ctx *ctx)
 	}
 
 	noise_keypair_put(ctx->keypair);
-	ctx->callback(ctx->skb, ctx->keypair->entry.peer, &ctx->addr, used_new_key, 0);
+	ctx->callback(ctx->skb, ctx->keypair->entry.peer, &ctx->endpoint, used_new_key, 0);
 	return;
 
 err:
@@ -403,10 +403,10 @@ static inline int start_decryption(struct padata_instance *padata, struct padata
 }
 #endif
 
-void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_device *wg, void(*callback)(struct sk_buff *skb, struct wireguard_peer *, struct sockaddr_storage *, bool used_new_key, int err))
+void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_device *wg, void(*callback)(struct sk_buff *skb, struct wireguard_peer *, struct endpoint *, bool used_new_key, int err))
 {
 	int ret;
-	struct sockaddr_storage addr = { 0 };
+	struct endpoint endpoint;
 	unsigned int num_frags;
 	struct sk_buff *trailer;
 	struct message_data *header;
@@ -414,7 +414,7 @@ void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_de
 	uint64_t nonce;
 	__le32 idx;
 
-	ret = socket_addr_from_skb(&addr, skb);
+	ret = socket_endpoint_from_skb(&endpoint, skb);
 	if (unlikely(ret < 0))
 		goto err;
 
@@ -459,7 +459,7 @@ void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_de
 		ctx->callback = callback;
 		ctx->nonce = nonce;
 		ctx->num_frags = num_frags;
-		ctx->addr = addr;
+		ctx->endpoint = endpoint;
 		ret = start_decryption(wg->parallel_receive, &ctx->padata, cpu);
 		if (unlikely(ret)) {
 			kmem_cache_free(decryption_ctx_cache, ctx);
@@ -474,7 +474,7 @@ void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_de
 			.callback = callback,
 			.nonce = nonce,
 			.num_frags = num_frags,
-			.addr = addr
+			.endpoint = endpoint
 		};
 		begin_decrypt_packet(&ctx);
 		finish_decrypt_packet(&ctx);

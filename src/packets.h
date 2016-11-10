@@ -37,7 +37,7 @@ void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *i
 
 /* data.c */
 int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer, void(*callback)(struct sk_buff_head *, struct wireguard_peer *));
-void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_device *wg, void(*callback)(struct sk_buff *, struct wireguard_peer *, struct sockaddr_storage *, bool used_new_key, int err));
+void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_device *wg, void(*callback)(struct sk_buff *, struct wireguard_peer *, struct endpoint *, bool, int));
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
 int packet_init_data_caches(void);
