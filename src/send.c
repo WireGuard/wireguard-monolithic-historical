@@ -81,11 +81,7 @@ void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *i
 {
 	struct message_handshake_cookie packet;
 
-#if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
-	struct endpoint endpoint;
-	socket_endpoint_from_skb(&endpoint, initiating_skb);
-	net_dbg_ratelimited("Sending cookie response for denied handshake message for %pISpfsc\n", &endpoint.addr_storage);
-#endif
+	net_dbg_skb_ratelimited("Sending cookie response for denied handshake message for %pISpfsc\n", initiating_skb);
 	cookie_message_create(&packet, initiating_skb, data, data_len, sender_index, &wg->cookie_checker);
 	socket_send_buffer_as_reply_to_skb(wg, initiating_skb, &packet, sizeof(packet));
 }
