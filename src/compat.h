@@ -141,19 +141,19 @@ static inline int dst_cache_init(struct dst_cache *dst_cache, gfp_t gfp) { retur
 static inline void dst_cache_destroy(struct dst_cache *dst_cache) { }
 #endif
 
-/* PaX compatibility */
-#ifdef CONSTIFY_PLUGIN
-#include <linux/cache.h>
-#undef __read_mostly
-#define __read_mostly
-#endif
-
 /* https://lkml.org/lkml/2015/6/12/415 */
 #include <linux/netdevice.h>
 static inline struct net_device *netdev_pub(void *dev)
 {
 	return (struct net_device *)((char *)dev - ALIGN(sizeof(struct net_device), NETDEV_ALIGN));
 }
+
+/* PaX compatibility */
+#ifdef CONSTIFY_PLUGIN
+#include <linux/cache.h>
+#undef __read_mostly
+#define __read_mostly
+#endif
 
 #if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
 #define net_dbg_skb_ratelimited(fmt, skb, ...) do { \
