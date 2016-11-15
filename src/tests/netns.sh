@@ -97,10 +97,6 @@ configure_peers() {
 configure_peers
 
 tests() {
-	# Status before
-	n1 wg
-	n2 wg
-
 	# Ping over IPv4
 	n2 ping -c 10 -f -W 1 192.168.241.1
 	n1 ping -c 10 -f -W 1 192.168.241.2
@@ -112,26 +108,22 @@ tests() {
 	# TCP over IPv4
 	n2 iperf3 -s -1 -B 192.168.241.2 &
 	waitiperf $netns2
-	n1 iperf3 -Z -i 1 -n 1G -c 192.168.241.2
+	n1 iperf3 -Z -n 1G -c 192.168.241.2
 
 	# TCP over IPv6
 	n1 iperf3 -s -1 -B fd00::1 &
 	waitiperf $netns1
-	n2 iperf3 -Z -i 1 -n 1G -c fd00::1
+	n2 iperf3 -Z -n 1G -c fd00::1
 
 	# UDP over IPv4
 	n1 iperf3 -s -1 -B 192.168.241.1 &
 	waitiperf $netns1
-	n2 iperf3 -Z -i 1 -n 1G -b 0 -u -c 192.168.241.1
+	n2 iperf3 -Z -n 1G -b 0 -u -c 192.168.241.1
 
 	# UDP over IPv6
 	n2 iperf3 -s -1 -B fd00::2 &
 	waitiperf $netns2
-	n1 iperf3 -Z -i 1 -n 1G -b 0 -u -c fd00::2
-
-	# Status after
-	n1 wg
-	n2 wg
+	n1 iperf3 -Z -n 1G -b 0 -u -c fd00::2
 }
 
 [[ $(ip1 link show dev wg0) =~ mtu\ ([0-9]+) ]] && orig_mtu="${BASH_REMATCH[1]}"
@@ -166,16 +158,12 @@ n1 wg set wg0 listen-port 9999
 n1 wg set wg0 peer "$pub2" endpoint 127.0.0.1:2
 n1 ping6 -W 1 -c 1 fd00::2
 [[ $(n2 wg show wg0 endpoints) == "$pub1	127.212.121.99:9999" ]]
-n1 wg
-n2 wg
 
 # Test using IPv6 that roaming works
 n1 wg set wg0 listen-port 9998
 n1 wg set wg0 peer "$pub2" endpoint [::1]:2
 n1 ping -W 1 -c 1 192.168.241.2
 [[ $(n2 wg show wg0 endpoints) == "$pub1	[::1]:9998" ]]
-n1 wg
-n2 wg
 
 # Test that crypto-RP filter works
 n1 wg set wg0 peer "$pub2" allowed-ips 192.168.241.0/24
@@ -237,12 +225,8 @@ n0 bash -c 'echo 2 > /proc/sys/net/netfilter/nf_conntrack_udp_timeout_stream'
 n0 iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -d 10.0.0.0/24 -j SNAT --to 10.0.0.1
 
 n1 wg set wg0 peer "$pub2" endpoint 10.0.0.100:2 persistent-keepalive 1
-n1 wg
-n2 wg
 n1 ping -W 1 -c 1 192.168.241.2
 n2 ping -W 1 -c 1 192.168.241.1
-n1 wg
-n2 wg
 [[ $(n2 wg show wg0 endpoints) == "$pub1	10.0.0.1:1" ]]
 # Demonstrate n2 can still send packets to n1, since persistent-keepalive will prevent connection tracking entry from expiring (to see entries: `n0 conntrack -L`).
 pp sleep 3
