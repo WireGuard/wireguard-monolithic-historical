@@ -9,7 +9,7 @@
 # ││  wg0   │───────────┼───┼────────────│   lo   │────────────┼───┼───────────│  wg0   ││
 # │├────────┴──────────┐│   │    ┌───────┴────────┴────────┐   │   │┌──────────┴────────┤│
 # ││192.168.241.1/24   ││   │    │(ns1)         (ns2)      │   │   ││192.168.241.2/24   ││
-# ││abcd::1/24         ││   │    │127.0.0.1:1   127.0.0.1:2│   │   ││abcd::2/24         ││
+# ││fd00::1/24         ││   │    │127.0.0.1:1   127.0.0.1:2│   │   ││fd00::2/24         ││
 # │└───────────────────┘│   │    │[::]:1        [::]:2     │   │   │└───────────────────┘│
 # └─────────────────────┘   │    └─────────────────────────┘   │   └─────────────────────┘
 #                           └──────────────────────────────────┘                          
@@ -73,23 +73,23 @@ psk="$(pp wg genpsk)"
 
 configure_peers() {
 	ip1 addr add 192.168.241.1/24 dev wg0
-	ip1 addr add abcd::1/24 dev wg0
+	ip1 addr add fd00::1/24 dev wg0
 
 	ip2 addr add 192.168.241.2/24 dev wg0
-	ip2 addr add abcd::2/24 dev wg0
+	ip2 addr add fd00::2/24 dev wg0
 
 	n1 wg set wg0 \
 		private-key <(echo "$key1") \
 		preshared-key <(echo "$psk") \
 		listen-port 1 \
 		peer "$pub2" \
-			allowed-ips 192.168.241.2/32,abcd::2/128
+			allowed-ips 192.168.241.2/32,fd00::2/128
 	n2 wg set wg0 \
 		private-key <(echo "$key2") \
 		preshared-key <(echo "$psk") \
 		listen-port 2 \
 		peer "$pub1" \
-			allowed-ips 192.168.241.1/32,abcd::1/128
+			allowed-ips 192.168.241.1/32,fd00::1/128
 
 	ip1 link set up dev wg0
 	ip2 link set up dev wg0
@@ -106,8 +106,8 @@ tests() {
 	n1 ping -c 10 -f -W 1 192.168.241.2
 
 	# Ping over IPv6
-	n2 ping6 -c 10 -f -W 1 abcd::1
-	n1 ping6 -c 10 -f -W 1 abcd::2
+	n2 ping6 -c 10 -f -W 1 fd00::1
+	n1 ping6 -c 10 -f -W 1 fd00::2
 
 	# TCP over IPv4
 	n2 iperf3 -s -1 -B 192.168.241.2 &
@@ -115,9 +115,9 @@ tests() {
 	n1 iperf3 -Z -i 1 -n 1G -c 192.168.241.2
 
 	# TCP over IPv6
-	n1 iperf3 -s -1 -B abcd::1 &
+	n1 iperf3 -s -1 -B fd00::1 &
 	waitiperf $netns1
-	n2 iperf3 -Z -i 1 -n 1G -c abcd::1
+	n2 iperf3 -Z -i 1 -n 1G -c fd00::1
 
 	# UDP over IPv4
 	n1 iperf3 -s -1 -B 192.168.241.1 &
@@ -125,9 +125,9 @@ tests() {
 	n2 iperf3 -Z -i 1 -n 1G -b 0 -u -c 192.168.241.1
 
 	# UDP over IPv6
-	n2 iperf3 -s -1 -B abcd::2 &
+	n2 iperf3 -s -1 -B fd00::2 &
 	waitiperf $netns2
-	n1 iperf3 -Z -i 1 -n 1G -b 0 -u -c abcd::2
+	n1 iperf3 -Z -i 1 -n 1G -b 0 -u -c fd00::2
 
 	# Status after
 	n1 wg
@@ -164,7 +164,7 @@ ip0 -4 addr del 127.0.0.1/8 dev lo
 ip0 -4 addr add 127.212.121.99/8 dev lo
 n1 wg set wg0 listen-port 9999
 n1 wg set wg0 peer "$pub2" endpoint 127.0.0.1:2
-n1 ping6 -W 1 -c 1 abcd::2
+n1 ping6 -W 1 -c 1 fd00::2
 [[ $(n2 wg show wg0 endpoints) == "$pub1	127.212.121.99:9999" ]]
 n1 wg
 n2 wg
@@ -203,7 +203,7 @@ n1 wg set wg0 peer "$more_specific_key" remove
 # │  │ wg0 │─────────────│vethc│───────────┼────┼────│vethrc│              │vethrs│──────────────┼─────┼──│veths│────────────│ wg0 │            │
 # │  ├─────┴──────────┐  ├─────┴──────────┐│    │    ├──────┴─────────┐    ├──────┴────────────┐ │     │  ├─────┴──────────┐ ├─────┴──────────┐ │
 # │  │192.168.241.1/24│  │192.168.1.100/24││    │    │192.168.1.100/24│    │10.0.0.1/24        │ │     │  │10.0.0.100/24   │ │192.168.241.2/24│ │
-# │  │abcd::1/24      │  │                ││    │    │                │    │SNAT:192.168.1.0/24│ │     │  │                │ │abcd::2/24      │ │
+# │  │fd00::1/24      │  │                ││    │    │                │    │SNAT:192.168.1.0/24│ │     │  │                │ │fd00::2/24      │ │
 # │  └────────────────┘  └────────────────┘│    │    └────────────────┘    └───────────────────┘ │     │  └────────────────┘ └────────────────┘ │
 # │                                        │    │                                                │     │                                        │
 # │                                        │    │                                                │     │                                        │
@@ -264,9 +264,9 @@ n1 bash -c 'echo 0 > /proc/sys/net/ipv6/conf/veth1/accept_dad'
 n2 bash -c 'echo 0 > /proc/sys/net/ipv6/conf/veth2/accept_dad'
 n1 bash -c 'echo 1 > /proc/sys/net/ipv4/conf/veth1/promote_secondaries'
 ip1 addr add 10.0.0.1/24 dev veth1
-ip1 addr add dead::1/96 dev veth1
+ip1 addr add fd00:aa::1/96 dev veth1
 ip2 addr add 10.0.0.2/24 dev veth2
-ip2 addr add dead::2/96 dev veth2
+ip2 addr add fd00:aa::2/96 dev veth2
 ip1 link set veth1 up
 ip2 link set veth2 up
 n1 wg set wg0 peer "$pub2" endpoint 10.0.0.2:2
@@ -274,8 +274,8 @@ n1 ping -W 1 -c 1 192.168.241.2
 ip1 addr add 10.0.0.10/24 dev veth1
 ip1 addr del 10.0.0.1/24 dev veth1
 n1 ping -W 1 -c 1 192.168.241.2
-n1 wg set wg0 peer "$pub2" endpoint [dead::2]:2
+n1 wg set wg0 peer "$pub2" endpoint [fd00:aa::2]:2
 n1 ping -W 1 -c 1 192.168.241.2
-ip1 addr add dead::10/96 dev veth1
-ip1 addr del dead::1/96 dev veth1
+ip1 addr add fd00:aa::10/96 dev veth1
+ip1 addr del fd00:aa::1/96 dev veth1
 n1 ping -W 1 -c 1 192.168.241.2
