@@ -439,11 +439,9 @@ void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_de
 	ret = -EINVAL;
 	rcu_read_lock();
 	keypair = noise_keypair_get((struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx));
-	if (unlikely(!keypair)) {
-		rcu_read_unlock();
-		goto err;
-	}
 	rcu_read_unlock();
+	if (unlikely(!keypair))
+		goto err;
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	if (cpumask_weight(cpu_online_mask) > 1) {
 		unsigned int cpu = choose_cpu(idx);

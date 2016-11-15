@@ -121,8 +121,8 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	read_unlock_bh(&peer->endpoint_lock);
 	if (unlikely(ret)) {
 		net_dbg_ratelimited("No valid endpoint has been configured or discovered for device\n");
-		peer_put(peer);
 		skb_unsendable(skb, dev);
+		peer_put(peer);
 		return -EHOSTUNREACH;
 	}
 

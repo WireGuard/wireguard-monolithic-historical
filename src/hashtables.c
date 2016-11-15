@@ -68,7 +68,7 @@ void index_hashtable_init(struct index_hashtable *table)
 __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashtable_entry *entry)
 {
 	struct index_hashtable_entry *existing_entry;
-	uint64_t rand;
+	unsigned long rand = get_random_long();
 
 	spin_lock(&table->lock);
 	hlist_del_init_rcu(&entry->index_hash);
@@ -78,7 +78,7 @@ __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashta
 
 search_unused_slot:
 	/* First we try to find an unused slot, randomly, while unlocked. */
-	rand = get_random_long();
+	++rand;
 	entry->index = (__force __le32)siphash24((uint8_t *)&rand, sizeof(rand), table->key);
 	hlist_for_each_entry_rcu(existing_entry, index_bucket(table, entry->index), index_hash) {
 		if (existing_entry->index == entry->index)

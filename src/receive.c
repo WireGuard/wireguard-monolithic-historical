@@ -265,9 +265,9 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 	peer_put(routed_peer); /* We don't need the extra reference. */
 
 	if (unlikely(routed_peer != peer)) {
-		net_dbg_skb_ratelimited("Packet has unallowed src IP (%pISc) from peer %Lu (%pISpfsc)\n", skb, peer->internal_id, &peer->endpoint.addr_storage);
 		++dev->stats.rx_errors;
 		++dev->stats.rx_frame_errors;
+		net_dbg_skb_ratelimited("Packet has unallowed src IP (%pISc) from peer %Lu (%pISpfsc)\n", skb, peer->internal_id, &peer->endpoint.addr_storage);
 		goto packet_processed;
 	}
 
