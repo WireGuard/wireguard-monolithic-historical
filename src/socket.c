@@ -43,6 +43,12 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 	if (!rt) {
 		security_sk_classify_flow(sock, flowi4_to_flowi(&fl));
 		rt = ip_route_output_flow(sock_net(sock), &fl, sock);
+		if (unlikely(IS_ERR(rt) && PTR_ERR(rt) == -EINVAL && fl.saddr)) {
+			endpoint->src4.s_addr = fl.saddr = 0;
+			if (cache)
+				dst_cache_reset(cache);
+			rt = ip_route_output_flow(sock_net(sock), &fl, sock);
+		}
 		if (unlikely(IS_ERR(rt))) {
 			ret = PTR_ERR(rt);
 			net_dbg_ratelimited("No route to %pISpfsc, error %d\n", &endpoint->addr_storage, ret);
@@ -103,6 +109,11 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 
 	if (!dst) {
 		security_sk_classify_flow(sock, flowi6_to_flowi(&fl));
+		if (unlikely(!ipv6_addr_any(&fl.saddr) && !ipv6_chk_addr(sock_net(sock), &fl.saddr, NULL, 0))) {
+			endpoint->src6 = fl.saddr = in6addr_any;
+			if (cache)
+				dst_cache_reset(cache);
+		}
 		ret = ipv6_stub->ipv6_dst_lookup(sock_net(sock), sock, &dst, &fl);
 		if (unlikely(ret)) {
 			net_dbg_ratelimited("No route to %pISpfsc, error %d\n", &endpoint->addr_storage, ret);

@@ -247,3 +247,35 @@ n2 wg
 # Demonstrate n2 can still send packets to n1, since persistent-keepalive will prevent connection tracking entry from expiring (to see entries: `n0 conntrack -L`).
 pp sleep 3
 n2 ping -W 1 -c 1 192.168.241.1
+
+n0 iptables -t nat -F
+ip0 link del vethrc
+ip0 link del vethrs
+ip1 link del wg0
+ip2 link del wg0
+
+# Test that saddr routing isn't overly sticky
+ip1 link add dev wg0 type wireguard
+ip2 link add dev wg0 type wireguard
+configure_peers
+ip1 link add veth1 type veth peer name veth2
+ip1 link set veth2 netns $netns2
+n1 bash -c 'echo 0 > /proc/sys/net/ipv6/conf/veth1/accept_dad'
+n2 bash -c 'echo 0 > /proc/sys/net/ipv6/conf/veth2/accept_dad'
+n1 bash -c 'echo 1 > /proc/sys/net/ipv4/conf/veth1/promote_secondaries'
+ip1 addr add 10.0.0.1/24 dev veth1
+ip1 addr add dead::1/96 dev veth1
+ip2 addr add 10.0.0.2/24 dev veth2
+ip2 addr add dead::2/96 dev veth2
+ip1 link set veth1 up
+ip2 link set veth2 up
+n1 wg set wg0 peer "$pub2" endpoint 10.0.0.2:2
+n1 ping -W 1 -c 1 192.168.241.2
+ip1 addr add 10.0.0.10/24 dev veth1
+ip1 addr del 10.0.0.1/24 dev veth1
+n1 ping -W 1 -c 1 192.168.241.2
+n1 wg set wg0 peer "$pub2" endpoint [dead::2]:2
+n1 ping -W 1 -c 1 192.168.241.2
+ip1 addr add dead::10/96 dev veth1
+ip1 addr del dead::1/96 dev veth1
+n1 ping -W 1 -c 1 192.168.241.2
