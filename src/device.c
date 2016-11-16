@@ -118,7 +118,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	ret = peer->endpoint.addr_storage.ss_family != AF_INET && peer->endpoint.addr_storage.ss_family != AF_INET6;
 	read_unlock_bh(&peer->endpoint_lock);
 	if (unlikely(ret)) {
-		net_dbg_ratelimited("No valid endpoint has been configured or discovered for device\n");
+		net_dbg_ratelimited("No valid endpoint has been configured or discovered for peer %Lu\n", peer->internal_id);
 		skb_unsendable(skb, dev);
 		peer_put(peer);
 		return -EHOSTUNREACH;
