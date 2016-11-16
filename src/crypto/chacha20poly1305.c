@@ -34,7 +34,7 @@ void chacha20poly1305_init(void)
 {
 	chacha20poly1305_use_sse2 = boot_cpu_has(X86_FEATURE_XMM2);
 	chacha20poly1305_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
-	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX2);
+	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 }
 #else
 void chacha20poly1305_init(void) { }
