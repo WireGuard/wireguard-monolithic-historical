@@ -46,7 +46,10 @@ enum limits {
 	INITIATIONS_PER_SECOND = HZ / 50,
 	MAX_PEERS_PER_DEVICE = U16_MAX,
 	KEEPALIVE_TIMEOUT = 10 * HZ,
-	MAX_TIMER_HANDSHAKES = (90 * HZ) / REKEY_TIMEOUT
+	MAX_TIMER_HANDSHAKES = (90 * HZ) / REKEY_TIMEOUT,
+	MAX_QUEUED_INCOMING_HANDSHAKES = 4096,
+	MAX_BURST_INCOMING_HANDSHAKES = 16,
+	MAX_QUEUED_OUTGOING_PACKETS = 1024
 };
 
 enum message_type {
@@ -106,6 +109,13 @@ enum message_alignments {
 	MESSAGE_DATA_TARGET_OPTIMAL_ALIGNMENT = 32, /* Per intel AVX recommendations */
 	MESSAGE_PADDING_MULTIPLE = 16,
 	MESSAGE_MINIMUM_LENGTH = message_data_len(0)
+};
+
+#define SKB_HEADER_LEN (max(sizeof(struct iphdr), sizeof(struct ipv6hdr)) + sizeof(struct udphdr) + NET_SKB_PAD)
+#define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
+
+enum {
+	HANDSHAKE_DSCP = 0b10001000 /* AF41, plus 00 ECN */
 };
 
 static inline enum message_type message_determine_type(void *src, size_t src_len)

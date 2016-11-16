@@ -86,7 +86,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, void *data, si
 		return;
 	}
 
-	under_load = skb_queue_len(&wg->incoming_handshakes) >= MAX_QUEUED_HANDSHAKES / 2;
+	under_load = skb_queue_len(&wg->incoming_handshakes) >= MAX_QUEUED_INCOMING_HANDSHAKES / 2;
 	mac_state = cookie_validate_packet(&wg->cookie_checker, skb, data, len, under_load);
 	if ((under_load && mac_state == VALID_MAC_WITH_COOKIE) || (!under_load && mac_state == VALID_MAC_BUT_NO_COOKIE))
 		packet_needs_cookie = false;
@@ -161,7 +161,7 @@ void packet_process_queued_handshake_packets(struct work_struct *work)
 		if (!skb_data_offset(skb, &offset, &len))
 			receive_handshake_packet(wg, skb->data + offset, len, skb);
 		dev_kfree_skb(skb);
-		if (++num_processed == MAX_BURST_HANDSHAKES) {
+		if (++num_processed == MAX_BURST_INCOMING_HANDSHAKES) {
 			queue_work(wg->workqueue, &wg->incoming_handshakes_work);
 			return;
 		}
@@ -298,7 +298,7 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 	case MESSAGE_HANDSHAKE_INITIATION:
 	case MESSAGE_HANDSHAKE_RESPONSE:
 	case MESSAGE_HANDSHAKE_COOKIE:
-		if (skb_queue_len(&wg->incoming_handshakes) > MAX_QUEUED_HANDSHAKES) {
+		if (skb_queue_len(&wg->incoming_handshakes) > MAX_QUEUED_INCOMING_HANDSHAKES) {
 			net_dbg_skb_ratelimited("Too many handshakes queued, dropping packet from %pISpfsc\n", skb);
 			goto err;
 		}

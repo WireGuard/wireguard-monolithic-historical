@@ -21,8 +21,6 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_nat_core.h>
 
-#define MAX_QUEUED_PACKETS 1024
-
 static int init(struct net_device *dev)
 {
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
@@ -128,7 +126,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* If the queue is getting too big, we start removing the oldest packets until it's small again.
 	 * We do this before adding the new packet, so we don't remove GSO segments that are in excess. */
-	while (skb_queue_len(&peer->tx_packet_queue) > MAX_QUEUED_PACKETS)
+	while (skb_queue_len(&peer->tx_packet_queue) > MAX_QUEUED_OUTGOING_PACKETS)
 		dev_kfree_skb(skb_dequeue(&peer->tx_packet_queue));
 
 	if (!skb_is_gso(skb))
@@ -217,7 +215,9 @@ static void destruct(struct net_device *dev)
 	free_netdev(dev);
 }
 
-#define WG_FEATURES (NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE | NETIF_F_HIGHDMA)
+enum {
+	WG_NETDEV_FEATURES = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE | NETIF_F_HIGHDMA
+};
 
 static void setup(struct net_device *dev)
 {
@@ -237,9 +237,9 @@ static void setup(struct net_device *dev)
 	dev->tx_queue_len = 0;
 #endif
 	dev->features |= NETIF_F_LLTX;
-	dev->features |= WG_FEATURES;
-	dev->hw_features |= WG_FEATURES;
-	dev->hw_enc_features |= WG_FEATURES;
+	dev->features |= WG_NETDEV_FEATURES;
+	dev->hw_features |= WG_NETDEV_FEATURES;
+	dev->hw_enc_features |= WG_NETDEV_FEATURES;
 	dev->mtu = ETH_DATA_LEN - MESSAGE_MINIMUM_LENGTH - sizeof(struct udphdr) - max(sizeof(struct ipv6hdr), sizeof(struct iphdr));
 
 	/* We need to keep the dst around in case of icmp replies. */

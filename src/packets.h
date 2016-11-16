@@ -10,14 +10,6 @@
 #include <linux/types.h>
 #include <linux/padata.h>
 
-enum {
-	MAX_QUEUED_HANDSHAKES = 4096,
-	MAX_BURST_HANDSHAKES = 16
-};
-
-/* AF41, plus 00 ECN */
-#define HANDSHAKE_DSCP 0b10001000
-
 struct wireguard_device;
 struct wireguard_peer;
 struct sk_buff;
@@ -34,7 +26,6 @@ void packet_send_queued_handshakes(struct work_struct *work);
 void packet_send_handshake_response(struct wireguard_peer *peer);
 void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *initiating_skb, void *data, size_t data_len, __le32 sender_index);
 
-
 /* data.c */
 int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer, void(*callback)(struct sk_buff_head *, struct wireguard_peer *));
 void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_device *wg, void(*callback)(struct sk_buff *, struct wireguard_peer *, struct endpoint *, bool, int));
@@ -43,8 +34,6 @@ void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_de
 int packet_init_data_caches(void);
 void packet_deinit_data_caches(void);
 #endif
-
-#define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
 
 #ifdef DEBUG
 bool packet_counter_selftest(void);

@@ -11,8 +11,6 @@
 struct wireguard_device;
 struct endpoint;
 
-#define SKB_HEADER_LEN (max(sizeof(struct iphdr), sizeof(struct ipv6hdr)) + sizeof(struct udphdr) + NET_SKB_PAD)
-
 int socket_init(struct wireguard_device *wg);
 void socket_uninit(struct wireguard_device *wg);
 int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *data, size_t len, uint8_t ds);
