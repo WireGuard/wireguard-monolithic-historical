@@ -1,7 +1,7 @@
 /* Original author: Adam Langley <agl@imperialviolet.org>
  *
  * Copyright 2008 Google Inc. All Rights Reserved.
- * Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ * Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
 #include "curve25519.h"

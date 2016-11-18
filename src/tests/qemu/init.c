@@ -1,3 +1,5 @@
+/* Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
+
 #define _GNU_SOURCE
 #include <unistd.h>
 #include <errno.h>

@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
+/* Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
 #ifndef CURVE25519_H
 #define CURVE25519_H

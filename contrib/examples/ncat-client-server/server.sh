@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+
 if [[ -z $NCAT_REMOTE_ADDR ]]; then
 	ip link del dev wg0 2>/dev/null
 	set -e

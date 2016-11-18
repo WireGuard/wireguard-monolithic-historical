@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+
 set -ex
 if [[ $UID == 0 ]]; then
 	ip link del dev synergy || true
