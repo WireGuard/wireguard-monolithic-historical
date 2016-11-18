@@ -4,10 +4,17 @@ PWD := $(shell pwd)
 all: module tools
 debug: module-debug tools
 
-module:
+version.h:
+	@export GIT_CEILING_DIRECTORIES="$$(readlink -f ../..)" && \
+	ver="#define WIREGUARD_VERSION \"$$(git describe --dirty 2>/dev/null)\"" && \
+	[ "$$(cat version.h 2>/dev/null)" != "$$ver" ] && \
+	echo "$$ver" > version.h && \
+	git update-index --assume-unchanged version.h || true
+
+module: version.h
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
-module-debug:
+module-debug: version.h
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) V=1 CONFIG_WIREGUARD_DEBUG=y modules
 
 clean:
@@ -31,4 +38,4 @@ cloc: clean
 
 include tests/debug.mk
 
-.PHONY: all module module-debug tools install clean core-cloc check
+.PHONY: all module module-debug tools install clean core-cloc check version.h
