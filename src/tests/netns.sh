@@ -38,6 +38,7 @@ ip2() { pretty 2 "ip $*"; ip -n $netns2 "$@"; }
 sleep() { read -t "$1" -N 0 || true; }
 waitiperf() { pretty "${1//*-}" "wait for iperf:5201"; while [[ $(ss -N "$1" -tlp 'sport = 5201') != *iperf3* ]]; do sleep 0.1; done; }
 waitncatudp() { pretty "${1//*-}" "wait for udp:1111"; while [[ $(ss -N "$1" -ulp 'sport = 1111') != *ncat* ]]; do sleep 0.1; done; }
+waitiface() { pretty "${1//*-}" "wait for $2 to come up"; ip netns exec "$1" bash -c "while [[ \$(< \"/sys/class/net/$2/operstate\") != up ]]; do read -t .1 -N 0; done;"; }
 
 cleanup() {
 	set +e
@@ -219,6 +220,10 @@ ip1 link set vethc up
 ip1 route add default via 192.168.1.1
 ip2 addr add 10.0.0.100/24 dev veths
 ip2 link set veths up
+waitiface $netns0 vethrc
+waitiface $netns0 vethrs
+waitiface $netns1 vethc
+waitiface $netns2 veths
 
 n0 bash -c 'echo 1 > /proc/sys/kernel/sysctl_writes_strict'
 n0 bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'
@@ -255,6 +260,8 @@ ip2 addr add 10.0.0.2/24 dev veth2
 ip2 addr add fd00:aa::2/96 dev veth2
 ip1 link set veth1 up
 ip2 link set veth2 up
+waitiface $netns1 veth1
+waitiface $netns2 veth2
 n1 wg set wg0 peer "$pub2" endpoint 10.0.0.2:2
 n1 ping -W 1 -c 1 192.168.241.2
 ip1 addr add 10.0.0.10/24 dev veth1
