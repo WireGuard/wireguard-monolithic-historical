@@ -6,7 +6,6 @@ config WIREGUARD
 	select NETFILTER
 	select NETFILTER_XTABLES
 	select NETFILTER_ADVANCED
-	select NF_CONNTRACK
 	select CRYPTO_BLKCIPHER
 	select IP6_NF_IPTABLES if IPV6
 	default y

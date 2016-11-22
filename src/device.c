@@ -18,8 +18,10 @@
 #include <net/icmp.h>
 #include <net/rtnetlink.h>
 #include <net/ip_tunnels.h>
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_nat_core.h>
+#endif
 
 static int init(struct net_device *dev)
 {
@@ -71,24 +73,30 @@ static int stop(struct net_device *dev)
 
 static void skb_unsendable(struct sk_buff *skb, struct net_device *dev)
 {
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	/* This conntrack stuff is because the rate limiting needs to be applied
-	 * to the original src IP, so we have to restore saddr in the IP header. */
-	struct nf_conn *ct = NULL;
+	 * to the original src IP, so we have to restore saddr in the IP header.
+	 * It's not needed if conntracking isn't in the kernel, because in that
+	 * case the saddr wouldn't be NAT-transformed anyway. */
 	enum ip_conntrack_info ctinfo;
-
-	ct = nf_ct_get(skb, &ctinfo);
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+#endif
 	++dev->stats.tx_errors;
 
 	if (skb->len < sizeof(struct iphdr))
 		goto free;
 
 	if (ip_hdr(skb)->version == 4) {
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 		if (ct)
 			ip_hdr(skb)->saddr = ct->tuplehash[0].tuple.src.u3.ip;
+#endif
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
 	} else if (ip_hdr(skb)->version == 6) {
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 		if (ct)
 			ipv6_hdr(skb)->saddr = ct->tuplehash[0].tuple.src.u3.in6;
+#endif
 		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
 	}
 free:
