@@ -106,7 +106,7 @@ $(KERNEL_PATH)/.installed: $(KERNEL_TAR)
 	mkdir -p $(BUILD_PATH)
 	tar -C $(BUILD_PATH) -xf $<
 	sed -i "/^if INET\$$/a source \"net/wireguard/Kconfig\"" $(KERNEL_PATH)/net/Kconfig
-	sed -i "/^obj-\$$(CONFIG_NET).*:=/a obj-\$$(CONFIG_WIREGUARD) += wireguard/" $(KERNEL_PATH)/net/Makefile
+	sed -i "/^obj-\$$(CONFIG_NETFILTER).*+=/a obj-\$$(CONFIG_WIREGUARD) += wireguard/" $(KERNEL_PATH)/net/Makefile
 	ln -sf $(shell readlink -f ../..) $(KERNEL_PATH)/net/wireguard
 	touch $@
 

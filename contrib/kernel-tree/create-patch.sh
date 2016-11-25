@@ -14,7 +14,7 @@ cat <<_EOF
 +source "net/wireguard/Kconfig"
 --- a/net/Makefile
 +++ b/net/Makefile
-@@ -8,1 +8,2 @@
- obj-\$(CONFIG_NET)		:= socket.o core/
+@@ -9,1 +9,2 @@
+ obj-\$(CONFIG_NETFILTER)		+= netfilter/
 +obj-\$(CONFIG_WIREGUARD)		+= wireguard/
 _EOF
