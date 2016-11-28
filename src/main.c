@@ -71,6 +71,6 @@ static void __exit mod_exit(void)
 module_init(mod_init);
 module_exit(mod_exit);
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Simple, secure, and speedy VPN tunnel");
+MODULE_DESCRIPTION("Fast, secure, and modern VPN tunnel");
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 MODULE_ALIAS_RTNL_LINK(KBUILD_MODNAME);
