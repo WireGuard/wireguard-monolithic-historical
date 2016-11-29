@@ -144,15 +144,15 @@ static size_t pretty_time(char *buf, const size_t len, unsigned long long left)
 	seconds = left % 60;
 
 	if (years)
-		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN "year%s" TERMINAL_RESET, offset ? ", " : "", years, years == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN "year%s" TERMINAL_RESET, offset ? ", " : "", years, years == 1 ? "" : "s");
 	if (days)
-		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN  "day%s" TERMINAL_RESET, offset ? ", " : "", days, days == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN  "day%s" TERMINAL_RESET, offset ? ", " : "", days, days == 1 ? "" : "s");
 	if (hours)
-		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN  "hour%s" TERMINAL_RESET, offset ? ", " : "", hours, hours == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN  "hour%s" TERMINAL_RESET, offset ? ", " : "", hours, hours == 1 ? "" : "s");
 	if (minutes)
-		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN "minute%s" TERMINAL_RESET, offset ? ", " : "", minutes, minutes == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN "minute%s" TERMINAL_RESET, offset ? ", " : "", minutes, minutes == 1 ? "" : "s");
 	if (seconds)
-		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN  "second%s" TERMINAL_RESET, offset ? ", " : "", seconds, seconds == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN  "second%s" TERMINAL_RESET, offset ? ", " : "", seconds, seconds == 1 ? "" : "s");
 
 	return offset;
 }
@@ -161,12 +161,16 @@ static char *ago(const struct timeval *t)
 {
 	static char buf[1024];
 	size_t offset;
+	time_t now = time(NULL);
 
-	offset = pretty_time(buf, sizeof(buf), time(NULL) - t->tv_sec);
-	if (offset)
-		snprintf(buf + offset, sizeof(buf) - offset, " ago");
-	else
-		snprintf(buf, sizeof(buf), "Now");
+	if (now == t->tv_sec)
+		strncpy(buf, "Now", sizeof(buf) - 1);
+	else if (now < t->tv_sec)
+		strncpy(buf, "(" TERMINAL_FG_RED "System clock wound backward; connection problems may ensue." TERMINAL_RESET ")", sizeof(buf) - 1);
+	else {
+		offset = pretty_time(buf, sizeof(buf), now - t->tv_sec);
+		strncpy(buf + offset, " ago", sizeof(buf) - offset - 1);
+	}
 
 	return buf;
 }
@@ -174,7 +178,7 @@ static char *ago(const struct timeval *t)
 static char *every(uint16_t seconds)
 {
 	static char buf[1024] = "every ";
-	pretty_time(buf + strlen("every "), sizeof(buf) - strlen("every "), seconds);
+	pretty_time(buf + strlen("every "), sizeof(buf) - strlen("every ") - 1, seconds);
 	return buf;
 }
 
@@ -183,15 +187,15 @@ static char *bytes(uint64_t b)
 	static char buf[1024];
 
 	if (b < 1024ULL)
-		snprintf(buf, sizeof(buf), "%u " TERMINAL_FG_CYAN "B" TERMINAL_RESET, (unsigned)b);
+		snprintf(buf, sizeof(buf) - 1, "%u " TERMINAL_FG_CYAN "B" TERMINAL_RESET, (unsigned)b);
 	else if (b < 1024ULL * 1024ULL)
-		snprintf(buf, sizeof(buf), "%.2f " TERMINAL_FG_CYAN "KiB" TERMINAL_RESET, (double)b / 1024);
+		snprintf(buf, sizeof(buf) - 1, "%.2f " TERMINAL_FG_CYAN "KiB" TERMINAL_RESET, (double)b / 1024);
 	else if (b < 1024ULL * 1024ULL * 1024ULL)
-		snprintf(buf, sizeof(buf), "%.2f " TERMINAL_FG_CYAN "MiB" TERMINAL_RESET, (double)b / (1024 * 1024));
+		snprintf(buf, sizeof(buf) - 1, "%.2f " TERMINAL_FG_CYAN "MiB" TERMINAL_RESET, (double)b / (1024 * 1024));
 	else if (b < 1024ULL * 1024ULL * 1024ULL * 1024ULL)
-		snprintf(buf, sizeof(buf), "%.2f " TERMINAL_FG_CYAN "GiB" TERMINAL_RESET, (double)b / (1024 * 1024 * 1024));
+		snprintf(buf, sizeof(buf) - 1, "%.2f " TERMINAL_FG_CYAN "GiB" TERMINAL_RESET, (double)b / (1024 * 1024 * 1024));
 	else
-		snprintf(buf, sizeof(buf), "%.2f " TERMINAL_FG_CYAN "TiB" TERMINAL_RESET, (double)b / (1024 * 1024 * 1024) / 1024);
+		snprintf(buf, sizeof(buf) - 1, "%.2f " TERMINAL_FG_CYAN "TiB" TERMINAL_RESET, (double)b / (1024 * 1024 * 1024) / 1024);
 
 	return buf;
 }
