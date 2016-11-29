@@ -3,6 +3,8 @@
 #ifndef SIPHASH24_H
 #define SIPHASH24_H
 
+#include <linux/types.h>
+
 enum siphash24_lengths {
 	SIPHASH24_KEY_LEN = 16
 };
