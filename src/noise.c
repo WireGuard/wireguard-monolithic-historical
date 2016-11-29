@@ -18,8 +18,8 @@
  *
  * <- s
  * ******
- * -> e, dhes, s, dhss, t
- * <- e, dhee, dhes
+ * -> e, es, s, ss, t
+ * <- e, ee, se
  */
 
 static const u8 handshake_name[33] = "Noise_IK_25519_ChaChaPoly_BLAKE2s";
