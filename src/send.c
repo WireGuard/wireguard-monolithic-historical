@@ -158,11 +158,6 @@ int packet_send_queue(struct wireguard_peer *peer)
 	switch (packet_create_data(&queue, peer, message_create_data_done)) {
 	case 0:
 		break;
-	case -ENOKEY:
-		/* ENOKEY means that we don't have a valid session for the peer, which
-		 * means we should initiate a session, and then requeue everything. */
-		packet_queue_handshake_initiation(peer);
-		goto requeue;
 	case -EBUSY:
 		/* EBUSY happens when the parallel workers are all filled up, in which
 		 * case we should requeue everything. */
@@ -170,13 +165,23 @@ int packet_send_queue(struct wireguard_peer *peer)
 		/* First, we mark that we should try to do this later, when existing
 		 * jobs are done. */
 		peer->need_resend_queue = true;
-	requeue:
+
 		/* We stick the remaining skbs from local_queue at the top of the peer's
 		 * queue again, setting the top of local_queue to be the skb that begins
 		 * the requeueing. */
 		spin_lock_irqsave(&peer->tx_packet_queue.lock, flags);
 		skb_queue_splice(&queue, &peer->tx_packet_queue);
 		spin_unlock_irqrestore(&peer->tx_packet_queue.lock, flags);
+		break;
+	case -ENOKEY:
+		/* ENOKEY means that we don't have a valid session for the peer, which
+		 * means we should initiate a session, but after requeuing like above. */
+
+		spin_lock_irqsave(&peer->tx_packet_queue.lock, flags);
+		skb_queue_splice(&queue, &peer->tx_packet_queue);
+		spin_unlock_irqrestore(&peer->tx_packet_queue.lock, flags);
+
+		packet_queue_handshake_initiation(peer);
 		break;
 	default:
 		/* If we failed for any other reason, we want to just free the packets and
