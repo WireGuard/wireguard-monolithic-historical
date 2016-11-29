@@ -43,6 +43,8 @@ waitiface() { pretty "${1//*-}" "wait for $2 to come up"; ip netns exec "$1" bas
 cleanup() {
 	set +e
 	exec 2>/dev/null
+	echo "$orig_message_cost" > /proc/sys/net/core/message_cost
+	echo "$orig_strict_writes" > /proc/sys/kernel/sysctl_writes_strict
 	ip0 link del dev wg0
 	ip1 link del dev wg0
 	ip2 link del dev wg0
@@ -53,7 +55,11 @@ cleanup() {
 	exit
 }
 
+orig_strict_writes="$(< /proc/sys/kernel/sysctl_writes_strict)"
+orig_message_cost="$(< /proc/sys/net/core/message_cost)"
 trap cleanup EXIT
+echo 1 > /proc/sys/kernel/sysctl_writes_strict
+echo 0 > /proc/sys/net/core/message_cost
 
 ip netns del $netns0 2>/dev/null || true
 ip netns del $netns1 2>/dev/null || true
@@ -225,7 +231,6 @@ waitiface $netns0 vethrs
 waitiface $netns1 vethc
 waitiface $netns2 veths
 
-n0 bash -c 'echo 1 > /proc/sys/kernel/sysctl_writes_strict'
 n0 bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'
 n0 bash -c 'echo 2 > /proc/sys/net/netfilter/nf_conntrack_udp_timeout'
 n0 bash -c 'echo 2 > /proc/sys/net/netfilter/nf_conntrack_udp_timeout_stream'
