@@ -48,10 +48,11 @@ cleanup() {
 	ip0 link del dev wg0
 	ip1 link del dev wg0
 	ip2 link del dev wg0
+	local to_kill="$(ip netns pids $netns0) $(ip netns pids $netns1) $(ip netns pids $netns2)"
+	[[ -n $to_kill ]] && kill $to_kill
 	pp ip netns del $netns1
 	pp ip netns del $netns2
 	pp ip netns del $netns0
-	kill -- -$$
 	exit
 }
 
@@ -176,14 +177,14 @@ n1 ping -W 1 -c 1 192.168.241.2
 
 # Test that crypto-RP filter works
 n1 wg set wg0 peer "$pub2" allowed-ips 192.168.241.0/24
-read -r -N 1 -t 1 out < <(n1 ncat -l -u -p 1111) && [[ $out == "X" ]] & listener_pid=$!
+read -r -N 1 -t 1 out < <(n1 ncat -l -u -p 1111 2>/dev/null) && [[ $out == "X" ]] & listener_pid=$!
 waitncatudp $netns1
 n2 ncat -u 192.168.241.1 1111 <<<"X"
 wait $listener_pid
 more_specific_key="$(pp wg genkey | pp wg pubkey)"
 n1 wg set wg0 peer "$more_specific_key" allowed-ips 192.168.241.2/32
 n2 wg set wg0 listen-port 9997
-read -r -N 1 -t 1 out < <(n1 ncat -l -u -p 1111) && [[ $out == "X" ]] & listener_pid=$!
+read -r -N 1 -t 1 out < <(n1 ncat -l -u -p 1111 2>/dev/null) && [[ $out == "X" ]] & listener_pid=$!
 waitncatudp $netns1
 n2 ncat -u 192.168.241.1 1111 <<<"X"
 ! wait $listener_pid || false

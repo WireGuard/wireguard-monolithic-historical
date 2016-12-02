@@ -144,18 +144,17 @@ static void kmod_selftests(void)
 static void launch_tests(void)
 {
 	int status, fd;
+	pid_t pid;
 	pretty_message("[+] Launching tests...");
-	switch (fork()) {
-	case -1:
+	pid = fork();
+	if (pid == -1)
 		panic("fork");
-		break;
-	case 0:
+	else if (pid == 0) {
 		execl("/init.sh", "init", NULL);
 		panic("exec");
-		break;
 	}
-	if (wait(&status) < 0)
-		panic("wait");
+	if (waitpid(pid, &status, 0) < 0)
+		panic("waitpid");
 	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
 		pretty_message("[+] Tests successful! :-)");
 		fd = open("/dev/vport1p1", O_WRONLY);

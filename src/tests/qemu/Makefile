@@ -45,7 +45,7 @@ KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
 $(eval $(call tar_download,MUSL,musl,1.1.15,.tar.gz,https://www.musl-libc.org/releases/))
 $(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,http://ftp.netfilter.org/pub/libmnl/))
 $(eval $(call tar_download,IPERF,iperf,3.1.3,.tar.gz,http://downloads.es.net/pub/iperf/))
-$(eval $(call tar_download,BASH,bash,30a978b7d808c067219c95be88c4979b6a7aa251,.tar.gz,http://git.savannah.gnu.org/cgit/bash.git/snapshot/))
+$(eval $(call tar_download,BASH,bash,f459cbd8be37b28be1dc90315e0ab51d7f211301,.tar.gz,http://git.savannah.gnu.org/cgit/bash.git/snapshot/))
 $(eval $(call tar_download,IPROUTE2,iproute2,4.3.0,.tar.gz,http://www.kernel.org/pub/linux/utils/net/iproute2/))
 $(eval $(call tar_download,IPTABLES,iptables,1.6.0,.tar.bz2,http://ftp.netfilter.org/pub/iptables/))
 $(eval $(call tar_download,NMAP,nmap,7.25BETA1,.tar.bz2,http://nmap.org/dist/))
