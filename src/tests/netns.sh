@@ -29,9 +29,10 @@ netns1="wg-test-$$-1"
 netns2="wg-test-$$-2"
 pretty() { echo -e "\x1b[32m\x1b[1m[+] ${1:+NS$1: }${2}\x1b[0m" >&3; }
 pp() { pretty "" "$*"; "$@"; }
-n0() { pretty 0 "$*"; ip netns exec $netns0 "$@"; }
-n1() { pretty 1 "$*"; ip netns exec $netns1 "$@"; }
-n2() { pretty 2 "$*"; ip netns exec $netns2 "$@"; }
+maybe_exec() { if [[ $BASHPID -eq $$ ]]; then "$@"; else exec "$@"; fi; }
+n0() { pretty 0 "$*"; maybe_exec ip netns exec $netns0 "$@"; }
+n1() { pretty 1 "$*"; maybe_exec ip netns exec $netns1 "$@"; }
+n2() { pretty 2 "$*"; maybe_exec ip netns exec $netns2 "$@"; }
 ip0() { pretty 0 "ip $*"; ip -n $netns0 "$@"; }
 ip1() { pretty 1 "ip $*"; ip -n $netns1 "$@"; }
 ip2() { pretty 2 "ip $*"; ip -n $netns2 "$@"; }
@@ -177,17 +178,21 @@ n1 ping -W 1 -c 1 192.168.241.2
 
 # Test that crypto-RP filter works
 n1 wg set wg0 peer "$pub2" allowed-ips 192.168.241.0/24
-read -r -N 1 -t 1 out < <(n1 ncat -l -u -p 1111 2>/dev/null) && [[ $out == "X" ]] & listener_pid=$!
+exec 4< <(n1 ncat -l -u -p 1111)
+nmap_pid=$!
 waitncatudp $netns1
 n2 ncat -u 192.168.241.1 1111 <<<"X"
-wait $listener_pid
+read -r -N 1 -t 1 out <&4 && [[ $out == "X" ]]
+kill $nmap_pid
 more_specific_key="$(pp wg genkey | pp wg pubkey)"
 n1 wg set wg0 peer "$more_specific_key" allowed-ips 192.168.241.2/32
 n2 wg set wg0 listen-port 9997
-read -r -N 1 -t 1 out < <(n1 ncat -l -u -p 1111 2>/dev/null) && [[ $out == "X" ]] & listener_pid=$!
+exec 4< <(n1 ncat -l -u -p 1111)
+nmap_pid=$!
 waitncatudp $netns1
 n2 ncat -u 192.168.241.1 1111 <<<"X"
-! wait $listener_pid || false
+! read -r -N 1 -t 1 out <&4
+kill $nmap_pid
 n1 wg set wg0 peer "$more_specific_key" remove
 [[ $(n1 wg show wg0 endpoints) == "$pub2	[::1]:9997" ]]
 
