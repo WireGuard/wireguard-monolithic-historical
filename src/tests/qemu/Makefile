@@ -1,7 +1,7 @@
 PWD := $(shell pwd)
 
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.8.6
+KERNEL_VERSION ?= 4.8.12
 BUILD_PATH ?= $(PWD)/../../../qemu-build
 DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
@@ -35,9 +35,9 @@ $(DISTFILES_PATH)/$(1):
 endef
 
 ifeq ($(findstring -rc,$(KERNEL_VERSION)),)
-KERNEL_URL_DIRECTORY := https://www.kernel.org/pub/linux/kernel/v4.x/
+KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v4.x/
 else
-KERNEL_URL_DIRECTORY := https://www.kernel.org/pub/linux/kernel/v4.x/testing/
+KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v4.x/testing/
 endif
 
 $(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.xz,$(KERNEL_URL_DIRECTORY)))
