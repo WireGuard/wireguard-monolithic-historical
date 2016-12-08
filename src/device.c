@@ -64,6 +64,7 @@ static int clear_noise_peer(struct wireguard_peer *peer, void *data)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct wireguard_device *wg = container_of(nb, struct wireguard_device, clear_peers_on_suspend);
@@ -75,6 +76,7 @@ static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long
 	}
 	return 0;
 }
+#endif
 
 static int stop_peer(struct wireguard_peer *peer, void *data)
 {
@@ -236,7 +238,9 @@ static void destruct(struct net_device *dev)
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);
 	cookie_checker_uninit(&wg->cookie_checker);
+#ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&wg->clear_peers_on_suspend);
+#endif
 	mutex_unlock(&wg->device_update_lock);
 
 	put_net(wg->creating_net);
@@ -318,10 +322,12 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (err < 0)
 		goto error_5;
 
+#ifdef CONFIG_PM_SLEEP
 	wg->clear_peers_on_suspend.notifier_call = suspending_clear_noise_peers;
 	err = register_pm_notifier(&wg->clear_peers_on_suspend);
 	if (err < 0)
 		goto error_6;
+#endif
 
 	err = register_netdevice(dev);
 	if (err < 0)
@@ -332,8 +338,10 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	return 0;
 
 error_7:
+#ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&wg->clear_peers_on_suspend);
 error_6:
+#endif
 	cookie_checker_uninit(&wg->cookie_checker);
 error_5:
 #ifdef CONFIG_WIREGUARD_PARALLEL
