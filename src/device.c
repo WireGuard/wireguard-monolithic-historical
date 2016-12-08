@@ -68,9 +68,7 @@ static int clear_noise_peer(struct wireguard_peer *peer, void *data)
 static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct wireguard_device *wg = container_of(nb, struct wireguard_device, clear_peers_on_suspend);
-	switch (action) {
-	case PM_HIBERNATION_PREPARE:
-	case PM_SUSPEND_PREPARE:
+	if (action == PM_HIBERNATION_PREPARE || action == PM_SUSPEND_PREPARE) {
 		peer_for_each(wg, clear_noise_peer, NULL);
 		rcu_barrier();
 	}
