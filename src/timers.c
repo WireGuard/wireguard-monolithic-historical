@@ -119,7 +119,7 @@ void timers_handshake_initiated(struct wireguard_peer *peer)
 	if (likely(peer->timer_send_keepalive.data))
 		del_timer(&peer->timer_send_keepalive);
 	if (likely(peer->timer_retransmit_handshake.data))
-		mod_timer(&peer->timer_retransmit_handshake, slack_time(jiffies + REKEY_TIMEOUT + HZ / 4));
+		mod_timer(&peer->timer_retransmit_handshake, slack_time(jiffies + REKEY_TIMEOUT + prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX)));
 }
 
 /* Should be called after a handshake response message is received and processed. */
