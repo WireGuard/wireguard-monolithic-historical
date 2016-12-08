@@ -280,7 +280,7 @@ static void setup(struct net_device *dev)
 
 static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *tb[], struct nlattr *data[])
 {
-	int ret = 0;
+	int err = -ENOMEM;
 	struct wireguard_device *wg = netdev_priv(dev);
 
 	wg->creating_net = get_net(src_net);
@@ -295,69 +295,59 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	INIT_LIST_HEAD(&wg->peer_list);
 
 	wg->workqueue = alloc_workqueue(KBUILD_MODNAME "-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
-	if (!wg->workqueue) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!wg->workqueue)
+		goto error_1;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	wg->parallelqueue = alloc_workqueue(KBUILD_MODNAME "-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
-	if (!wg->parallelqueue) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!wg->parallelqueue)
+		goto error_2;
 
 	wg->parallel_send = padata_alloc_possible(wg->parallelqueue);
-	if (!wg->parallel_send) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!wg->parallel_send)
+		goto error_3;
 	padata_start(wg->parallel_send);
 
 	wg->parallel_receive = padata_alloc_possible(wg->parallelqueue);
-	if (!wg->parallel_receive) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!wg->parallel_receive)
+		goto error_4;
 	padata_start(wg->parallel_receive);
 #endif
 
-	ret = cookie_checker_init(&wg->cookie_checker, wg);
-	if (ret < 0)
-		goto err;
+	err = cookie_checker_init(&wg->cookie_checker, wg);
+	if (err < 0)
+		goto error_5;
 
 	wg->clear_peers_on_suspend.notifier_call = suspending_clear_noise_peers;
-	ret = register_pm_notifier(&wg->clear_peers_on_suspend);
-	if (ret < 0) {
-		wg->clear_peers_on_suspend.notifier_call = NULL;
-		goto err;
-	}
+	err = register_pm_notifier(&wg->clear_peers_on_suspend);
+	if (err < 0)
+		goto error_6;
 
-	ret = register_netdevice(dev);
-	if (ret < 0)
-		goto err;
+	err = register_netdevice(dev);
+	if (err < 0)
+		goto error_7;
 
 	pr_debug("Device %s has been created\n", dev->name);
 
 	return 0;
 
-err:
-	put_net(src_net);
-	if (wg->workqueue)
-		destroy_workqueue(wg->workqueue);
+error_7:
+	unregister_pm_notifier(&wg->clear_peers_on_suspend);
+error_6:
+	cookie_checker_uninit(&wg->cookie_checker);
+error_5:
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	if (wg->parallel_send)
-		padata_free(wg->parallel_send);
-	if (wg->parallel_receive)
-		padata_free(wg->parallel_receive);
-	if (wg->parallelqueue)
-		destroy_workqueue(wg->parallelqueue);
+	padata_free(wg->parallel_receive);
+error_4:
+	padata_free(wg->parallel_send);
+error_3:
+	destroy_workqueue(wg->parallelqueue);
+error_2:
 #endif
-	if (wg->cookie_checker.device)
-		cookie_checker_uninit(&wg->cookie_checker);
-	if (wg->clear_peers_on_suspend.notifier_call)
-		unregister_pm_notifier(&wg->clear_peers_on_suspend);
-	return ret;
+	destroy_workqueue(wg->workqueue);
+error_1:
+	put_net(src_net);
+	return err;
 }
 
 static void dellink(struct net_device *dev, struct list_head *head)
