@@ -15,6 +15,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/icmp.h>
+#include <linux/suspend.h>
 #include <net/icmp.h>
 #include <net/rtnetlink.h>
 #include <net/ip_tunnels.h>
@@ -54,11 +55,31 @@ static int open(struct net_device *dev)
 	return 0;
 }
 
+static int clear_noise_peer(struct wireguard_peer *peer, void *data)
+{
+	noise_handshake_clear(&peer->handshake);
+	noise_keypairs_clear(&peer->keypairs);
+	if (peer->timer_kill_ephemerals.data)
+		del_timer(&peer->timer_kill_ephemerals);
+	return 0;
+}
+
+static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long action, void *data)
+{
+	struct wireguard_device *wg = container_of(nb, struct wireguard_device, clear_peers_on_suspend);
+	switch (action) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		peer_for_each(wg, clear_noise_peer, NULL);
+		rcu_barrier();
+	}
+	return 0;
+}
+
 static int stop_peer(struct wireguard_peer *peer, void *data)
 {
 	timers_uninit_peer_wait(peer);
-	noise_handshake_clear(&peer->handshake);
-	noise_keypairs_clear(&peer->keypairs);
+	clear_noise_peer(peer, data);
 	return 0;
 }
 
@@ -215,6 +236,7 @@ static void destruct(struct net_device *dev)
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);
 	cookie_checker_uninit(&wg->cookie_checker);
+	unregister_pm_notifier(&wg->clear_peers_on_suspend);
 	mutex_unlock(&wg->device_update_lock);
 
 	put_net(wg->creating_net);
@@ -304,6 +326,13 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (ret < 0)
 		goto err;
 
+	wg->clear_peers_on_suspend.notifier_call = suspending_clear_noise_peers;
+	ret = register_pm_notifier(&wg->clear_peers_on_suspend);
+	if (ret < 0) {
+		wg->clear_peers_on_suspend.notifier_call = NULL;
+		goto err;
+	}
+
 	ret = register_netdevice(dev);
 	if (ret < 0)
 		goto err;
@@ -326,6 +355,8 @@ err:
 #endif
 	if (wg->cookie_checker.device)
 		cookie_checker_uninit(&wg->cookie_checker);
+	if (wg->clear_peers_on_suspend.notifier_call)
+		unregister_pm_notifier(&wg->clear_peers_on_suspend);
 	return ret;
 }
 
