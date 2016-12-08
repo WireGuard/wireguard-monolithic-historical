@@ -1,0 +1,187 @@
+#!/bin/bash
+set -e -o pipefail
+
+export PATH="$(dirname "$(readlink -f "$0")"):$PATH"
+
+cmd() {
+	echo "[#] $*" >&2
+	"$@"
+}
+
+auto_su() {
+	[[ $UID != 0 ]] && exec sudo -p "$PROGRAM must be run as root. Please enter the password for %u to continue: " "$(readlink -f "$0")" "${ARGS[@]}" || true
+}
+
+unwind() {
+	set +e
+	[[ -n $INTERFACE && -n $(ip link show dev "$INTERFACE" type wireguard 2>/dev/null) ]] && cmd ip link delete dev "$INTERFACE"
+	exit
+}
+
+add_if() {
+	ip link delete dev "$INTERFACE" 2>/dev/null || true
+	cmd ip link add "$INTERFACE" type wireguard
+}
+
+del_if() {
+	[[ -n $(ip link show dev "$INTERFACE" type wireguard 2>/dev/null) ]] || { echo "$PROGRAM: \`$INTERFACE' is not a WireGuard interface" >&2; exit 1; }
+	cmd ip link delete dev "$INTERFACE"
+}
+
+up_if() {
+	cmd ip link set "$INTERFACE" up
+}
+
+add_addr() {
+	cmd ip address add "$1" dev "$INTERFACE"
+}
+
+add_route() {
+	cmd ip route add "$1" dev "$INTERFACE"
+}
+
+add_default() {
+	if [[ $1 == ::/0 ]]; then
+		echo "tungate: does not yet support IPv6, skipping ::/0" >&2
+		return 0
+	elif [[ $1 == 0.0.0.0/0 ]]; then
+		local endpoint="$(wg show "$INTERFACE" endpoints | grep "^$(wg show "$INTERFACE" allowed-ips | grep 0.0.0.0/0 | head -n 1 | cut -f 1)" | cut -f 2 | cut -d : -f 1)"
+		add_route 0/1
+		add_route 128/1
+		killall tungate 2>/dev/null || true
+		echo "[&] Forking \`tungate' for $endpoint to background" >&2
+		tungate "$endpoint" >/dev/null 2>&1 & disown
+		return 0
+	fi
+	return 1
+}
+
+set_config() {
+	if [[ -n $CONFIG_FILE_CONTENTS ]]; then
+		cmd wg setconf "$INTERFACE" <(echo "$CONFIG_FILE_CONTENTS")
+	else
+		cmd wg setconf "$INTERFACE" "$CONFIG_FILE"
+	fi
+}
+
+save_config() {
+	local old_umask="$(umask)"
+	umask 077
+	cmd wg showconf "$INTERFACE" > "$CONFIG_FILE.tmp" || { rm -f "$CONFIG_FILE.tmp"; exit 1; }
+	mv "$CONFIG_FILE.tmp" "$CONFIG_FILE" || { rm -f "$CONFIG_FILE.tmp"; exit 1; }
+	umask "$old_umask"
+}
+
+cmd_usage() {
+	cat >&2 <<-_EOF
+	Usage: $PROGRAM [ add | del ] INTERFACE [arguments...]
+
+	  $PROGRAM add INTERFACE --config=CONFIG_FILE [--address=ADDRESS/CIDR...]
+	               [--route=ROUTE/CIDR...] [--no-auto-route-from-allowed-ips]
+	               [--env-file=ENV_FILE]
+
+	    The add subcommand adds a new WireGuard interface, INTERFACE, replacing
+	    any existing interfaces of the same name. The --config argument is
+	    required, and its argument is passed to wg(8)'s setconf subcommand. The
+	    --address argument(s) is recommended for this utility to be useful. The
+	    --route argument is purely optional, as by default this utility will
+	    automatically add routes implied by --address and as implied by the
+	    allowed-ip entries inside the --config file. To disable this automatic
+	    route adding, you may use the option entitled --no-auto-route-from-allowed-ips.
+
+	  $PROGRAM del INTERFACE [--config=CONFIG_FILE_TO_SAVE] [--env-file=ENV_FILE]
+
+	    The del subcommand removes an existing WireGuard interface. If the
+	    optional --config is specified, then the existing configuration is
+	    written out to the file specified, via wg(8)'s showconf subcommand.
+
+	  $PROGRAM help
+
+	    Show this message.
+
+	Both \`add' and ``del' take the --env-file=ENV_FILE option. If specified,
+	the contents of ENV_FILE are imported into $PROGRAM. This can be used to
+	set variables in a file, instead of needing to pass them on the command
+	line. The following table shows the relation between the command line
+	options described above, and variables that may be declared in ENV_FILE:
+
+	  --address=A, --address=B, --address=C       ADDRESSES=( "A" "B" "C" )
+	  --route=A, --route=B, --route=C             ADDITIONAL_ROUTES=( "A" "B" "C" )
+	  --config-file=F                             CONFIG_FILE="F"
+	  echo C > /tmp/F, --config-file=/tmp/F       CONFIG_FILE_CONTENTS="C"
+	  --no-auto-route-from-allowed-ips            AUTO_ROUTE=0
+
+	Additionally, ENV_FILE may define the bash functions pre_add, post_add,
+	pre_del, and post_del, which will be called at their respective times.
+	_EOF
+}
+
+cmd_add() {
+	local i
+	[[ -n $CONFIG_FILE || -n $CONFIG_FILE_CONTENTS ]] || { echo "$PROGRAM: --config is required for add subcommand" >&2; exit 1; }
+	auto_su
+	trap unwind INT TERM EXIT
+	[[ $(type -t pre_add) == function ]] && pre_add || true
+	add_if
+	set_config
+	for i in "${ADDRESSES[@]}"; do
+		add_addr "$i"
+	done
+	up_if
+	if [[ $AUTO_ROUTE -eq 1 ]]; then
+		for i in $(wg show "$INTERFACE" allowed-ips | cut -f 2 | tr -d ,); do
+			if ! add_default "$i" && [[ $(ip route get "$i") != *dev\ $INTERFACE\ * ]]; then
+				add_route "$i"
+			fi
+		done
+	fi
+	for i in "${ADDITIONAL_ROUTES[@]}"; do
+		if ! add_default "$i"; then
+			add_route "$i"
+		fi
+	done
+	[[ $(type -t post_add) == function ]] && post_add || true
+	trap - INT TERM EXIT
+}
+
+cmd_del() {
+	auto_su
+	[[ $(type -t pre_del) == function ]] && pre_del || true
+	killall tungate 2>/dev/null || true
+	[[ -n $CONFIG_FILE ]] && save_config
+	del_if
+        [[ $(type -t post_del) == function ]] && post_del || true
+}
+
+declare INTERFACE="$2"
+declare SUBCOMMAND="$1"
+declare -a ADDRESSES
+declare -a ADDITIONAL_ROUTES
+declare AUTO_ROUTE=1
+declare CONFIG_FILE
+declare CONFIG_FILE_CONTENTS
+declare PROGRAM="${0##*/}"
+declare -a ARGS=( "$@" )
+
+[[ -n $INTERFACE && -n $SUBCOMMAND ]] || { cmd_usage; exit 1; }
+
+shift 2
+
+for arg; do
+	case "$arg" in
+	--env-file=*) source "${arg#*=}" ;;
+	--config=*) CONFIG_FILE="${arg#*=}" ;;
+	--address=*) ADDRESSES+=( ${arg#*=} ) ;;
+	--route=*) ADDITIONAL_ROUTES+=( ${arg#*=} ) ;;
+	--no-auto-route-from-allowed-ips) AUTO_ROUTE=0 ;;
+	*) cmd_usage; exit 1 ;;
+	esac
+done
+
+case "$SUBCOMMAND" in
+add) cmd_add ;;
+del) cmd_del ;;
+*) cmd_usage; exit 1 ;;
+esac
+
+exit 0
