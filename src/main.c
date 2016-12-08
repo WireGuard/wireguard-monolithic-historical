@@ -16,7 +16,7 @@
 
 static int __init mod_init(void)
 {
-	int ret;
+	int err;
 
 #ifdef DEBUG
 	if (!routing_table_selftest() ||
@@ -30,32 +30,32 @@ static int __init mod_init(void)
 	chacha20poly1305_init();
 	noise_init();
 
-	ret = ratelimiter_module_init();
-	if (ret < 0)
-		goto out;
+	err = ratelimiter_module_init();
+	if (err < 0)
+		return err;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	ret = packet_init_data_caches();
-	if (ret < 0)
+	err = packet_init_data_caches();
+	if (err < 0)
 		goto err_packet;
 #endif
 
-	ret = device_init();
-	if (ret < 0)
+	err = device_init();
+	if (err < 0)
 		goto err_device;
 
 	pr_info("WireGuard " WIREGUARD_VERSION " loaded. See www.wireguard.io for information.\n");
 	pr_info("Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.\n");
 
-	goto out;
+	return 0;
+
 err_device:
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	packet_deinit_data_caches();
-#endif
 err_packet:
+#endif
 	ratelimiter_module_deinit();
-out:
-	return ret;
+	return err;
 }
 
 static void __exit mod_exit(void)
