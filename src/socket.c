@@ -255,6 +255,14 @@ out:
 	read_unlock_bh(&peer->endpoint_lock);
 }
 
+void socket_clear_peer_endpoint_src(struct wireguard_peer *peer)
+{
+	write_lock_bh(&peer->endpoint_lock);
+	memset(&peer->endpoint.src6, 0, sizeof(peer->endpoint.src6));
+	dst_cache_reset(&peer->endpoint_cache);
+	write_unlock_bh(&peer->endpoint_lock);
+}
+
 static int receive(struct sock *sk, struct sk_buff *skb)
 {
 	struct wireguard_device *wg;
