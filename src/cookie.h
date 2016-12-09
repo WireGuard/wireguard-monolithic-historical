@@ -9,8 +9,6 @@
 
 struct wireguard_peer;
 struct wireguard_device;
-
-struct wireguard_device;
 struct sk_buff;
 
 struct cookie_checker {
