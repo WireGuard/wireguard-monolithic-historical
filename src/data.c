@@ -146,7 +146,7 @@ static inline void skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypai
 
 	/* Only after checksumming can we safely add on the padding at the end and the header. */
 	header = (struct message_data *)skb_push(skb, sizeof(struct message_data));
-	header->header.type = MESSAGE_DATA;
+	header->header.type = cpu_to_le32(MESSAGE_DATA);
 	header->key_idx = keypair->remote_index;
 	header->counter = cpu_to_le64(cb->nonce);
 	pskb_put(skb, cb->trailer, cb->trailer_len);

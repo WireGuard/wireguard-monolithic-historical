@@ -339,7 +339,7 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 	if (unlikely(!handshake->static_identity->has_identity))
 		goto out;
 
-	dst->header.type = MESSAGE_HANDSHAKE_INITIATION;
+	dst->header.type = cpu_to_le32(MESSAGE_HANDSHAKE_INITIATION);
 
 	handshake_init(handshake->key, handshake->chaining_key, handshake->hash, handshake->remote_static,
 		       handshake->static_identity->has_psk ? handshake->static_identity->preshared_key : NULL);
@@ -459,7 +459,7 @@ bool noise_handshake_create_response(struct message_handshake_response *dst, str
 	if (handshake->state != HANDSHAKE_CONSUMED_INITIATION)
 		goto out;
 
-	dst->header.type = MESSAGE_HANDSHAKE_RESPONSE;
+	dst->header.type = cpu_to_le32(MESSAGE_HANDSHAKE_RESPONSE);
 	dst->receiver_index = handshake->remote_index;
 
 	/* e */

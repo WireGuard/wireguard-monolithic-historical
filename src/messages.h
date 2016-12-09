@@ -63,13 +63,20 @@ enum message_type {
 };
 
 struct message_header {
-	u8 type;
-} __packed;
+	/* The actual layout of this that we want is:
+	 * u8 type
+	 * u8 reserved_zero[3]
+	 *
+	 * But it turns out that by encoding this as little endian,
+	 * we achieve the same thing, and it makes checking faster.
+	 */
+	__le32 type;
+};
 
 struct message_macs {
 	u8 mac1[COOKIE_LEN];
 	u8 mac2[COOKIE_LEN];
-} __packed;
+};
 
 struct message_handshake_initiation {
 	struct message_header header;
@@ -78,7 +85,7 @@ struct message_handshake_initiation {
 	u8 encrypted_static[noise_encrypted_len(NOISE_PUBLIC_KEY_LEN)];
 	u8 encrypted_timestamp[noise_encrypted_len(NOISE_TIMESTAMP_LEN)];
 	struct message_macs macs;
-} __packed;
+};
 
 struct message_handshake_response {
 	struct message_header header;
@@ -87,21 +94,21 @@ struct message_handshake_response {
 	u8 unencrypted_ephemeral[NOISE_PUBLIC_KEY_LEN];
 	u8 encrypted_nothing[noise_encrypted_len(0)];
 	struct message_macs macs;
-} __packed;
+};
 
 struct message_handshake_cookie {
 	struct message_header header;
 	__le32 receiver_index;
 	u8 salt[COOKIE_SALT_LEN];
 	u8 encrypted_cookie[noise_encrypted_len(COOKIE_LEN)];
-} __packed;
+};
 
 struct message_data {
 	struct message_header header;
 	__le32 key_idx;
 	__le64 counter;
 	u8 encrypted_data[];
-} __packed;
+};
 
 #define message_data_len(plain_len) (noise_encrypted_len(plain_len) + sizeof(struct message_data))
 
@@ -122,13 +129,13 @@ static inline enum message_type message_determine_type(void *src, size_t src_len
 	struct message_header *header = src;
 	if (unlikely(src_len < sizeof(struct message_header)))
 		return MESSAGE_INVALID;
-	if (header->type == MESSAGE_DATA && src_len >= MESSAGE_MINIMUM_LENGTH)
+	if (header->type == cpu_to_le32(MESSAGE_DATA) && src_len >= MESSAGE_MINIMUM_LENGTH)
 		return MESSAGE_DATA;
-	if (header->type == MESSAGE_HANDSHAKE_INITIATION && src_len == sizeof(struct message_handshake_initiation))
+	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_INITIATION) && src_len == sizeof(struct message_handshake_initiation))
 		return MESSAGE_HANDSHAKE_INITIATION;
-	if (header->type == MESSAGE_HANDSHAKE_RESPONSE && src_len == sizeof(struct message_handshake_response))
+	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_RESPONSE) && src_len == sizeof(struct message_handshake_response))
 		return MESSAGE_HANDSHAKE_RESPONSE;
-	if (header->type == MESSAGE_HANDSHAKE_COOKIE && src_len == sizeof(struct message_handshake_cookie))
+	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE) && src_len == sizeof(struct message_handshake_cookie))
 		return MESSAGE_HANDSHAKE_COOKIE;
 	return MESSAGE_INVALID;
 }
