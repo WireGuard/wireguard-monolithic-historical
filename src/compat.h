@@ -11,6 +11,15 @@
 #error "WireGuard requires Linux >= 4.1"
 #endif
 
+/* These conditionals can't be enforced by an out of tree module very easily,
+ * so we stick them here in compat instead. */
+#if !IS_ENABLED(CONFIG_NETFILTER_XT_MATCH_HASHLIMIT)
+#error "WireGuard requires CONFIG_NETFILTER_XT_MATCH_HASHLIMIT."
+#endif
+#if IS_ENABLED(CONFIG_IPV6) && !IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+#error "WireGuard requires CONFIG_IP6_NF_IPTABLES when using CONFIG_IPV6."
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0) && !defined(DEBUG) && defined(net_dbg_ratelimited)
 #undef net_dbg_ratelimited
 #define net_dbg_ratelimited(fmt, ...) do { if (0) no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); } while (0)
