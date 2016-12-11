@@ -98,23 +98,19 @@ static void skb_unsendable(struct sk_buff *skb, struct net_device *dev)
 #endif
 	++dev->stats.tx_errors;
 
-	if (skb->len < sizeof(struct iphdr))
-		goto free;
-
-	if (ip_hdr(skb)->version == 4) {
+	if (skb->len >= sizeof(struct iphdr) && ip_hdr(skb)->version == 4) {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 		if (ct)
 			ip_hdr(skb)->saddr = ct->tuplehash[0].tuple.src.u3.ip;
 #endif
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
-	} else if (ip_hdr(skb)->version == 6) {
+	} else if (skb->len >= sizeof(struct ipv6hdr) && ip_hdr(skb)->version == 6) {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 		if (ct)
 			ipv6_hdr(skb)->saddr = ct->tuplehash[0].tuple.src.u3.in6;
 #endif
 		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
 	}
-free:
 	kfree_skb(skb);
 }
 
