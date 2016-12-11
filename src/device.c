@@ -19,6 +19,7 @@
 #include <net/icmp.h>
 #include <net/rtnetlink.h>
 #include <net/ip_tunnels.h>
+#include <net/addrconf.h>
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_nat_core.h>
@@ -48,7 +49,12 @@ static int open_peer(struct wireguard_peer *peer, void *data)
 static int open(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
-	int ret = socket_init(wg);
+	int ret;
+	struct inet6_dev *dev_v6 = __in6_dev_get(dev);
+	if (dev_v6)
+		dev_v6->addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
+
+	ret = socket_init(wg);
 	if (ret < 0)
 		return ret;
 	peer_for_each(wg, open_peer, NULL);
@@ -261,7 +267,7 @@ static void setup(struct net_device *dev)
 	dev->addr_len = 0;
 	dev->needed_headroom = DATA_PACKET_HEAD_ROOM;
 	dev->needed_tailroom = noise_encrypted_len(MESSAGE_PADDING_MULTIPLE);
-	dev->type = ARPHRD_NONE; /* Virtually the same as ARPHRD_NONE, except doesn't get IP6 auto config. */
+	dev->type = ARPHRD_NONE;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 	dev->flags |= IFF_NO_QUEUE;
