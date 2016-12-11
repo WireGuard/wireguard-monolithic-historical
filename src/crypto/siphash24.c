@@ -4,15 +4,17 @@
 
 #include <linux/kernel.h>
 
-#define ROTL(x,b) (u64)(((x) << (b)) | ((x) >> (64 - (b))))
-#define U8TO64(p) le64_to_cpu(*(__le64 *)(p))
+static inline u64 le64_to_cpuvp(const void *p)
+{
+	return le64_to_cpup(p);
+}
 
 #define SIPROUND \
 	do { \
-	v0 += v1; v1 = ROTL(v1, 13); v1 ^= v0; v0 = ROTL(v0, 32); \
-	v2 += v3; v3 = ROTL(v3, 16); v3 ^= v2; \
-	v0 += v3; v3 = ROTL(v3, 21); v3 ^= v0; \
-	v2 += v1; v1 = ROTL(v1, 17); v1 ^= v2; v2 = ROTL(v2, 32); \
+	v0 += v1; v1 = rol64(v1, 13); v1 ^= v0; v0 = rol64(v0, 32); \
+	v2 += v3; v3 = rol64(v3, 16); v3 ^= v2; \
+	v0 += v3; v3 = rol64(v3, 21); v3 ^= v0; \
+	v2 += v1; v1 = rol64(v1, 17); v1 ^= v2; v2 = rol64(v2, 32); \
 	} while(0)
 
 __attribute__((optimize("unroll-loops")))
@@ -23,8 +25,8 @@ u64 siphash24(const u8 *data, size_t len, const u8 key[SIPHASH24_KEY_LEN])
 	u64 v2 = 0x6c7967656e657261ULL;
 	u64 v3 = 0x7465646279746573ULL;
 	u64 b;
-	u64 k0 = U8TO64(key);
-	u64 k1 = U8TO64(key + sizeof(u64));
+	u64 k0 = le64_to_cpuvp(key);
+	u64 k1 = le64_to_cpuvp(key + sizeof(u64));
 	u64 m;
 	const u8 *end = data + len - (len % sizeof(u64));
 	const u8 left = len & (sizeof(u64) - 1);
@@ -34,7 +36,7 @@ u64 siphash24(const u8 *data, size_t len, const u8 key[SIPHASH24_KEY_LEN])
 	v1 ^= k1;
 	v0 ^= k0;
 	for (; data != end; data += sizeof(u64)) {
-		m = U8TO64(data);
+		m = le64_to_cpuvp(data);
 		v3 ^= m;
 		SIPROUND;
 		SIPROUND;

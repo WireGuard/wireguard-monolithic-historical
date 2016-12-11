@@ -40,11 +40,6 @@ static const u8 blake2s_sigma[10][16] = {
 	{10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0},
 };
 
-static inline u32 rotr32(const u32 w, const u8 c)
-{
-	return (w >> c) | (w << (32 - c));
-}
-
 static inline u32 le32_to_cpuvp(const void *p)
 {
 	return le32_to_cpup(p);
@@ -135,13 +130,13 @@ static inline void blake2s_compress(struct blake2s_state *state, const u8 block[
 #define G(r,i,a,b,c,d) \
 	do { \
 		a = a + b + m[blake2s_sigma[r][2 * i + 0]]; \
-		d = rotr32(d ^ a, 16); \
+		d = ror32(d ^ a, 16); \
 		c = c + d; \
-		b = rotr32(b ^ c, 12); \
+		b = ror32(b ^ c, 12); \
 		a = a + b + m[blake2s_sigma[r][2 * i + 1]]; \
-		d = rotr32(d ^ a, 8); \
+		d = ror32(d ^ a, 8); \
 		c = c + d; \
-		b = rotr32(b ^ c, 7); \
+		b = ror32(b ^ c, 7); \
 	} while(0)
 #define ROUND(r)  \
 	do { \
