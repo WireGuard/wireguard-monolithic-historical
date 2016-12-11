@@ -368,12 +368,7 @@ static struct rtnl_link_ops link_ops __read_mostly = {
 
 int device_init(void)
 {
-	int ret = rtnl_link_register(&link_ops);
-	if (ret < 0) {
-		pr_err("Cannot register link_ops\n");
-		return ret;
-	}
-	return ret;
+	return rtnl_link_register(&link_ops);
 }
 
 void device_uninit(void)
