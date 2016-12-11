@@ -13,7 +13,7 @@
 #include <net/udp_tunnel.h>
 #include <net/ipv6.h>
 
-static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct endpoint *endpoint, uint8_t ds, struct dst_cache *cache)
+static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct endpoint *endpoint, u8 ds, struct dst_cache *cache)
 {
 	struct flowi4 fl = {
 		.saddr = endpoint->src4.s_addr,
@@ -77,7 +77,7 @@ out:
 	return ret;
 }
 
-static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct endpoint *endpoint, uint8_t ds, struct dst_cache *cache)
+static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct endpoint *endpoint, u8 ds, struct dst_cache *cache)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	struct flowi6 fl = {
@@ -145,7 +145,7 @@ out:
 #endif
 }
 
-int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, uint8_t ds)
+int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8 ds)
 {
 	size_t skb_len = skb->len;
 	int ret = -EAFNOSUPPORT;
@@ -162,7 +162,7 @@ int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, ui
 	return ret;
 }
 
-int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer, size_t len, uint8_t ds)
+int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer, size_t len, u8 ds)
 {
 	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
 	if (unlikely(!skb))
@@ -289,9 +289,9 @@ err:
  * blahbla --> 51820
  * 50 --> 51870
  */
-static uint16_t generate_default_incoming_port(struct wireguard_device *wg)
+static u16 generate_default_incoming_port(struct wireguard_device *wg)
 {
-	uint16_t port = 51820;
+	u16 port = 51820;
 	unsigned long parsed;
 	char *name, *digit_begin;
 	size_t len;

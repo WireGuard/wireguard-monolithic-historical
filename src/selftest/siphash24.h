@@ -1,5 +1,5 @@
 #ifdef DEBUG
-static const uint8_t test_vectors[64][8] = {
+static const u8 test_vectors[64][8] = {
 	{ 0x31, 0x0e, 0x0e, 0xdd, 0x47, 0xdb, 0x6f, 0x72 },
 	{ 0xfd, 0x67, 0xdc, 0x93, 0xc5, 0x39, 0xf8, 0x74 },
 	{ 0x5a, 0x4f, 0xa9, 0xd9, 0x09, 0x80, 0x6c, 0x0d },
@@ -68,16 +68,16 @@ static const uint8_t test_vectors[64][8] = {
 
 bool siphash24_selftest(void)
 {
-	uint8_t in[64], k[16];
-	uint64_t out;
+	u8 in[64], k[16];
+	u64 out;
 	bool success = true;
 	size_t i;
 
 	for (i = 0; i < 16; ++i)
-		k[i] = (uint8_t)i;
+		k[i] = (u8)i;
 
 	for (i = 0; i < 64; ++i) {
-		in[i] = (uint8_t)i;
+		in[i] = (u8)i;
 		out = siphash24(in, i, k);
 		if (memcmp(&out, test_vectors[i], 8)) {
 			pr_info("siphash24 self-test %zu: FAIL\n", i + 1);

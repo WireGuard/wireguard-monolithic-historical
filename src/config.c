@@ -47,7 +47,7 @@ static int set_ipmask(struct wireguard_peer *peer, void __user *user_ipmask)
 	return ret;
 }
 
-static const uint8_t zeros[WG_KEY_LEN] = { 0 };
+static const u8 zeros[WG_KEY_LEN] = { 0 };
 
 static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t *len)
 {
@@ -97,7 +97,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 			break;
 	}
 
-	if (in_peer.persistent_keepalive_interval != (uint16_t)-1) {
+	if (in_peer.persistent_keepalive_interval != (u16)-1) {
 		const bool send_keepalive = !peer->persistent_keepalive_interval && in_peer.persistent_keepalive_interval && netdev_pub(wg)->flags & IFF_UP;
 		peer->persistent_keepalive_interval = (unsigned long)in_peer.persistent_keepalive_interval * HZ;
 		if (send_keepalive)
@@ -180,7 +180,7 @@ static inline int use_data(struct data_remaining *data, size_t size)
 	return 0;
 }
 
-static int calculate_ipmasks_size(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, uint8_t cidr, int family)
+static int calculate_ipmasks_size(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, u8 cidr, int family)
 {
 	size_t *count = ctx;
 	*count += sizeof(struct wgipmask);
@@ -194,7 +194,7 @@ static size_t calculate_peers_size(struct wireguard_device *wg)
 	return len;
 }
 
-static int populate_ipmask(void *ctx, union nf_inet_addr ip, uint8_t cidr, int family)
+static int populate_ipmask(void *ctx, union nf_inet_addr ip, u8 cidr, int family)
 {
 	int ret;
 	struct data_remaining *data = ctx;
@@ -242,7 +242,7 @@ static int populate_peer(struct wireguard_peer *peer, void *ctx)
 	out_peer.last_handshake_time = peer->walltime_last_handshake;
 	out_peer.tx_bytes = peer->tx_bytes;
 	out_peer.rx_bytes = peer->rx_bytes;
-	out_peer.persistent_keepalive_interval = (uint16_t)(peer->persistent_keepalive_interval / HZ);
+	out_peer.persistent_keepalive_interval = (u16)(peer->persistent_keepalive_interval / HZ);
 
 	ipmasks_data.out_len = data->out_len;
 	ipmasks_data.data = data->data;

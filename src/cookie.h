@@ -13,14 +13,14 @@ struct sk_buff;
 
 struct cookie_checker {
 	u8 secret[NOISE_HASH_LEN];
-	uint64_t secret_birthdate;
+	u64 secret_birthdate;
 	struct rw_semaphore secret_lock;
 	struct ratelimiter ratelimiter;
 	struct wireguard_device *device;
 };
 
 struct cookie {
-	uint64_t birthdate;
+	u64 birthdate;
 	bool is_valid;
 	u8 cookie[COOKIE_LEN];
 	bool have_sent_mac1;

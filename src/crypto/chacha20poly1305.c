@@ -472,7 +472,7 @@ static void poly1305_finish(struct poly1305_ctx *ctx, u8 *dst)
 	f = (f >> 32) + h3 + ctx->s[3]; mac[3] = cpu_to_le32(f);
 }
 
-static const uint8_t pad0[16] = { 0 };
+static const u8 pad0[16] = { 0 };
 
 static struct crypto_alg chacha20_alg = {
 	.cra_blocksize = 1,
@@ -487,18 +487,18 @@ static struct blkcipher_desc chacha20_desc = {
 	.tfm = &chacha20_cipher
 };
 
-bool chacha20poly1305_encrypt(uint8_t *dst, const uint8_t *src, const size_t src_len,
-			      const uint8_t *ad, const size_t ad_len,
-			      const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN])
+bool chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
+			      const u8 *ad, const size_t ad_len,
+			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
-	uint8_t block0[CHACHA20_BLOCK_SIZE] = { 0 };
+	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
 	__le64 len;
 	__le64 le_nonce = cpu_to_le64(nonce);
 	bool have_simd = chacha20poly1305_init_simd();
 
-	chacha20_keysetup(&chacha20_state, key, (uint8_t *)&le_nonce);
+	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
 	chacha20_crypt(&chacha20_state, block0, block0, sizeof(block0), have_simd);
 	poly1305_init(&poly1305_state, block0);
@@ -513,10 +513,10 @@ bool chacha20poly1305_encrypt(uint8_t *dst, const uint8_t *src, const size_t src
 	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, have_simd);
 
 	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (uint8_t *)&len, sizeof(len), have_simd);
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	len = cpu_to_le64(src_len);
-	poly1305_update(&poly1305_state, (uint8_t *)&len, sizeof(len), have_simd);
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	poly1305_finish(&poly1305_state, dst + src_len);
 
@@ -529,19 +529,19 @@ bool chacha20poly1305_encrypt(uint8_t *dst, const uint8_t *src, const size_t src
 }
 
 bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
-				 const uint8_t *ad, const size_t ad_len,
-				 const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN],
+				 const u8 *ad, const size_t ad_len,
+				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 				 bool have_simd)
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
 	struct blkcipher_walk walk;
-	uint8_t block0[CHACHA20_BLOCK_SIZE] = { 0 };
-	uint8_t mac[POLY1305_MAC_SIZE];
+	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
+	u8 mac[POLY1305_MAC_SIZE];
 	__le64 len;
 	__le64 le_nonce = cpu_to_le64(nonce);
 
-	chacha20_keysetup(&chacha20_state, key, (uint8_t *)&le_nonce);
+	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
 	chacha20_crypt(&chacha20_state, block0, block0, sizeof(block0), have_simd);
 	poly1305_init(&poly1305_state, block0);
@@ -569,10 +569,10 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, have_simd);
 
 	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (uint8_t *)&len, sizeof(len), have_simd);
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	len = cpu_to_le64(src_len);
-	poly1305_update(&poly1305_state, (uint8_t *)&len, sizeof(len), have_simd);
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	poly1305_finish(&poly1305_state, mac);
 	scatterwalk_map_and_copy(mac, dst, src_len, sizeof(mac), 1);
@@ -582,15 +582,15 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	return true;
 }
 
-bool chacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src, const size_t src_len,
-			      const uint8_t *ad, const size_t ad_len,
-			      const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN])
+bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
+			      const u8 *ad, const size_t ad_len,
+			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
 	int ret;
-	uint8_t block0[CHACHA20_BLOCK_SIZE] = { 0 };
-	uint8_t mac[POLY1305_MAC_SIZE];
+	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
+	u8 mac[POLY1305_MAC_SIZE];
 	size_t dst_len;
 	__le64 len;
 	__le64 le_nonce = cpu_to_le64(nonce);
@@ -601,7 +601,7 @@ bool chacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src, const size_t src
 
 	have_simd = chacha20poly1305_init_simd();
 
-	chacha20_keysetup(&chacha20_state, key, (uint8_t *)&le_nonce);
+	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
 	chacha20_crypt(&chacha20_state, block0, block0, sizeof(block0), have_simd);
 	poly1305_init(&poly1305_state, block0);
@@ -615,10 +615,10 @@ bool chacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src, const size_t src
 	poly1305_update(&poly1305_state, pad0, (0x10 - dst_len) & 0xf, have_simd);
 
 	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (uint8_t *)&len, sizeof(len), have_simd);
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	len = cpu_to_le64(dst_len);
-	poly1305_update(&poly1305_state, (uint8_t *)&len, sizeof(len), have_simd);
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	poly1305_finish(&poly1305_state, mac);
 	memzero_explicit(&poly1305_state, sizeof(poly1305_state));
@@ -635,15 +635,15 @@ bool chacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src, const size_t src
 }
 
 bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
-				 const uint8_t *ad, const size_t ad_len,
-				 const uint64_t nonce, const uint8_t key[CHACHA20POLY1305_KEYLEN])
+				 const u8 *ad, const size_t ad_len,
+				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
 	struct blkcipher_walk walk;
 	int ret;
-	uint8_t block0[CHACHA20_BLOCK_SIZE] = { 0 };
-	uint8_t read_mac[POLY1305_MAC_SIZE], computed_mac[POLY1305_MAC_SIZE];
+	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
+	u8 read_mac[POLY1305_MAC_SIZE], computed_mac[POLY1305_MAC_SIZE];
 	size_t dst_len;
 	__le64 len;
 	__le64 le_nonce = cpu_to_le64(nonce);
@@ -654,7 +654,7 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 
 	have_simd = chacha20poly1305_init_simd();
 
-	chacha20_keysetup(&chacha20_state, key, (uint8_t *)&le_nonce);
+	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
 	chacha20_crypt(&chacha20_state, block0, block0, sizeof(block0), have_simd);
 	poly1305_init(&poly1305_state, block0);
@@ -683,10 +683,10 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	poly1305_update(&poly1305_state, pad0, (0x10 - dst_len) & 0xf, have_simd);
 
 	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (uint8_t *)&len, sizeof(len), have_simd);
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	len = cpu_to_le64(dst_len);
-	poly1305_update(&poly1305_state, (uint8_t *)&len, sizeof(len), have_simd);
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	poly1305_finish(&poly1305_state, computed_mac);
 	memzero_explicit(&poly1305_state, sizeof(poly1305_state));

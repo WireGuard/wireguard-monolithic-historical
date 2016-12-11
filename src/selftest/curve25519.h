@@ -1,8 +1,8 @@
 #ifdef DEBUG
 struct curve25519_test_vector {
-	uint8_t private[CURVE25519_POINT_SIZE];
-	uint8_t public[CURVE25519_POINT_SIZE];
-	uint8_t result[CURVE25519_POINT_SIZE];
+	u8 private[CURVE25519_POINT_SIZE];
+	u8 public[CURVE25519_POINT_SIZE];
+	u8 result[CURVE25519_POINT_SIZE];
 };
 static const struct curve25519_test_vector curve25519_test_vectors[] = {
 	{
@@ -45,7 +45,7 @@ bool curve25519_selftest(void)
 {
 	bool success = true;
 	size_t i = 0;
-	uint8_t out[CURVE25519_POINT_SIZE];
+	u8 out[CURVE25519_POINT_SIZE];
 
 	for (i = 0; i < ARRAY_SIZE(curve25519_test_vectors); ++i) {
 		memset(out, 0, CURVE25519_POINT_SIZE);

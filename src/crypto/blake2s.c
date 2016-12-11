@@ -10,24 +10,24 @@
 #include <linux/kernel.h>
 
 typedef struct {
-	uint8_t digest_length;
-	uint8_t key_length;
-	uint8_t fanout;
-	uint8_t depth;
-	uint32_t leaf_length;
-	uint8_t node_offset[6];
-	uint8_t node_depth;
-	uint8_t inner_length;
-	uint8_t salt[8];
-	uint8_t personal[8];
+	u8 digest_length;
+	u8 key_length;
+	u8 fanout;
+	u8 depth;
+	u32 leaf_length;
+	u8 node_offset[6];
+	u8 node_depth;
+	u8 inner_length;
+	u8 salt[8];
+	u8 personal[8];
 } __packed blake2s_param;
 
-static const uint32_t blake2s_iv[8] = {
+static const u32 blake2s_iv[8] = {
 	0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL, 0xA54FF53AUL,
 	0x510E527FUL, 0x9B05688CUL, 0x1F83D9ABUL, 0x5BE0CD19UL
 };
 
-static const uint8_t blake2s_sigma[10][16] = {
+static const u8 blake2s_sigma[10][16] = {
 	{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 	{14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3},
 	{11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4},
@@ -40,7 +40,7 @@ static const uint8_t blake2s_sigma[10][16] = {
 	{10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0},
 };
 
-static inline uint32_t rotr32(const uint32_t w, const uint8_t c)
+static inline u32 rotr32(const u32 w, const u8 c)
 {
 	return (w >> c) | (w << (32 - c));
 }
@@ -57,7 +57,7 @@ static inline void blake2s_set_lastblock(struct blake2s_state *state)
 	state->f[0] = -1;
 }
 
-static inline void blake2s_increment_counter(struct blake2s_state *state, const uint32_t inc)
+static inline void blake2s_increment_counter(struct blake2s_state *state, const u32 inc)
 {
 	state->t[0] += inc;
 	state->t[1] += (state->t[0] < inc);
@@ -67,18 +67,18 @@ static inline void blake2s_increment_counter(struct blake2s_state *state, const 
 __attribute__((optimize("unroll-loops")))
 static inline void blake2s_init_param(struct blake2s_state *state, const blake2s_param *param)
 {
-	const uint32_t *p;
+	const u32 *p;
 	int i;
 	memset(state, 0, sizeof(struct blake2s_state));
 	for (i = 0; i < 8; ++i)
 		state->h[i] = blake2s_iv[i];
-	p = (const uint32_t *)param;
+	p = (const u32 *)param;
 	/* IV XOR ParamBlock */
 	for (i = 0; i < 8; ++i)
 		state->h[i] ^= le32_to_cpuvp(&p[i]);
 }
 
-void blake2s_init(struct blake2s_state *state, const uint8_t outlen)
+void blake2s_init(struct blake2s_state *state, const u8 outlen)
 {
 	blake2s_param param = {
 		.digest_length = outlen,
@@ -92,7 +92,7 @@ void blake2s_init(struct blake2s_state *state, const uint8_t outlen)
 	blake2s_init_param(state, &param);
 }
 
-void blake2s_init_key(struct blake2s_state *state, const uint8_t outlen, const void *key, const uint8_t keylen)
+void blake2s_init_key(struct blake2s_state *state, const u8 outlen, const void *key, const u8 keylen)
 {
 	blake2s_param param = {
 		.digest_length = outlen,
@@ -100,7 +100,7 @@ void blake2s_init_key(struct blake2s_state *state, const uint8_t outlen, const v
 		.fanout = 1,
 		.depth = 1
 	};
-	uint8_t block[BLAKE2S_BLOCKBYTES] = { 0 };
+	u8 block[BLAKE2S_BLOCKBYTES] = { 0 };
 
 #ifdef DEBUG
 	BUG_ON(!outlen || outlen > BLAKE2S_OUTBYTES || !key || !keylen || keylen > BLAKE2S_KEYBYTES);
@@ -112,10 +112,10 @@ void blake2s_init_key(struct blake2s_state *state, const uint8_t outlen, const v
 }
 
 __attribute__((optimize("unroll-loops")))
-static inline void blake2s_compress(struct blake2s_state *state, const uint8_t block[BLAKE2S_BLOCKBYTES])
+static inline void blake2s_compress(struct blake2s_state *state, const u8 block[BLAKE2S_BLOCKBYTES])
 {
-	uint32_t m[16];
-	uint32_t v[16];
+	u32 m[16];
+	u32 v[16];
 	int i;
 
 	for (i = 0; i < 16; ++i)
@@ -171,7 +171,7 @@ static inline void blake2s_compress(struct blake2s_state *state, const uint8_t b
 #undef ROUND
 }
 
-void blake2s_update(struct blake2s_state *state, const uint8_t *in, uint64_t inlen)
+void blake2s_update(struct blake2s_state *state, const u8 *in, u64 inlen)
 {
 	size_t left, fill;
 	while (inlen > 0) {
@@ -197,9 +197,9 @@ void blake2s_update(struct blake2s_state *state, const uint8_t *in, uint64_t inl
 }
 
 __attribute__((optimize("unroll-loops")))
-void blake2s_final(struct blake2s_state *state, uint8_t *out, uint8_t outlen)
+void blake2s_final(struct blake2s_state *state, u8 *out, u8 outlen)
 {
-	uint8_t buffer[BLAKE2S_OUTBYTES] = { 0 };
+	u8 buffer[BLAKE2S_OUTBYTES] = { 0 };
 	int i;
 
 #ifdef DEBUG
@@ -213,7 +213,7 @@ void blake2s_final(struct blake2s_state *state, uint8_t *out, uint8_t outlen)
 		memcpy(state->buf, state->buf + BLAKE2S_BLOCKBYTES, state->buflen);
 	}
 
-	blake2s_increment_counter(state, (uint32_t) state->buflen);
+	blake2s_increment_counter(state, (u32) state->buflen);
 	blake2s_set_lastblock(state);
 	memset(state->buf + state->buflen, 0, 2 * BLAKE2S_BLOCKBYTES - state->buflen); /* Padding */
 	blake2s_compress(state, state->buf);
@@ -228,7 +228,7 @@ void blake2s_final(struct blake2s_state *state, uint8_t *out, uint8_t outlen)
 	memzero_explicit(state, sizeof(struct blake2s_state));
 }
 
-void blake2s(uint8_t *out, const uint8_t *in, const uint8_t *key, const uint8_t outlen, uint64_t inlen, const uint8_t keylen)
+void blake2s(u8 *out, const u8 *in, const u8 *key, const u8 outlen, u64 inlen, const u8 keylen)
 {
 	struct blake2s_state state;
 
@@ -246,12 +246,12 @@ void blake2s(uint8_t *out, const uint8_t *in, const uint8_t *key, const uint8_t 
 }
 
 __attribute__((optimize("unroll-loops")))
-void blake2s_hmac(uint8_t *out, const uint8_t *in, const uint8_t *key, const uint8_t outlen, const uint64_t inlen, const uint64_t keylen)
+void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const u8 outlen, const u64 inlen, const u64 keylen)
 {
 	struct blake2s_state state;
-	uint8_t o_key[BLAKE2S_BLOCKBYTES] = { 0 };
-	uint8_t i_key[BLAKE2S_BLOCKBYTES] = { 0 };
-	uint8_t i_hash[BLAKE2S_OUTBYTES];
+	u8 o_key[BLAKE2S_BLOCKBYTES] = { 0 };
+	u8 i_key[BLAKE2S_BLOCKBYTES] = { 0 };
+	u8 i_hash[BLAKE2S_OUTBYTES];
 	int i;
 
 	if (keylen > BLAKE2S_BLOCKBYTES) {
@@ -286,7 +286,7 @@ void blake2s_hmac(uint8_t *out, const uint8_t *in, const uint8_t *key, const uin
 }
 
 #ifdef DEBUG
-static const uint8_t blake2s_testvecs[][BLAKE2S_OUTBYTES] = {
+static const u8 blake2s_testvecs[][BLAKE2S_OUTBYTES] = {
 	{ 0x69, 0x21, 0x7A, 0x30, 0x79, 0x90, 0x80, 0x94, 0xE1, 0x11, 0x21, 0xD0, 0x42, 0x35, 0x4A, 0x7C, 0x1F, 0x55, 0xB6, 0x48, 0x2C, 0xA1, 0xA5, 0x1E, 0x1B, 0x25, 0x0D, 0xFD, 0x1E, 0xD0, 0xEE, 0xF9 },
 	{ 0xE3, 0x4D, 0x74, 0xDB, 0xAF, 0x4F, 0xF4, 0xC6, 0xAB, 0xD8, 0x71, 0xCC, 0x22, 0x04, 0x51, 0xD2, 0xEA, 0x26, 0x48, 0x84, 0x6C, 0x77, 0x57, 0xFB, 0xAA, 0xC8, 0x2F, 0xE5, 0x1A, 0xD6, 0x4B, 0xEA },
 	{ 0xDD, 0xAD, 0x9A, 0xB1, 0x5D, 0xAC, 0x45, 0x49, 0xBA, 0x42, 0xF4, 0x9D, 0x26, 0x24, 0x96, 0xBE, 0xF6, 0xC0, 0xBA, 0xE1, 0xDD, 0x34, 0x2A, 0x88, 0x08, 0xF8, 0xEA, 0x26, 0x7C, 0x6E, 0x21, 0x0C },
@@ -545,7 +545,7 @@ static const uint8_t blake2s_testvecs[][BLAKE2S_OUTBYTES] = {
 	{ 0xF0, 0x3F, 0x57, 0x89, 0xD3, 0x33, 0x6B, 0x80, 0xD0, 0x02, 0xD5, 0x9F, 0xDF, 0x91, 0x8B, 0xDB, 0x77, 0x5B, 0x00, 0x95, 0x6E, 0xD5, 0x52, 0x8E, 0x86, 0xAA, 0x99, 0x4A, 0xCB, 0x38, 0xFE, 0x2D }
 };
 
-static const uint8_t blake2s_keyed_testvecs[][BLAKE2S_OUTBYTES] = {
+static const u8 blake2s_keyed_testvecs[][BLAKE2S_OUTBYTES] = {
 	{ 0x48, 0xA8, 0x99, 0x7D, 0xA4, 0x07, 0x87, 0x6B, 0x3D, 0x79, 0xC0, 0xD9, 0x23, 0x25, 0xAD, 0x3B, 0x89, 0xCB, 0xB7, 0x54, 0xD8, 0x6A, 0xB7, 0x1A, 0xEE, 0x04, 0x7A, 0xD3, 0x45, 0xFD, 0x2C, 0x49 },
 	{ 0x40, 0xD1, 0x5F, 0xEE, 0x7C, 0x32, 0x88, 0x30, 0x16, 0x6A, 0xC3, 0xF9, 0x18, 0x65, 0x0F, 0x80, 0x7E, 0x7E, 0x01, 0xE1, 0x77, 0x25, 0x8C, 0xDC, 0x0A, 0x39, 0xB1, 0x1F, 0x59, 0x80, 0x66, 0xF1 },
 	{ 0x6B, 0xB7, 0x13, 0x00, 0x64, 0x4C, 0xD3, 0x99, 0x1B, 0x26, 0xCC, 0xD4, 0xD2, 0x74, 0xAC, 0xD1, 0xAD, 0xEA, 0xB8, 0xB1, 0xD7, 0x91, 0x45, 0x46, 0xC1, 0x19, 0x8B, 0xBE, 0x9F, 0xC9, 0xD8, 0x03 },
@@ -806,17 +806,17 @@ static const uint8_t blake2s_keyed_testvecs[][BLAKE2S_OUTBYTES] = {
 
 bool blake2s_selftest(void)
 {
-	uint8_t key[BLAKE2S_KEYBYTES];
-	uint8_t buf[ARRAY_SIZE(blake2s_testvecs)];
-	uint8_t hash[BLAKE2S_OUTBYTES];
+	u8 key[BLAKE2S_KEYBYTES];
+	u8 buf[ARRAY_SIZE(blake2s_testvecs)];
+	u8 hash[BLAKE2S_OUTBYTES];
 	size_t i;
 	bool success = true;
 
 	for (i = 0; i < BLAKE2S_KEYBYTES; ++i)
-		key[i] = (uint8_t)i;
+		key[i] = (u8)i;
 
 	for (i = 0; i < ARRAY_SIZE(blake2s_testvecs); ++i)
-		buf[i] = (uint8_t)i;
+		buf[i] = (u8)i;
 
 	for (i = 0; i < ARRAY_SIZE(blake2s_keyed_testvecs); ++i) {
 		blake2s(hash, buf, key, BLAKE2S_OUTBYTES, i, BLAKE2S_KEYBYTES);

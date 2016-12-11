@@ -12,22 +12,22 @@ enum blake2s_lengths {
 };
 
 struct blake2s_state {
-	uint32_t h[8];
-	uint32_t t[2];
-	uint32_t f[2];
-	uint8_t buf[2 * BLAKE2S_BLOCKBYTES];
+	u32 h[8];
+	u32 t[2];
+	u32 f[2];
+	u8 buf[2 * BLAKE2S_BLOCKBYTES];
 	size_t buflen;
-	uint8_t last_node;
+	u8 last_node;
 };
 
-void blake2s(uint8_t *out, const uint8_t *in, const uint8_t *key, const uint8_t outlen, const uint64_t inlen, const uint8_t keylen);
+void blake2s(u8 *out, const u8 *in, const u8 *key, const u8 outlen, const u64 inlen, const u8 keylen);
 
-void blake2s_init(struct blake2s_state *state, const uint8_t outlen);
-void blake2s_init_key(struct blake2s_state *state, const uint8_t outlen, const void *key, const uint8_t keylen);
-void blake2s_update(struct blake2s_state *state, const uint8_t *in, uint64_t inlen);
-void blake2s_final(struct blake2s_state *state, uint8_t *out, uint8_t outlen);
+void blake2s_init(struct blake2s_state *state, const u8 outlen);
+void blake2s_init_key(struct blake2s_state *state, const u8 outlen, const void *key, const u8 keylen);
+void blake2s_update(struct blake2s_state *state, const u8 *in, u64 inlen);
+void blake2s_final(struct blake2s_state *state, u8 *out, u8 outlen);
 
-void blake2s_hmac(uint8_t *out, const uint8_t *in, const uint8_t *key, const uint8_t outlen, const uint64_t inlen, const uint64_t keylen);
+void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const u8 outlen, const u64 inlen, const u64 keylen);
 
 #ifdef DEBUG
 bool blake2s_selftest(void);

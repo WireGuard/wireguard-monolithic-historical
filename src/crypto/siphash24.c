@@ -4,7 +4,7 @@
 
 #include <linux/kernel.h>
 
-#define ROTL(x,b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
+#define ROTL(x,b) (u64)(((x) << (b)) | ((x) >> (64 - (b))))
 #define U8TO64(p) le64_to_cpu(*(__le64 *)(p))
 
 #define SIPROUND \
@@ -16,24 +16,24 @@
 	} while(0)
 
 __attribute__((optimize("unroll-loops")))
-uint64_t siphash24(const uint8_t *data, size_t len, const uint8_t key[SIPHASH24_KEY_LEN])
+u64 siphash24(const u8 *data, size_t len, const u8 key[SIPHASH24_KEY_LEN])
 {
-	uint64_t v0 = 0x736f6d6570736575ULL;
-	uint64_t v1 = 0x646f72616e646f6dULL;
-	uint64_t v2 = 0x6c7967656e657261ULL;
-	uint64_t v3 = 0x7465646279746573ULL;
-	uint64_t b;
-	uint64_t k0 = U8TO64(key);
-	uint64_t k1 = U8TO64(key + sizeof(uint64_t));
-	uint64_t m;
-	const uint8_t *end = data + len - (len % sizeof(uint64_t));
-	const uint8_t left = len & (sizeof(uint64_t) - 1);
-	b = ((uint64_t)len) << 56;
+	u64 v0 = 0x736f6d6570736575ULL;
+	u64 v1 = 0x646f72616e646f6dULL;
+	u64 v2 = 0x6c7967656e657261ULL;
+	u64 v3 = 0x7465646279746573ULL;
+	u64 b;
+	u64 k0 = U8TO64(key);
+	u64 k1 = U8TO64(key + sizeof(u64));
+	u64 m;
+	const u8 *end = data + len - (len % sizeof(u64));
+	const u8 left = len & (sizeof(u64) - 1);
+	b = ((u64)len) << 56;
 	v3 ^= k1;
 	v2 ^= k0;
 	v1 ^= k1;
 	v0 ^= k0;
-	for (; data != end; data += sizeof(uint64_t)) {
+	for (; data != end; data += sizeof(u64)) {
 		m = U8TO64(data);
 		v3 ^= m;
 		SIPROUND;
@@ -41,13 +41,13 @@ uint64_t siphash24(const uint8_t *data, size_t len, const uint8_t key[SIPHASH24_
 		v0 ^= m;
 	}
 	switch (left) {
-		case 7: b |= ((uint64_t)data[6]) << 48;
-		case 6: b |= ((uint64_t)data[5]) << 40;
-		case 5: b |= ((uint64_t)data[4]) << 32;
-		case 4: b |= ((uint64_t)data[3]) << 24;
-		case 3: b |= ((uint64_t)data[2]) << 16;
-		case 2: b |= ((uint64_t)data[1]) <<  8;
-		case 1: b |= ((uint64_t)data[0]); break;
+		case 7: b |= ((u64)data[6]) << 48;
+		case 6: b |= ((u64)data[5]) << 40;
+		case 5: b |= ((u64)data[4]) << 32;
+		case 4: b |= ((u64)data[3]) << 24;
+		case 3: b |= ((u64)data[2]) << 16;
+		case 2: b |= ((u64)data[1]) <<  8;
+		case 1: b |= ((u64)data[0]); break;
 		case 0: break;
 	}
 	v3 ^= b;
@@ -60,7 +60,7 @@ uint64_t siphash24(const uint8_t *data, size_t len, const uint8_t key[SIPHASH24_
 	SIPROUND;
 	SIPROUND;
 	b = (v0 ^ v1) ^ (v2 ^ v3);
-	return (__force uint64_t)cpu_to_le64(b);
+	return (__force u64)cpu_to_le64(b);
 }
 
 #include "../selftest/siphash24.h"

@@ -7,17 +7,17 @@ struct routing_table_node {
 	struct routing_table_node __rcu *bit[2];
 	struct rcu_head rcu;
 	struct wireguard_peer *peer;
-	uint8_t cidr;
-	uint8_t bit_at_a, bit_at_b;
+	u8 cidr;
+	u8 bit_at_a, bit_at_b;
 	bool incidental;
-	uint8_t bits[];
+	u8 bits[];
 };
 
-static inline uint8_t bit_at(const uint8_t *key, uint8_t a, uint8_t b)
+static inline u8 bit_at(const u8 *key, u8 a, u8 b)
 {
 	return (key[a] >> b) & 1;
 }
-static inline void assign_cidr(struct routing_table_node *node, uint8_t cidr)
+static inline void assign_cidr(struct routing_table_node *node, u8 cidr)
 {
 	node->cidr = cidr;
 	node->bit_at_a = cidr / 8;
@@ -115,12 +115,12 @@ static bool walk_remove_by_peer(struct routing_table_node __rcu **top, struct wi
 #undef ref
 #undef push
 
-static inline bool match(const struct routing_table_node *node, const uint8_t *key, uint8_t match_len)
+static inline bool match(const struct routing_table_node *node, const u8 *key, u8 match_len)
 {
-	uint8_t full_blocks_to_match = match_len / 8;
-	uint8_t bits_leftover = match_len % 8;
-	uint8_t mask;
-	const uint8_t *a = node->bits, *b = key;
+	u8 full_blocks_to_match = match_len / 8;
+	u8 bits_leftover = match_len % 8;
+	u8 mask;
+	const u8 *a = node->bits, *b = key;
 	if (memcmp(a, b, full_blocks_to_match))
 		return false;
 	if (!bits_leftover)
@@ -129,12 +129,12 @@ static inline bool match(const struct routing_table_node *node, const uint8_t *k
 	return (a[full_blocks_to_match] & mask) == (b[full_blocks_to_match] & mask);
 }
 
-static inline uint8_t common_bits(const struct routing_table_node *node, const uint8_t *key, uint8_t match_len)
+static inline u8 common_bits(const struct routing_table_node *node, const u8 *key, u8 match_len)
 {
-	uint8_t max = (((match_len > node->cidr) ? match_len : node->cidr) + 7) / 8;
-	uint8_t bits = 0;
-	uint8_t i, mask;
-	const uint8_t *a = node->bits, *b = key;
+	u8 max = (((match_len > node->cidr) ? match_len : node->cidr) + 7) / 8;
+	u8 bits = 0;
+	u8 i, mask;
+	const u8 *a = node->bits, *b = key;
 	for (i = 0; i < max; ++i, bits += 8) {
 		if (a[i] != b[i])
 			break;
@@ -149,7 +149,7 @@ static inline uint8_t common_bits(const struct routing_table_node *node, const u
 	return bits;
 }
 
-static int remove(struct routing_table_node __rcu **trie, const uint8_t *key, uint8_t cidr, struct mutex *lock)
+static int remove(struct routing_table_node __rcu **trie, const u8 *key, u8 cidr, struct mutex *lock)
 {
 	struct routing_table_node *parent = NULL, *node;
 	node = rcu_dereference_protected(*trie, lockdep_is_held(lock));
@@ -175,7 +175,7 @@ static int remove(struct routing_table_node __rcu **trie, const uint8_t *key, ui
 	return -ENOENT;
 }
 
-static inline struct routing_table_node *find_node(struct routing_table_node *trie, uint8_t bits, const uint8_t *key)
+static inline struct routing_table_node *find_node(struct routing_table_node *trie, u8 bits, const u8 *key)
 {
 	struct routing_table_node *node = trie, *found = NULL;
 	while (node && match(node, key, node->cidr)) {
@@ -188,7 +188,7 @@ static inline struct routing_table_node *find_node(struct routing_table_node *tr
 	return found;
 }
 
-static inline bool node_placement(struct routing_table_node __rcu *trie, const uint8_t *key, uint8_t cidr, struct routing_table_node **rnode, struct mutex *lock)
+static inline bool node_placement(struct routing_table_node __rcu *trie, const u8 *key, u8 cidr, struct routing_table_node **rnode, struct mutex *lock)
 {
 	bool exact = false;
 	struct routing_table_node *parent = NULL, *node = rcu_dereference_protected(trie, lockdep_is_held(lock));
@@ -205,7 +205,7 @@ static inline bool node_placement(struct routing_table_node __rcu *trie, const u
 	return exact;
 }
 
-static int add(struct routing_table_node __rcu **trie, uint8_t bits, const uint8_t *key, uint8_t cidr, struct wireguard_peer *peer, struct mutex *lock)
+static int add(struct routing_table_node __rcu **trie, u8 bits, const u8 *key, u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
 {
 	struct routing_table_node *node, *parent, *down, *newnode;
 	int bits_in_common;
@@ -289,7 +289,7 @@ static int add(struct routing_table_node __rcu **trie, uint8_t bits, const uint8
 		stack[len++] = next; \
 	} \
 } while (0)
-static int walk_ips(struct routing_table_node *top, int family, void *ctx, int (*func)(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, uint8_t cidr, int family), struct mutex *maybe_lock)
+static int walk_ips(struct routing_table_node *top, int family, void *ctx, int (*func)(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, u8 cidr, int family), struct mutex *maybe_lock)
 {
 	int ret;
 	union nf_inet_addr ip = { .all = { 0 } };
@@ -319,7 +319,7 @@ static int walk_ips(struct routing_table_node *top, int family, void *ctx, int (
 	}
 	return 0;
 }
-static int walk_ips_by_peer(struct routing_table_node *top, int family, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, uint8_t cidr, int family), struct mutex *maybe_lock)
+static int walk_ips_by_peer(struct routing_table_node *top, int family, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, u8 cidr, int family), struct mutex *maybe_lock)
 {
 	int ret;
 	union nf_inet_addr ip = { .all = { 0 } };
@@ -364,24 +364,24 @@ void routing_table_free(struct routing_table *table)
 	mutex_unlock(&table->table_update_lock);
 }
 
-int routing_table_insert_v4(struct routing_table *table, const struct in_addr *ip, uint8_t cidr, struct wireguard_peer *peer)
+int routing_table_insert_v4(struct routing_table *table, const struct in_addr *ip, u8 cidr, struct wireguard_peer *peer)
 {
 	int ret;
 	if (cidr > 32)
 		return -EINVAL;
 	mutex_lock(&table->table_update_lock);
-	ret = add(&table->root4, 32, (const uint8_t *)ip, cidr, peer, &table->table_update_lock);
+	ret = add(&table->root4, 32, (const u8 *)ip, cidr, peer, &table->table_update_lock);
 	mutex_unlock(&table->table_update_lock);
 	return ret;
 }
 
-int routing_table_insert_v6(struct routing_table *table, const struct in6_addr *ip, uint8_t cidr, struct wireguard_peer *peer)
+int routing_table_insert_v6(struct routing_table *table, const struct in6_addr *ip, u8 cidr, struct wireguard_peer *peer)
 {
 	int ret;
 	if (cidr > 128)
 		return -EINVAL;
 	mutex_lock(&table->table_update_lock);
-	ret = add(&table->root6, 128, (const uint8_t *)ip, cidr, peer, &table->table_update_lock);
+	ret = add(&table->root6, 128, (const u8 *)ip, cidr, peer, &table->table_update_lock);
 	mutex_unlock(&table->table_update_lock);
 	return ret;
 }
@@ -393,7 +393,7 @@ inline struct wireguard_peer *routing_table_lookup_v4(struct routing_table *tabl
 	struct routing_table_node *node;
 
 	rcu_read_lock();
-	node = find_node(rcu_dereference(table->root4), 32, (const uint8_t *)ip);
+	node = find_node(rcu_dereference(table->root4), 32, (const u8 *)ip);
 	if (node)
 		peer = peer_get(node->peer);
 	rcu_read_unlock();
@@ -407,27 +407,27 @@ inline struct wireguard_peer *routing_table_lookup_v6(struct routing_table *tabl
 	struct routing_table_node *node;
 
 	rcu_read_lock();
-	node = find_node(rcu_dereference(table->root6), 128, (const uint8_t *)ip);
+	node = find_node(rcu_dereference(table->root6), 128, (const u8 *)ip);
 	if (node)
 		peer = peer_get(node->peer);
 	rcu_read_unlock();
 	return peer;
 }
 
-int routing_table_remove_v4(struct routing_table *table, const struct in_addr *ip, uint8_t cidr)
+int routing_table_remove_v4(struct routing_table *table, const struct in_addr *ip, u8 cidr)
 {
 	int ret;
 	mutex_lock(&table->table_update_lock);
-	ret = remove(&table->root4, (const uint8_t *)ip, cidr, &table->table_update_lock);
+	ret = remove(&table->root4, (const u8 *)ip, cidr, &table->table_update_lock);
 	mutex_unlock(&table->table_update_lock);
 	return ret;
 }
 
-int routing_table_remove_v6(struct routing_table *table, const struct in6_addr *ip, uint8_t cidr)
+int routing_table_remove_v6(struct routing_table *table, const struct in6_addr *ip, u8 cidr)
 {
 	int ret;
 	mutex_lock(&table->table_update_lock);
-	ret = remove(&table->root6, (const uint8_t *)ip, cidr, &table->table_update_lock);
+	ret = remove(&table->root6, (const u8 *)ip, cidr, &table->table_update_lock);
 	mutex_unlock(&table->table_update_lock);
 	return ret;
 }
@@ -443,7 +443,7 @@ int routing_table_remove_by_peer(struct routing_table *table, struct wireguard_p
 
 /* Calls func with a strong reference to each peer, before putting it when the function has completed.
  * It's thus up to the caller to call peer_put on it if it's going to be used elsewhere after or stored. */
-int routing_table_walk_ips(struct routing_table *table, void *ctx, int (*func)(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, uint8_t cidr, int family))
+int routing_table_walk_ips(struct routing_table *table, void *ctx, int (*func)(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, u8 cidr, int family))
 {
 	int ret;
 	rcu_read_lock();
@@ -457,7 +457,7 @@ int routing_table_walk_ips(struct routing_table *table, void *ctx, int (*func)(v
 	return ret;
 }
 
-int routing_table_walk_ips_by_peer(struct routing_table *table, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, uint8_t cidr, int family))
+int routing_table_walk_ips_by_peer(struct routing_table *table, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, u8 cidr, int family))
 {
 	int ret;
 	rcu_read_lock();
@@ -471,7 +471,7 @@ int routing_table_walk_ips_by_peer(struct routing_table *table, void *ctx, struc
 	return ret;
 }
 
-int routing_table_walk_ips_by_peer_sleepable(struct routing_table *table, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, uint8_t cidr, int family))
+int routing_table_walk_ips_by_peer_sleepable(struct routing_table *table, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, u8 cidr, int family))
 {
 	int ret;
 	mutex_lock(&table->table_update_lock);

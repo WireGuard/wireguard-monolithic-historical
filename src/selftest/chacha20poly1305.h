@@ -1,7 +1,7 @@
 #ifdef DEBUG
 /* ChaCha20-Poly1305 AEAD test vectors from RFC7539 2.8.2 */
 struct chacha20poly1305_testvec {
-	uint8_t *key, *nonce, *assoc, *input, *result;
+	u8 *key, *nonce, *assoc, *input, *result;
 	size_t alen, ilen;
 };
 static const struct chacha20poly1305_testvec chacha20poly1305_enc_vectors[] = { {
@@ -26,7 +26,7 @@ static const struct chacha20poly1305_testvec chacha20poly1305_dec_vectors[] = {	
 bool chacha20poly1305_selftest(void)
 {
 	size_t i;
-	uint8_t computed_result[512];
+	u8 computed_result[512];
 	bool success = true;
 
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {

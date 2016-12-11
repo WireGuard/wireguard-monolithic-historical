@@ -16,11 +16,11 @@
 #include <crypto/algapi.h>
 
 struct encryption_skb_cb {
-	uint8_t ds;
-	uint8_t num_frags;
+	u8 ds;
+	u8 num_frags;
 	unsigned int plaintext_len, trailer_len;
 	struct sk_buff *trailer;
-	uint64_t nonce;
+	u64 nonce;
 };
 
 struct encryption_ctx {
@@ -37,8 +37,8 @@ struct decryption_ctx {
 	void (*callback)(struct sk_buff *skb, struct wireguard_peer *, struct endpoint *, bool used_new_key, int err);
 	struct noise_keypair *keypair;
 	struct endpoint endpoint;
-	uint64_t nonce;
-	uint8_t num_frags;
+	u64 nonce;
+	u8 num_frags;
 	int ret;
 };
 
@@ -157,7 +157,7 @@ static inline void skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypai
 	chacha20poly1305_encrypt_sg(sg, sg, cb->plaintext_len, NULL, 0, cb->nonce, keypair->sending.key, have_simd);
 }
 
-static inline bool skb_decrypt(struct sk_buff *skb, uint8_t num_frags, uint64_t nonce, struct noise_symmetric_key *key)
+static inline bool skb_decrypt(struct sk_buff *skb, u8 num_frags, u64 nonce, struct noise_symmetric_key *key)
 {
 	struct scatterlist sg[num_frags]; /* This should be bound to at most 128 by the caller. */
 
@@ -178,7 +178,7 @@ static inline bool skb_decrypt(struct sk_buff *skb, uint8_t num_frags, uint64_t 
 	return pskb_trim(skb, skb->len - noise_encrypted_len(0)) == 0;
 }
 
-static inline bool get_encryption_nonce(uint64_t *nonce, struct noise_symmetric_key *key)
+static inline bool get_encryption_nonce(u64 *nonce, struct noise_symmetric_key *key)
 {
 	if (unlikely(!key))
 		return false;
@@ -417,7 +417,7 @@ void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_de
 	struct sk_buff *trailer;
 	struct message_data *header;
 	struct noise_keypair *keypair;
-	uint64_t nonce;
+	u64 nonce;
 	__le32 idx;
 
 	ret = socket_endpoint_from_skb(&endpoint, skb);

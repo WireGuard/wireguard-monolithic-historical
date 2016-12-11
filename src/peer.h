@@ -35,11 +35,11 @@ struct wireguard_peer {
 	rwlock_t endpoint_lock;
 	struct noise_handshake handshake;
 	struct noise_keypairs keypairs;
-	uint64_t last_sent_handshake;
+	u64 last_sent_handshake;
 	struct work_struct transmit_handshake_work, clear_peer_work;
 	struct cookie latest_cookie;
 	struct hlist_node pubkey_hash;
-	uint64_t rx_bytes, tx_bytes;
+	u64 rx_bytes, tx_bytes;
 	struct timer_list timer_retransmit_handshake, timer_send_keepalive, timer_new_handshake, timer_kill_ephemerals, timer_persistent_keepalive;
 	unsigned int timer_handshake_attempts;
 	unsigned long persistent_keepalive_interval;
@@ -51,7 +51,7 @@ struct wireguard_peer {
 	struct kref refcount;
 	struct rcu_head rcu;
 	struct list_head peer_list;
-	uint64_t internal_id;
+	u64 internal_id;
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	atomic_t parallel_encryption_inflight;
 #endif

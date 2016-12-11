@@ -1,15 +1,15 @@
 #ifdef DEBUG
-static inline struct in_addr *ip4(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+static inline struct in_addr *ip4(u8 a, u8 b, u8 c, u8 d)
 {
 	static struct in_addr ip;
-	uint8_t *split = (uint8_t *)&ip;
+	u8 *split = (u8 *)&ip;
 	split[0] = a;
 	split[1] = b;
 	split[2] = c;
 	split[3] = d;
 	return &ip;
 }
-static inline struct in6_addr *ip6(uint32_t a, uint32_t b, uint32_t c, uint32_t d)
+static inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 {
 	static struct in6_addr ip;
 	__be32 *split = (__be32 *)&ip;
@@ -108,7 +108,7 @@ bool routing_table_selftest(void)
 	for (i = 0; i < 128; ++i) {
 		part = cpu_to_be64(~(1LLU << (i % 64)));
 		memset(&ip, 0xff, 16);
-		memcpy((uint8_t *)&ip + (i < 64) * 8, &part, 8);
+		memcpy((u8 *)&ip + (i < 64) * 8, &part, 8);
 		routing_table_insert_v6(&t, &ip, 128, a);
 	}
 
