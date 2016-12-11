@@ -253,13 +253,10 @@ static void destruct(struct net_device *dev)
 	free_netdev(dev);
 }
 
-enum {
-	WG_NETDEV_FEATURES = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE | NETIF_F_HIGHDMA
-};
-
 static void setup(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
+	enum { WG_NETDEV_FEATURES = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE | NETIF_F_HIGHDMA };
 
 	dev->netdev_ops = &netdev_ops;
 	dev->destructor = destruct;
@@ -362,17 +359,11 @@ error_1:
 	return err;
 }
 
-static void dellink(struct net_device *dev, struct list_head *head)
-{
-	unregister_netdevice_queue(dev, head);
-}
-
 static struct rtnl_link_ops link_ops __read_mostly = {
 	.kind			= KBUILD_MODNAME,
 	.priv_size		= sizeof(struct wireguard_device),
 	.setup			= setup,
 	.newlink		= newlink,
-	.dellink		= dellink
 };
 
 int device_init(void)
