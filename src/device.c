@@ -137,26 +137,26 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	int ret;
 
 	if (unlikely(dev_recursion_level() > 4)) {
+		ret = -ELOOP;
 		net_dbg_ratelimited("Routing loop detected\n");
 		skb_unsendable(skb, dev);
-		return -ELOOP;
+		goto err;
 	}
 
 	peer = routing_table_lookup_dst(&wg->peer_routing_table, skb);
 	if (unlikely(!peer)) {
+		ret = -ENOKEY;
 		net_dbg_skb_ratelimited("No peer is configured for %pISc\n", skb);
-		skb_unsendable(skb, dev);
-		return -ENOKEY;
+		goto err;
 	}
 
 	read_lock_bh(&peer->endpoint_lock);
 	ret = peer->endpoint.addr_storage.ss_family != AF_INET && peer->endpoint.addr_storage.ss_family != AF_INET6;
 	read_unlock_bh(&peer->endpoint_lock);
 	if (unlikely(ret)) {
+		ret = -EHOSTUNREACH;
 		net_dbg_ratelimited("No valid endpoint has been configured or discovered for peer %Lu\n", peer->internal_id);
-		skb_unsendable(skb, dev);
-		peer_put(peer);
-		return -EHOSTUNREACH;
+		goto err_peer;
 	}
 
 	/* If the queue is getting too big, we start removing the oldest packets until it's small again.
@@ -169,9 +169,8 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	else {
 		struct sk_buff *segs = skb_gso_segment(skb, 0);
 		if (unlikely(IS_ERR(segs))) {
-			skb_unsendable(skb, dev);
-			peer_put(peer);
-			return PTR_ERR(segs);
+			ret = PTR_ERR(segs);
+			goto err_peer;
 		}
 		dev_kfree_skb(skb);
 		skb = segs;
@@ -192,8 +191,14 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		skb = next;
 	}
 
-	ret = packet_send_queue(peer);
+	packet_send_queue(peer);
 	peer_put(peer);
+	return NETDEV_TX_OK;
+
+err_peer:
+	peer_put(peer);
+err:
+	skb_unsendable(skb, dev);
 	return ret;
 }
 

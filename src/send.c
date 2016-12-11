@@ -138,7 +138,7 @@ static void message_create_data_done(struct sk_buff_head *queue, struct wireguar
 		packet_send_queue(peer);
 }
 
-int packet_send_queue(struct wireguard_peer *peer)
+void packet_send_queue(struct wireguard_peer *peer)
 {
 	struct sk_buff_head queue;
 	unsigned long flags;
@@ -152,7 +152,7 @@ int packet_send_queue(struct wireguard_peer *peer)
 	spin_unlock_irqrestore(&peer->tx_packet_queue.lock, flags);
 
 	if (unlikely(!skb_queue_len(&queue)))
-		return NETDEV_TX_OK;
+		return;
 
 	/* We submit it for encryption and sending. */
 	switch (packet_create_data(&queue, peer, message_create_data_done)) {
@@ -189,5 +189,4 @@ int packet_send_queue(struct wireguard_peer *peer)
 		 * a reference to the local queue. */
 		__skb_queue_purge(&queue);
 	}
-	return NETDEV_TX_OK;
 }

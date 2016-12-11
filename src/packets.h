@@ -19,7 +19,7 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb);
 void packet_process_queued_handshake_packets(struct work_struct *work);
 
 /* send.c */
-int packet_send_queue(struct wireguard_peer *peer);
+void packet_send_queue(struct wireguard_peer *peer);
 void packet_send_keepalive(struct wireguard_peer *peer);
 void packet_queue_handshake_initiation(struct wireguard_peer *peer);
 void packet_send_queued_handshakes(struct work_struct *work);
