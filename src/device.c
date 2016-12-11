@@ -48,9 +48,9 @@ static int open_peer(struct wireguard_peer *peer, void *data)
 static int open(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
-	int rc = socket_init(wg);
-	if (rc < 0)
-		return rc;
+	int ret = socket_init(wg);
+	if (ret < 0)
+		return ret;
 	peer_for_each(wg, open_peer, NULL);
 	return 0;
 }
