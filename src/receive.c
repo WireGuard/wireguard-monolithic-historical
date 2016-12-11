@@ -222,13 +222,6 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 		goto packet_processed;
 	}
 
-	if (unlikely(skb->len < sizeof(struct iphdr))) {
-		++dev->stats.rx_errors;
-		++dev->stats.rx_length_errors;
-		net_dbg_ratelimited("Packet missing ip header from peer %Lu (%pISpfsc)\n", peer->internal_id, &peer->endpoint.addr_storage);
-		goto packet_processed;
-	}
-
 	if (!pskb_may_pull(skb, 1 /* For checking the ip version below */)) {
 		++dev->stats.rx_errors;
 		++dev->stats.rx_length_errors;
@@ -238,17 +231,11 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 
 	skb->dev = dev;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	if (ip_hdr(skb)->version == 4) {
+	if (skb->len >= sizeof(struct iphdr) && ip_hdr(skb)->version == 4) {
 		skb->protocol = htons(ETH_P_IP);
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP_ECN_set_ce(ip_hdr(skb));
-	} else if (ip_hdr(skb)->version == 6) {
-		if (unlikely(skb->len < sizeof(struct ipv6hdr))) {
-			++dev->stats.rx_errors;
-			++dev->stats.rx_length_errors;
-			net_dbg_ratelimited("Packet missing ipv6 header from peer %Lu (%pISpfsc)\n", peer->internal_id, &peer->endpoint.addr_storage);
-			goto packet_processed;
-		}
+	} else if (skb->len >= sizeof(struct ipv6hdr) && ip_hdr(skb)->version == 6) {
 		skb->protocol = htons(ETH_P_IPV6);
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP6_ECN_set_ce(skb, ipv6_hdr(skb));
