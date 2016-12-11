@@ -25,18 +25,6 @@
 #include <net/netfilter/nf_nat_core.h>
 #endif
 
-static int init(struct net_device *dev)
-{
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-	return 0;
-}
-static void uninit(struct net_device *dev)
-{
-	free_percpu(dev->tstats);
-}
-
 static int open_peer(struct wireguard_peer *peer, void *data)
 {
 	timers_init_peer(peer);
@@ -220,8 +208,6 @@ static int ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 }
 
 static const struct net_device_ops netdev_ops = {
-	.ndo_init		= init,
-	.ndo_uninit		= uninit,
 	.ndo_open		= open,
 	.ndo_stop		= stop,
 	.ndo_start_xmit		= xmit,
@@ -251,6 +237,7 @@ static void destruct(struct net_device *dev)
 	unregister_pm_notifier(&wg->clear_peers_on_suspend);
 #endif
 	mutex_unlock(&wg->device_update_lock);
+	free_percpu(dev->tstats);
 
 	put_net(wg->creating_net);
 
@@ -304,61 +291,67 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	routing_table_init(&wg->peer_routing_table);
 	INIT_LIST_HEAD(&wg->peer_list);
 
+	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+	if (!dev->tstats)
+		goto error_1;
+
 	wg->workqueue = alloc_workqueue(KBUILD_MODNAME "-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
 	if (!wg->workqueue)
-		goto error_1;
+		goto error_2;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	wg->parallelqueue = alloc_workqueue(KBUILD_MODNAME "-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
 	if (!wg->parallelqueue)
-		goto error_2;
+		goto error_3;
 
 	wg->parallel_send = padata_alloc_possible(wg->parallelqueue);
 	if (!wg->parallel_send)
-		goto error_3;
+		goto error_4;
 	padata_start(wg->parallel_send);
 
 	wg->parallel_receive = padata_alloc_possible(wg->parallelqueue);
 	if (!wg->parallel_receive)
-		goto error_4;
+		goto error_5;
 	padata_start(wg->parallel_receive);
 #endif
 
 	err = cookie_checker_init(&wg->cookie_checker, wg);
 	if (err < 0)
-		goto error_5;
+		goto error_6;
 
 #ifdef CONFIG_PM_SLEEP
 	wg->clear_peers_on_suspend.notifier_call = suspending_clear_noise_peers;
 	err = register_pm_notifier(&wg->clear_peers_on_suspend);
 	if (err < 0)
-		goto error_6;
+		goto error_7;
 #endif
 
 	err = register_netdevice(dev);
 	if (err < 0)
-		goto error_7;
+		goto error_8;
 
 	pr_debug("Device %s has been created\n", dev->name);
 
 	return 0;
 
-error_7:
+error_8:
 #ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&wg->clear_peers_on_suspend);
-error_6:
+error_7:
 #endif
 	cookie_checker_uninit(&wg->cookie_checker);
-error_5:
+error_6:
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	padata_free(wg->parallel_receive);
-error_4:
+error_5:
 	padata_free(wg->parallel_send);
-error_3:
+error_4:
 	destroy_workqueue(wg->parallelqueue);
-error_2:
+error_3:
 #endif
 	destroy_workqueue(wg->workqueue);
+error_2:
+	free_percpu(dev->tstats);
 error_1:
 	put_net(src_net);
 	return err;
