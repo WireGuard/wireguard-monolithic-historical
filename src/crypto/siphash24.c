@@ -17,20 +17,18 @@ static inline u64 le64_to_cpuvp(const void *p)
 	v2 += v1; v1 = rol64(v1, 17); v1 ^= v2; v2 = rol64(v2, 32); \
 	} while(0)
 
-__attribute__((optimize("unroll-loops")))
 u64 siphash24(const u8 *data, size_t len, const u8 key[SIPHASH24_KEY_LEN])
 {
 	u64 v0 = 0x736f6d6570736575ULL;
 	u64 v1 = 0x646f72616e646f6dULL;
 	u64 v2 = 0x6c7967656e657261ULL;
 	u64 v3 = 0x7465646279746573ULL;
-	u64 b;
+	u64 b = ((u64)len) << 56;
 	u64 k0 = le64_to_cpuvp(key);
 	u64 k1 = le64_to_cpuvp(key + sizeof(u64));
 	u64 m;
 	const u8 *end = data + len - (len % sizeof(u64));
 	const u8 left = len & (sizeof(u64) - 1);
-	b = ((u64)len) << 56;
 	v3 ^= k1;
 	v2 ^= k0;
 	v1 ^= k1;
