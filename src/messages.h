@@ -106,8 +106,6 @@ struct message_data {
 #define message_data_len(plain_len) (noise_encrypted_len(plain_len) + sizeof(struct message_data))
 
 enum message_alignments {
-	MESSAGE_DATA_TARGET_OFFSET = sizeof(struct message_data),
-	MESSAGE_DATA_TARGET_OPTIMAL_ALIGNMENT = 32, /* Per intel AVX recommendations */
 	MESSAGE_PADDING_MULTIPLE = 16,
 	MESSAGE_MINIMUM_LENGTH = message_data_len(0)
 };
