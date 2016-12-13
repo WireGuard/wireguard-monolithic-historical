@@ -44,8 +44,7 @@ waitiface() { pretty "${1//*-}" "wait for $2 to come up"; ip netns exec "$1" bas
 cleanup() {
 	set +e
 	exec 2>/dev/null
-	echo "$orig_message_cost" > /proc/sys/net/core/message_cost
-	echo "$orig_strict_writes" > /proc/sys/kernel/sysctl_writes_strict
+	printf "$orig_message_cost" > /proc/sys/net/core/message_cost
 	ip0 link del dev wg0
 	ip1 link del dev wg0
 	ip2 link del dev wg0
@@ -57,11 +56,9 @@ cleanup() {
 	exit
 }
 
-orig_strict_writes="$(< /proc/sys/kernel/sysctl_writes_strict)"
 orig_message_cost="$(< /proc/sys/net/core/message_cost)"
 trap cleanup EXIT
-echo 1 > /proc/sys/kernel/sysctl_writes_strict
-echo 0 > /proc/sys/net/core/message_cost
+printf 0 > /proc/sys/net/core/message_cost
 
 ip netns del $netns0 2>/dev/null || true
 ip netns del $netns1 2>/dev/null || true
@@ -237,9 +234,9 @@ waitiface $netns0 vethrs
 waitiface $netns1 vethc
 waitiface $netns2 veths
 
-n0 bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'
-n0 bash -c 'echo 2 > /proc/sys/net/netfilter/nf_conntrack_udp_timeout'
-n0 bash -c 'echo 2 > /proc/sys/net/netfilter/nf_conntrack_udp_timeout_stream'
+n0 bash -c 'printf 1 > /proc/sys/net/ipv4/ip_forward'
+n0 bash -c 'printf 2 > /proc/sys/net/netfilter/nf_conntrack_udp_timeout'
+n0 bash -c 'printf 2 > /proc/sys/net/netfilter/nf_conntrack_udp_timeout_stream'
 n0 iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -d 10.0.0.0/24 -j SNAT --to 10.0.0.1
 
 n1 wg set wg0 peer "$pub2" endpoint 10.0.0.100:2 persistent-keepalive 1
@@ -262,9 +259,9 @@ ip2 link add dev wg0 type wireguard
 configure_peers
 ip1 link add veth1 type veth peer name veth2
 ip1 link set veth2 netns $netns2
-n1 bash -c 'echo 0 > /proc/sys/net/ipv6/conf/veth1/accept_dad'
-n2 bash -c 'echo 0 > /proc/sys/net/ipv6/conf/veth2/accept_dad'
-n1 bash -c 'echo 1 > /proc/sys/net/ipv4/conf/veth1/promote_secondaries'
+n1 bash -c 'printf 0 > /proc/sys/net/ipv6/conf/veth1/accept_dad'
+n2 bash -c 'printf 0 > /proc/sys/net/ipv6/conf/veth2/accept_dad'
+n1 bash -c 'printf 1 > /proc/sys/net/ipv4/conf/veth1/promote_secondaries'
 ip1 addr add 10.0.0.1/24 dev veth1
 ip1 addr add fd00:aa::1/96 dev veth1
 ip2 addr add 10.0.0.2/24 dev veth2
