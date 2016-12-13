@@ -4,7 +4,7 @@
 #define HASHTABLES_H
 
 #include "messages.h"
-#include "crypto/siphash24.h"
+#include "crypto/siphash.h"
 
 #include <linux/hashtable.h>
 #include <linux/mutex.h>
@@ -13,7 +13,7 @@ struct wireguard_peer;
 
 struct pubkey_hashtable {
 	DECLARE_HASHTABLE(hashtable, 8);
-	u8 key[SIPHASH24_KEY_LEN];
+	siphash_key_t key;
 	struct mutex lock;
 };
 
@@ -24,7 +24,7 @@ struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, c
 
 struct index_hashtable {
 	DECLARE_HASHTABLE(hashtable, 10);
-	u8 key[SIPHASH24_KEY_LEN];
+	siphash_key_t key;
 	spinlock_t lock;
 };
 

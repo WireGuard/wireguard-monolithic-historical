@@ -3,20 +3,20 @@
 #include "hashtables.h"
 #include "peer.h"
 #include "noise.h"
-#include "crypto/siphash24.h"
+#include "crypto/siphash.h"
 
 #include <linux/hashtable.h>
 
 static inline struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table, const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
 {
-	/* siphash24 gives us a secure 64bit number based on a random key. Since the bits are
+	/* siphash gives us a secure 64bit number based on a random key. Since the bits are
 	 * uniformly distributed, we can then mask off to get the bits we need. */
-	return &table->hashtable[siphash24(pubkey, NOISE_PUBLIC_KEY_LEN, table->key) & (HASH_SIZE(table->hashtable) - 1)];
+	return &table->hashtable[siphash(pubkey, NOISE_PUBLIC_KEY_LEN, table->key) & (HASH_SIZE(table->hashtable) - 1)];
 }
 
 void pubkey_hashtable_init(struct pubkey_hashtable *table)
 {
-	get_random_bytes(table->key, SIPHASH24_KEY_LEN);
+	get_random_bytes(table->key, sizeof(table->key));
 	hash_init(table->hashtable);
 	mutex_init(&table->lock);
 }
@@ -60,7 +60,7 @@ static inline struct hlist_head *index_bucket(struct index_hashtable *table, con
 
 void index_hashtable_init(struct index_hashtable *table)
 {
-	get_random_bytes(table->key, SIPHASH24_KEY_LEN);
+	get_random_bytes(table->key, sizeof(table->key));
 	hash_init(table->hashtable);
 	spin_lock_init(&table->lock);
 }
@@ -85,7 +85,7 @@ __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashta
 search_unused_slot:
 	/* First we try to find an unused slot, randomly, while unlocked. */
 	rand = get_random_u64();
-	entry->index = (__force __le32)siphash24((u8 *)&rand, sizeof(rand), table->key);
+	entry->index = (__force __le32)siphash_1u64(rand, table->key);
 	hlist_for_each_entry_rcu(existing_entry, index_bucket(table, entry->index), index_hash) {
 		if (existing_entry->index == entry->index)
 			goto search_unused_slot; /* If it's already in use, we continue searching. */

@@ -1,3 +1,5 @@
+/* Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
+
 #ifdef DEBUG
 /* ChaCha20-Poly1305 AEAD test vectors from RFC7539 2.8.2 */
 struct chacha20poly1305_testvec {
