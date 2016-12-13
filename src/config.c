@@ -9,35 +9,29 @@
 #include "peer.h"
 #include "uapi.h"
 
-static int set_peer_dst(struct wireguard_peer *peer, void *data)
+static int clear_peer_endpoint_src(struct wireguard_peer *peer, void *data)
 {
-	dst_cache_reset(&peer->endpoint_cache);
+	socket_clear_peer_endpoint_src(peer);
 	return 0;
 }
 
 static int set_device_port(struct wireguard_device *wg, u16 port)
 {
-	if (!port)
-		return -EINVAL;
 	socket_uninit(wg);
 	wg->incoming_port = port;
-	if (netdev_pub(wg)->flags & IFF_UP) {
-		peer_for_each_unlocked(wg, set_peer_dst, NULL);
-		return socket_init(wg);
-	}
-	return 0;
+	if (!(netdev_pub(wg)->flags & IFF_UP))
+		return 0;
+	peer_for_each_unlocked(wg, clear_peer_endpoint_src, NULL);
+	return socket_init(wg);
 }
 
 static int set_ipmask(struct wireguard_peer *peer, void __user *user_ipmask)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 	struct wgipmask in_ipmask;
 
-	ret = copy_from_user(&in_ipmask, user_ipmask, sizeof(in_ipmask));
-	if (ret) {
-		ret = -EFAULT;
-		return ret;
-	}
+	if (copy_from_user(&in_ipmask, user_ipmask, sizeof(in_ipmask)))
+		return -EFAULT;
 
 	if (in_ipmask.family == AF_INET && in_ipmask.cidr <= 32)
 		ret = routing_table_insert_v4(&peer->device->peer_routing_table, &in_ipmask.ip4, in_ipmask.cidr, peer);
@@ -57,11 +51,8 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	void __user *user_ipmask;
 	struct wireguard_peer *peer = NULL;
 
-	ret = copy_from_user(&in_peer, user_peer, sizeof(in_peer));
-	if (ret) {
-		ret = -EFAULT;
-		return ret;
-	}
+	if (copy_from_user(&in_peer, user_peer, sizeof(in_peer)))
+		return -EFAULT;
 
 	if (!memcmp(zeros, in_peer.public_key, NOISE_PUBLIC_KEY_LEN))
 		return -EINVAL; /* Can't add a peer with no public key. */
@@ -75,8 +66,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 			return -ENOMEM;
 		if (netdev_pub(wg)->flags & IFF_UP)
 			timers_init_peer(peer);
-	} else
-		pr_debug("Peer %Lu (%pISpfsc) modified\n", peer->internal_id, &peer->endpoint.addr);
+	}
 
 	if (in_peer.remove_me) {
 		peer_put(peer);
@@ -85,7 +75,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	}
 
 	if (in_peer.endpoint.ss_family == AF_INET || in_peer.endpoint.ss_family == AF_INET6) {
-		struct endpoint endpoint = { 0 };
+		struct endpoint endpoint = { { { 0 } } };
 		if (in_peer.endpoint.ss_family == AF_INET)
 			endpoint.addr4 = *(struct sockaddr_in *)&in_peer.endpoint;
 		else if (in_peer.endpoint.ss_family == AF_INET6)
@@ -131,8 +121,7 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 
 	mutex_lock(&wg->device_update_lock);
 
-	ret = copy_from_user(&in_device, user_device, sizeof(in_device));
-	if (ret) {
+	if (copy_from_user(&in_device, user_device, sizeof(in_device))) {
 		ret = -EFAULT;
 		goto out;
 	}
@@ -218,9 +207,9 @@ static int populate_ipmask(void *ctx, union nf_inet_addr ip, u8 cidr, int family
 	else if (family == AF_INET6)
 		out_ipmask.ip6 = ip.in6;
 
-	ret = copy_to_user(uipmask, &out_ipmask, sizeof(out_ipmask));
-	if (ret)
+	if (copy_to_user(uipmask, &out_ipmask, sizeof(out_ipmask)))
 		ret = -EFAULT;
+
 	return ret;
 }
 
@@ -260,8 +249,7 @@ static int populate_peer(struct wireguard_peer *peer, void *ctx)
 	data->data = ipmasks_data.data;
 	out_peer.num_ipmasks = ipmasks_data.count;
 
-	ret = copy_to_user(upeer, &out_peer, sizeof(out_peer));
-	if (ret)
+	if (copy_to_user(upeer, &out_peer, sizeof(out_peer)))
 		ret = -EFAULT;
 	return ret;
 }
@@ -287,8 +275,7 @@ int config_get_device(struct wireguard_device *wg, void __user *udevice)
 		goto out;
 	}
 
-	ret = copy_from_user(&in_device, udevice, sizeof(in_device));
-	if (ret) {
+	if (copy_from_user(&in_device, udevice, sizeof(in_device))) {
 		ret = -EFAULT;
 		goto out;
 	}
@@ -312,8 +299,7 @@ int config_get_device(struct wireguard_device *wg, void __user *udevice)
 		goto out;
 	out_device.num_peers = peer_data.count;
 
-	ret = copy_to_user(udevice, &out_device, sizeof(out_device));
-	if (ret)
+	if (copy_to_user(udevice, &out_device, sizeof(out_device)))
 		ret = -EFAULT;
 
 out:
