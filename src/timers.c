@@ -27,7 +27,7 @@ static inline unsigned long slack_time(unsigned long time)
 static void expired_retransmit_handshake(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
-	pr_debug("Handshake for peer %Lu (%pISpfsc) did not complete after %d seconds, retrying\n", peer->internal_id, &peer->endpoint.addr_storage, REKEY_TIMEOUT / HZ);
+	pr_debug("Handshake for peer %Lu (%pISpfsc) did not complete after %d seconds, retrying\n", peer->internal_id, &peer->endpoint.addr, REKEY_TIMEOUT / HZ);
 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
 		del_timer(&peer->timer_send_keepalive);
 		/* We remove all existing packets and don't try again,
@@ -63,7 +63,7 @@ static void expired_send_keepalive(unsigned long ptr)
 static void expired_new_handshake(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
-	pr_debug("Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->internal_id, &peer->endpoint.addr_storage, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
+	pr_debug("Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->internal_id, &peer->endpoint.addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
 	/* We clear the endpoint address src address, in case this is the cause of trouble. */
 	socket_clear_peer_endpoint_src(peer);
 	packet_queue_handshake_initiation(peer);
@@ -79,7 +79,7 @@ static void expired_kill_ephemerals(unsigned long ptr)
 static void queued_expired_kill_ephemerals(struct work_struct *work)
 {
 	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, clear_peer_work);
-	pr_debug("Zeroing out all keys for peer %Lu (%pISpfsc), since we haven't received a new one in %d seconds\n", peer->internal_id, &peer->endpoint.addr_storage, (REJECT_AFTER_TIME * 3) / HZ);
+	pr_debug("Zeroing out all keys for peer %Lu (%pISpfsc), since we haven't received a new one in %d seconds\n", peer->internal_id, &peer->endpoint.addr, (REJECT_AFTER_TIME * 3) / HZ);
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
 	peer_put(peer);

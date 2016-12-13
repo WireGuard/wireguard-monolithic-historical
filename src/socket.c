@@ -51,12 +51,12 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 		}
 		if (unlikely(IS_ERR(rt))) {
 			ret = PTR_ERR(rt);
-			net_dbg_ratelimited("No route to %pISpfsc, error %d\n", &endpoint->addr_storage, ret);
+			net_dbg_ratelimited("No route to %pISpfsc, error %d\n", &endpoint->addr, ret);
 			goto err;
 		} else if (unlikely(rt->dst.dev == skb->dev)) {
 			dst_release(&rt->dst);
 			ret = -ELOOP;
-			net_dbg_ratelimited("Avoiding routing loop to %pISpfsc\n", &endpoint->addr_storage);
+			net_dbg_ratelimited("Avoiding routing loop to %pISpfsc\n", &endpoint->addr);
 			goto err;
 		}
 		if (cache)
@@ -116,12 +116,12 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 		}
 		ret = ipv6_stub->ipv6_dst_lookup(sock_net(sock), sock, &dst, &fl);
 		if (unlikely(ret)) {
-			net_dbg_ratelimited("No route to %pISpfsc, error %d\n", &endpoint->addr_storage, ret);
+			net_dbg_ratelimited("No route to %pISpfsc, error %d\n", &endpoint->addr, ret);
 			goto err;
 		} else if (unlikely(dst->dev == skb->dev)) {
 			dst_release(dst);
 			ret = -ELOOP;
-			net_dbg_ratelimited("Avoiding routing loop to %pISpfsc\n", &endpoint->addr_storage);
+			net_dbg_ratelimited("Avoiding routing loop to %pISpfsc\n", &endpoint->addr);
 			goto err;
 		}
 		if (cache)
@@ -151,9 +151,9 @@ int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8
 	int ret = -EAFNOSUPPORT;
 
 	read_lock_bh(&peer->endpoint_lock);
-	if (peer->endpoint.addr_storage.ss_family == AF_INET)
+	if (peer->endpoint.addr.sa_family == AF_INET)
 		ret = send4(peer->device, skb, &peer->endpoint, ds, &peer->endpoint_cache);
-	else if (peer->endpoint.addr_storage.ss_family == AF_INET6)
+	else if (peer->endpoint.addr.sa_family == AF_INET6)
 		ret = send6(peer->device, skb, &peer->endpoint, ds, &peer->endpoint_cache);
 	if (likely(!ret))
 		peer->tx_bytes += skb_len;
@@ -190,9 +190,9 @@ int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg, struct sk_bu
 	skb_reserve(skb, SKB_HEADER_LEN);
 	memcpy(skb_put(skb, len), out_buffer, len);
 
-	if (endpoint.addr_storage.ss_family == AF_INET)
+	if (endpoint.addr.sa_family == AF_INET)
 		ret = send4(wg, skb, &endpoint, 0, NULL);
-	else if (endpoint.addr_storage.ss_family == AF_INET6)
+	else if (endpoint.addr.sa_family == AF_INET6)
 		ret = send6(wg, skb, &endpoint, 0, NULL);
 	else
 		ret = -EAFNOSUPPORT;
@@ -222,7 +222,7 @@ int socket_endpoint_from_skb(struct endpoint *endpoint, struct sk_buff *skb)
 
 void socket_set_peer_endpoint(struct wireguard_peer *peer, struct endpoint *endpoint)
 {
-	if (endpoint->addr_storage.ss_family == AF_INET) {
+	if (endpoint->addr.sa_family == AF_INET) {
 		read_lock_bh(&peer->endpoint_lock);
 		if (likely(peer->endpoint.addr4.sin_family == AF_INET &&
 			   peer->endpoint.addr4.sin_port == endpoint->addr4.sin_port &&
@@ -233,7 +233,7 @@ void socket_set_peer_endpoint(struct wireguard_peer *peer, struct endpoint *endp
 		write_lock_bh(&peer->endpoint_lock);
 		peer->endpoint.addr4 = endpoint->addr4;
 		peer->endpoint.src4 = endpoint->src4;
-	} else if (endpoint->addr_storage.ss_family == AF_INET6) {
+	} else if (endpoint->addr.sa_family == AF_INET6) {
 		read_lock_bh(&peer->endpoint_lock);
 		if (likely(peer->endpoint.addr6.sin6_family == AF_INET6 &&
 			   peer->endpoint.addr6.sin6_port == endpoint->addr6.sin6_port &&

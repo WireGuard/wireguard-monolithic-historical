@@ -18,7 +18,7 @@ struct wireguard_device;
 
 struct endpoint {
 	union {
-		struct sockaddr_storage addr_storage;
+		struct sockaddr addr;
 		struct sockaddr_in addr4;
 		struct sockaddr_in6 addr6;
 	};

@@ -168,7 +168,7 @@ static inline struct net_device *netdev_pub(void *dev)
 #define net_dbg_skb_ratelimited(fmt, skb, ...) do { \
 	struct endpoint __endpoint; \
 	socket_endpoint_from_skb(&__endpoint, skb); \
-	net_dbg_ratelimited(fmt, &__endpoint.addr_storage, ##__VA_ARGS__); \
+	net_dbg_ratelimited(fmt, &__endpoint.addr, ##__VA_ARGS__); \
 } while(0)
 #else
 #define net_dbg_skb_ratelimited(fmt, skb, ...)
