@@ -26,7 +26,7 @@ struct encryption_skb_cb {
 struct encryption_ctx {
 	struct padata_priv padata;
 	struct sk_buff_head queue;
-	void (*callback)(struct sk_buff_head *, struct wireguard_peer *);
+	packet_create_data_callback_t callback;
 	struct wireguard_peer *peer;
 	struct noise_keypair *keypair;
 };
@@ -34,12 +34,12 @@ struct encryption_ctx {
 struct decryption_ctx {
 	struct padata_priv padata;
 	struct sk_buff *skb;
-	void (*callback)(struct sk_buff *skb, struct wireguard_peer *, struct endpoint *, bool used_new_key, int err);
+	packet_consume_data_callback_t callback;
 	struct noise_keypair *keypair;
 	struct endpoint endpoint;
 	u64 nonce;
-	u8 num_frags;
 	int ret;
+	u8 num_frags;
 };
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
@@ -250,7 +250,7 @@ static inline unsigned int choose_cpu(__le32 key)
 }
 #endif
 
-int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer, void(*callback)(struct sk_buff_head *, struct wireguard_peer *))
+int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer, packet_create_data_callback_t callback)
 {
 	int ret = -ENOKEY;
 	struct noise_keypair *keypair;
@@ -409,7 +409,7 @@ static inline int start_decryption(struct padata_instance *padata, struct padata
 }
 #endif
 
-void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_device *wg, void(*callback)(struct sk_buff *skb, struct wireguard_peer *, struct endpoint *, bool used_new_key, int err))
+void packet_consume_data(struct sk_buff *skb, size_t offset, struct wireguard_device *wg, packet_consume_data_callback_t callback)
 {
 	int ret;
 	struct endpoint endpoint;

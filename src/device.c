@@ -273,7 +273,7 @@ static void setup(struct net_device *dev)
 
 static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *tb[], struct nlattr *data[])
 {
-	int err = -ENOMEM;
+	int ret = -ENOMEM;
 	struct wireguard_device *wg = netdev_priv(dev);
 
 	wg->creating_net = get_net(src_net);
@@ -311,19 +311,19 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	padata_start(wg->parallel_receive);
 #endif
 
-	err = cookie_checker_init(&wg->cookie_checker, wg);
-	if (err < 0)
+	ret = cookie_checker_init(&wg->cookie_checker, wg);
+	if (ret < 0)
 		goto error_6;
 
 #ifdef CONFIG_PM_SLEEP
 	wg->clear_peers_on_suspend.notifier_call = suspending_clear_noise_peers;
-	err = register_pm_notifier(&wg->clear_peers_on_suspend);
-	if (err < 0)
+	ret = register_pm_notifier(&wg->clear_peers_on_suspend);
+	if (ret < 0)
 		goto error_7;
 #endif
 
-	err = register_netdevice(dev);
-	if (err < 0)
+	ret = register_netdevice(dev);
+	if (ret < 0)
 		goto error_8;
 
 	pr_debug("Device %s has been created\n", dev->name);
@@ -350,7 +350,7 @@ error_2:
 	free_percpu(dev->tstats);
 error_1:
 	put_net(src_net);
-	return err;
+	return ret;
 }
 
 static struct rtnl_link_ops link_ops __read_mostly = {
