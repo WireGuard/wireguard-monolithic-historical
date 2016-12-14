@@ -99,13 +99,11 @@ bool ratelimiter_allow(struct ratelimiter *ratelimiter, struct sk_buff *skb)
 		action.match = v4_match;
 		action.matchinfo = &ratelimiter->v4_info;
 		action.thoff = ip_hdrlen(skb);
-		action.family = NFPROTO_IPV4;
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (ip_hdr(skb)->version == 6) {
 		action.match = v6_match;
 		action.matchinfo = &ratelimiter->v6_info;
-		action.family = NFPROTO_IPV6;
 	}
 #endif
 	else
