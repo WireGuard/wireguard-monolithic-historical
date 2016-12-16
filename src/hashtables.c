@@ -65,16 +65,10 @@ void index_hashtable_init(struct index_hashtable *table)
 	spin_lock_init(&table->lock);
 }
 
-#if BITS_PER_LONG == 64
-#define get_random_u64() get_random_long()
-#else
-#define get_random_u64() (((u64)get_random_int() << 32) | get_random_int())
-#endif
-
 __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashtable_entry *entry)
 {
 	struct index_hashtable_entry *existing_entry;
-	u64 rand;
+	u32 counter = get_random_int();
 
 	spin_lock(&table->lock);
 	hlist_del_init_rcu(&entry->index_hash);
@@ -84,8 +78,7 @@ __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashta
 
 search_unused_slot:
 	/* First we try to find an unused slot, randomly, while unlocked. */
-	rand = get_random_u64();
-	entry->index = (__force __le32)siphash_1u64(rand, table->key);
+	entry->index = (__force __le32)siphash_2u32(get_random_int(), counter++, table->key);
 	hlist_for_each_entry_rcu(existing_entry, index_bucket(table, entry->index), index_hash) {
 		if (existing_entry->index == entry->index)
 			goto search_unused_slot; /* If it's already in use, we continue searching. */
