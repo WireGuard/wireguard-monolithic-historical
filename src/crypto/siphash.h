@@ -27,16 +27,20 @@ u64 siphash_3u64(const u64 a, const u64 b, const u64 c,
 u64 siphash_4u64(const u64 a, const u64 b, const u64 c, const u64 d,
 		 const siphash_key_t key);
 
-static inline u64 ___siphash_aligned(const u64 *data, size_t len, const siphash_key_t key)
+static inline u64 ___siphash_aligned(const __le64 *data, size_t len, const siphash_key_t key)
 {
 	if (__builtin_constant_p(len) && len == 8)
-		return siphash_1u64(data[0], key);
+		return siphash_1u64(le64_to_cpu(data[0]), key);
 	if (__builtin_constant_p(len) && len == 16)
-		return siphash_2u64(data[0], data[1], key);
+		return siphash_2u64(le64_to_cpu(data[0]), le64_to_cpu(data[1]),
+				    key);
 	if (__builtin_constant_p(len) && len == 24)
-		return siphash_3u64(data[0], data[1], data[2], key);
+		return siphash_3u64(le64_to_cpu(data[0]), le64_to_cpu(data[1]),
+				    le64_to_cpu(data[2]), key);
 	if (__builtin_constant_p(len) && len == 32)
-		return siphash_4u64(data[0], data[1], data[2], data[3], key);
+		return siphash_4u64(le64_to_cpu(data[0]), le64_to_cpu(data[1]),
+				    le64_to_cpu(data[2]), le64_to_cpu(data[3]),
+				    key);
 	return __siphash_aligned(data, len, key);
 }
 
