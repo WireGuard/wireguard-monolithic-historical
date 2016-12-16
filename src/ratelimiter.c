@@ -115,13 +115,13 @@ int ratelimiter_module_init(void)
 {
 	v4_match = xt_request_find_match(NFPROTO_IPV4, "hashlimit", 1);
 	if (IS_ERR(v4_match)) {
-		pr_err("The xt_hashlimit module for IPv4 is required");
+		pr_err("The xt_hashlimit module for IPv4 is required\n");
 		return PTR_ERR(v4_match);
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	v6_match = xt_request_find_match(NFPROTO_IPV6, "hashlimit", 1);
 	if (IS_ERR(v6_match)) {
-		pr_err("The xt_hashlimit module for IPv6 is required");
+		pr_err("The xt_hashlimit module for IPv6 is required\n");
 		module_put(v4_match->me);
 		return PTR_ERR(v6_match);
 	}
