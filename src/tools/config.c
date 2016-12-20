@@ -128,8 +128,7 @@ static inline bool parse_endpoint(struct sockaddr_storage *endpoint, const char 
 	struct addrinfo hints = {
 		.ai_family = AF_UNSPEC,
 		.ai_socktype = SOCK_DGRAM,
-		.ai_protocol = IPPROTO_UDP,
-		.ai_flags = AI_ADDRCONFIG
+		.ai_protocol = IPPROTO_UDP
 	};
 	if (!strlen(value)) {
 		free(mutable);
