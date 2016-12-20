@@ -71,7 +71,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	if (in_peer.remove_me) {
 		peer_put(peer);
 		peer_remove(peer);
-		return 0;
+		goto out;
 	}
 
 	if (in_peer.endpoint.ss_family == AF_INET || in_peer.endpoint.ss_family == AF_INET6) {
@@ -103,6 +103,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 
 	peer_put(peer);
 
+out:
 	if (!ret)
 		*len = sizeof(struct wgpeer) + (in_peer.num_ipmasks * sizeof(struct wgipmask));
 
