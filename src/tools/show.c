@@ -288,7 +288,7 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 			printf("%s\t", key(peer->public_key));
 			if (peer->num_ipmasks) {
 				for_each_wgipmask(peer, ipmask, j)
-					printf("%s/%u%s", ip(ipmask), ipmask->cidr, j == (size_t)peer->num_ipmasks - 1 ? "\n" : ", ");
+					printf("%s/%u%c", ip(ipmask), ipmask->cidr, j == (size_t)peer->num_ipmasks - 1 ? '\n' : ' ');
 			} else
 				printf("(none)\n");
 		}
