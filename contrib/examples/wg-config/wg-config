@@ -45,7 +45,7 @@ add_default() {
 		echo "tungate: does not yet support IPv6, skipping ::/0" >&2
 		return 0
 	elif [[ $1 == 0.0.0.0/0 ]]; then
-		local endpoint="$(wg show "$INTERFACE" endpoints | grep "^$(wg show "$INTERFACE" allowed-ips | grep 0.0.0.0/0 | head -n 1 | cut -f 1)" | cut -f 2 | cut -d : -f 1)"
+		local endpoint="$(join <(wg show "$INTERFACE" allowed-ips) <(wg show "$INTERFACE" endpoints) | sed -n 's/.* 0\.0\.0\.0\/0.* \([0-9.:\/a-z]\+\):[0-9]\+$/\1/p')"
 		add_route 0/1
 		add_route 128/1
 		killall tungate 2>/dev/null || true
@@ -129,7 +129,7 @@ cmd_add() {
 	done
 	up_if
 	if [[ $AUTO_ROUTE -eq 1 ]]; then
-		for i in $(wg show "$INTERFACE" allowed-ips | cut -f 2 | tr -d ,); do
+		for i in $(wg show "$INTERFACE" allowed-ips | grep -Po '(?<=[\t ])[0-9.:/a-z]+(?<=,)?' | sort -nr -k 2 -t /); do
 			if ! add_default "$i" && [[ $(ip route get "$i") != *dev\ $INTERFACE\ * ]]; then
 				add_route "$i"
 			fi
