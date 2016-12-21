@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e -o pipefail
 
-export PATH="$(dirname "$(readlink -f "$0")"):$PATH"
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+export PATH="${SELF%/*}:$PATH"
 
 cmd() {
 	echo "[#] $*" >&2
@@ -9,7 +10,7 @@ cmd() {
 }
 
 auto_su() {
-	[[ $UID != 0 ]] && exec sudo -p "$PROGRAM must be run as root. Please enter the password for %u to continue: " "$(readlink -f "$0")" "${ARGS[@]}" || true
+	[[ $UID == 0 ]] || exec sudo -p "$PROGRAM must be run as root. Please enter the password for %u to continue: " "$SELF" "${ARGS[@]}"
 }
 
 unwind() {
@@ -121,7 +122,7 @@ cmd_add() {
 	[[ -n $CONFIG_FILE || -n $CONFIG_FILE_CONTENTS ]] || { echo "$PROGRAM: --config is required for add subcommand" >&2; exit 1; }
 	auto_su
 	trap unwind INT TERM EXIT
-	[[ $(type -t pre_add) == function ]] && pre_add || true
+	[[ $(type -t pre_add) != function ]] || pre_add
 	add_if
 	set_config
 	for i in "${ADDRESSES[@]}"; do
@@ -140,17 +141,17 @@ cmd_add() {
 			add_route "$i"
 		fi
 	done
-	[[ $(type -t post_add) == function ]] && post_add || true
+	[[ $(type -t post_add) != function ]] || post_add
 	trap - INT TERM EXIT
 }
 
 cmd_del() {
 	auto_su
-	[[ $(type -t pre_del) == function ]] && pre_del || true
+	[[ $(type -t pre_del) != function ]] || pre_del
 	killall tungate 2>/dev/null || true
 	[[ -n $CONFIG_FILE ]] && save_config
 	del_if
-        [[ $(type -t post_del) == function ]] && post_del || true
+        [[ $(type -t post_del) != function ]] || post_del
 }
 
 declare INTERFACE="$2"

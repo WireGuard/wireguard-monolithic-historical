@@ -31,7 +31,7 @@ check_loop() {
 	set_route "$ip"
 	trap unwind INT TERM EXIT
 
-	while read; do
+	while read -r; do
 		[[ $(short_route "$ip") != "$(short_route default)" ]] && set_route "$ip"
 	done < <(exec ip monitor route)
 }
