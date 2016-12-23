@@ -203,7 +203,7 @@ static char *bytes(uint64_t b)
 static const char *COMMAND_NAME = NULL;
 static void show_usage(void)
 {
-	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | preshared-key | listen-port | peers | endpoints | allowed-ips | latest-handshakes | bandwidth | persistent-keepalive]\n", PROG_NAME, COMMAND_NAME);
+	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | preshared-key | listen-port | peers | endpoints | allowed-ips | latest-handshakes | transfer | persistent-keepalive]\n", PROG_NAME, COMMAND_NAME);
 }
 
 static void pretty_print(struct wgdevice *device)
@@ -239,7 +239,7 @@ static void pretty_print(struct wgdevice *device)
 		if (peer->last_handshake_time.tv_sec)
 			terminal_printf("  " TERMINAL_BOLD "latest handshake" TERMINAL_RESET ": %s\n", ago(&peer->last_handshake_time));
 		if (peer->rx_bytes || peer->tx_bytes) {
-			terminal_printf("  " TERMINAL_BOLD "bandwidth" TERMINAL_RESET ": ");
+			terminal_printf("  " TERMINAL_BOLD "transfer" TERMINAL_RESET ": ");
 			terminal_printf("%s received, ", bytes(peer->rx_bytes));
 			terminal_printf("%s sent\n", bytes(peer->tx_bytes));
 		}
@@ -298,7 +298,7 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 				printf("%s\t", device->interface);
 			printf("%s\t%llu\n", key(peer->public_key), (unsigned long long)peer->last_handshake_time.tv_sec);
 		}
-	} else if (!strcmp(param, "bandwidth")) {
+	} else if (!strcmp(param, "transfer")) {
 		for_each_wgpeer(device, peer, i) {
 			if (with_interface)
 				printf("%s\t", device->interface);
