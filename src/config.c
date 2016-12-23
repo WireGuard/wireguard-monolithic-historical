@@ -116,6 +116,7 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 	size_t i, offset;
 	struct wgdevice in_device;
 	void __user *user_peer;
+	bool modified_static_identity = false;
 
 	BUILD_BUG_ON(WG_KEY_LEN != NOISE_PUBLIC_KEY_LEN);
 	BUILD_BUG_ON(WG_KEY_LEN != NOISE_SYMMETRIC_KEY_LEN);
@@ -136,15 +137,24 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 	if (in_device.replace_peer_list)
 		peer_remove_all(wg);
 
-	if (in_device.remove_private_key)
+	if (in_device.remove_private_key) {
 		noise_set_static_identity_private_key(&wg->static_identity, NULL);
-	else if (memcmp(zeros, in_device.private_key, WG_KEY_LEN))
+		modified_static_identity = true;
+	} else if (memcmp(zeros, in_device.private_key, WG_KEY_LEN)) {
 		noise_set_static_identity_private_key(&wg->static_identity, in_device.private_key);
+		modified_static_identity = true;
+	}
 
-	if (in_device.remove_preshared_key)
+	if (in_device.remove_preshared_key) {
 		noise_set_static_identity_preshared_key(&wg->static_identity, NULL);
-	else if (memcmp(zeros, in_device.preshared_key, WG_KEY_LEN))
+		modified_static_identity = true;
+	} else if (memcmp(zeros, in_device.preshared_key, WG_KEY_LEN)) {
 		noise_set_static_identity_preshared_key(&wg->static_identity, in_device.preshared_key);
+		modified_static_identity = true;
+	}
+
+	if (modified_static_identity)
+		cookie_checker_precompute_keys(&wg->cookie_checker, NULL);
 
 	for (i = 0, offset = 0, user_peer = user_device + sizeof(struct wgdevice); i < in_device.num_peers; ++i, user_peer += offset) {
 		ret = set_peer(wg, user_peer, &offset);

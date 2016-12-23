@@ -52,6 +52,11 @@ static inline u32 le32_to_cpuvp(const void *p)
 	return le32_to_cpup(p);
 }
 
+static inline u64 le64_to_cpuvp(const void *p)
+{
+	return le64_to_cpup(p);
+}
+
 static inline u32 rotl32(u32 v, u8 n)
 {
 	return (v << n) | (v >> (sizeof(v) * 8 - n));
@@ -133,9 +138,85 @@ static void chacha20_generic_block(struct chacha20_ctx *ctx, void *stream)
 	ctx->state[12]++;
 }
 
+static const char constant[16] = "expand 32-byte k";
+
+static void hchacha20(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 nonce[16], const u8 key[CHACHA20POLY1305_KEYLEN])
+{
+	u32 x[CHACHA20_BLOCK_SIZE / sizeof(u32)];
+	__le32 *out = (__force __le32 *)derived_key;
+	int i;
+
+	x[0]  = le32_to_cpuvp(constant +  0);
+	x[1]  = le32_to_cpuvp(constant +  4);
+	x[2]  = le32_to_cpuvp(constant +  8);
+	x[3]  = le32_to_cpuvp(constant + 12);
+	x[4]  = le32_to_cpuvp(key + 0);
+	x[5]  = le32_to_cpuvp(key + 4);
+	x[6]  = le32_to_cpuvp(key + 8);
+	x[7]  = le32_to_cpuvp(key + 12);
+	x[8]  = le32_to_cpuvp(key + 16);
+	x[9]  = le32_to_cpuvp(key + 20);
+	x[10] = le32_to_cpuvp(key + 24);
+	x[11] = le32_to_cpuvp(key + 28);
+	x[12]  = le32_to_cpuvp(nonce +  0);
+	x[13]  = le32_to_cpuvp(nonce +  4);
+	x[14]  = le32_to_cpuvp(nonce +  8);
+	x[15]  = le32_to_cpuvp(nonce + 12);
+
+	for (i = 0; i < 20; i += 2) {
+		x[0]  += x[4];    x[12] = rotl32(x[12] ^ x[0],  16);
+		x[1]  += x[5];    x[13] = rotl32(x[13] ^ x[1],  16);
+		x[2]  += x[6];    x[14] = rotl32(x[14] ^ x[2],  16);
+		x[3]  += x[7];    x[15] = rotl32(x[15] ^ x[3],  16);
+
+		x[8]  += x[12];   x[4]  = rotl32(x[4]  ^ x[8],  12);
+		x[9]  += x[13];   x[5]  = rotl32(x[5]  ^ x[9],  12);
+		x[10] += x[14];   x[6]  = rotl32(x[6]  ^ x[10], 12);
+		x[11] += x[15];   x[7]  = rotl32(x[7]  ^ x[11], 12);
+
+		x[0]  += x[4];    x[12] = rotl32(x[12] ^ x[0],   8);
+		x[1]  += x[5];    x[13] = rotl32(x[13] ^ x[1],   8);
+		x[2]  += x[6];    x[14] = rotl32(x[14] ^ x[2],   8);
+		x[3]  += x[7];    x[15] = rotl32(x[15] ^ x[3],   8);
+
+		x[8]  += x[12];   x[4]  = rotl32(x[4]  ^ x[8],   7);
+		x[9]  += x[13];   x[5]  = rotl32(x[5]  ^ x[9],   7);
+		x[10] += x[14];   x[6]  = rotl32(x[6]  ^ x[10],  7);
+		x[11] += x[15];   x[7]  = rotl32(x[7]  ^ x[11],  7);
+
+		x[0]  += x[5];    x[15] = rotl32(x[15] ^ x[0],  16);
+		x[1]  += x[6];    x[12] = rotl32(x[12] ^ x[1],  16);
+		x[2]  += x[7];    x[13] = rotl32(x[13] ^ x[2],  16);
+		x[3]  += x[4];    x[14] = rotl32(x[14] ^ x[3],  16);
+
+		x[10] += x[15];   x[5]  = rotl32(x[5]  ^ x[10], 12);
+		x[11] += x[12];   x[6]  = rotl32(x[6]  ^ x[11], 12);
+		x[8]  += x[13];   x[7]  = rotl32(x[7]  ^ x[8],  12);
+		x[9]  += x[14];   x[4]  = rotl32(x[4]  ^ x[9],  12);
+
+		x[0]  += x[5];    x[15] = rotl32(x[15] ^ x[0],   8);
+		x[1]  += x[6];    x[12] = rotl32(x[12] ^ x[1],   8);
+		x[2]  += x[7];    x[13] = rotl32(x[13] ^ x[2],   8);
+		x[3]  += x[4];    x[14] = rotl32(x[14] ^ x[3],   8);
+
+		x[10] += x[15];   x[5]  = rotl32(x[5]  ^ x[10],  7);
+		x[11] += x[12];   x[6]  = rotl32(x[6]  ^ x[11],  7);
+		x[8]  += x[13];   x[7]  = rotl32(x[7]  ^ x[8],   7);
+		x[9]  += x[14];   x[4]  = rotl32(x[4]  ^ x[9],   7);
+	}
+
+	out[0] = cpu_to_le32(x[0]);
+	out[1] = cpu_to_le32(x[1]);
+	out[2] = cpu_to_le32(x[2]);
+	out[3] = cpu_to_le32(x[3]);
+	out[4] = cpu_to_le32(x[12]);
+	out[5] = cpu_to_le32(x[13]);
+	out[6] = cpu_to_le32(x[14]);
+	out[7] = cpu_to_le32(x[15]);
+}
+
 static void chacha20_keysetup(struct chacha20_ctx *ctx, const u8 key[CHACHA20_KEY_SIZE], const u8 nonce[sizeof(u64)])
 {
-	static const char constant[16] = "expand 32-byte k";
 	ctx->state[0]  = le32_to_cpuvp(constant +  0);
 	ctx->state[1]  = le32_to_cpuvp(constant +  4);
 	ctx->state[2]  = le32_to_cpuvp(constant +  8);
@@ -698,6 +779,33 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 	chacha20poly1305_deinit_simd(have_simd);
 	return !ret;
+}
+
+
+bool xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
+			       const u8 *ad, const size_t ad_len,
+			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],
+			       const u8 key[CHACHA20POLY1305_KEYLEN])
+{
+	u8 derived_key[CHACHA20POLY1305_KEYLEN];
+	bool ret;
+	hchacha20(derived_key, nonce, key);
+	ret = chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key);
+	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
+	return ret;
+}
+
+bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
+			       const u8 *ad, const size_t ad_len,
+			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],
+			       const u8 key[CHACHA20POLY1305_KEYLEN])
+{
+	u8 derived_key[CHACHA20POLY1305_KEYLEN];
+	bool ret;
+	hchacha20(derived_key, nonce, key);
+	ret = chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key);
+	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
+	return ret;
 }
 
 #include "../selftest/chacha20poly1305.h"

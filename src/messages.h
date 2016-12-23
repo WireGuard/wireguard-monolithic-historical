@@ -27,7 +27,7 @@ enum noise_lengths {
 enum cookie_values {
 	COOKIE_SECRET_MAX_AGE = 2 * 60 * HZ,
 	COOKIE_SECRET_LATENCY = 5 * HZ,
-	COOKIE_SALT_LEN = 32,
+	COOKIE_NONCE_LEN = XCHACHA20POLY1305_NONCELEN,
 	COOKIE_LEN = 16
 };
 
@@ -99,7 +99,7 @@ struct message_handshake_response {
 struct message_handshake_cookie {
 	struct message_header header;
 	__le32 receiver_index;
-	u8 salt[COOKIE_SALT_LEN];
+	u8 nonce[COOKIE_NONCE_LEN];
 	u8 encrypted_cookie[noise_encrypted_len(COOKIE_LEN)];
 };
 

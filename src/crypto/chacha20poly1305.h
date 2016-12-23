@@ -8,6 +8,7 @@
 struct scatterlist;
 
 enum chacha20poly1305_lengths {
+	XCHACHA20POLY1305_NONCELEN = 24,
 	CHACHA20POLY1305_KEYLEN = 32,
 	CHACHA20POLY1305_AUTHTAGLEN = 16
 };
@@ -30,6 +31,16 @@ bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
 				 const u8 *ad, const size_t ad_len,
 				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN]);
+
+bool xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
+			       const u8 *ad, const size_t ad_len,
+			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],
+			       const u8 key[CHACHA20POLY1305_KEYLEN]);
+
+bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
+			       const u8 *ad, const size_t ad_len,
+			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],
+			       const u8 key[CHACHA20POLY1305_KEYLEN]);
 
 #ifdef CONFIG_X86_64
 #include <linux/version.h>

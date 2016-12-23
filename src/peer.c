@@ -35,6 +35,7 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	peer->device = wg;
 	cookie_init(&peer->latest_cookie);
 	noise_handshake_init(&peer->handshake, &wg->static_identity, public_key, peer);
+	cookie_checker_precompute_keys(&wg->cookie_checker, peer);
 	mutex_init(&peer->keypairs.keypair_update_lock);
 	INIT_WORK(&peer->transmit_handshake_work, packet_send_queued_handshakes);
 	rwlock_init(&peer->endpoint_lock);
