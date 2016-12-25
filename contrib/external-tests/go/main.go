@@ -61,9 +61,12 @@ func main() {
 	tai64n := make([]byte, 12)
 	binary.BigEndian.PutUint64(tai64n[:], 4611686018427387914+uint64(now.Unix()))
 	binary.BigEndian.PutUint32(tai64n[8:], uint32(now.UnixNano()))
-	initiationPacket := make([]byte, 5)
-	initiationPacket[0] = 1                                 // Type: Initiation
-	binary.LittleEndian.PutUint32(initiationPacket[1:], 28) // Sender index: 28 (arbitrary)
+	initiationPacket := make([]byte, 8)
+	initiationPacket[0] = 1 // Type: Initiation
+	initiationPacket[1] = 0 // Reserved
+	initiationPacket[2] = 0	// Reserved
+	initiationPacket[3] = 0	// Reserved
+	binary.LittleEndian.PutUint32(initiationPacket[4:], 28) // Sender index: 28 (arbitrary)
 	initiationPacket, _, _ = hs.WriteMessage(initiationPacket, tai64n)
 	hasher, _ := blake2s.New(&blake2s.Config{Size: 16, Key: preshared})
 	hasher.Write(theirPublic)
@@ -75,7 +78,7 @@ func main() {
 	}
 
 	// read handshake response packet
-	responsePacket := make([]byte, 89)
+	responsePacket := make([]byte, 92)
 	n, err := conn.Read(responsePacket)
 	if err != nil {
 		log.Fatalf("error reading response packet: %s", err)
@@ -86,12 +89,15 @@ func main() {
 	if responsePacket[0] != 2 { // Type: Response
 		log.Fatalf("response packet type wrong: want %d, got %d", 2, responsePacket[0])
 	}
-	theirIndex := binary.LittleEndian.Uint32(responsePacket[1:])
-	ourIndex := binary.LittleEndian.Uint32(responsePacket[5:])
+	if responsePacket[1] != 0 || responsePacket[2] != 0 || responsePacket[3] != 0 {
+		log.Fatalf("response packet has non-zero reserved fields")
+	}
+	theirIndex := binary.LittleEndian.Uint32(responsePacket[4:])
+	ourIndex := binary.LittleEndian.Uint32(responsePacket[8:])
 	if ourIndex != 28 {
 		log.Fatalf("response packet index wrong: want %d, got %d", 28, ourIndex)
 	}
-	payload, sendCipher, receiveCipher, err := hs.ReadMessage(nil, responsePacket[9:57])
+	payload, sendCipher, receiveCipher, err := hs.ReadMessage(nil, responsePacket[12:60])
 	if err != nil {
 		log.Fatalf("error reading handshake message: %s", err)
 	}
@@ -120,10 +126,13 @@ func main() {
 	binary.BigEndian.PutUint16(pingHeader[2:], uint16(ipv4.HeaderLen+len(pingMessage))) // fix the length endianness on BSDs
 	pingData := append(pingHeader, pingMessage...)
 	binary.BigEndian.PutUint16(pingData[10:], ipChecksum(pingData))
-	pingPacket := make([]byte, 13)
+	pingPacket := make([]byte, 16)
 	pingPacket[0] = 4 // Type: Data
-	binary.LittleEndian.PutUint32(pingPacket[1:], theirIndex)
-	binary.LittleEndian.PutUint64(pingPacket[5:], 0) // Nonce
+	pingPacket[1] = 0 // Reserved
+	pingPacket[2] = 0 // Reserved
+	pingPacket[3] = 0 // Reserved
+	binary.LittleEndian.PutUint32(pingPacket[4:], theirIndex)
+	binary.LittleEndian.PutUint64(pingPacket[8:], 0) // Nonce
 	pingPacket = sendCipher.Encrypt(pingPacket, nil, pingData)
 	if _, err := conn.Write(pingPacket); err != nil {
 		log.Fatalf("error writing ping message: %s", err)
@@ -139,7 +148,10 @@ func main() {
 	if replyPacket[0] != 4 { // Type: Data
 		log.Fatalf("unexpected reply packet type: %d", replyPacket[0])
 	}
-	replyPacket, err = receiveCipher.Decrypt(nil, nil, replyPacket[13:])
+	if replyPacket[1] != 0 || replyPacket[2] != 0 || replyPacket[3] != 0 {
+		log.Fatalf("reply packet has non-zero reserved fields")
+	}
+	replyPacket, err = receiveCipher.Decrypt(nil, nil, replyPacket[16:])
 	if err != nil {
 		log.Fatalf("error decrypting reply packet: %s", err)
 	}

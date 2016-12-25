@@ -33,7 +33,7 @@ w :: PublicKey Curve25519
   -> ByteString
   -> IO ()
 w theirPub (Plaintext myPSK) sock addr msg = do
-  let x      = "\x01\x00\x00" `mappend` msg
+  let x      = "\x01\x00\x00\x00\x00\x00" `mappend` msg
       mac    = hash 16 myPSK (sbToBS' (curvePubToBytes theirPub) `mappend` sbToBS' x)
   void $ NBS.sendTo sock (x `mappend` mac `mappend` replicate 16 '\0') addr
 
@@ -41,7 +41,7 @@ r :: MVar ByteString -> Socket -> IO ByteString
 r smv sock = do
   (r, _) <- NBS.recvFrom sock 1024
   putMVar smv $ (take 2 . drop 1) r
-  return . take 48 . drop 5 $ r
+  return . take 48 . drop 8 $ r
 
 payload :: IO Plaintext
 payload = do
@@ -78,4 +78,4 @@ main = do
 
   let (keepAlive, encryption') = encryptPayload "" encryption
   senderindex <- takeMVar senderindexmv
-  void $ NBS.sendTo sock ("\x04" `mappend` senderindex `mappend` replicate 8 '\0' `mappend` keepAlive) addr
+  void $ NBS.sendTo sock ("\x04\x00\x00\x00" `mappend` senderindex `mappend` replicate 8 '\0' `mappend` keepAlive) addr

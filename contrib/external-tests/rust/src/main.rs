@@ -1,4 +1,5 @@
 /* Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
+
 extern crate screech;
 extern crate crypto;
 extern crate time;
@@ -44,31 +45,40 @@ fn main() {
 	let mut tai64n = [0; 12];
 	BigEndian::write_i64(&mut tai64n[0..], 4611686018427387914ULL + now.sec);
 	BigEndian::write_i32(&mut tai64n[8..], now.nsec);
-	let mut initiation_packet = [0; 145];
+	let mut initiation_packet = [0; 148];
 	initiation_packet[0] = 1; /* Type: Initiation */
-	LittleEndian::write_u32(&mut initiation_packet[1..], 28); /* Sender index: 28 (arbitrary) */
-	handshake.write_message(&tai64n, &mut initiation_packet[5..]);
-	let mut mac_material = [0; 143];
+	initiation_packet[1] = 0; /* Reserved */
+	initiation_packet[2] = 0; /* Reserved */
+	initiation_packet[3] = 0; /* Reserved */
+	LittleEndian::write_u32(&mut initiation_packet[4..], 28); /* Sender index: 28 (arbitrary) */
+	handshake.write_message(&tai64n, &mut initiation_packet[8..]);
+	let mut mac_material = [0; 148];
 	memcpy(&mut mac_material, &their_public);
-	memcpy(&mut mac_material[32..], &initiation_packet[0..113]);
+	memcpy(&mut mac_material[32..], &initiation_packet[0..116]);
 	let mut mac = [0; 16];
 	Blake2s::blake2s(&mut mac, &mac_material, &my_preshared);
-	memcpy(&mut initiation_packet[113..], &mac);
+	memcpy(&mut initiation_packet[116..], &mac);
 	socket.send_to(&initiation_packet, &send_addr).unwrap();
 
-	let mut response_packet = [0; 89];
+	let mut response_packet = [0; 92];
 	socket.recv_from(&mut response_packet).unwrap();
 	assert!(response_packet[0] == 2 /* Type: Response */);
-	let their_index = LittleEndian::read_u32(&response_packet[1..]);
-	let our_index = LittleEndian::read_u32(&response_packet[5..]);
+	assert!(response_packet[1] == 0 /* Reserved */);
+	assert!(response_packet[2] == 0 /* Reserved */);
+	assert!(response_packet[3] == 0 /* Reserved */);
+	let their_index = LittleEndian::read_u32(&response_packet[4..]);
+	let our_index = LittleEndian::read_u32(&response_packet[8..]);
 	assert!(our_index == 28);
-	let (payload_len, last) = handshake.read_message(&response_packet[9..57], &mut empty_payload).unwrap();
+	let (payload_len, last) = handshake.read_message(&response_packet[12..60], &mut empty_payload).unwrap();
 	assert!(payload_len == 0 && last);
 
-	let mut keepalive_packet = [0; 29];
+	let mut keepalive_packet = [0; 32];
 	keepalive_packet[0] = 4; /* Type: Data */
-	LittleEndian::write_u32(&mut keepalive_packet[1..], their_index);
-	LittleEndian::write_u64(&mut keepalive_packet[5..], cipherstate1.n);
-	cipherstate1.encrypt(&empty_payload, &mut keepalive_packet[13..]); /* Empty payload means keepalive */
+	keepalive_packet[1] = 0; /* Reserved */
+	keepalive_packet[2] = 0; /* Reserved */
+	keepalive_packet[3] = 0; /* Reserved */
+	LittleEndian::write_u32(&mut keepalive_packet[4..], their_index);
+	LittleEndian::write_u64(&mut keepalive_packet[8..], cipherstate1.n);
+	cipherstate1.encrypt(&empty_payload, &mut keepalive_packet[16..]); /* Empty payload means keepalive */
 	socket.send_to(&keepalive_packet, &send_addr).unwrap();
 }
