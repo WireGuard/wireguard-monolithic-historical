@@ -79,31 +79,20 @@ static void compute_mac2(u8 mac2[COOKIE_LEN], const void *message, size_t len, c
 	blake2s(mac2, message, cookie, COOKIE_LEN, len, COOKIE_LEN);
 }
 
-static inline const u8 *get_secret(struct cookie_checker *checker)
+static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb, struct cookie_checker *checker)
 {
+	struct blake2s_state state;
+
 	if (!time_is_after_jiffies64(checker->secret_birthdate + COOKIE_SECRET_MAX_AGE)) {
 		down_write(&checker->secret_lock);
 		checker->secret_birthdate = get_jiffies_64();
 		get_random_bytes(checker->secret, NOISE_HASH_LEN);
 		up_write(&checker->secret_lock);
 	}
+
 	down_read(&checker->secret_lock);
-	return checker->secret;
-}
 
-static inline void put_secret(struct cookie_checker *checker)
-{
-	up_read(&checker->secret_lock);
-}
-
-static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb, struct cookie_checker *checker)
-{
-	struct blake2s_state state;
-	const u8 *secret;
-
-	secret = get_secret(checker);
-
-	blake2s_init_key(&state, COOKIE_LEN, secret, NOISE_HASH_LEN);
+	blake2s_init_key(&state, COOKIE_LEN, checker->secret, NOISE_HASH_LEN);
 	if (ip_hdr(skb)->version == 4)
 		blake2s_update(&state, (u8 *)&ip_hdr(skb)->saddr, sizeof(struct in_addr));
 	else if (ip_hdr(skb)->version == 6)
@@ -111,7 +100,7 @@ static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb, struct cooki
 	blake2s_update(&state, (u8 *)&udp_hdr(skb)->source, sizeof(__be16));
 	blake2s_final(&state, cookie, COOKIE_LEN);
 
-	put_secret(checker);
+	up_read(&checker->secret_lock);
 }
 
 enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, struct sk_buff *skb, void *data_start, size_t data_len, bool check_cookie)
@@ -150,8 +139,6 @@ enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, str
 	ret = VALID_MAC_WITH_COOKIE;
 
 out:
-	memzero_explicit(computed_mac, COOKIE_LEN);
-	memzero_explicit(cookie, COOKIE_LEN);
 	return ret;
 }
 
@@ -184,7 +171,6 @@ void cookie_add_mac_to_packet(void *message, size_t len, struct wireguard_peer *
 void cookie_message_create(struct message_handshake_cookie *dst, struct sk_buff *skb, void *data_start, size_t data_len, __le32 index, struct cookie_checker *checker)
 {
 	struct message_macs *macs = (struct message_macs *)((u8 *)data_start + data_len - sizeof(struct message_macs));
-	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	u8 cookie[COOKIE_LEN];
 
 	dst->header.type = cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE);
@@ -194,16 +180,13 @@ void cookie_message_create(struct message_handshake_cookie *dst, struct sk_buff 
 
 	make_cookie(cookie, skb, checker);
 	xchacha20poly1305_encrypt(dst->encrypted_cookie, cookie, COOKIE_LEN, macs->mac1, COOKIE_LEN, dst->nonce, checker->cookie_encryption_key);
-
-	memzero_explicit(key, NOISE_HASH_LEN);
-	memzero_explicit(cookie, COOKIE_LEN);
 }
 
 void cookie_message_consume(struct message_handshake_cookie *src, struct wireguard_device *wg)
 {
-	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	u8 cookie[COOKIE_LEN];
 	struct index_hashtable_entry *entry;
+	bool ret;
 
 	entry = index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_HANDSHAKE | INDEX_HASHTABLE_KEYPAIR, src->receiver_index);
 	if (!unlikely(entry))
@@ -214,20 +197,19 @@ void cookie_message_consume(struct message_handshake_cookie *src, struct wiregua
 		up_read(&entry->peer->latest_cookie.lock);
 		goto out;
 	}
+	ret = xchacha20poly1305_decrypt(cookie, src->encrypted_cookie, sizeof(src->encrypted_cookie), entry->peer->latest_cookie.last_mac1_sent, COOKIE_LEN, src->nonce, entry->peer->latest_cookie.cookie_decryption_key);
 	up_read(&entry->peer->latest_cookie.lock);
 
-	down_write(&entry->peer->latest_cookie.lock);
-	if (xchacha20poly1305_decrypt(cookie, src->encrypted_cookie, sizeof(src->encrypted_cookie), entry->peer->latest_cookie.last_mac1_sent, COOKIE_LEN, src->nonce, entry->peer->latest_cookie.cookie_decryption_key)) {
+	if (ret) {
+		down_write(&entry->peer->latest_cookie.lock);
 		memcpy(entry->peer->latest_cookie.cookie, cookie, COOKIE_LEN);
 		entry->peer->latest_cookie.birthdate = get_jiffies_64();
 		entry->peer->latest_cookie.is_valid = true;
 		entry->peer->latest_cookie.have_sent_mac1 = false;
+		up_write(&entry->peer->latest_cookie.lock);
 	} else
 		net_dbg_ratelimited("Could not decrypt invalid cookie response\n");
-	up_write(&entry->peer->latest_cookie.lock);
 
 out:
 	peer_put(entry->peer);
-	memzero_explicit(key, NOISE_HASH_LEN);
-	memzero_explicit(cookie, COOKIE_LEN);
 }
