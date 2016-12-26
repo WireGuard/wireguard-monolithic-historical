@@ -7,8 +7,8 @@
 #include <linux/version.h>
 #include <linux/types.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
-#error "WireGuard requires Linux >= 4.1"
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+#error "WireGuard requires Linux >= 3.18"
 #endif
 
 /* These conditionals can't be enforced by an out of tree module very easily,
@@ -29,6 +29,29 @@
 #define RCU_LOCKDEP_WARN(cond, message) rcu_lockdep_assert(!(cond), message)
 #endif
 
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 6)) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 12)
+#define dev_recursion_level() 0
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+#include <linux/if.h>
+#include <net/udp_tunnel.h>
+#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; ret__ = udp_tunnel_xmit_skb((b)->sk_socket, a, c, d, e, f, g, h, i, j, k); iptunnel_xmit_stats(ret__, &dev__->stats, dev__->tstats); } while (0)
+#if IS_ENABLED(CONFIG_IPV6)
+#define udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) udp_tunnel6_xmit_skb((b)->sk_socket, a, c, d, e, f, g, h, j, k);
+#endif
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+#include <linux/if.h>
+#include <net/udp_tunnel.h>
+static inline void fake_destructor(struct sk_buff *skb)
+{
+}
+#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; (c)->destructor = fake_destructor; (c)->sk = (b); ret__ = udp_tunnel_xmit_skb(a, c, d, e, f, g, h, i, j, k, l); iptunnel_xmit_stats(ret__, &dev__->stats, dev__->tstats); } while (0)
+#if IS_ENABLED(CONFIG_IPV6)
+#define udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { (c)->destructor = fake_destructor; (c)->sk = (b); udp_tunnel6_xmit_skb(a, c, d, e, f, g, h, j, k, l); } while(0)
+#endif
+#else
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 #include <linux/if.h>
 #include <net/udp_tunnel.h>
@@ -39,6 +62,8 @@
 #include <linux/if.h>
 #include <net/udp_tunnel.h>
 #define udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, j, k, l)
+#endif
+
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
@@ -117,7 +142,7 @@ __attribute__((unused)) static inline int udp_sock_create_new(struct net *net, s
 #define ipv6_dst_lookup(a, b, c, d) ipv6_dst_lookup(b, c, d)
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 5) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 17)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 5) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 17) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 27)
 #define IP6_ECN_set_ce(a, b) IP6_ECN_set_ce(b)
 #endif
 

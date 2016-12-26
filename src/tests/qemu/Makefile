@@ -35,9 +35,9 @@ $(DISTFILES_PATH)/$(1):
 endef
 
 ifeq ($(findstring -rc,$(KERNEL_VERSION)),)
-KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v4.x/
+KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v$(firstword $(subst ., ,$(KERNEL_VERSION))).x/
 else
-KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v4.x/testing/
+KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v$(firstword $(subst ., ,$(KERNEL_VERSION))).x/testing/
 endif
 
 $(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.xz,$(KERNEL_URL_DIRECTORY)))
