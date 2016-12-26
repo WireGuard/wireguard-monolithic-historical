@@ -58,8 +58,6 @@ static inline void blake2s_increment_counter(struct blake2s_state *state, const 
 	state->t[1] += (state->t[0] < inc);
 }
 
-/* init2 xors IV with input parameter block */
-__attribute__((optimize("unroll-loops")))
 static inline void blake2s_init_param(struct blake2s_state *state, const blake2s_param *param)
 {
 	const u32 *p;
@@ -106,7 +104,6 @@ void blake2s_init_key(struct blake2s_state *state, const u8 outlen, const void *
 	memzero_explicit(block, BLAKE2S_BLOCKBYTES);
 }
 
-__attribute__((optimize("unroll-loops")))
 static inline void blake2s_compress(struct blake2s_state *state, const u8 block[BLAKE2S_BLOCKBYTES])
 {
 	u32 m[16];
@@ -129,13 +126,13 @@ static inline void blake2s_compress(struct blake2s_state *state, const u8 block[
 	v[15] = state->f[1] ^ blake2s_iv[7];
 #define G(r,i,a,b,c,d) \
 	do { \
-		a = a + b + m[blake2s_sigma[r][2 * i + 0]]; \
+		a += b + m[blake2s_sigma[r][2 * i + 0]]; \
 		d = ror32(d ^ a, 16); \
-		c = c + d; \
+		c += d; \
 		b = ror32(b ^ c, 12); \
-		a = a + b + m[blake2s_sigma[r][2 * i + 1]]; \
+		a += b + m[blake2s_sigma[r][2 * i + 1]]; \
 		d = ror32(d ^ a, 8); \
-		c = c + d; \
+		c += d; \
 		b = ror32(b ^ c, 7); \
 	} while(0)
 #define ROUND(r)  \
@@ -191,7 +188,6 @@ void blake2s_update(struct blake2s_state *state, const u8 *in, u64 inlen)
 	}
 }
 
-__attribute__((optimize("unroll-loops")))
 void blake2s_final(struct blake2s_state *state, u8 *out, u8 outlen)
 {
 	u8 buffer[BLAKE2S_OUTBYTES] = { 0 };
@@ -240,7 +236,6 @@ void blake2s(u8 *out, const u8 *in, const u8 *key, const u8 outlen, u64 inlen, c
 	blake2s_final(&state, out, outlen);
 }
 
-__attribute__((optimize("unroll-loops")))
 void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const u8 outlen, const u64 inlen, const u64 keylen)
 {
 	struct blake2s_state state;
