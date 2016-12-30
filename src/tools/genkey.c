@@ -8,7 +8,7 @@
 #include <string.h>
 #include <fcntl.h>
 #ifdef __linux
-#include <syscall.h>
+#include <sys/syscall.h>
 #endif
 
 #include "curve25519.h"
