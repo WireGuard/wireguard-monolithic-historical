@@ -43,17 +43,9 @@ options described above, and variables that may be declared in ENV_FILE:
 Additionally, ENV_FILE may define the bash functions pre_add, post_add,
 pre_del, and post_del, which will be called at their respective times.
 
+== Basic Example ==
 
-== Helper Tool ==
-
-tungate is a separate utility, developed originally not explicitly for
-WireGuard, which acts as a poor man's way of ensuring 0/1 and 128/1 default
-route overrides still work with an endpoint going over the original default
-route. It's quite handy, and wg-config makes use of it for dealing with
-0.0.0.0/0 routes. At the moment it only supports IPv4, but adding IPv6
-should be pretty easy.
-
-== Example ==
+This basic example might be used by a server.
 
 /etc/wireguard/wg-server.conf:
 
@@ -83,35 +75,10 @@ Run at startup:
 Run at shutdown:
 # wg-config del wgserver0 --env-file=/etc/wireguard/wg-server.env
 
-== Advanced Example ==
-
-/etc/wireguard/wg-vpn-gateway.conf:
-
-	[Interface]
-	PrivateKey = 6JiA3fa+NG+x5m6aq7+lxlVaVqVf1mxK6/pDOZdNuXc=
-
-	[Peer]
-	PublicKey = 6NagfTu+s8+TkEKpxX7pNjJuTf4zYtoJme7iQFYIw0A=
-	AllowedIPs = 0.0.0.0/0
-	Endpoint = demo.wireguard.io:29912
-
-/etc/wireguard/wg-vpn-gateway.env:
-
-	[[ $SUBCOMMAND == add ]] && CONFIG_FILE="$(dirname "${BASH_SOURCE[0]}")/demo-vpn.conf" || true
-	ADDRESSES=( 10.200.100.2/32 )
-	post_add() {
-		printf 'nameserver 10.200.100.1' | cmd resolvconf -a "$INTERFACE" -m 0
-	}
-	post_del() {
-		cmd resolvconf -d "$INTERFACE"
-	}
-
-Run to flip on the VPN:
-# wg-config add wgvpn0 --env-file=/etc/wireguard/wg-vpn-gateway.env
-The config file is not overwritten on shutdown, due to the conditional in the env file:
-# wg-config del wgvpn0 --env-file=/etc/wireguard/wg-vpn-gateway.env
-
 == Single File Advanced Example ==
+
+This type of configuration might be desirable for a personal access gateway
+VPN, connecting to a server like in the example above.
 
 /etc/wireguard/wg-vpn-gateway.env:
 
@@ -137,4 +104,37 @@ The config file is not overwritten on shutdown, due to the conditional in the en
 Run to flip on the VPN:
 # wg-config add wgvpn0 --env-file=/etc/wireguard/wg-vpn-gateway.env
 Run to flip off the VPN:
+# wg-config del wgvpn0 --env-file=/etc/wireguard/wg-vpn-gateway.env
+
+== Advanced Example ==
+
+This achieves the same as the above, but with an external file. It only sets the
+configuration file when the subcommand is add, to prevent it from being overwritten.
+The above is much simpler and probably preferred, but this example shows how powerful
+the tool can be.
+
+/etc/wireguard/wg-vpn-gateway.conf:
+
+	[Interface]
+	PrivateKey = 6JiA3fa+NG+x5m6aq7+lxlVaVqVf1mxK6/pDOZdNuXc=
+
+	[Peer]
+	PublicKey = 6NagfTu+s8+TkEKpxX7pNjJuTf4zYtoJme7iQFYIw0A=
+	AllowedIPs = 0.0.0.0/0
+	Endpoint = demo.wireguard.io:29912
+
+/etc/wireguard/wg-vpn-gateway.env:
+
+	[[ $SUBCOMMAND == add ]] && CONFIG_FILE="$(dirname "${BASH_SOURCE[0]}")/demo-vpn.conf" || true
+	ADDRESSES=( 10.200.100.2/32 )
+	post_add() {
+		printf 'nameserver 10.200.100.1' | cmd resolvconf -a "$INTERFACE" -m 0
+	}
+	post_del() {
+		cmd resolvconf -d "$INTERFACE"
+	}
+
+Run to flip on the VPN:
+# wg-config add wgvpn0 --env-file=/etc/wireguard/wg-vpn-gateway.env
+The config file is not overwritten on shutdown, due to the conditional in the env file:
 # wg-config del wgvpn0 --env-file=/etc/wireguard/wg-vpn-gateway.env

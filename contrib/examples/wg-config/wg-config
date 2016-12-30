@@ -15,7 +15,7 @@ auto_su() {
 
 unwind() {
 	set +e
-	[[ -n $INTERFACE && -n $(ip link show dev "$INTERFACE" type wireguard 2>/dev/null) ]] && cmd ip link delete dev "$INTERFACE"
+	[[ -n $INTERFACE && -n $(ip link show dev "$INTERFACE" type wireguard 2>/dev/null) ]] && del_if
 	exit
 }
 
@@ -26,6 +26,9 @@ add_if() {
 
 del_if() {
 	[[ -n $(ip link show dev "$INTERFACE" type wireguard 2>/dev/null) ]] || { echo "$PROGRAM: \`$INTERFACE' is not a WireGuard interface" >&2; exit 1; }
+	if [[ $(ip route show table all) =~ .*\ dev\ $INTERFACE\ table\ ([0-9]+)\ .* ]]; then
+		cmd ip rule delete table ${BASH_REMATCH[1]}
+	fi
 	cmd ip link delete dev "$INTERFACE"
 }
 
@@ -38,23 +41,20 @@ add_addr() {
 }
 
 add_route() {
-	cmd ip route add "$1" dev "$INTERFACE"
+	if [[ $1 == 0.0.0.0/0 || $1 == ::/0 ]]; then
+		add_default "$1"
+	else
+		cmd ip route add "$1" dev "$INTERFACE"
+	fi
 }
 
 add_default() {
-	if [[ $1 == ::/0 ]]; then
-		echo "tungate: does not yet support IPv6, skipping ::/0" >&2
-		return 0
-	elif [[ $1 == 0.0.0.0/0 ]]; then
-		local endpoint="$(join <(wg show "$INTERFACE" allowed-ips) <(wg show "$INTERFACE" endpoints) | sed -n 's/.* 0\.0\.0\.0\/0.* \([0-9.:\/a-z]\+\):[0-9]\+$/\1/p')"
-		add_route 0/1
-		add_route 128/1
-		killall tungate 2>/dev/null || true
-		echo "[&] Forking \`tungate' for $endpoint to background" >&2
-		tungate "$endpoint" >/dev/null 2>&1 & disown
-		return 0
-	fi
-	return 1
+	[[ $(join <(wg show "$INTERFACE" allowed-ips) <(wg show "$INTERFACE" endpoints)) =~ .*\ ${1//./\\.}\ ([0-9.:a-f]+):[0-9]+$ ]] && local endpoint="${BASH_REMATCH[1]}"
+	[[ -n $endpoint ]] || return 0
+	local table=51820
+	while [[ -n $(ip route show table $table) ]]; do ((table++)); done
+	cmd ip route add "$1" dev "$INTERFACE" table $table
+	cmd ip rule add not to "$endpoint" table $table
 }
 
 set_config() {
@@ -130,16 +130,12 @@ cmd_add() {
 	done
 	up_if
 	if [[ $AUTO_ROUTE -eq 1 ]]; then
-		for i in $(wg show "$INTERFACE" allowed-ips | grep -Po '(?<=[\t ])[0-9.:/a-z]+' | sort -nr -k 2 -t /); do
-			if ! add_default "$i" && [[ $(ip route get "$i") != *dev\ $INTERFACE\ * ]]; then
-				add_route "$i"
-			fi
+		for i in $(wg show "$INTERFACE" allowed-ips | grep -Po '(?<=[\t ])[0-9.:/a-f]+' | sort -nr -k 2 -t /); do
+			[[ $(ip route get "$i" 2>/dev/null) == *dev\ $INTERFACE\ * ]] || add_route "$i"
 		done
 	fi
 	for i in "${ADDITIONAL_ROUTES[@]}"; do
-		if ! add_default "$i"; then
-			add_route "$i"
-		fi
+		add_route "$i"
 	done
 	[[ $(type -t post_add) != function ]] || post_add
 	trap - INT TERM EXIT
@@ -148,7 +144,6 @@ cmd_add() {
 cmd_del() {
 	auto_su
 	[[ $(type -t pre_del) != function ]] || pre_del
-	killall tungate 2>/dev/null || true
 	[[ -n $CONFIG_FILE ]] && save_config
 	del_if
         [[ $(type -t post_del) != function ]] || post_del

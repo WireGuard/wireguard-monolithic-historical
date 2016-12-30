@@ -2,12 +2,10 @@ PREFIX ?= /usr
 DESTDIR ?=
 SBINDIR ?= $(PREFIX)/sbin
 
-SCRIPTS := wg-config tungate
-
 all:
-	@echo "These are shell scripts, so there is nothing to do. Try \"make install\" instead."
+	@echo "This is a shell script, so there is nothing to do. Try \"make install\" instead."
 
 install:
-	@install -v -m0755 -D -t$(DESTDIR)$(SBINDIR) $(SCRIPTS)
+	@install -v -m0755 -D -t$(DESTDIR)$(SBINDIR) wg-config
 
 .PHONY: all install
