@@ -7,6 +7,7 @@ BASHCOMPDIR ?= $(PREFIX)/share/bash-completion/completions
 RUNSTATEDIR ?= /var/run
 PKG_CONFIG ?= pkg-config
 WITH_BASHCOMPLETION ?= yes
+WITH_WGQUICK ?= yes
 
 CFLAGS ?= -O3
 CFLAGS += -std=gnu11
@@ -30,6 +31,9 @@ install: wg
 	@install -v -d "$(DESTDIR)$(BINDIR)" && install -m 0755 -v wg "$(DESTDIR)$(BINDIR)/wg"
 	@install -v -d "$(DESTDIR)$(MANDIR)/man8" && install -m 0644 -v wg.8 "$(DESTDIR)$(MANDIR)/man8/wg.8"
 	@[ "$(WITH_BASHCOMPLETION)" = "yes" ] && install -v -d "$(BASHCOMPDIR)" && install -m 0644 -v completion/wg.bash-completion "$(DESTDIR)$(BASHCOMPDIR)/wg"
+	@[ "$(WITH_WGQUICK)" = "yes" ] && install -m 0755 -v wg-quick.bash "$(DESTDIR)$(BINDIR)/wg-quick"
+	@[ "$(WITH_WGQUICK)" = "yes" ] && install -m 0644 -v wg-quick.8 "$(DESTDIR)$(MANDIR)/man8/wg-quick.8"
+	@[ "$(WITH_WGQUICK)" = "yes" -a "$(WITH_BASHCOMPLETION)" = "yes" ] && install -m 0644 -v completion/wg-quick.bash-completion "$(DESTDIR)$(BASHCOMPDIR)/wg-quick"
 
 check: clean
 	CFLAGS=-g scan-build --view --keep-going $(MAKE) wg

@@ -131,11 +131,12 @@ PublicKey \(em a base64 public key calculated by \fIwg pubkey\fP from a
 private key, and usually transmitted out of band to the author of the
 configuration file. Required.
 .IP \(bu
-AllowedIPs \(em a comma-separated list of IP (v4 or v6) addresses with
+AllowedIPs \(em a comma-separated list of ip (v4 or v6) addresses with
 CIDR masks from which this peer is allowed to send incoming traffic and
 to which outgoing traffic for this peer is directed. The catch-all
 \fI0.0.0.0/0\fP may be specified for matching all IPv4 addresses, and
-\fI::/0\fP may be specified for matching all IPv6 addresses. Required.
+\fI::/0\fP may be specified for matching all IPv6 addresses. May be specified
+multiple times. Required.
 .IP \(bu
 Endpoint \(em an endpoint IP or hostname, followed by a colon, and then a
 port number. This endpoint will be updated automatically to the most recent
@@ -152,7 +153,6 @@ when unspecified, this option is off. Most users will not need this. Optional.
 
 .SH CONFIGURATION FILE FORMAT EXAMPLE
 This example may be used as a model for writing configuration files.
-Note that not all keys are required.
 
     [Interface]
 .br
