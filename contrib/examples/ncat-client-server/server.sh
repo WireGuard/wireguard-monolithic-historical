@@ -12,6 +12,6 @@ if [[ -z $NCAT_REMOTE_ADDR ]]; then
 	exec ncat -e "$(readlink -f "$0")" -k -l -p 42912 -v
 fi
 read -r public_key
-[[ $(wg show wg0 | grep peer | wc -l) -ge 253 ]] && wg set wg0 peer $(wg show wg0 latest-handshakes | sort -k 2 -b -n | head -n 1 | cut -f 1) remove
+[[ $(wg show wg0 peers | wc -l) -ge 253 ]] && wg set wg0 peer $(wg show wg0 latest-handshakes | sort -k 2 -b -n | head -n 1 | cut -f 1) remove
 next_ip=$(all="$(wg show wg0 allowed-ips)"; for ((i=2; i<=254; i++)); do ip="192.168.4.$i"; [[ $all != *$ip/32* ]] && echo $ip && break; done)
 wg set wg0 peer "$public_key" allowed-ips $next_ip/32 2>/dev/null && echo "OK:$(wg show wg0 private-key | wg pubkey):$(wg show wg0 listen-port):$next_ip" || echo ERROR
