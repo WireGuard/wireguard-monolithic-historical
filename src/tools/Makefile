@@ -12,12 +12,12 @@ WITH_WGQUICK ?=
 WITH_SYSTEMDUNITS ?=
 
 ifeq ($(WITH_BASHCOMPLETION),)
-ifneq ($(strip $(wildcard $(DESTDIR)$(BASHCOMPDIR))),)
+ifneq ($(strip $(wildcard $(BASHCOMPDIR))),)
 WITH_BASHCOMPLETION := yes
 endif
 endif
 ifeq ($(WITH_WGQUICK),)
-ifneq ($(strip $(wildcard $(DESTDIR)$(BINDIR)/bash)),)
+ifneq ($(strip $(wildcard $(BINDIR)/bash)),)
 WITH_WGQUICK := yes
 endif
 ifneq ($(strip $(wildcard $(DESTDIR)/bin/bash)),)
@@ -25,7 +25,7 @@ WITH_WGQUICK := yes
 endif
 endif
 ifeq ($(WITH_SYSTEMDUNITS),)
-ifneq ($(strip $(wildcard $(DESTDIR)$(SYSTEMDUNITDIR))),)
+ifneq ($(strip $(wildcard $(SYSTEMDUNITDIR))),)
 WITH_SYSTEMDUNITS := yes
 endif
 endif
