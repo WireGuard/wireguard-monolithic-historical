@@ -38,6 +38,9 @@ install: wg
 check: clean
 	CFLAGS=-g scan-build --view --keep-going $(MAKE) wg
 
-.PHONY: clean install check
+help:
+	@cat INSTALL
+
+.PHONY: clean install check help
 
 -include *.d

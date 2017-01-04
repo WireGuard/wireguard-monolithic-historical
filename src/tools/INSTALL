@@ -1,0 +1,34 @@
+Installation Makefile Target
+============================
+
+    # make install
+
+This command takes into account several environment variables:
+
+  * PREFIX               default: /usr
+  * DESTDIR              default:
+  * BINDIR               default: $(PREFIX)/bin
+  * LIBDIR               default: $(PREFIX)/lib
+  * MANDIR               default: $(PREFIX)/share/man
+  * BASHCOMPDIR          default: $(PREFIX)/share/bash-completion/completions
+  * RUNSTATEDIR          default: /var/run
+  * PKG_CONFIG           default: pkg-config
+
+  * WITH_BASHCOMPLETION  default: yes
+  * WITH_WGQUICK         default: yes
+
+The first section is rather standard. The second section is not:
+
+  * WITH_BASHCOMPLETION decides whether or not bash completion files for the
+    tools are installed. This is just a nice thing for people who have bash.
+    If you don't have bash, or don't want this, set the environment variable
+    to `no'.
+
+  * WITH_WGQUICK decides whether or not the wg-quick(8) script is installed.
+    This is a very quick and dirty bash script for reading a few extra
+    variables from wg(8)-style configuration files, and automatically
+    configures the interface. If you don't have bash, you probably don't want
+    this at all. Likewise, if you already have a working network management
+    tool or configuration, you probably want to integrate wg(8) or the direct
+    WireGuard API into your network manager, rather than using wg-quick(8).
+    But for folks who like simple quick&dirty scripts, this is nice.
