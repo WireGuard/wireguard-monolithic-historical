@@ -1,5 +1,0 @@
-Until WireGuard receives full integration to the various network
-management utilities, there are a number of ways of setting up
-a WireGuard tunnel at boot time. This systemd unit file is one
-such way of doing things. Probably it should be tweaked before
-using.

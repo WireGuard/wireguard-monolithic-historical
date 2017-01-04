@@ -14,15 +14,17 @@ This command takes into account several environment variables:
   * RUNSTATEDIR          default: /var/run
   * PKG_CONFIG           default: pkg-config
 
-  * WITH_BASHCOMPLETION  default: yes
-  * WITH_WGQUICK         default: yes
+  * WITH_BASHCOMPLETION  default: [auto-detect]
+  * WITH_WGQUICK         default: [auto-detect]
+  * WITH_SYSTEMDUNITS    default: [auto-detect]
 
 The first section is rather standard. The second section is not:
 
   * WITH_BASHCOMPLETION decides whether or not bash completion files for the
     tools are installed. This is just a nice thing for people who have bash.
     If you don't have bash, or don't want this, set the environment variable
-    to `no'.
+    to `no'. If you'd like to force its use, even if bash-completion isn't
+    detected in DESTDIR, then set it to `yes'.
 
   * WITH_WGQUICK decides whether or not the wg-quick(8) script is installed.
     This is a very quick and dirty bash script for reading a few extra
@@ -31,4 +33,11 @@ The first section is rather standard. The second section is not:
     this at all. Likewise, if you already have a working network management
     tool or configuration, you probably want to integrate wg(8) or the direct
     WireGuard API into your network manager, rather than using wg-quick(8).
-    But for folks who like simple quick&dirty scripts, this is nice.
+    But for folks who like simple quick&dirty scripts, this is nice. If you'd
+    like to force its use, even if bash isn't detected in DESTDIR, then set it
+    to `yes'.
+
+  * WITH_SYSTEMDUNITS decides whether or not systemd units are installed for
+    wg-quick(8). If you don't use systemd, you certainly don't want this, and
+    should set it to `no'. If systemd isn't auto-detected, but you still would
+    like to install it, set this to `yes'.
