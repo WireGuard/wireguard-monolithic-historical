@@ -1,6 +1,7 @@
 PKG_CONFIG ?= pkg-config
 PREFIX ?= /usr
 DESTDIR ?=
+SYSCONFDIR ?= /etc
 BINDIR ?= $(PREFIX)/bin
 LIBDIR ?= $(PREFIX)/lib
 MANDIR ?= $(PREFIX)/share/man
@@ -54,7 +55,7 @@ install: wg
 	@[ "$(WITH_BASHCOMPLETION)" = "yes" ] || exit 0; \
 	install -v -d "$(DESTDIR)$(BASHCOMPDIR)" && install -m 0644 -v completion/wg.bash-completion "$(DESTDIR)$(BASHCOMPDIR)/wg"
 	@[ "$(WITH_WGQUICK)" = "yes" ] || exit 0; \
-	install -m 0755 -v wg-quick.bash "$(DESTDIR)$(BINDIR)/wg-quick"
+	install -m 0755 -v wg-quick.bash "$(DESTDIR)$(BINDIR)/wg-quick" && install -m 0700 -v -d "$(DESTDIR)$(SYSCONFDIR)/wireguard"
 	@[ "$(WITH_WGQUICK)" = "yes" ] || exit 0; \
 	install -m 0644 -v wg-quick.8 "$(DESTDIR)$(MANDIR)/man8/wg-quick.8"
 	@[ "$(WITH_WGQUICK)" = "yes" -a "$(WITH_BASHCOMPLETION)" = "yes" ] || exit 0; \
