@@ -179,6 +179,10 @@ static int userspace_set_device(struct wgdevice *dev)
 	ret = read(fd, &ret_code, sizeof(ret_code));
 	if (ret < 0)
 		goto out;
+	if (ret != sizeof(ret_code)) {
+		ret = -EBADMSG;
+		goto out;
+	}
 	ret = ret_code;
 out:
 	close(fd);
