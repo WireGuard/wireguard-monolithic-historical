@@ -77,6 +77,8 @@ typedef int32_t __s32;
 #include <linux/time.h>
 #include <linux/socket.h>
 #else
+#include <net/if.h>
+#include <netinet/in.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #endif
