@@ -33,7 +33,7 @@ endif
 
 CFLAGS ?= -O3
 CFLAGS += -std=gnu11
-CFLAGS += -pedantic -Wall -Wextra
+CFLAGS += -Wall -Wextra
 CFLAGS += -MMD -MP
 CFLAGS += -DRUNSTATEDIR="\"$(RUNSTATEDIR)\""
 LDLIBS += -lresolv
