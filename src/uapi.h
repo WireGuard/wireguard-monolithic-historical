@@ -105,7 +105,11 @@ struct wgpeer {
 	__u8 public_key[WG_KEY_LEN]; /* Get/Set */
 	__u32 flags; /* Set */
 
-	struct sockaddr_storage endpoint; /* Get/Set */
+	union {
+		struct sockaddr addr;
+		struct sockaddr_in addr4;
+		struct sockaddr_in6 addr6;
+	} endpoint; /* Get/Set */
 
 	struct timeval last_handshake_time; /* Get */
 	__u64 rx_bytes, tx_bytes; /* Get */

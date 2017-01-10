@@ -75,18 +75,18 @@ int showconf_main(int argc, char *argv[])
 		if (peer->num_ipmasks)
 			printf("\n");
 
-		if (peer->endpoint.ss_family == AF_INET || peer->endpoint.ss_family == AF_INET6) {
+		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6) {
 			char host[4096 + 1];
 			char service[512 + 1];
 			static char buf[sizeof(host) + sizeof(service) + 4];
 			socklen_t addr_len = 0;
 			memset(buf, 0, sizeof(buf));
-			if (peer->endpoint.ss_family == AF_INET)
+			if (peer->endpoint.addr.sa_family == AF_INET)
 				addr_len = sizeof(struct sockaddr_in);
-			else if (peer->endpoint.ss_family == AF_INET6)
+			else if (peer->endpoint.addr.sa_family == AF_INET6)
 				addr_len = sizeof(struct sockaddr_in6);
-			if (!getnameinfo((struct sockaddr *)&peer->endpoint, addr_len, host, sizeof(host), service, sizeof(service), NI_DGRAM | NI_NUMERICSERV | NI_NUMERICHOST)) {
-				snprintf(buf, sizeof(buf) - 1, (peer->endpoint.ss_family == AF_INET6 && strchr(host, ':')) ? "[%s]:%s" : "%s:%s", host, service);
+			if (!getnameinfo(&peer->endpoint.addr, addr_len, host, sizeof(host), service, sizeof(service), NI_DGRAM | NI_NUMERICSERV | NI_NUMERICHOST)) {
+				snprintf(buf, sizeof(buf) - 1, (peer->endpoint.addr.sa_family == AF_INET6 && strchr(host, ':')) ? "[%s]:%s" : "%s:%s", host, service);
 				printf("Endpoint = %s\n", buf);
 			}
 		}

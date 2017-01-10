@@ -107,7 +107,7 @@ static char *ip(const struct wgipmask *ip)
 	return buf;
 }
 
-static char *endpoint(const struct sockaddr_storage *addr)
+static char *endpoint(const struct sockaddr *addr)
 {
 	char host[4096 + 1];
 	char service[512 + 1];
@@ -116,16 +116,16 @@ static char *endpoint(const struct sockaddr_storage *addr)
 	socklen_t addr_len = 0;
 
 	memset(buf, 0, sizeof(buf));
-	if (addr->ss_family == AF_INET)
+	if (addr->sa_family == AF_INET)
 		addr_len = sizeof(struct sockaddr_in);
-	else if (addr->ss_family == AF_INET6)
+	else if (addr->sa_family == AF_INET6)
 		addr_len = sizeof(struct sockaddr_in6);
 
-	ret = getnameinfo((struct sockaddr *)addr, addr_len, host, sizeof(host), service, sizeof(service), NI_DGRAM | NI_NUMERICSERV | NI_NUMERICHOST);
+	ret = getnameinfo(addr, addr_len, host, sizeof(host), service, sizeof(service), NI_DGRAM | NI_NUMERICSERV | NI_NUMERICHOST);
 	if (ret)
 		strncpy(buf, gai_strerror(ret), sizeof(buf) - 1);
 	else
-		snprintf(buf, sizeof(buf) - 1, (addr->ss_family == AF_INET6 && strchr(host, ':')) ? "[%s]:%s" : "%s:%s", host, service);
+		snprintf(buf, sizeof(buf) - 1, (addr->sa_family == AF_INET6 && strchr(host, ':')) ? "[%s]:%s" : "%s:%s", host, service);
 	return buf;
 }
 
@@ -228,8 +228,8 @@ static void pretty_print(struct wgdevice *device)
 	}
 	for_each_wgpeer(device, peer, i) {
 		terminal_printf(TERMINAL_FG_YELLOW TERMINAL_BOLD "peer" TERMINAL_RESET ": " TERMINAL_FG_YELLOW "%s" TERMINAL_RESET "\n", key(peer->public_key));
-		if (peer->endpoint.ss_family == AF_INET || peer->endpoint.ss_family == AF_INET6)
-			terminal_printf("  " TERMINAL_BOLD "endpoint" TERMINAL_RESET ": %s\n", endpoint(&peer->endpoint));
+		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6)
+			terminal_printf("  " TERMINAL_BOLD "endpoint" TERMINAL_RESET ": %s\n", endpoint(&peer->endpoint.addr));
 		terminal_printf("  " TERMINAL_BOLD "allowed ips" TERMINAL_RESET ": ");
 		if (peer->num_ipmasks) {
 			for_each_wgipmask(peer, ipmask, j)
@@ -276,8 +276,8 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 			printf("%s\t", device->interface);
 		for_each_wgpeer(device, peer, i) {
 			printf("%s\t", key(peer->public_key));
-			if (peer->endpoint.ss_family == AF_INET || peer->endpoint.ss_family == AF_INET6)
-				printf("%s\n", endpoint(&peer->endpoint));
+			if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6)
+				printf("%s\n", endpoint(&peer->endpoint.addr));
 			else
 				printf("(none)\n");
 		}

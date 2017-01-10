@@ -74,12 +74,9 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 		goto out;
 	}
 
-	if (in_peer.endpoint.ss_family == AF_INET || in_peer.endpoint.ss_family == AF_INET6) {
-		struct endpoint endpoint = { { { 0 } } };
-		if (in_peer.endpoint.ss_family == AF_INET)
-			endpoint.addr4 = *(struct sockaddr_in *)&in_peer.endpoint;
-		else if (in_peer.endpoint.ss_family == AF_INET6)
-			endpoint.addr6 = *(struct sockaddr_in6 *)&in_peer.endpoint;
+	if (in_peer.endpoint.addr.sa_family == AF_INET || in_peer.endpoint.addr.sa_family == AF_INET6) {
+		struct endpoint endpoint = { 0 };
+		memcpy(&endpoint, &in_peer.endpoint, sizeof(in_peer.endpoint));
 		socket_set_peer_endpoint(peer, &endpoint);
 	}
 
@@ -242,9 +239,9 @@ static int populate_peer(struct wireguard_peer *peer, void *ctx)
 	memcpy(out_peer.public_key, peer->handshake.remote_static, NOISE_PUBLIC_KEY_LEN);
 	read_lock_bh(&peer->endpoint_lock);
 	if (peer->endpoint.addr.sa_family == AF_INET)
-		*(struct sockaddr_in *)&out_peer.endpoint = peer->endpoint.addr4;
+		out_peer.endpoint.addr4 = peer->endpoint.addr4;
 	else if (peer->endpoint.addr.sa_family == AF_INET6)
-		*(struct sockaddr_in6 *)&out_peer.endpoint = peer->endpoint.addr6;
+		out_peer.endpoint.addr6 = peer->endpoint.addr6;
 	read_unlock_bh(&peer->endpoint_lock);
 	out_peer.last_handshake_time = peer->walltime_last_handshake;
 	out_peer.tx_bytes = peer->tx_bytes;

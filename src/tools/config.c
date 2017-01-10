@@ -119,7 +119,7 @@ static inline bool parse_ip(struct wgipmask *ipmask, const char *value)
 	return true;
 }
 
-static inline bool parse_endpoint(struct sockaddr_storage *endpoint, const char *value)
+static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 {
 	char *mutable = strdup(value);
 	char *begin, *end;
@@ -293,7 +293,7 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 			goto error;
 	} else if (ctx->is_peer_section) {
 		if (key_match("Endpoint"))
-			ret = parse_endpoint(&peer_from_offset(ctx->buf.dev, ctx->peer_offset)->endpoint, value);
+			ret = parse_endpoint(&peer_from_offset(ctx->buf.dev, ctx->peer_offset)->endpoint.addr, value);
 		else if (key_match("PublicKey"))
 			ret = parse_key(peer_from_offset(ctx->buf.dev, ctx->peer_offset)->public_key, value);
 		else if (key_match("AllowedIPs"))
@@ -500,7 +500,7 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 			argv += 1;
 			argc -= 1;
 		} else if (!strcmp(argv[0], "endpoint") && argc >= 2 && buf.dev->num_peers) {
-			if (!parse_endpoint(&peer_from_offset(buf.dev, peer_offset)->endpoint, argv[1]))
+			if (!parse_endpoint(&peer_from_offset(buf.dev, peer_offset)->endpoint.addr, argv[1]))
 				goto error;
 			argv += 2;
 			argc -= 2;
