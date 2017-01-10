@@ -59,7 +59,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 
 	peer = pubkey_hashtable_lookup(&wg->peer_hashtable, in_peer.public_key);
 	if (!peer) { /* Peer doesn't exist yet. Add a new one. */
-		if (in_peer.remove_me)
+		if (in_peer.flags & WGPEER_REMOVE_ME)
 			return -ENODEV; /* Tried to remove a non existing peer. */
 		peer = peer_rcu_get(peer_create(wg, in_peer.public_key));
 		if (!peer)
@@ -68,7 +68,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 			timers_init_peer(peer);
 	}
 
-	if (in_peer.remove_me) {
+	if (in_peer.flags & WGPEER_REMOVE_ME) {
 		peer_put(peer);
 		peer_remove(peer);
 		goto out;
@@ -83,7 +83,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 		socket_set_peer_endpoint(peer, &endpoint);
 	}
 
-	if (in_peer.replace_ipmasks)
+	if (in_peer.flags & WGPEER_REPLACE_IPMASKS)
 		routing_table_remove_by_peer(&wg->peer_routing_table, peer);
 	for (i = 0, user_ipmask = user_peer + sizeof(struct wgpeer); i < in_peer.num_ipmasks; ++i, user_ipmask += sizeof(struct wgipmask)) {
 		ret = set_ipmask(peer, user_ipmask);
@@ -134,10 +134,10 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 			goto out;
 	}
 
-	if (in_device.replace_peer_list)
+	if (in_device.flags & WGDEVICE_REPLACE_PEERS)
 		peer_remove_all(wg);
 
-	if (in_device.remove_private_key) {
+	if (in_device.flags & WGDEVICE_REMOVE_PRIVATE_KEY) {
 		noise_set_static_identity_private_key(&wg->static_identity, NULL);
 		modified_static_identity = true;
 	} else if (memcmp(zeros, in_device.private_key, WG_KEY_LEN)) {
@@ -145,7 +145,7 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 		modified_static_identity = true;
 	}
 
-	if (in_device.remove_preshared_key) {
+	if (in_device.flags & WGDEVICE_REMOVE_PRESHARED_KEY) {
 		noise_set_static_identity_preshared_key(&wg->static_identity, NULL);
 		modified_static_identity = true;
 	} else if (memcmp(zeros, in_device.preshared_key, WG_KEY_LEN)) {

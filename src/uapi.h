@@ -48,13 +48,13 @@
  *                 struct wgipmask
  *             struct wgpeer { .num_ipmasks = 0 }
  *
- *     If `wgdevice->replace_peer_list` is true, removes all peers of device before adding new ones.
- *     If `wgpeer->remove_me` is true, the peer identified by `wgpeer->public_key` is removed.
- *     If `wgpeer->replace_ipmasks` is true, removes all ipmasks before adding new ones.
+ *     If `wgdevice->flags & WGDEVICE_REPLACE_PEERS` is true, removes all peers of device before adding new ones.
+ *     If `wgpeer->flags & WGPEER_REMOVE_ME` is true, the peer identified by `wgpeer->public_key` is removed.
+ *     If `wgpeer->flags & WGPEER_REPLACE_IPMASKS` is true, removes all ipmasks before adding new ones.
  *     If `wgdevice->private_key` is filled with zeros, no action is taken on the private key.
  *     If `wgdevice->preshared_key` is filled with zeros, no action is taken on the pre-shared key.
- *     If `wgdevice->remove_private_key` is true, the private key is removed.
- *     If `wgdevice->remove_preshared_key` is true, the pre-shared key is removed.
+ *     If `wgdevice->flags & WGDEVICE_REMOVE_PRIVATE_KEY` is true, the private key is removed.
+ *     If `wgdevice->flags & WGDEVICE_REMOVE_PRESHARED_KEY` is true, the pre-shared key is removed.
  *
  *     Returns 0 on success, or -errno if an error occurred.
  */
@@ -97,33 +97,36 @@ struct wgipmask {
 	__u8 cidr;
 };
 
+enum {
+	WGPEER_REMOVE_ME = (1 << 0),
+	WGPEER_REPLACE_IPMASKS = (1 << 1)
+};
 struct wgpeer {
 	__u8 public_key[WG_KEY_LEN]; /* Get/Set */
+	__u32 flags; /* Set */
 
 	struct sockaddr_storage endpoint; /* Get/Set */
 
 	struct timeval last_handshake_time; /* Get */
 	__u64 rx_bytes, tx_bytes; /* Get */
-
-	__u32 remove_me : 1; /* Set */
-	__u32 replace_ipmasks : 1; /* Set */
+	__u16 persistent_keepalive_interval; /* Get/Set -- 0 = off, 0xffff = unset */
 
 	__u16 num_ipmasks; /* Get/Set */
-	__u16 persistent_keepalive_interval; /* Get/Set -- 0 = off, 0xffff = unset */
 };
 
+enum {
+	WGDEVICE_REPLACE_PEERS = (1 << 0),
+	WGDEVICE_REMOVE_PRIVATE_KEY = (1 << 1),
+	WGDEVICE_REMOVE_PRESHARED_KEY = (1 << 2)
+};
 struct wgdevice {
 	char interface[IFNAMSIZ]; /* Get */
+	__u32 flags; /* Set */
 
 	__u8 public_key[WG_KEY_LEN]; /* Get */
 	__u8 private_key[WG_KEY_LEN]; /* Get/Set */
 	__u8 preshared_key[WG_KEY_LEN]; /* Get/Set */
-
 	__u16 port; /* Get/Set */
-
-	__u32 replace_peer_list : 1; /* Set */
-	__u32 remove_private_key : 1; /* Set */
-	__u32 remove_preshared_key : 1; /* Set */
 
 	union {
 		__u16 num_peers; /* Get/Set */
