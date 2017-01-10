@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
+/* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
 #ifdef DEBUG
 static inline struct in_addr *ip4(u8 a, u8 b, u8 c, u8 d)

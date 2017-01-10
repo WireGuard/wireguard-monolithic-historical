@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+# Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
 set -e
 [[ $UID == 0 ]] || { echo "You must be root to run this."; exit 1; }

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+# Copyright (C) 2016-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 #
 
 set -e -o pipefail

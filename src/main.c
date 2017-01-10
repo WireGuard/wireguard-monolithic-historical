@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
+/* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
 #include "version.h"
 #include "device.h"
@@ -40,7 +40,7 @@ static int __init mod_init(void)
 		goto err_device;
 
 	pr_info("WireGuard " WIREGUARD_VERSION " loaded. See www.wireguard.io for information.\n");
-	pr_info("Copyright (C) 2015-2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.\n");
+	pr_info("Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.\n");
 
 	return 0;
 
