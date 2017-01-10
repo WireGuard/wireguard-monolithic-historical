@@ -80,7 +80,7 @@ add_if() {
 del_if() {
 	if [[ $(ip route show table all) =~ .*\ dev\ $INTERFACE\ table\ ([0-9]+)\ .* ]]; then
 		cmd ip rule delete table "${BASH_REMATCH[1]}"
-		cmd ip rule delete table main suppress_prefixlength 0 2>/dev/null
+		[[ $(ip rule show table main) == *"from all lookup main suppress_prefixlength 0"* ]] && cmd ip rule delete table main suppress_prefixlength 0
 	fi
 	cmd ip link delete dev "$INTERFACE"
 }
