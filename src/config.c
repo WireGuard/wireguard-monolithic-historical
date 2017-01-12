@@ -221,7 +221,6 @@ static int populate_ipmask(void *ctx, union nf_inet_addr ip, u8 cidr, int family
 	return ret;
 }
 
-
 static int populate_peer(struct wireguard_peer *peer, void *ctx)
 {
 	int ret = 0;
@@ -261,7 +260,6 @@ static int populate_peer(struct wireguard_peer *peer, void *ctx)
 		ret = -EFAULT;
 	return ret;
 }
-
 
 int config_get_device(struct wireguard_device *wg, void __user *udevice)
 {
