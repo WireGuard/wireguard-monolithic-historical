@@ -24,8 +24,8 @@
 
 static const u8 handshake_name[33] = "Noise_IK_25519_ChaChaPoly_BLAKE2s";
 static const u8 handshake_psk_name[36] = "NoisePSK_IK_25519_ChaChaPoly_BLAKE2s";
-static u8 handshake_name_hash[NOISE_HASH_LEN];
-static u8 handshake_psk_name_hash[NOISE_HASH_LEN];
+static u8 handshake_name_hash[NOISE_HASH_LEN] __read_mostly;
+static u8 handshake_psk_name_hash[NOISE_HASH_LEN] __read_mostly;
 static const u8 identifier_name[34] = "WireGuard v0 zx2c4 Jason@zx2c4.com";
 static atomic64_t keypair_counter = ATOMIC64_INIT(0);
 

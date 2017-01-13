@@ -8,9 +8,9 @@
 #include <linux/netfilter/x_tables.h>
 #include <net/ip.h>
 
-static struct xt_match *v4_match;
+static struct xt_match *v4_match __read_mostly;
 #if IS_ENABLED(CONFIG_IPV6)
-static struct xt_match *v6_match;
+static struct xt_match *v6_match __read_mostly;
 #endif
 
 enum {
