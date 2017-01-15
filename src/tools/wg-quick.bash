@@ -102,7 +102,7 @@ add_route() {
 }
 
 add_default() {
-	[[ $(join <(wg show "$INTERFACE" allowed-ips) <(wg show "$INTERFACE" endpoints)) =~ .*\ ${1//./\\.}\ ([0-9.:a-f]+):[0-9]+$ ]] && local endpoint="${BASH_REMATCH[1]}"
+	[[ $(join <(wg show "$INTERFACE" allowed-ips) <(wg show "$INTERFACE" endpoints)) =~ .*\ ${1//./\\.}\ \[?([0-9.:a-f]+)\]?:[0-9]+$ ]] && local endpoint="${BASH_REMATCH[1]}"
 	[[ -n $endpoint ]] || return 0
 	local table=51820
 	while [[ -n $(ip route show table $table) ]]; do ((table++)); done
