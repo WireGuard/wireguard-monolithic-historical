@@ -94,7 +94,7 @@ traffic:
 .br
     \fBAddress = 10.200.100.8/24\fP
 .br
-    \fBPostUp = echo nameserver 10.200.100.1 | resolvconf -a %i -m 0\fP
+    \fBPostUp = echo nameserver 10.200.100.1 | resolvconf -a %i -m 0 -x\fP
 .br
     \fBPostDown = resolvconf -d %i\fP
 .br
