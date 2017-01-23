@@ -153,26 +153,11 @@ void timers_any_authenticated_packet_traversal(struct wireguard_peer *peer)
 
 void timers_init_peer(struct wireguard_peer *peer)
 {
-	init_timer(&peer->timer_retransmit_handshake);
-	peer->timer_retransmit_handshake.function = expired_retransmit_handshake;
-	peer->timer_retransmit_handshake.data = (unsigned long)peer;
-
-	init_timer(&peer->timer_send_keepalive);
-	peer->timer_send_keepalive.function = expired_send_keepalive;
-	peer->timer_send_keepalive.data = (unsigned long)peer;
-
-	init_timer(&peer->timer_new_handshake);
-	peer->timer_new_handshake.function = expired_new_handshake;
-	peer->timer_new_handshake.data = (unsigned long)peer;
-
-	init_timer(&peer->timer_kill_ephemerals);
-	peer->timer_kill_ephemerals.function = expired_kill_ephemerals;
-	peer->timer_kill_ephemerals.data = (unsigned long)peer;
-
-	init_timer(&peer->timer_persistent_keepalive);
-	peer->timer_persistent_keepalive.function = expired_send_persistent_keepalive;
-	peer->timer_persistent_keepalive.data = (unsigned long)peer;
-
+	setup_timer(&peer->timer_retransmit_handshake, expired_retransmit_handshake, (unsigned long)peer);
+	setup_timer(&peer->timer_send_keepalive, expired_send_keepalive, (unsigned long)peer);
+	setup_timer(&peer->timer_new_handshake, expired_new_handshake, (unsigned long)peer);
+	setup_timer(&peer->timer_kill_ephemerals, expired_kill_ephemerals, (unsigned long)peer);
+	setup_timer(&peer->timer_persistent_keepalive, expired_send_persistent_keepalive, (unsigned long)peer);
 	INIT_WORK(&peer->clear_peer_work, queued_expired_kill_ephemerals);
 }
 
