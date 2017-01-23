@@ -43,6 +43,7 @@ struct wireguard_peer {
 	struct timer_list timer_retransmit_handshake, timer_send_keepalive, timer_new_handshake, timer_kill_ephemerals, timer_persistent_keepalive;
 	unsigned int timer_handshake_attempts;
 	unsigned long persistent_keepalive_interval;
+	bool timers_enabled;
 	bool timer_need_another_keepalive;
 	bool need_resend_queue;
 	bool sent_lastminute_handshake;

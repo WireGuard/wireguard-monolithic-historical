@@ -35,7 +35,7 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		skb_queue_purge(&peer->tx_packet_queue);
 		/* We set a timer for destroying any residue that might be left
 		 * of a partial exchange. */
-		if (likely(peer->timer_kill_ephemerals.data))
+		if (likely(peer->timers_enabled))
 			mod_timer(&peer->timer_kill_ephemerals, jiffies + (REJECT_AFTER_TIME * 3));
 		goto out;
 	}
@@ -55,7 +55,8 @@ static void expired_send_keepalive(unsigned long ptr)
 	packet_send_keepalive(peer);
 	if (peer->timer_need_another_keepalive) {
 		peer->timer_need_another_keepalive = false;
-		mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
+		if (peer->timers_enabled)
+			mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
 	}
 	peer_put(peer);
 }
@@ -96,17 +97,17 @@ static void expired_send_persistent_keepalive(unsigned long ptr)
 /* Should be called after an authenticated data packet is sent. */
 void timers_data_sent(struct wireguard_peer *peer)
 {
-	if (likely(peer->timer_send_keepalive.data))
+	if (likely(peer->timers_enabled))
 		del_timer(&peer->timer_send_keepalive);
 
-	if (likely(peer->timer_new_handshake.data) && !timer_pending(&peer->timer_new_handshake))
+	if (likely(peer->timers_enabled) && !timer_pending(&peer->timer_new_handshake))
 		mod_timer(&peer->timer_new_handshake, jiffies + KEEPALIVE_TIMEOUT + REKEY_TIMEOUT);
 }
 
 /* Should be called after an authenticated data packet is received. */
 void timers_data_received(struct wireguard_peer *peer)
 {
-	if (likely(peer->timer_send_keepalive.data) && !timer_pending(&peer->timer_send_keepalive))
+	if (likely(peer->timers_enabled) && !timer_pending(&peer->timer_send_keepalive))
 		mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
 	else
 		peer->timer_need_another_keepalive = true;
@@ -115,23 +116,23 @@ void timers_data_received(struct wireguard_peer *peer)
 /* Should be called after any type of authenticated packet is received -- keepalive or data. */
 void timers_any_authenticated_packet_received(struct wireguard_peer *peer)
 {
-	if (likely(peer->timer_new_handshake.data))
+	if (likely(peer->timers_enabled))
 		del_timer(&peer->timer_new_handshake);
 }
 
 /* Should be called after a handshake initiation message is sent. */
 void timers_handshake_initiated(struct wireguard_peer *peer)
 {
-	if (likely(peer->timer_send_keepalive.data))
+	if (likely(peer->timers_enabled))
 		del_timer(&peer->timer_send_keepalive);
-	if (likely(peer->timer_retransmit_handshake.data))
+	if (likely(peer->timers_enabled))
 		mod_timer(&peer->timer_retransmit_handshake, slack_time(jiffies + REKEY_TIMEOUT + prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX)));
 }
 
 /* Should be called after a handshake response message is received and processed. */
 void timers_handshake_complete(struct wireguard_peer *peer)
 {
-	if (likely(peer->timer_retransmit_handshake.data))
+	if (likely(peer->timers_enabled))
 		del_timer(&peer->timer_retransmit_handshake);
 	peer->timer_handshake_attempts = 0;
 }
@@ -139,7 +140,7 @@ void timers_handshake_complete(struct wireguard_peer *peer)
 /* Should be called after an ephemeral key is created, which is before sending a handshake response or after receiving a handshake response. */
 void timers_ephemeral_key_created(struct wireguard_peer *peer)
 {
-	if (likely(peer->timer_kill_ephemerals.data))
+	if (likely(peer->timers_enabled))
 		mod_timer(&peer->timer_kill_ephemerals, jiffies + (REJECT_AFTER_TIME * 3));
 	do_gettimeofday(&peer->walltime_last_handshake);
 }
@@ -147,12 +148,13 @@ void timers_ephemeral_key_created(struct wireguard_peer *peer)
 /* Should be called before an packet with authentication -- data, keepalive, either handshake -- is sent, or after one is received. */
 void timers_any_authenticated_packet_traversal(struct wireguard_peer *peer)
 {
-	if (peer->persistent_keepalive_interval && likely(peer->timer_persistent_keepalive.data))
+	if (peer->persistent_keepalive_interval && likely(peer->timers_enabled))
 		mod_timer(&peer->timer_persistent_keepalive, slack_time(jiffies + peer->persistent_keepalive_interval));
 }
 
 void timers_init_peer(struct wireguard_peer *peer)
 {
+	peer->timers_enabled = true;
 	setup_timer(&peer->timer_retransmit_handshake, expired_retransmit_handshake, (unsigned long)peer);
 	setup_timer(&peer->timer_send_keepalive, expired_send_keepalive, (unsigned long)peer);
 	setup_timer(&peer->timer_new_handshake, expired_new_handshake, (unsigned long)peer);
@@ -163,29 +165,14 @@ void timers_init_peer(struct wireguard_peer *peer)
 
 void timers_uninit_peer(struct wireguard_peer *peer)
 {
-	if (peer->timer_retransmit_handshake.data) {
-		del_timer(&peer->timer_retransmit_handshake);
-		peer->timer_retransmit_handshake.data = 0;
-	}
-	if (peer->timer_send_keepalive.data) {
-		del_timer(&peer->timer_send_keepalive);
-		peer->timer_send_keepalive.data = 0;
-	}
-	if (peer->timer_new_handshake.data) {
-		del_timer(&peer->timer_new_handshake);
-		peer->timer_new_handshake.data = 0;
-	}
-	if (peer->timer_kill_ephemerals.data) {
-		del_timer(&peer->timer_kill_ephemerals);
-		peer->timer_kill_ephemerals.data = 0;
-	}
-	if (peer->timer_persistent_keepalive.data) {
-		del_timer(&peer->timer_persistent_keepalive);
-		peer->timer_persistent_keepalive.data = 0;
-	}
-}
-void timers_uninit_peer_wait(struct wireguard_peer *peer)
-{
-	timers_uninit_peer(peer);
+	if (!peer->timers_enabled)
+		return;
+	peer->timers_enabled = false;
+	wmb();
+	del_timer_sync(&peer->timer_retransmit_handshake);
+	del_timer_sync(&peer->timer_send_keepalive);
+	del_timer_sync(&peer->timer_new_handshake);
+	del_timer_sync(&peer->timer_kill_ephemerals);
+	del_timer_sync(&peer->timer_persistent_keepalive);
 	flush_work(&peer->clear_peer_work);
 }

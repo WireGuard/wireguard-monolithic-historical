@@ -53,7 +53,7 @@ static int clear_noise_peer(struct wireguard_peer *peer, void *data)
 {
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
-	if (peer->timer_kill_ephemerals.data)
+	if (peer->timers_enabled)
 		del_timer(&peer->timer_kill_ephemerals);
 	return 0;
 }
@@ -72,7 +72,7 @@ static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long
 
 static int stop_peer(struct wireguard_peer *peer, void *data)
 {
-	timers_uninit_peer_wait(peer);
+	timers_uninit_peer(peer);
 	clear_noise_peer(peer, data);
 	return 0;
 }

@@ -7,7 +7,6 @@ struct wireguard_peer;
 
 void timers_init_peer(struct wireguard_peer *peer);
 void timers_uninit_peer(struct wireguard_peer *peer);
-void timers_uninit_peer_wait(struct wireguard_peer *peer);
 
 void timers_data_sent(struct wireguard_peer *peer);
 void timers_data_received(struct wireguard_peer *peer);
