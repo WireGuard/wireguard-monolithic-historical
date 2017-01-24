@@ -36,7 +36,7 @@ Sub-commands that take an INTERFACE must be passed a WireGuard interface.
 .SH COMMANDS
 
 .TP
-\fBshow\fP { \fI<interface>\fP | \fIall\fP | \fIinterfaces\fP } [\fIpublic-key\fP | \fIprivate-key\fP | \fIpreshared-key\fP | \fIlisten-port\fP | \fIpeers\fP | \fIendpoints\fP | \fIallowed-ips\fP | \fIlatest-handshakes\fP | \fIpersistent-keepalive\fP | \fItransfer\fP]
+\fBshow\fP { \fI<interface>\fP | \fIall\fP | \fIinterfaces\fP } [\fIpublic-key\fP | \fIprivate-key\fP | \fIpreshared-key\fP | \fIlisten-port\fP | \fIfwmark\fP | \fIpeers\fP | \fIendpoints\fP | \fIallowed-ips\fP | \fIlatest-handshakes\fP | \fIpersistent-keepalive\fP | \fItransfer\fP]
 Shows current WireGuard configuration of specified \fI<interface>\fP.
 If no \fI<interface>\fP is specified, \fI<interface>\fP defaults to \fIall\fP.
 If \fIinterfaces\fP is specified, prints a list of all WireGuard interfaces,
@@ -49,7 +49,7 @@ newlines and tabs, meant to be used in scripts.
 Shows the current configuration of \fI<interface>\fP in the format described
 by \fICONFIGURATION FILE FORMAT\fP below.
 .TP
-\fBset\fP \fI<interface>\fP [\fIlisten-port\fP \fI<port>\fP] [\fIprivate-key\fP \fI<file-path>\fP] [\fIpreshared-key\fP \fI<file-path>\fP] [\fIpeer\fP \fI<base64-public-key>\fP [\fIremove\fP] [\fIendpoint\fP \fI<ip>:<port>\fP] [\fIpersistent-keepalive\fP \fI<interval seconds>\fP] [\fIallowed-ips\fP \fI<ip1>/<cidr1>\fP[,\fI<ip2>/<cidr2>\fP]...] ]...
+\fBset\fP \fI<interface>\fP [\fIlisten-port\fP \fI<port>\fP] [\fIfwmark\fP \fI<fwmark>\fP] [\fIprivate-key\fP \fI<file-path>\fP] [\fIpreshared-key\fP \fI<file-path>\fP] [\fIpeer\fP \fI<base64-public-key>\fP [\fIremove\fP] [\fIendpoint\fP \fI<ip>:<port>\fP] [\fIpersistent-keepalive\fP \fI<interval seconds>\fP] [\fIallowed-ips\fP \fI<ip1>/<cidr1>\fP[,\fI<ip2>/<cidr2>\fP]...] ]...
 Sets configuration values for the specified \fI<interface>\fP. Multiple
 \fIpeer\fPs may be specified, and if the \fIremove\fP argument is given
 for a peer, that peer is removed, not configured. If \fIlisten-port\fP
@@ -125,6 +125,8 @@ for post-quantum resistance.
 .IP \(bu
 ListenPort \(em a 16-bit port for listening. Optional; if not specified, chosen
 randomly.
+.IP \(bu
+FwMark \(em a 32-bit fwmark for outgoing packets. Optional.
 .P
 The \fIPeer\fP sections may contain the following fields:
 .IP \(bu

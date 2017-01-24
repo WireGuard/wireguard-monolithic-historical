@@ -203,7 +203,7 @@ static char *bytes(uint64_t b)
 static const char *COMMAND_NAME = NULL;
 static void show_usage(void)
 {
-	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | preshared-key | listen-port | peers | endpoints | allowed-ips | latest-handshakes | transfer | persistent-keepalive]\n", PROG_NAME, COMMAND_NAME);
+	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | preshared-key | listen-port | fwmark | peers | endpoints | allowed-ips | latest-handshakes | transfer | persistent-keepalive]\n", PROG_NAME, COMMAND_NAME);
 }
 
 static void pretty_print(struct wgdevice *device)
@@ -222,6 +222,8 @@ static void pretty_print(struct wgdevice *device)
 		terminal_printf("  " TERMINAL_BOLD "pre-shared key" TERMINAL_RESET ": %s\n", masked_key(device->preshared_key));
 	if (device->port)
 		terminal_printf("  " TERMINAL_BOLD "listening port" TERMINAL_RESET ": %u\n", device->port);
+	if (device->fwmark)
+		terminal_printf("  " TERMINAL_BOLD "fwmark" TERMINAL_RESET ": 0x%x\n", device->fwmark);
 	if (device->num_peers) {
 		sort_peers(device);
 		terminal_printf("\n");
@@ -271,6 +273,10 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 		if (with_interface)
 			printf("%s\t", device->interface);
 		printf("%u\n", device->port);
+	} else if (!strcmp(param, "fwmark")) {
+		if (with_interface)
+			printf("%s\t", device->interface);
+		printf("0x%x\n", device->fwmark);
 	} else if (!strcmp(param, "endpoints")) {
 		if (with_interface)
 			printf("%s\t", device->interface);

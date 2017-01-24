@@ -44,7 +44,9 @@ int showconf_main(int argc, char *argv[])
 
 	printf("[Interface]\n");
 	if (device->port)
-		printf("ListenPort = %d\n", device->port);
+		printf("ListenPort = %u\n", device->port);
+	if (device->fwmark)
+		printf("FwMark = 0x%x\n", device->fwmark);
 	if (memcmp(device->private_key, zero, WG_KEY_LEN)) {
 		b64_ntop(device->private_key, WG_KEY_LEN, b64, b64_len(WG_KEY_LEN));
 		printf("PrivateKey = %s\n", b64);

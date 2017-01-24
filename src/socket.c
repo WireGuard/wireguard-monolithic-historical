@@ -20,6 +20,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 		.daddr = endpoint->addr4.sin_addr.s_addr,
 		.fl4_dport = endpoint->addr4.sin_port,
 		.fl4_sport = htons(wg->incoming_port),
+		.flowi4_mark = wg->fwmark,
 		.flowi4_proto = IPPROTO_UDP
 	};
 	struct rtable *rt = NULL;
@@ -62,7 +63,6 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 		if (cache)
 			dst_cache_set_ip4(cache, &rt->dst, fl.saddr);
 	}
-
 	udp_tunnel_xmit_skb(rt, sock, skb,
 			    fl.saddr, fl.daddr,
 			    ds, ip4_dst_hoplimit(&rt->dst), 0,
@@ -85,6 +85,7 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 		.daddr = endpoint->addr6.sin6_addr,
 		.fl6_dport = endpoint->addr6.sin6_port,
 		.fl6_sport = htons(wg->incoming_port),
+		.flowi6_mark = wg->fwmark,
 		.flowi6_oif = endpoint->addr6.sin6_scope_id,
 		.flowi6_proto = IPPROTO_UDP
 		/* TODO: addr->sin6_flowinfo */

@@ -125,6 +125,11 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 		goto out;
 	}
 
+	if (in_device.fwmark || (!in_device.fwmark && (in_device.flags & WGDEVICE_REMOVE_FWMARK))) {
+		wg->fwmark = in_device.fwmark;
+		peer_for_each_unlocked(wg, clear_peer_endpoint_src, NULL);
+	}
+
 	if (in_device.port) {
 		ret = set_device_port(wg, in_device.port);
 		if (ret)
@@ -287,6 +292,7 @@ int config_get_device(struct wireguard_device *wg, void __user *udevice)
 	}
 
 	out_device.port = wg->incoming_port;
+	out_device.fwmark = wg->fwmark;
 	strncpy(out_device.interface, dev->name, IFNAMSIZ - 1);
 	out_device.interface[IFNAMSIZ - 1] = 0;
 

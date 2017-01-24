@@ -78,10 +78,15 @@ add_if() {
 }
 
 del_if() {
-	if [[ $(ip route show table all) =~ .*\ dev\ $INTERFACE\ table\ ([0-9]+)\ .* ]]; then
-		while [[ -n $(ip rule show table ${BASH_REMATCH[1]}) ]]; do
-			cmd ip rule delete table "${BASH_REMATCH[1]}"
-			[[ $(ip rule show table main) == *"from all lookup main suppress_prefixlength 0"* ]] && cmd ip rule delete table main suppress_prefixlength 0
+	DEFAULT_TABLE=$(("$(wg show "$INTERFACE" fwmark)"))
+	if [[ $DEFAULT_TABLE -ne 0 ]]; then
+		while [[ -n $(ip -4 rule show table $DEFAULT_TABLE) ]]; do
+			cmd ip -4 rule delete table $DEFAULT_TABLE
+			[[ $(ip -4 rule show table main) == *"from all lookup main suppress_prefixlength 0"* ]] && cmd ip -4 rule delete table main suppress_prefixlength 0
+		done
+		while [[ -n $(ip -6 rule show table $DEFAULT_TABLE) ]]; do
+			cmd ip -6 rule delete table $DEFAULT_TABLE
+			[[ $(ip -6 rule show table main) == *"from all lookup main suppress_prefixlength 0"* ]] && cmd ip -6 rule delete table main suppress_prefixlength 0
 		done
 	fi
 	cmd ip link delete dev "$INTERFACE"
@@ -104,22 +109,22 @@ add_route() {
 }
 
 DEFAULT_TABLE=
-PREVIOUS_ENDPOINT=
 add_default() {
-	[[ $(join <(wg show "$INTERFACE" allowed-ips) <(wg show "$INTERFACE" endpoints)) =~ ([A-Za-z0-9/+=]{44})\ ([0-9a-f/.:]+ )*${1//./\\.}\ ([0-9a-f/.:]+ )*\[?([0-9.:a-f]+)\]?:[0-9]+ ]] && local endpoint="${BASH_REMATCH[4]}"
-	[[ -n $endpoint ]] || return 0
-	local first=0
 	if [[ -z $DEFAULT_TABLE ]]; then
-		first=1
 		DEFAULT_TABLE=51820
 		while [[ -n $(ip route show table $DEFAULT_TABLE) ]]; do ((DEFAULT_TABLE++)); done
 	fi
-	cmd ip route add "$1" dev "$INTERFACE" table $DEFAULT_TABLE
-	[[ $PREVIOUS_ENDPOINT == "$endpoint" ]] && return 0
-	PREVIOUS_ENDPOINT="$endpoint"
-	cmd ip rule add not to "$endpoint" table $DEFAULT_TABLE
-	[[ $first -eq 1 ]] || return 0
-	cmd ip rule add table main suppress_prefixlength 0
+	local proto=-4
+	[[ $1 == *:* ]] && proto=-6
+	cmd wg set "$INTERFACE" fwmark $DEFAULT_TABLE
+	cmd ip $proto route add "$1" dev "$INTERFACE" table $DEFAULT_TABLE
+	cmd ip $proto rule add not fwmark $DEFAULT_TABLE table $DEFAULT_TABLE
+	cmd ip $proto rule add table main suppress_prefixlength 0
+	local key equals value
+	while read -r key equals value; do
+		[[ $value -eq 1 ]] && sysctl -q "$key=2"
+	done < <(sysctl -a -r 'net\.ipv4.conf\..+\.rp_filter')
+	return 0
 }
 
 set_config() {

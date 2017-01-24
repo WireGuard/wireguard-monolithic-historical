@@ -19,7 +19,7 @@ _wg_completion() {
 	fi
 
 	if [[ $COMP_CWORD -eq 3 && ${COMP_WORDS[1]} == show && ${COMP_WORDS[2]} != interfaces ]]; then
-		COMPREPLY+=( $(compgen -W "public-key private-key preshared-key listen-port peers endpoints allowed-ips latest-handshakes persistent-keepalive transfer" -- "${COMP_WORDS[3]}") )
+		COMPREPLY+=( $(compgen -W "public-key private-key preshared-key listen-port peers endpoints allowed-ips fwmark latest-handshakes persistent-keepalive transfer" -- "${COMP_WORDS[3]}") )
 		return
 	fi
 
@@ -31,9 +31,10 @@ _wg_completion() {
 
 	[[ ${COMP_WORDS[1]} == set ]] || return
 
-	local has_listen_port=0 has_private_key=0 has_preshared_key=0 has_peer=0 has_remove=0 has_endpoint=0 has_persistent_keepalive=0 has_allowed_ips=0 words=() i j
+	local has_listen_port=0 has_fwmark=0 has_private_key=0 has_preshared_key=0 has_peer=0 has_remove=0 has_endpoint=0 has_persistent_keepalive=0 has_allowed_ips=0 words=() i j
 	for ((i=3;i<COMP_CWORD;i+=2)); do
 		[[ ${COMP_WORDS[i]} == listen-port ]] && has_listen_port=1
+		[[ ${COMP_WORDS[i]} == fwmark ]] && has_fwmark=1
 		[[ ${COMP_WORDS[i]} == private-key ]] && has_private_key=1
 		[[ ${COMP_WORDS[i]} == preshared-key ]] && has_preshared_key=1
 		[[ ${COMP_WORDS[i]} == peer ]] && { has_peer=$i; break; }
@@ -41,6 +42,7 @@ _wg_completion() {
 	if [[ $has_peer -eq 0 ]]; then
 		if ((COMP_CWORD % 2 != 0)); then
 			[[ $has_listen_port -eq 1 ]] || words+=( listen-port )
+			[[ $has_fwmark -eq 1 ]] || words+=( fwmark )
 			[[ $has_private_key -eq 1 ]] || words+=( private-key )
 			[[ $has_preshared_key -eq 1 ]] || words+=( preshared-key )
 			words+=( peer )

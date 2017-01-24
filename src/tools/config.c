@@ -91,6 +91,25 @@ static inline uint16_t parse_port(const char *value)
 	return port;
 }
 
+static inline bool parse_fwmark(uint32_t *fwmark, unsigned int *flags, const char *value)
+{
+	unsigned long ret;
+	char *end;
+	int base = 10;
+
+	if (value[0] == '0' && value[1] == 'x') {
+		value += 2;
+		base = 16;
+	}
+	ret = strtoul(value, &end, base);
+	if (!*value || *end || ret > UINT32_MAX)
+		return false;
+	*fwmark = ret;
+	if (!ret)
+		*flags |= WGDEVICE_REMOVE_FWMARK;
+	return true;
+}
+
 static inline bool parse_key(uint8_t key[static WG_KEY_LEN], const char *value)
 {
 	uint8_t tmp[WG_KEY_LEN + 1];
@@ -281,6 +300,8 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 	if (ctx->is_device_section) {
 		if (key_match("ListenPort"))
 			ret = !!(ctx->buf.dev->port = parse_port(value));
+		else if (key_match("FwMark"))
+			ret = parse_fwmark(&ctx->buf.dev->fwmark, &ctx->buf.dev->flags, value);
 		else if (key_match("PrivateKey")) {
 			ret = parse_key(ctx->buf.dev->private_key, value);
 			if (!ret)
@@ -372,6 +393,8 @@ bool config_read_finish(struct config_ctx *ctx)
 	}
 	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && !key_is_valid(ctx->buf.dev->preshared_key))
 		ctx->buf.dev->flags |= WGDEVICE_REMOVE_PRESHARED_KEY;
+	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && !ctx->buf.dev->fwmark)
+		ctx->buf.dev->flags |= WGDEVICE_REMOVE_FWMARK;
 
 	for_each_wgpeer(ctx->buf.dev, peer, i) {
 		if (!key_is_valid(peer->public_key)) {
@@ -445,6 +468,11 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 		if (!strcmp(argv[0], "listen-port") && argc >= 2 && !buf.dev->num_peers) {
 			buf.dev->port = parse_port(argv[1]);
 			if (!buf.dev->port)
+				goto error;
+			argv += 2;
+			argc -= 2;
+		} else if (!strcmp(argv[0], "fwmark") && argc >= 2 && !buf.dev->num_peers) {
+			if (!parse_fwmark(&buf.dev->fwmark, &buf.dev->flags, argv[1]))
 				goto error;
 			argv += 2;
 			argc -= 2;
