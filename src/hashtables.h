@@ -4,10 +4,10 @@
 #define HASHTABLES_H
 
 #include "messages.h"
-#include "crypto/siphash.h"
 
 #include <linux/hashtable.h>
 #include <linux/mutex.h>
+#include <linux/siphash.h>
 
 struct wireguard_peer;
 

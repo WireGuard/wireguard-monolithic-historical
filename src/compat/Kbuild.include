@@ -1,0 +1,11 @@
+ccflags-y += -include $(src)/compat/compat.h
+
+ifeq ($(wildcard $(srctree)/include/linux/siphash.h),)
+ccflags-y += -I$(src)/compat/siphash/include
+wireguard-y += compat/siphash/siphash.o
+endif
+
+ifeq ($(wildcard $(srctree)/include/net/dst_cache.h),)
+ccflags-y += -I$(src)/compat/dst_cache/include
+wireguard-y += compat/dst_cache/dst_cache.o
+endif

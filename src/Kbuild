@@ -1,9 +1,9 @@
 ccflags-y := -O3 -fvisibility=hidden
 ccflags-$(CONFIG_WIREGUARD_DEBUG) := -DDEBUG -g
 ccflags-y += -Wframe-larger-than=8192
-ccflags-y += -D'pr_fmt(fmt)=KBUILD_MODNAME ": " fmt' -include $(src)/compat.h
+ccflags-y += -D'pr_fmt(fmt)=KBUILD_MODNAME ": " fmt'
 wireguard-y := main.o noise.o device.o peer.o timers.o data.o send.o receive.o socket.o config.o hashtables.o routingtable.o ratelimiter.o cookie.o
-wireguard-y += crypto/curve25519.o crypto/chacha20poly1305.o crypto/blake2s.o crypto/siphash.o
+wireguard-y += crypto/curve25519.o crypto/chacha20poly1305.o crypto/blake2s.o
 ifeq ($(CONFIG_X86_64),y)
 	wireguard-y += crypto/chacha20-ssse3-x86_64.o crypto/poly1305-sse2-x86_64.o
 avx2_supported := $(call as-instr,vpgatherdd %ymm0$(comma)(%eax$(comma)%ymm1$(comma)4)$(comma)%ymm2,yes,no)
@@ -11,6 +11,8 @@ ifeq ($(avx2_supported),yes)
 	wireguard-y += crypto/chacha20-avx2-x86_64.o crypto/poly1305-avx2-x86_64.o
 endif
 endif
+
+include $(src)/compat/Kbuild.include
 
 ifneq ($(KBUILD_EXTMOD),)
 CONFIG_WIREGUARD := m

@@ -10,9 +10,7 @@
 #include <linux/netfilter.h>
 #include <linux/spinlock.h>
 #include <linux/kref.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
 #include <net/dst_cache.h>
-#endif
 
 struct wireguard_device;
 
