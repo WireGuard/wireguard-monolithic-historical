@@ -53,7 +53,7 @@ by \fICONFIGURATION FILE FORMAT\fP below.
 Sets configuration values for the specified \fI<interface>\fP. Multiple
 \fIpeer\fPs may be specified, and if the \fIremove\fP argument is given
 for a peer, that peer is removed, not configured. If \fIlisten-port\fP
-is not specified, the port will be automatically generated when the
+is not specified, the port will be chosen randomly when the
 interface comes up. Both \fIprivate-key\fP and \fIpreshared-key\fP must
 be a files, because command line arguments are not considered private on
 most systems but if you are using
@@ -123,8 +123,8 @@ and may be omitted. This option adds an additional layer of symmetric-key
 cryptography to be mixed into the already existing public-key cryptography,
 for post-quantum resistance.
 .IP \(bu
-ListenPort \(em a 16-bit port for listening. Optional; if not specified,
-automatically generated based on interface name.
+ListenPort \(em a 16-bit port for listening. Optional; if not specified, chosen
+randomly.
 .P
 The \fIPeer\fP sections may contain the following fields:
 .IP \(bu

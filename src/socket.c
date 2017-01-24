@@ -280,45 +280,6 @@ err:
 	return 0;
 }
 
-/* Generates a default port from the interface name.
- * wg0 --> 51820
- * wg1 --> 51821
- * wg2 --> 51822
- * wg100 --> 51920
- * wg60000 --> 46285
- * blahbla --> 51820
- * 50 --> 51870
- */
-static u16 generate_default_incoming_port(struct wireguard_device *wg)
-{
-	u16 port = 51820;
-	unsigned long parsed;
-	char *name, *digit_begin;
-	size_t len;
-
-	ASSERT_RTNL();
-
-	name = netdev_pub(wg)->name;
-	len = strlen(name);
-	if (!len)
-		return port;
-	digit_begin = name + len - 1;
-	while (digit_begin >= name) {
-		if (isdigit(*digit_begin))
-			--digit_begin;
-		else
-			break;
-	}
-	++digit_begin;
-	if (!*digit_begin)
-		return port;
-	if (!kstrtoul(digit_begin, 10, &parsed))
-		port += parsed;
-	if (!port)
-		++port;
-	return port;
-}
-
 static inline void sock_free(struct sock *sock)
 {
 	if (unlikely(!sock))
@@ -337,27 +298,31 @@ static inline void set_sock_opts(struct socket *sock)
 int socket_init(struct wireguard_device *wg)
 {
 	int ret = 0;
-	struct socket *new4 = NULL;
-	struct udp_port_cfg port4 = {
-		.family = AF_INET,
-		.local_ip.s_addr = htonl(INADDR_ANY),
-		.use_udp_checksums = true
-	};
-#if IS_ENABLED(CONFIG_IPV6)
-	struct socket *new6 = NULL;
-	struct udp_port_cfg port6 = {
-		.family = AF_INET6,
-		.local_ip6 = IN6ADDR_ANY_INIT,
-		.use_udp6_tx_checksums = true,
-		.use_udp6_rx_checksums = true,
-		.ipv6_v6only = true
-	};
-#endif
 	struct udp_tunnel_sock_cfg cfg = {
 		.sk_user_data = wg,
 		.encap_type = 1,
 		.encap_rcv = receive
 	};
+	struct socket *new4 = NULL;
+	struct udp_port_cfg port4 = {
+		.family = AF_INET,
+		.local_ip.s_addr = htonl(INADDR_ANY),
+		.local_udp_port = htons(wg->incoming_port),
+		.use_udp_checksums = true
+	};
+#if IS_ENABLED(CONFIG_IPV6)
+	int retries = 0;
+	struct socket *new6 = NULL;
+	struct udp_port_cfg port6 = {
+		.family = AF_INET6,
+		.local_ip6 = IN6ADDR_ANY_INIT,
+		.local_udp_port = htons(wg->incoming_port),
+		.use_udp6_tx_checksums = true,
+		.use_udp6_rx_checksums = true,
+		.ipv6_v6only = true
+	};
+retry:
+#endif
 
 	mutex_lock(&wg->socket_update_lock);
 
@@ -367,30 +332,28 @@ int socket_init(struct wireguard_device *wg)
 		goto out;
 	}
 
-	if (!wg->incoming_port)
-		wg->incoming_port = generate_default_incoming_port(wg);
-	port4.local_udp_port =
-#if IS_ENABLED(CONFIG_IPV6)
-		port6.local_udp_port =
-#endif
-		htons(wg->incoming_port);
-
 	ret = udp_sock_create(wg->creating_net, &port4, &new4);
 	if (ret < 0) {
 		pr_err("Could not create IPv4 socket\n");
 		goto out;
 	}
+	wg->incoming_port = ntohs(inet_sk(new4->sk)->inet_sport);
 
 	set_sock_opts(new4);
 	setup_udp_tunnel_sock(wg->creating_net, new4, &cfg);
 	rcu_assign_pointer(wg->sock4, new4->sk);
 
 #if IS_ENABLED(CONFIG_IPV6)
+	port6.local_udp_port = htons(wg->incoming_port);
 	ret = udp_sock_create(wg->creating_net, &port6, &new6);
 	if (ret < 0) {
-		pr_err("Could not create IPv6 socket\n");
 		udp_tunnel_sock_release(new4);
 		rcu_assign_pointer(wg->sock4, NULL);
+		if (ret == -EADDRINUSE && !port4.local_udp_port && retries++ < 100)
+			goto retry;
+		if (!port4.local_udp_port)
+			wg->incoming_port = 0;
+		pr_err("Could not create IPv6 socket\n");
 		goto out;
 	}
 	set_sock_opts(new6);
