@@ -370,6 +370,9 @@ bool config_read_finish(struct config_ctx *ctx)
 		fprintf(stderr, "No private key configured\n");
 		goto err;
 	}
+	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && !key_is_valid(ctx->buf.dev->preshared_key))
+		ctx->buf.dev->flags |= WGDEVICE_REMOVE_PRESHARED_KEY;
+
 	for_each_wgpeer(ctx->buf.dev, peer, i) {
 		if (!key_is_valid(peer->public_key)) {
 			fprintf(stderr, "A peer is missing a public key\n");
