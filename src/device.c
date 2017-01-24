@@ -291,12 +291,12 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (!dev->tstats)
 		goto error_1;
 
-	wg->workqueue = alloc_workqueue(KBUILD_MODNAME "-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
+	wg->workqueue = alloc_workqueue("wg-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
 	if (!wg->workqueue)
 		goto error_2;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	wg->parallelqueue = alloc_workqueue(KBUILD_MODNAME "-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
+	wg->parallelqueue = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
 	if (!wg->parallelqueue)
 		goto error_3;
 
