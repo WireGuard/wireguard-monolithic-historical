@@ -390,7 +390,6 @@ static int read_line(char **dst, const char *path)
 {
 	FILE *f;
 	size_t n = 0;
-	struct stat stat;
 
 	*dst = NULL;
 
@@ -399,22 +398,15 @@ static int read_line(char **dst, const char *path)
 		perror("fopen");
 		return -1;
 	}
-	if (fstat(fileno(f), &stat) < 0) {
-		perror("fstat");
-		fclose(f);
-		return -1;
-	}
-	if (S_ISCHR(stat.st_mode) && stat.st_rdev == makedev(1, 3)) {
-		fclose(f);
-		return 1;
-	}
-	if (getline(dst, &n, f) < 0) {
+	if (getline(dst, &n, f) < 0 && errno) {
 		perror("getline");
 		fclose(f);
 		return -1;
 	}
 	fclose(f);
 	n = strlen(*dst);
+	if (!n)
+		return 1;
 	while (--n) {
 		if (isspace((*dst)[n]))
 			(*dst)[n] = '\0';

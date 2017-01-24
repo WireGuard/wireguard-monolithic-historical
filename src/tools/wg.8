@@ -60,20 +60,21 @@ most systems but if you are using
 .BR bash (1),
 you may safely pass in a string by specifying as \fIprivate-key\fP or
 \fIpreshared-key\fP the expression: <(echo PRIVATEKEYSTRING). If
-\fI/dev/null\fP is specified as the filename for either \fIprivate-key\fP or
-\fIpreshared-key\fP, the key is removed from the device. The use of
-\fIpreshared-key\fP is optional, and may be omitted; it adds an additional
-layer of symmetric-key cryptography to be mixed into the already existing
-public-key cryptography, for post-quantum resistance. If \fIallowed-ips\fP
-is specified, but the value is the empty string, all allowed ips are removed
-from the peer. The use of \fIpersistent-keepalive\fP is optional and is by
-default off; setting it to 0 or "off", disables it. Otherwise it represents,
-in seconds, between 1 and 65535 inclusive, how often to send an authenticated
-empty packet to the peer, for the purpose of keeping a stateful firewall or NAT
-mapping valid persistently. For example, if the interface very rarely sends
-traffic, but it might at anytime receive traffic from a peer, and it is behind
-NAT, the interface might benefit from having a persistent keepalive interval
-of 25 seconds; however, most users will not need this.
+\fI/dev/null\fP or another empty file is specified as the filename for
+either \fIprivate-key\fP or \fIpreshared-key\fP, the key is removed from
+the device. The use of \fIpreshared-key\fP is optional, and may be omitted;
+it adds an additional layer of symmetric-key cryptography to be mixed into
+the already existing public-key cryptography, for post-quantum resistance.
+If \fIallowed-ips\fP is specified, but the value is the empty string, all
+allowed ips are removed from the peer. The use of \fIpersistent-keepalive\fP
+is optional and is by default off; setting it to 0 or "off", disables it.
+Otherwise it represents, in seconds, between 1 and 65535 inclusive, how often
+to send an authenticated empty packet to the peer, for the purpose of keeping
+a stateful firewall or NAT mapping valid persistently. For example, if the
+interface very rarely sends traffic, but it might at anytime receive traffic
+from a peer, and it is behind NAT, the interface might benefit from having a
+persistent keepalive interval of 25 seconds; however, most users will not need
+this.
 .TP
 \fBsetconf\fP \fI<interface>\fP \fI<configuration-filename>\fP
 Sets the current configuration of \fI<interface>\fP to the contents of
