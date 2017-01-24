@@ -413,6 +413,7 @@ void socket_uninit(struct wireguard_device *wg)
 	rcu_assign_pointer(wg->sock6, NULL);
 	mutex_unlock(&wg->socket_update_lock);
 	synchronize_rcu();
+	synchronize_net();
 	sock_free(old4);
 	sock_free(old6);
 }
