@@ -5,6 +5,7 @@
 
 set -e -o pipefail
 shopt -s extglob
+export LC_ALL=C
 
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 export PATH="${SELF%/*}:$PATH"
