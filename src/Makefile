@@ -34,6 +34,10 @@ clean:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) clean
 	$(MAKE) -C tools clean
 
+module-install:
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
+	depmod -a
+
 install:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
 	depmod -a
@@ -61,4 +65,4 @@ cloc: clean
 
 -include tests/debug.mk
 
-.PHONY: all module module-debug tools install dkms-install clean core-cloc check version.h dkms.conf
+.PHONY: all module module-debug module-install tools install dkms-install clean core-cloc check version.h dkms.conf
