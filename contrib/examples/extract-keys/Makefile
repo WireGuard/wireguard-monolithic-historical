@@ -24,4 +24,8 @@ clean:
 .PHONY: clean
 else
 config-m := config.o
+oldsrc := $(src)
+src := $(src)/../../../src
+include $(src)/compat/Kbuild.include
+src := $(oldsrc)
 endif
