@@ -13,6 +13,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
+#include <linux/inetdevice.h>
 #include <linux/if_arp.h>
 #include <linux/icmp.h>
 #include <linux/suspend.h>
@@ -211,6 +212,27 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_do_ioctl		= ioctl
 };
 
+static int netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
+
+	/* TODO: when we merge to mainline, put this check near the ip_rt_send_redirect
+	 * call of ip_forward in net/ipv4/ip_forward.c, similar to the current secpath
+	 * check, rather than turning it off like this. This is just a stop gap solution
+	 * while we're an out of tree module. */
+	if (in_dev && dev->netdev_ops == &netdev_ops && event == NETDEV_REGISTER) {
+		IN_DEV_CONF_SET(in_dev, SEND_REDIRECTS, false);
+		IPV4_DEVCONF_ALL(dev_net(dev), SEND_REDIRECTS) = false;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block netdev_notifier = {
+	.notifier_call = netdev_event
+};
+
+
 static void destruct(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
@@ -362,11 +384,18 @@ static struct rtnl_link_ops link_ops __read_mostly = {
 
 int device_init(void)
 {
-	return rtnl_link_register(&link_ops);
+	int ret = register_netdevice_notifier(&netdev_notifier);
+	if (ret < 0)
+		return ret;
+	ret = rtnl_link_register(&link_ops);
+	if (ret < 0)
+		unregister_netdevice_notifier(&netdev_notifier);
+	return ret;
 }
 
 void device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
+	unregister_netdevice_notifier(&netdev_notifier);
 	rcu_barrier();
 }
