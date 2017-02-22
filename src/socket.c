@@ -345,6 +345,8 @@ retry:
 	rcu_assign_pointer(wg->sock4, new4->sk);
 
 #if IS_ENABLED(CONFIG_IPV6)
+	if (!ipv6_mod_enabled())
+		goto out;
 	port6.local_udp_port = htons(wg->incoming_port);
 	ret = udp_sock_create(wg->creating_net, &port6, &new6);
 	if (ret < 0) {

@@ -153,6 +153,14 @@ __attribute__((unused)) static inline int udp_sock_create_new(struct net *net, s
 #define time_is_after_eq_jiffies64(a) time_before_eq64(get_jiffies_64(), a)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0) && IS_ENABLED(CONFIG_IPV6)
+#include <net/addrconf.h>
+static inline bool ipv6_mod_enabled(void)
+{
+	return ipv6_stub->udpv6_encap_enable != NULL;
+}
+#endif
+
 /* https://lkml.org/lkml/2015/6/12/415 */
 #include <linux/netdevice.h>
 static inline struct net_device *netdev_pub(void *dev)
