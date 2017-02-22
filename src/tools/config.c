@@ -97,6 +97,12 @@ static inline bool parse_fwmark(uint32_t *fwmark, unsigned int *flags, const cha
 	char *end;
 	int base = 10;
 
+	if (!strcasecmp(value, "off")) {
+		*fwmark = 0;
+		*flags |= WGDEVICE_REMOVE_FWMARK;
+		return true;
+	}
+
 	if (value[0] == '0' && value[1] == 'x') {
 		value += 2;
 		base = 16;

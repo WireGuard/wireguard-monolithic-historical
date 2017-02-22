@@ -79,7 +79,9 @@ add_if() {
 }
 
 del_if() {
-	DEFAULT_TABLE=$(( $(wg show "$INTERFACE" fwmark) ))
+	local fwmark="$(wg show "$INTERFACE" fwmark)"
+	DEFAULT_TABLE=0
+	[[ $fwmark != off ]] && DEFAULT_TABLE=$(( $fwmark ))
 	if [[ $DEFAULT_TABLE -ne 0 ]]; then
 		while [[ -n $(ip -4 rule show table $DEFAULT_TABLE) ]]; do
 			cmd ip -4 rule delete table $DEFAULT_TABLE

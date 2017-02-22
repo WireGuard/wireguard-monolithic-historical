@@ -276,7 +276,10 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 	} else if (!strcmp(param, "fwmark")) {
 		if (with_interface)
 			printf("%s\t", device->interface);
-		printf("0x%x\n", device->fwmark);
+		if (device->fwmark)
+			printf("0x%x\n", device->fwmark);
+		else
+			printf("off\n");
 	} else if (!strcmp(param, "endpoints")) {
 		if (with_interface)
 			printf("%s\t", device->interface);
