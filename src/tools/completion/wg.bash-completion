@@ -19,7 +19,7 @@ _wg_completion() {
 	fi
 
 	if [[ $COMP_CWORD -eq 3 && ${COMP_WORDS[1]} == show && ${COMP_WORDS[2]} != interfaces ]]; then
-		COMPREPLY+=( $(compgen -W "public-key private-key preshared-key listen-port peers endpoints allowed-ips fwmark latest-handshakes persistent-keepalive transfer" -- "${COMP_WORDS[3]}") )
+		COMPREPLY+=( $(compgen -W "public-key private-key preshared-key listen-port peers endpoints allowed-ips fwmark latest-handshakes persistent-keepalive transfer dump" -- "${COMP_WORDS[3]}") )
 		return
 	fi
 

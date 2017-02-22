@@ -203,7 +203,7 @@ static char *bytes(uint64_t b)
 static const char *COMMAND_NAME = NULL;
 static void show_usage(void)
 {
-	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | preshared-key | listen-port | fwmark | peers | endpoints | allowed-ips | latest-handshakes | transfer | persistent-keepalive]\n", PROG_NAME, COMMAND_NAME);
+	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | preshared-key | listen-port | fwmark | peers | endpoints | allowed-ips | latest-handshakes | transfer | persistent-keepalive | dump]\n", PROG_NAME, COMMAND_NAME);
 }
 
 static void pretty_print(struct wgdevice *device)
@@ -249,6 +249,44 @@ static void pretty_print(struct wgdevice *device)
 			terminal_printf("  " TERMINAL_BOLD "persistent keepalive" TERMINAL_RESET ": %s\n", every(peer->persistent_keepalive_interval));
 		if (i + 1 < device->num_peers)
 			terminal_printf("\n");
+	}
+}
+
+static void dump_print(struct wgdevice *device, bool with_interface)
+{
+	size_t i, j;
+	struct wgpeer *peer;
+	struct wgipmask *ipmask;
+
+	if (with_interface)
+		printf("%s\t", device->interface);
+	printf("%s\t", key(device->private_key));
+	printf("%s\t", key(device->public_key));
+	printf("%s\t", key(device->preshared_key));
+	printf("%u\t", device->port);
+	if (device->fwmark)
+		printf("0x%x\n", device->fwmark);
+	else
+		printf("off\n");
+	for_each_wgpeer(device, peer, i) {
+		if (with_interface)
+			printf("%s\t", device->interface);
+		printf("%s\t", key(peer->public_key));
+		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6)
+			printf("%s\t", endpoint(&peer->endpoint.addr));
+		else
+			printf("(none)\t");
+		if (peer->num_ipmasks) {
+			for_each_wgipmask(peer, ipmask, j)
+				printf("%s/%u%c", ip(ipmask), ipmask->cidr, j == (size_t)peer->num_ipmasks - 1 ? '\t' : ',');
+		} else
+			printf("(none)\t");
+		printf("%llu\t", (unsigned long long)peer->last_handshake_time.tv_sec);
+		printf("%" PRIu64 "\t%" PRIu64 "\t", (uint64_t)peer->rx_bytes, (uint64_t)peer->tx_bytes);
+		if (peer->persistent_keepalive_interval)
+			printf("%u\n", peer->persistent_keepalive_interval);
+		else
+			printf("off\n");
 	}
 }
 
@@ -328,7 +366,9 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 				printf("%s\t", device->interface);
 			printf("%s\n", key(peer->public_key));
 		}
-	} else {
+	} else if (!strcmp(param, "dump"))
+		dump_print(device, with_interface);
+	else {
 		fprintf(stderr, "Invalid parameter: `%s`\n", param);
 		show_usage();
 		return false;
