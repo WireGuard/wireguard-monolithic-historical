@@ -31,7 +31,7 @@ parse_options() {
 	((($(stat -c '%#a' "$CONFIG_FILE") & 0007) == 0)) || echo "Warning: \`$CONFIG_FILE' is world accessible" >&2
 	INTERFACE="${BASH_REMATCH[1]}"
 	shopt -s nocasematch
-	while read -r line; do
+	while read -r line || [[ -n $line ]]; do
 		key="${line%%=*}"; key="${key##*( )}"; key="${key%%*( )}"
 		value="${line#*=}"; value="${value##*( )}"; value="${value%%*( )}"
 		[[ $key == "["* ]] && interface_section=0
