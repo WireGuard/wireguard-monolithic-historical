@@ -1,6 +1,8 @@
 # Copyright (C) 2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
 _wg_completion() {
+	local a
+
 	if [[ $COMP_CWORD -eq 1 ]]; then
 		COMPREPLY+=( $(compgen -W "show showconf set setconf addconf genkey genpsk pubkey" -- "${COMP_WORDS[1]}") )
 		return
@@ -25,7 +27,8 @@ _wg_completion() {
 
 	if [[ $COMP_CWORD -eq 3 && ( ${COMP_WORDS[1]} == setconf || ${COMP_WORDS[1]} == addconf ) ]]; then
 		compopt -o filenames
-		COMPREPLY+=( $(compgen -f -- "${COMP_WORDS[3]}") )
+		mapfile -t a < <(compgen -f -- "${COMP_WORDS[3]}")
+		COMPREPLY+=( "${a[@]}" )
 		return
 	fi
 
@@ -49,7 +52,8 @@ _wg_completion() {
 			COMPREPLY+=( $(compgen -W "${words[*]}" -- "${COMP_WORDS[COMP_CWORD]}") )
 		elif [[ ${COMP_WORDS[COMP_CWORD-1]} == *-key ]]; then
 			compopt -o filenames
-			COMPREPLY+=( $(compgen -f -- "${COMP_WORDS[COMP_CWORD]}") )
+			mapfile -t a < <(compgen -f -- "${COMP_WORDS[COMP_CWORD]}")
+			COMPREPLY+=( "${a[@]}" )
 		fi
 		return
 	fi

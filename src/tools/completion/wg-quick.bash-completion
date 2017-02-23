@@ -1,7 +1,7 @@
 # Copyright (C) 2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
 _wg_quick_completion() {
-	local i
+	local i a
 	if [[ $COMP_CWORD -eq 1 ]]; then
 		COMPREPLY+=( $(compgen -W "up down" -- "${COMP_WORDS[1]}") )
 		return
@@ -10,10 +10,14 @@ _wg_quick_completion() {
 		shopt -s nullglob
 		for i in /etc/wireguard/*.conf; do
 			i="${i##*/}"; i="${i%.conf}"
-			COMPREPLY+=( $(compgen -W "$i" -- "${COMP_WORDS[2]}") )
+			mapfile -t a < <(compgen -W "$i" -- "${COMP_WORDS[2]}")
+			COMPREPLY+=( "${a[@]}" )
 		done
 		eval "$old_glob"
-		COMPREPLY+=( $(compgen -f -X '!*.conf' -- "${COMP_WORDS[2]}") $(compgen -d -- "${COMP_WORDS[2]}") )
+		mapfile -t a < <(compgen -f -X '!*.conf' -- "${COMP_WORDS[2]}")
+		COMPREPLY+=( "${a[@]}" )
+		mapfile -t a < <(compgen -d -- "${COMP_WORDS[2]}")
+		COMPREPLY+=( "${a[@]}" )
 	fi
 }
 
