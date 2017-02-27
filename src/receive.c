@@ -258,7 +258,6 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 		goto packet_processed;
 	}
 
-	dev->last_rx = jiffies;
 	if (likely(netif_rx(skb) == NET_RX_SUCCESS))
 		rx_stats(peer, skb->len);
 	else {
