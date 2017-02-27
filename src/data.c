@@ -124,9 +124,7 @@ static inline void skb_reset(struct sk_buff *skb)
 	skb->dev = NULL;
 #ifdef CONFIG_NET_SCHED
 	skb->tc_index = 0;
-#ifdef CONFIG_NET_CLS_ACT
-	skb->tc_verd = 0;
-#endif
+	skb_reset_tc(skb);
 #endif
 	skb->hdr_len = skb_headroom(skb);
 	skb_reset_mac_header(skb);
