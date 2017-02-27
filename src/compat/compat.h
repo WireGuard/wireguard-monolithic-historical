@@ -87,7 +87,7 @@ struct udp_port_cfg_new {
 	__be16 peer_udp_port;
 	unsigned int use_udp_checksums:1, use_udp6_tx_checksums:1, use_udp6_rx_checksums:1, ipv6_v6only:1;
 };
-__attribute__((unused)) static inline int udp_sock_create_new(struct net *net, struct udp_port_cfg_new *cfg, struct socket **sockp)
+static inline int __maybe_unused udp_sock_create_new(struct net *net, struct udp_port_cfg_new *cfg, struct socket **sockp)
 {
 	struct udp_port_cfg old_cfg = {
 		.family = cfg->family,
