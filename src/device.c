@@ -41,7 +41,11 @@ static int open(struct net_device *dev)
 	int ret;
 	struct inet6_dev *dev_v6 = __in6_dev_get(dev);
 	if (dev_v6)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 		dev_v6->addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
+#else
+		dev_v6->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
+#endif
 
 	ret = socket_init(wg);
 	if (ret < 0)
