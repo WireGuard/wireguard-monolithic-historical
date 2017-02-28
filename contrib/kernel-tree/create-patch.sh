@@ -9,12 +9,14 @@ done
 cat <<_EOF
 --- a/net/Kconfig
 +++ b/net/Kconfig
-@@ -85,1 +85,2 @@ config INET
+@@ -85,2 +85,3 @@ config INET
  if INET
 +source "net/wireguard/Kconfig"
+ source "net/ipv4/Kconfig"
 --- a/net/Makefile
 +++ b/net/Makefile
-@@ -16,1 +16,2 @@
+@@ -16,2 +16,3 @@
  obj-\$(CONFIG_NETFILTER)		+= netfilter/
 +obj-\$(CONFIG_WIREGUARD)		+= wireguard/
+ obj-\$(CONFIG_INET)		+= ipv4/
 _EOF
