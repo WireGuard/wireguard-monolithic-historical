@@ -25,7 +25,7 @@ static inline void cfg_init(struct hashlimit_cfg1 *cfg, int family)
 		cfg->srcmask = 32;
 	else if (family == NFPROTO_IPV6)
 		cfg->srcmask = 96;
-	cfg->mode = XT_HASHLIMIT_HASH_SIP; /* source IP only -- we could also do source port by ORing this with XT_HASHLIMIT_HASH_SPT */
+	cfg->mode = XT_HASHLIMIT_HASH_SIP; /* source IP only -- we could also do source port by ORing this with XT_HASHLIMIT_HASH_SPT, but we don't really want to do that. It would also cause problems since we skb_pull early on, and hashlimit's nexthdr stuff isn't so nice. */
 	cfg->avg = XT_HASHLIMIT_SCALE / RATELIMITER_PACKETS_PER_SECOND; /* 30 per second per IP */
 	cfg->burst = RATELIMITER_PACKETS_BURSTABLE; /* Allow bursts of 5 at a time */
 	cfg->gc_interval = 1000; /* same as expiration date */

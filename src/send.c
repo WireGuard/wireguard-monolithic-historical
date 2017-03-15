@@ -77,12 +77,12 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 	}
 }
 
-void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *initiating_skb, void *data, size_t data_len, __le32 sender_index)
+void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *initiating_skb, __le32 sender_index)
 {
 	struct message_handshake_cookie packet;
 
 	net_dbg_skb_ratelimited("Sending cookie response for denied handshake message for %pISpfsc\n", initiating_skb);
-	cookie_message_create(&packet, initiating_skb, data, data_len, sender_index, &wg->cookie_checker);
+	cookie_message_create(&packet, initiating_skb, sender_index, &wg->cookie_checker);
 	socket_send_buffer_as_reply_to_skb(wg, initiating_skb, &packet, sizeof(packet));
 }
 
@@ -123,10 +123,13 @@ static void message_create_data_done(struct sk_buff_head *queue, struct wireguar
 	struct sk_buff *skb, *tmp;
 	bool is_keepalive, data_sent = false;
 
+	if (unlikely(!skb_queue_len(queue)))
+		return;
+
 	timers_any_authenticated_packet_traversal(peer);
 	skb_queue_walk_safe(queue, skb, tmp) {
 		is_keepalive = skb->len == message_data_len(0);
-		if (likely(!socket_send_skb_to_peer(peer, skb, *(u8 *)skb->cb) && !is_keepalive))
+		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
 			data_sent = true;
 	}
 	if (likely(data_sent))

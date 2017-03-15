@@ -103,12 +103,12 @@ static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb, struct cooki
 	up_read(&checker->secret_lock);
 }
 
-enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, struct sk_buff *skb, void *data_start, size_t data_len, bool check_cookie)
+enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, struct sk_buff *skb, bool check_cookie)
 {
 	u8 computed_mac[COOKIE_LEN];
 	u8 cookie[COOKIE_LEN];
 	enum cookie_mac_state ret;
-	struct message_macs *macs = (struct message_macs *)((u8 *)data_start + data_len - sizeof(struct message_macs));
+	struct message_macs *macs = (struct message_macs *)(skb->data + skb->len - sizeof(struct message_macs));
 
 	ret = INVALID_MAC;
 	down_read(&checker->device->static_identity.lock);
@@ -116,7 +116,7 @@ enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, str
 		up_read(&checker->device->static_identity.lock);
 		goto out;
 	}
-	compute_mac1(computed_mac, data_start, data_len, checker->device->static_identity.static_public, checker->device->static_identity.has_psk ? checker->device->static_identity.preshared_key : NULL);
+	compute_mac1(computed_mac, skb->data, skb->len, checker->device->static_identity.static_public, checker->device->static_identity.has_psk ? checker->device->static_identity.preshared_key : NULL);
 	up_read(&checker->device->static_identity.lock);
 	if (crypto_memneq(computed_mac, macs->mac1, COOKIE_LEN))
 		goto out;
@@ -128,7 +128,7 @@ enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, str
 
 	make_cookie(cookie, skb, checker);
 
-	compute_mac2(computed_mac, data_start, data_len, cookie);
+	compute_mac2(computed_mac, skb->data, skb->len, cookie);
 	if (crypto_memneq(computed_mac, macs->mac2, COOKIE_LEN))
 		goto out;
 
@@ -168,9 +168,9 @@ void cookie_add_mac_to_packet(void *message, size_t len, struct wireguard_peer *
 	up_read(&peer->latest_cookie.lock);
 }
 
-void cookie_message_create(struct message_handshake_cookie *dst, struct sk_buff *skb, void *data_start, size_t data_len, __le32 index, struct cookie_checker *checker)
+void cookie_message_create(struct message_handshake_cookie *dst, struct sk_buff *skb, __le32 index, struct cookie_checker *checker)
 {
-	struct message_macs *macs = (struct message_macs *)((u8 *)data_start + data_len - sizeof(struct message_macs));
+	struct message_macs *macs = (struct message_macs *)((u8 *)skb->data + skb->len - sizeof(struct message_macs));
 	u8 cookie[COOKIE_LEN];
 
 	dst->header.type = cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE);

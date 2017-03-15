@@ -42,10 +42,10 @@ void cookie_checker_uninit(struct cookie_checker *checker);
 void cookie_checker_precompute_keys(struct cookie_checker *checker, struct wireguard_peer *peer);
 void cookie_init(struct cookie *cookie);
 
-enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, struct sk_buff *skb, void *data_start, size_t data_len, bool check_cookie);
+enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, struct sk_buff *skb, bool check_cookie);
 void cookie_add_mac_to_packet(void *message, size_t len, struct wireguard_peer *peer);
 
-void cookie_message_create(struct message_handshake_cookie *src, struct sk_buff *skb, void *data_start, size_t data_len, __le32 index, struct cookie_checker *checker);
+void cookie_message_create(struct message_handshake_cookie *src, struct sk_buff *skb, __le32 index, struct cookie_checker *checker);
 void cookie_message_consume(struct message_handshake_cookie *src, struct wireguard_device *wg);
 
 #endif

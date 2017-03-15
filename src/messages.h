@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/param.h>
+#include <linux/skbuff.h>
 
 enum noise_lengths {
 	NOISE_PUBLIC_KEY_LEN = CURVE25519_POINT_SIZE,
@@ -124,18 +125,25 @@ enum {
 	HANDSHAKE_DSCP = 0b10001000 /* AF41, plus 00 ECN */
 };
 
-static inline enum message_type message_determine_type(void *src, size_t src_len)
+static const unsigned int message_header_sizes[MESSAGE_TOTAL] = {
+	[MESSAGE_HANDSHAKE_INITIATION] = sizeof(struct message_handshake_initiation),
+	[MESSAGE_HANDSHAKE_RESPONSE] = sizeof(struct message_handshake_response),
+	[MESSAGE_HANDSHAKE_COOKIE] = sizeof(struct message_handshake_cookie),
+	[MESSAGE_DATA] = sizeof(struct message_data)
+};
+
+static inline enum message_type message_determine_type(struct sk_buff *skb)
 {
-	struct message_header *header = src;
-	if (unlikely(src_len < sizeof(struct message_header)))
+	struct message_header *header = (struct message_header *)skb->data;
+	if (unlikely(skb->len < sizeof(struct message_header)))
 		return MESSAGE_INVALID;
-	if (header->type == cpu_to_le32(MESSAGE_DATA) && src_len >= MESSAGE_MINIMUM_LENGTH)
+	if (header->type == cpu_to_le32(MESSAGE_DATA) && skb->len >= MESSAGE_MINIMUM_LENGTH)
 		return MESSAGE_DATA;
-	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_INITIATION) && src_len == sizeof(struct message_handshake_initiation))
+	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_INITIATION) && skb->len == sizeof(struct message_handshake_initiation))
 		return MESSAGE_HANDSHAKE_INITIATION;
-	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_RESPONSE) && src_len == sizeof(struct message_handshake_response))
+	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_RESPONSE) && skb->len == sizeof(struct message_handshake_response))
 		return MESSAGE_HANDSHAKE_RESPONSE;
-	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE) && src_len == sizeof(struct message_handshake_cookie))
+	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE) && skb->len == sizeof(struct message_handshake_cookie))
 		return MESSAGE_HANDSHAKE_COOKIE;
 	return MESSAGE_INVALID;
 }
