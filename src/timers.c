@@ -6,7 +6,7 @@
 #include "packets.h"
 
 /*
- * Timer for retransmitting the handshake if we don't hear back after `REKEY_TIMEOUT` ms
+ * Timer for retransmitting the handshake if we don't hear back after `REKEY_TIMEOUT + jitter` ms
  * Timer for sending empty packet if we have received a packet but after have not sent one for `KEEPALIVE_TIMEOUT` ms
  * Timer for initiating new handshake if we have sent a packet but after have not received one (even empty) for `(KEEPALIVE_TIMEOUT + REKEY_TIMEOUT)` ms
  * Timer for zeroing out all ephemeral keys after `(REJECT_AFTER_TIME * 3)` ms if no new keys have been received
@@ -123,10 +123,10 @@ void timers_any_authenticated_packet_received(struct wireguard_peer *peer)
 /* Should be called after a handshake initiation message is sent. */
 void timers_handshake_initiated(struct wireguard_peer *peer)
 {
-	if (likely(peer->timers_enabled))
+	if (likely(peer->timers_enabled)) {
 		del_timer(&peer->timer_send_keepalive);
-	if (likely(peer->timers_enabled))
 		mod_timer(&peer->timer_retransmit_handshake, slack_time(jiffies + REKEY_TIMEOUT + prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX)));
+	}
 }
 
 /* Should be called after a handshake response message is received and processed. */
