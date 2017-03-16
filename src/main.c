@@ -17,11 +17,12 @@ static int __init mod_init(void)
 {
 	int ret;
 
+	chacha20poly1305_fpu_init();
+	blake2s_fpu_init();
 #ifdef DEBUG
 	if (!routing_table_selftest() || !packet_counter_selftest() || !curve25519_selftest() || !chacha20poly1305_selftest() || !blake2s_selftest())
 		return -ENOTRECOVERABLE;
 #endif
-	chacha20poly1305_init();
 	noise_init();
 
 	ret = ratelimiter_module_init();

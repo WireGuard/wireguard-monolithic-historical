@@ -29,6 +29,8 @@ void blake2s_final(struct blake2s_state *state, u8 *out, u8 outlen);
 
 void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const u8 outlen, const u64 inlen, const u64 keylen);
 
+void blake2s_fpu_init(void);
+
 #ifdef DEBUG
 bool blake2s_selftest(void);
 #endif

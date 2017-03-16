@@ -13,7 +13,7 @@ enum chacha20poly1305_lengths {
 	CHACHA20POLY1305_AUTHTAGLEN = 16
 };
 
-void chacha20poly1305_init(void);
+void chacha20poly1305_fpu_init(void);
 
 bool chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			      const u8 *ad, const size_t ad_len,
@@ -44,12 +44,8 @@ bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 
 #ifdef CONFIG_X86_64
 #include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
-#else
-#include <asm/i387.h>
-#endif
 #endif
 
 static inline bool chacha20poly1305_init_simd(void)

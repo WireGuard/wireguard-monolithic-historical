@@ -104,11 +104,35 @@ void blake2s_init_key(struct blake2s_state *state, const u8 outlen, const void *
 	memzero_explicit(block, BLAKE2S_BLOCKBYTES);
 }
 
+#ifdef CONFIG_X86_64
+#include <asm/cpufeature.h>
+#include <asm/processor.h>
+#include <asm/fpu/api.h>
+#include <asm/simd.h>
+static bool blake2s_use_avx __read_mostly = false;
+void blake2s_fpu_init(void)
+{
+	blake2s_use_avx = boot_cpu_has(X86_FEATURE_AVX);
+}
+asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 block[BLAKE2S_BLOCKBYTES]);
+#else
+void blake2s_fpu_init(void) { }
+#endif
+
 static inline void blake2s_compress(struct blake2s_state *state, const u8 block[BLAKE2S_BLOCKBYTES])
 {
 	u32 m[16];
 	u32 v[16];
 	int i;
+
+#ifdef CONFIG_X86_64
+	if (blake2s_use_avx && irq_fpu_usable()) {
+		kernel_fpu_begin();
+		blake2s_compress_avx(state, block);
+		kernel_fpu_end();
+		return;
+	}
+#endif
 
 	for (i = 0; i < 16; ++i)
 		m[i] = le32_to_cpuvp(block + i * sizeof(m[i]));

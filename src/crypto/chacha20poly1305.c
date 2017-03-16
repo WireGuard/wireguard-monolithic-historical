@@ -30,14 +30,14 @@ asmlinkage void poly1305_asm_4block_avx2(u32 *h, const u8 *src, const u32 *r, un
 static bool chacha20poly1305_use_avx2 __read_mostly = false;
 static bool chacha20poly1305_use_ssse3 __read_mostly = false;
 static bool chacha20poly1305_use_sse2 __read_mostly = false;
-void chacha20poly1305_init(void)
+void chacha20poly1305_fpu_init(void)
 {
 	chacha20poly1305_use_sse2 = boot_cpu_has(X86_FEATURE_XMM2);
 	chacha20poly1305_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
 	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2);
 }
 #else
-void chacha20poly1305_init(void) { }
+void chacha20poly1305_fpu_init(void) { }
 #endif
 
 #define CHACHA20_IV_SIZE	16
