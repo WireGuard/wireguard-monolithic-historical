@@ -83,13 +83,17 @@ del_if() {
 	DEFAULT_TABLE=0
 	[[ $fwmark != off ]] && DEFAULT_TABLE=$(( $fwmark ))
 	if [[ $DEFAULT_TABLE -ne 0 ]]; then
-		while [[ -n $(ip -4 rule show table $DEFAULT_TABLE) ]]; do
+		while [[ $(ip -4 rule show) == *"lookup $DEFAULT_TABLE"* ]]; do
 			cmd ip -4 rule delete table $DEFAULT_TABLE
-			[[ $(ip -4 rule show table main) == *"from all lookup main suppress_prefixlength 0"* ]] && cmd ip -4 rule delete table main suppress_prefixlength 0
 		done
-		while [[ -n $(ip -6 rule show table $DEFAULT_TABLE) ]]; do
+		while [[ $(ip -4 rule show) == *"from all lookup main suppress_prefixlength 0"* ]]; do
+			cmd ip -4 rule delete table main suppress_prefixlength 0
+		done
+		while [[ $(ip -6 rule show) == *"lookup $DEFAULT_TABLE"* ]]; do
 			cmd ip -6 rule delete table $DEFAULT_TABLE
-			[[ $(ip -6 rule show table main) == *"from all lookup main suppress_prefixlength 0"* ]] && cmd ip -6 rule delete table main suppress_prefixlength 0
+		done
+		while [[ $(ip -6 rule show) == *"from all lookup main suppress_prefixlength 0"* ]]; do
+			cmd ip -6 rule delete table main suppress_prefixlength 0
 		done
 	fi
 	cmd ip link delete dev "$INTERFACE"
