@@ -75,7 +75,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	}
 
 	if (in_peer.endpoint.addr.sa_family == AF_INET || in_peer.endpoint.addr.sa_family == AF_INET6) {
-		struct endpoint endpoint = { 0 };
+		struct endpoint endpoint = { { { 0 } } };
 		memcpy(&endpoint, &in_peer.endpoint, sizeof(in_peer.endpoint));
 		socket_set_peer_endpoint(peer, &endpoint);
 	}
