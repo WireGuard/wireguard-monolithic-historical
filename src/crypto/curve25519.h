@@ -13,6 +13,8 @@ void curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 void curve25519_generate_secret(u8 secret[CURVE25519_POINT_SIZE]);
 void curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE]);
 
+void curve25519_fpu_init(void);
+
 #ifdef DEBUG
 bool curve25519_selftest(void);
 #endif

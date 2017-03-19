@@ -19,6 +19,7 @@ static int __init mod_init(void)
 
 	chacha20poly1305_fpu_init();
 	blake2s_fpu_init();
+	curve25519_fpu_init();
 #ifdef DEBUG
 	if (!routing_table_selftest() || !packet_counter_selftest() || !curve25519_selftest() || !chacha20poly1305_selftest() || !blake2s_selftest())
 		return -ENOTRECOVERABLE;
