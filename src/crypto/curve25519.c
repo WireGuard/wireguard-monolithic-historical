@@ -475,11 +475,14 @@ static void crecip(felem out, const felem z)
 
 void curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
 {
+#ifdef CONFIG_X86_64
 	if (curve25519_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
 		curve25519_sandy2x(mypublic, secret, basepoint);
 		kernel_fpu_end();
-	} else {
+	} else
+#endif
+	{
 		limb bp[5], x[5], z[5], zmone[5];
 		u8 e[32];
 
@@ -502,11 +505,14 @@ void curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 
 void curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
+#ifdef CONFIG_X86_64
 	if (curve25519_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
 		curve25519_sandy2x_base(pub, secret);
 		kernel_fpu_end();
-	} else {
+	} else
+#endif
+	{
 		static const u8 basepoint[CURVE25519_POINT_SIZE] = { 9 };
 		curve25519(pub, secret, basepoint);
 	}
