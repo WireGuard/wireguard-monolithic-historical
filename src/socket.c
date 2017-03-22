@@ -322,11 +322,11 @@ int socket_init(struct wireguard_device *wg)
 		.use_udp6_rx_checksums = true,
 		.ipv6_v6only = true
 	};
+#endif
+	mutex_lock(&wg->socket_update_lock);
+#if IS_ENABLED(CONFIG_IPV6)
 retry:
 #endif
-
-	mutex_lock(&wg->socket_update_lock);
-
 	if (rcu_dereference_protected(wg->sock4, lockdep_is_held(&wg->socket_update_lock)) ||
 	    rcu_dereference_protected(wg->sock6, lockdep_is_held(&wg->socket_update_lock))) {
 		ret = -EADDRINUSE;
@@ -339,7 +339,6 @@ retry:
 		goto out;
 	}
 	wg->incoming_port = ntohs(inet_sk(new4->sk)->inet_sport);
-
 	set_sock_opts(new4);
 	setup_udp_tunnel_sock(wg->creating_net, new4, &cfg);
 	rcu_assign_pointer(wg->sock4, new4->sk);
