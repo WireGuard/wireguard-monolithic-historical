@@ -79,9 +79,10 @@ add_if() {
 }
 
 del_if() {
-	local fwmark="$(wg show "$INTERFACE" fwmark)"
+	local fwmark
+	fwmark="$(wg show "$INTERFACE" fwmark)"
 	DEFAULT_TABLE=0
-	[[ $fwmark != off ]] && DEFAULT_TABLE=$(( $fwmark ))
+	[[ $fwmark != off ]] && DEFAULT_TABLE=$(( fwmark ))
 	if [[ $DEFAULT_TABLE -ne 0 ]]; then
 		while [[ $(ip -4 rule show) == *"lookup $DEFAULT_TABLE"* ]]; do
 			cmd ip -4 rule delete table $DEFAULT_TABLE
@@ -127,8 +128,8 @@ add_default() {
 	cmd ip $proto route add "$1" dev "$INTERFACE" table $DEFAULT_TABLE
 	cmd ip $proto rule add not fwmark $DEFAULT_TABLE table $DEFAULT_TABLE
 	cmd ip $proto rule add table main suppress_prefixlength 0
-	local key equals value
-	while read -r key equals value; do
+	local key value
+	while read -r key _ value; do
 		[[ $value -eq 1 ]] && sysctl -q "$key=2"
 	done < <(sysctl -a -r 'net\.ipv4.conf\..+\.rp_filter')
 	return 0
@@ -153,7 +154,7 @@ save_config() {
 	old_umask="$(umask)"
 	umask 077
 	current_config="$(cmd wg showconf "$INTERFACE")"
-	trap "rm -f '$CONFIG_FILE.tmp; exit'" INT TERM EXIT
+	trap 'rm -f "$CONFIG_FILE.tmp"; exit' INT TERM EXIT
 	echo "${current_config/\[Interface\]$'\n'/$new_config}" > "$CONFIG_FILE.tmp" || die "Could not write configuration file"
 	mv "$CONFIG_FILE.tmp" "$CONFIG_FILE" || die "Could not move configuration file"
 	trap - INT TERM EXIT
