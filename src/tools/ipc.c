@@ -42,6 +42,15 @@ struct inflatable_buffer {
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
+static int check_version_magic(struct wgdevice *device, int ret)
+{
+	if (ret == -EPROTO || (!ret && device->version_magic != WG_API_VERSION_MAGIC)) {
+		fprintf(stderr, "This program was built for a different version of WireGuard than\nwhat is currently running. Either this version of wg(8) is out\nof date, or the currently loaded WireGuard module is out of date.\nIf you have just updated your WireGuard installation, you may have\nforgotten to unload the previous running WireGuard module. Try\nrunning `rmmod wireguard` as root, and then try re-adding the device\nand trying again.\n\n");
+		return -EPROTO;
+	}
+	return ret;
+}
+
 static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 {
 	size_t len, expand_to;
@@ -172,6 +181,7 @@ static int userspace_set_device(struct wgdevice *dev)
 	ret = -EBADMSG;
 	if (!len)
 		goto out;
+	dev->version_magic = WG_API_VERSION_MAGIC;
 	ret = write(fd, dev, len);
 	if (ret < 0)
 		goto out;
@@ -243,6 +253,9 @@ static int userspace_get_device(struct wgdevice **dev, const char *interface)
 		goto out;
 
 	len = ((struct wgdevice *)READ_BYTES(sizeof(struct wgdevice)))->num_peers;
+	ret = check_version_magic((struct wgdevice *)buffer, ret);
+	if (ret)
+		goto out;
 	for (i = 0; i < len; ++i)
 		READ_BYTES(sizeof(struct wgipmask) * ((struct wgpeer *)READ_BYTES(sizeof(struct wgpeer)))->num_ipmasks);
 	ret = 0;
@@ -361,7 +374,7 @@ static bool kernel_has_wireguard_interface(const char *interface)
 	char *this_interface;
 	struct inflatable_buffer buffer = { .len = 4096 };
 
-	buffer.buffer = calloc(buffer.len, 1);
+	buffer.buffer = calloc(1, buffer.len);
 	if (!buffer.buffer)
 		return false;
 	if (kernel_get_wireguard_interfaces(&buffer) < 0) {
@@ -382,12 +395,16 @@ static bool kernel_has_wireguard_interface(const char *interface)
 static int do_ioctl(int req, struct ifreq *ifreq)
 {
 	static int fd = -1;
+	int ret;
 	if (fd < 0) {
 		fd = socket(AF_INET, SOCK_DGRAM, 0);
 		if (fd < 0)
 			return fd;
 	}
-	return ioctl(fd, req, ifreq);
+	ret = ioctl(fd, req, ifreq);
+	if (ret == -1)
+		ret = -errno;
+	return ret;
 }
 
 static int kernel_set_device(struct wgdevice *dev)
@@ -395,6 +412,7 @@ static int kernel_set_device(struct wgdevice *dev)
 	struct ifreq ifreq = { .ifr_data = (char *)dev };
 	memcpy(&ifreq.ifr_name, dev->interface, IFNAMSIZ);
 	ifreq.ifr_name[IFNAMSIZ - 1] = 0;
+	dev->version_magic = WG_API_VERSION_MAGIC;
 	return do_ioctl(WG_SET_DEVICE, &ifreq);
 }
 
@@ -410,17 +428,18 @@ static int kernel_get_device(struct wgdevice **dev, const char *interface)
 		ret = do_ioctl(WG_GET_DEVICE, &ifreq);
 		if (ret < 0)
 			goto out;
-		*dev = calloc(ret + sizeof(struct wgdevice), 1);
-		if (!*dev) {
-			ret = -ENOMEM;
+		*dev = calloc(1, ret + sizeof(struct wgdevice));
+		ret = -ENOMEM;
+		if (!*dev)
 			goto out;
-		}
 		(*dev)->peers_size = ret;
+		(*dev)->version_magic = WG_API_VERSION_MAGIC;
 		ifreq.ifr_data = (char *)*dev;
 		memcpy(&ifreq.ifr_name, interface, IFNAMSIZ);
 		ifreq.ifr_name[IFNAMSIZ - 1] = 0;
 		ret = do_ioctl(WG_GET_DEVICE, &ifreq);
 	} while (ret == -EMSGSIZE);
+	ret = check_version_magic(*dev, ret);
 	if (ret < 0) {
 		free(*dev);
 		*dev = NULL;
@@ -438,7 +457,7 @@ char *ipc_list_devices(void)
 	int ret;
 
 	ret = -ENOMEM;
-	buffer.buffer = calloc(buffer.len, 1);
+	buffer.buffer = calloc(1, buffer.len);
 	if (!buffer.buffer)
 		goto cleanup;
 

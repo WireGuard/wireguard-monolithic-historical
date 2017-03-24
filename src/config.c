@@ -109,7 +109,7 @@ out:
 
 int config_set_device(struct wireguard_device *wg, void __user *user_device)
 {
-	int ret = 0;
+	int ret;
 	size_t i, offset;
 	struct wgdevice in_device;
 	void __user *user_peer;
@@ -120,10 +120,13 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 
 	mutex_lock(&wg->device_update_lock);
 
-	if (copy_from_user(&in_device, user_device, sizeof(in_device))) {
-		ret = -EFAULT;
+	ret = -EFAULT;
+	if (copy_from_user(&in_device, user_device, sizeof(in_device)))
 		goto out;
-	}
+
+	ret = -EPROTO;
+	if (in_device.version_magic != WG_API_VERSION_MAGIC)
+		goto out;
 
 	if (in_device.fwmark || (!in_device.fwmark && (in_device.flags & WGDEVICE_REMOVE_FWMARK))) {
 		wg->fwmark = in_device.fwmark;
@@ -161,9 +164,9 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 	for (i = 0, offset = 0, user_peer = user_device + sizeof(struct wgdevice); i < in_device.num_peers; ++i, user_peer += offset) {
 		ret = set_peer(wg, user_peer, &offset);
 		if (ret)
-			break;
+			goto out;
 	}
-
+	ret = 0;
 out:
 	mutex_unlock(&wg->device_update_lock);
 	memzero_explicit(&in_device.private_key, NOISE_PUBLIC_KEY_LEN);
@@ -266,9 +269,9 @@ static int populate_peer(struct wireguard_peer *peer, void *ctx)
 	return ret;
 }
 
-int config_get_device(struct wireguard_device *wg, void __user *udevice)
+int config_get_device(struct wireguard_device *wg, void __user *user_device)
 {
-	int ret = 0;
+	int ret;
 	struct net_device *dev = netdev_pub(wg);
 	struct data_remaining peer_data = { NULL };
 	struct wgdevice out_device;
@@ -281,16 +284,20 @@ int config_get_device(struct wireguard_device *wg, void __user *udevice)
 
 	mutex_lock(&wg->device_update_lock);
 
-	if (!udevice) {
+	if (!user_device) {
 		ret = calculate_peers_size(wg);
 		goto out;
 	}
 
-	if (copy_from_user(&in_device, udevice, sizeof(in_device))) {
-		ret = -EFAULT;
+	ret = -EFAULT;
+	if (copy_from_user(&in_device, user_device, sizeof(in_device)))
 		goto out;
-	}
 
+	ret = -EPROTO;
+	if (in_device.version_magic != WG_API_VERSION_MAGIC)
+		goto out;
+
+	out_device.version_magic = WG_API_VERSION_MAGIC;
 	out_device.port = wg->incoming_port;
 	out_device.fwmark = wg->fwmark;
 	strncpy(out_device.interface, dev->name, IFNAMSIZ - 1);
@@ -305,14 +312,17 @@ int config_get_device(struct wireguard_device *wg, void __user *udevice)
 	up_read(&wg->static_identity.lock);
 
 	peer_data.out_len = in_device.peers_size;
-	peer_data.data = udevice + sizeof(struct wgdevice);
+	peer_data.data = user_device + sizeof(struct wgdevice);
 	ret = peer_for_each_unlocked(wg, populate_peer, &peer_data);
 	if (ret)
 		goto out;
 	out_device.num_peers = peer_data.count;
 
-	if (copy_to_user(udevice, &out_device, sizeof(out_device)))
-		ret = -EFAULT;
+	ret = -EFAULT;
+	if (copy_to_user(user_device, &out_device, sizeof(out_device)))
+		goto out;
+
+	ret = 0;
 
 out:
 	mutex_unlock(&wg->device_update_lock);

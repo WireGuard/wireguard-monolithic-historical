@@ -465,7 +465,7 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 {
 	struct inflatable_device buf = { 0 };
 	size_t peer_offset = 0;
-	buf.dev = calloc(sizeof(struct wgdevice), 1);
+	buf.dev = calloc(1, sizeof(struct wgdevice));
 	if (!buf.dev) {
 		perror("calloc");
 		return false;

@@ -124,7 +124,13 @@ enum {
 	WGDEVICE_REMOVE_PRESHARED_KEY = (1 << 2),
 	WGDEVICE_REMOVE_FWMARK = (1 << 3)
 };
+
+enum {
+	WG_API_VERSION_MAGIC = 0xbeef0001
+};
+
 struct wgdevice {
+	__u32 version_magic; /* Must be value of WG_API_VERSION_MAGIC */
 	char interface[IFNAMSIZ]; /* Get */
 	__u32 flags; /* Set */
 
