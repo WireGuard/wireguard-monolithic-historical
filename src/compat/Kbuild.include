@@ -1,4 +1,8 @@
+ifeq ($(wildcard $(src)/compat/compat.h),)
+ccflags-y += -include $(srctree)/$(src)/compat/compat.h
+else
 ccflags-y += -include $(src)/compat/compat.h
+endif
 
 ifeq ($(wildcard $(srctree)/include/linux/siphash.h),)
 ccflags-y += -I$(src)/compat/siphash/include
