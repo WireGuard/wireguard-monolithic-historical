@@ -66,7 +66,7 @@ static inline uint16_t parse_port(const char *value)
 		.ai_family = AF_UNSPEC,
 		.ai_socktype = SOCK_DGRAM,
 		.ai_protocol = IPPROTO_UDP,
-		.ai_flags = AI_ADDRCONFIG | AI_PASSIVE
+		.ai_flags = AI_PASSIVE
 	};
 
 	if (!strlen(value)) {
