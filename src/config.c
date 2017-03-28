@@ -61,6 +61,16 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	if (!peer) { /* Peer doesn't exist yet. Add a new one. */
 		if (in_peer.flags & WGPEER_REMOVE_ME)
 			return -ENODEV; /* Tried to remove a non existing peer. */
+
+		down_read(&wg->static_identity.lock);
+		if (wg->static_identity.has_identity && !memcmp(in_peer.public_key, wg->static_identity.static_public, NOISE_PUBLIC_KEY_LEN)) {
+			/* We silently ignore peers that have the same public key as the device. The reason we do it silently
+			 * is that we'd like for people to be able to reuse the same set of API calls across peers. */
+			up_read(&wg->static_identity.lock);
+			goto out;
+		}
+		up_read(&wg->static_identity.lock);
+
 		peer = peer_rcu_get(peer_create(wg, in_peer.public_key));
 		if (!peer)
 			return -ENOMEM;
@@ -146,6 +156,16 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 		noise_set_static_identity_private_key(&wg->static_identity, NULL);
 		modified_static_identity = true;
 	} else if (memcmp(zeros, in_device.private_key, WG_KEY_LEN)) {
+		u8 public_key[NOISE_PUBLIC_KEY_LEN] = { 0 };
+		struct wireguard_peer *peer;
+		/* We remove before setting, to prevent race, which means doing two 25519-genpub ops. */
+		curve25519_generate_public(public_key, in_device.private_key);
+		peer = pubkey_hashtable_lookup(&wg->peer_hashtable, public_key);
+		if (peer) {
+			peer_put(peer);
+			peer_remove(peer);
+		}
+
 		noise_set_static_identity_private_key(&wg->static_identity, in_device.private_key);
 		modified_static_identity = true;
 	}
