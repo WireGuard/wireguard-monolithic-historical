@@ -159,7 +159,7 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 		u8 public_key[NOISE_PUBLIC_KEY_LEN] = { 0 };
 		struct wireguard_peer *peer;
 		/* We remove before setting, to prevent race, which means doing two 25519-genpub ops. */
-		curve25519_generate_public(public_key, in_device.private_key);
+		bool unused __attribute((unused)) = curve25519_generate_public(public_key, in_device.private_key);
 		peer = pubkey_hashtable_lookup(&wg->peer_hashtable, public_key);
 		if (peer) {
 			peer_put(peer);

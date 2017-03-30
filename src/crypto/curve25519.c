@@ -16,6 +16,7 @@ static __always_inline void normalize_secret(u8 secret[CURVE25519_POINT_SIZE])
 	secret[31] &= 127;
 	secret[31] |= 64;
 }
+static const u8 null_point[CURVE25519_POINT_SIZE] = { 0 };
 
 #ifdef CONFIG_X86_64
 #include <asm/cpufeature.h>
@@ -62,9 +63,14 @@ static void curve25519_sandy2x(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secr
 #undef x1
 #undef x2
 #undef z2
-	curve25519_sandy2x_fe51_invert(&z_51, &z_51);
-	curve25519_sandy2x_fe51_mul(&x_51, &x_51, &z_51);
-	curve25519_sandy2x_fe51_pack(mypublic, &x_51);
+	curve25519_sandy2x_fe51_invert(&z_51, (const fe51 *)&z_51);
+	curve25519_sandy2x_fe51_mul(&x_51, (const fe51 *)&x_51, (const fe51 *)&z_51);
+	curve25519_sandy2x_fe51_pack(mypublic, (const fe51 *)&x_51);
+
+	memzero_explicit(e, sizeof(e));
+	memzero_explicit(var, sizeof(var));
+	memzero_explicit(x_51, sizeof(x_51));
+	memzero_explicit(z_51, sizeof(z_51));
 }
 
 static void curve25519_sandy2x_base(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
@@ -89,9 +95,14 @@ static void curve25519_sandy2x_base(u8 pub[CURVE25519_POINT_SIZE], const u8 secr
 	x_51[4] = (x2[9] << 26) + x2[8];
 #undef x2
 #undef z2
-	curve25519_sandy2x_fe51_invert(&z_51, &z_51);
-	curve25519_sandy2x_fe51_mul(&x_51, &x_51, &z_51);
-	curve25519_sandy2x_fe51_pack(pub, &x_51);
+	curve25519_sandy2x_fe51_invert(&z_51, (const fe51 *)&z_51);
+	curve25519_sandy2x_fe51_mul(&x_51, (const fe51 *)&x_51, (const fe51 *)&z_51);
+	curve25519_sandy2x_fe51_pack(pub, (const fe51 *)&x_51);
+
+	memzero_explicit(e, sizeof(e));
+	memzero_explicit(var, sizeof(var));
+	memzero_explicit(x_51, sizeof(x_51));
+	memzero_explicit(z_51, sizeof(z_51));
 }
 #else
 void curve25519_fpu_init(void) { }
@@ -473,7 +484,7 @@ static void crecip(felem out, const felem z)
 	/* 2^255 - 21 */ fmul(out, t0, a);
 }
 
-void curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
+bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
 {
 #ifdef CONFIG_X86_64
 	if (curve25519_use_avx && irq_fpu_usable()) {
@@ -501,21 +512,21 @@ void curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 		memzero_explicit(z, sizeof(z));
 		memzero_explicit(zmone, sizeof(zmone));
 	}
+	return crypto_memneq(mypublic, null_point, CURVE25519_POINT_SIZE);
 }
 
-void curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
+bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
+	static const u8 basepoint[CURVE25519_POINT_SIZE] = { 9 };
 #ifdef CONFIG_X86_64
 	if (curve25519_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
 		curve25519_sandy2x_base(pub, secret);
 		kernel_fpu_end();
-	} else
-#endif
-	{
-		static const u8 basepoint[CURVE25519_POINT_SIZE] = { 9 };
-		curve25519(pub, secret, basepoint);
+		return crypto_memneq(pub, null_point, CURVE25519_POINT_SIZE);
 	}
+#endif
+	return curve25519(pub, secret, basepoint);
 }
 #else
 typedef s64 limb;
@@ -1306,7 +1317,7 @@ static void cmult(limb *resultx, limb *resultz, const u8 *n, const limb *q)
 	memcpy(resultz, nqz, sizeof(limb) * 10);
 }
 
-void curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
+bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
 {
 	limb bp[10], x[10], z[11], zmone[10];
 	u8 e[32];
@@ -1325,12 +1336,13 @@ void curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 	memzero_explicit(x, sizeof(x));
 	memzero_explicit(z, sizeof(z));
 	memzero_explicit(zmone, sizeof(zmone));
+	return crypto_memneq(mypublic, null_point, CURVE25519_POINT_SIZE);
 }
 
-void curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
+bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
 	static const u8 basepoint[CURVE25519_POINT_SIZE] = { 9 };
-	curve25519(pub, secret, basepoint);
+	return curve25519(pub, secret, basepoint);
 }
 #endif
 

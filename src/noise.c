@@ -189,8 +189,7 @@ void noise_set_static_identity_private_key(struct noise_static_identity *static_
 	down_write(&static_identity->lock);
 	if (private_key) {
 		memcpy(static_identity->static_private, private_key, NOISE_PUBLIC_KEY_LEN);
-		curve25519_generate_public(static_identity->static_public, private_key);
-		static_identity->has_identity = true;
+		static_identity->has_identity = curve25519_generate_public(static_identity->static_public, private_key);
 	} else {
 		memset(static_identity->static_private, 0, NOISE_PUBLIC_KEY_LEN);
 		memset(static_identity->static_public, 0, NOISE_PUBLIC_KEY_LEN);
@@ -263,13 +262,15 @@ static void mix_key(u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[NOISE_HASH_
 	kdf(chaining_key, key, src, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, src_len, chaining_key);
 }
 
-static void mix_dh(u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[NOISE_HASH_LEN],
+static __must_check bool mix_dh(u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[NOISE_HASH_LEN],
 		   const u8 private[NOISE_PUBLIC_KEY_LEN], const u8 public[NOISE_PUBLIC_KEY_LEN])
 {
 	u8 dh_calculation[NOISE_PUBLIC_KEY_LEN];
-	curve25519(dh_calculation, private, public);
+	if (unlikely(!curve25519(dh_calculation, private, public)))
+		return false;
 	mix_key(key, chaining_key, dh_calculation, NOISE_PUBLIC_KEY_LEN);
 	memzero_explicit(dh_calculation, NOISE_PUBLIC_KEY_LEN);
+	return true;
 }
 
 static void mix_hash(u8 hash[NOISE_HASH_LEN], const u8 *src, size_t src_len)
@@ -346,20 +347,23 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 
 	/* e */
 	curve25519_generate_secret(handshake->ephemeral_private);
-	curve25519_generate_public(handshake->ephemeral_public, handshake->ephemeral_private);
+	if (!curve25519_generate_public(handshake->ephemeral_public, handshake->ephemeral_private))
+		goto out;
 	handshake_nocrypt(dst->unencrypted_ephemeral, handshake->ephemeral_public, NOISE_PUBLIC_KEY_LEN, handshake->hash);
 	if (handshake->static_identity->has_psk)
 		mix_key(handshake->key, handshake->chaining_key, handshake->ephemeral_public, NOISE_PUBLIC_KEY_LEN);
 
 	/* es */
-	mix_dh(handshake->key, handshake->chaining_key, handshake->ephemeral_private, handshake->remote_static);
+	if (!mix_dh(handshake->key, handshake->chaining_key, handshake->ephemeral_private, handshake->remote_static))
+		goto out;
 
 	/* s */
 	if (!handshake_encrypt(dst->encrypted_static, handshake->static_identity->static_public, NOISE_PUBLIC_KEY_LEN, handshake->key, handshake->hash))
 		goto out;
 
 	/* ss */
-	mix_dh(handshake->key, handshake->chaining_key, handshake->static_identity->static_private, handshake->remote_static);
+	if (!mix_dh(handshake->key, handshake->chaining_key, handshake->static_identity->static_private, handshake->remote_static))
+		goto out;
 
 	/* t */
 	tai64n_now(timestamp);
@@ -402,14 +406,16 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 		mix_key(key, chaining_key, e, NOISE_PUBLIC_KEY_LEN);
 
 	/* es */
-	mix_dh(key, chaining_key, wg->static_identity.static_private, e);
+	if (!mix_dh(key, chaining_key, wg->static_identity.static_private, e))
+		goto out;
 
 	/* s */
 	if (!handshake_decrypt(s, src->encrypted_static, sizeof(src->encrypted_static), key, hash))
 		goto out;
 
 	/* ss */
-	mix_dh(key, chaining_key, wg->static_identity.static_private, s);
+	if (!mix_dh(key, chaining_key, wg->static_identity.static_private, s))
+		goto out;
 
 	/* t */
 	if (!handshake_decrypt(t, src->encrypted_timestamp, sizeof(src->encrypted_timestamp), key, hash))
@@ -464,16 +470,19 @@ bool noise_handshake_create_response(struct message_handshake_response *dst, str
 
 	/* e */
 	curve25519_generate_secret(handshake->ephemeral_private);
-	curve25519_generate_public(handshake->ephemeral_public, handshake->ephemeral_private);
+	if (!curve25519_generate_public(handshake->ephemeral_public, handshake->ephemeral_private))
+		goto out;
 	handshake_nocrypt(dst->unencrypted_ephemeral, handshake->ephemeral_public, NOISE_PUBLIC_KEY_LEN, handshake->hash);
 	if (handshake->static_identity->has_psk)
 		mix_key(handshake->key, handshake->chaining_key, handshake->ephemeral_public, NOISE_PUBLIC_KEY_LEN);
 
 	/* ee */
-	mix_dh(handshake->key, handshake->chaining_key, handshake->ephemeral_private, handshake->remote_ephemeral);
+	if (!mix_dh(handshake->key, handshake->chaining_key, handshake->ephemeral_private, handshake->remote_ephemeral))
+		goto out;
 
 	/* se */
-	mix_dh(handshake->key, handshake->chaining_key, handshake->ephemeral_private, handshake->remote_static);
+	if (!mix_dh(handshake->key, handshake->chaining_key, handshake->ephemeral_private, handshake->remote_static))
+		goto out;
 
 	if (!handshake_encrypt(dst->encrypted_nothing, NULL, 0, handshake->key, handshake->hash))
 		goto out;
@@ -527,10 +536,12 @@ struct wireguard_peer *noise_handshake_consume_response(struct message_handshake
 		mix_key(key, chaining_key, e, NOISE_PUBLIC_KEY_LEN);
 
 	/* ee */
-	mix_dh(key, chaining_key, ephemeral_private, e);
+	if (!mix_dh(key, chaining_key, ephemeral_private, e))
+		goto out;
 
 	/* se */
-	mix_dh(key, chaining_key, wg->static_identity.static_private, e);
+	if (!mix_dh(key, chaining_key, wg->static_identity.static_private, e))
+		goto out;
 
 	/* decrypt nothing */
 	if (!handshake_decrypt(NULL, src->encrypted_nothing, sizeof(src->encrypted_nothing), key, hash))
