@@ -48,11 +48,11 @@ bool chacha20poly1305_selftest(void)
 {
 	size_t i;
 	u8 computed_result[512];
-	bool success = true;
+	bool success = true, ret;
 
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
-		success = chacha20poly1305_encrypt(computed_result, chacha20poly1305_enc_vectors[i].input, chacha20poly1305_enc_vectors[i].ilen, chacha20poly1305_enc_vectors[i].assoc, chacha20poly1305_enc_vectors[i].alen, le64_to_cpu(*(__force __le64 *)chacha20poly1305_enc_vectors[i].nonce), chacha20poly1305_enc_vectors[i].key);
+		chacha20poly1305_encrypt(computed_result, chacha20poly1305_enc_vectors[i].input, chacha20poly1305_enc_vectors[i].ilen, chacha20poly1305_enc_vectors[i].assoc, chacha20poly1305_enc_vectors[i].alen, le64_to_cpu(*(__force __le64 *)chacha20poly1305_enc_vectors[i].nonce), chacha20poly1305_enc_vectors[i].key);
 		if (memcmp(computed_result, chacha20poly1305_enc_vectors[i].result, chacha20poly1305_enc_vectors[i].ilen + POLY1305_MAC_SIZE)) {
 			pr_info("chacha20poly1305 encryption self-test %zu: FAIL\n", i + 1);
 			success = false;
@@ -60,15 +60,15 @@ bool chacha20poly1305_selftest(void)
 	}
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
-		success = chacha20poly1305_decrypt(computed_result, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpu(*(__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key);
-		if (!success || memcmp(computed_result, chacha20poly1305_dec_vectors[i].result, chacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE)) {
+		ret = chacha20poly1305_decrypt(computed_result, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpu(*(__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key);
+		if (!ret || memcmp(computed_result, chacha20poly1305_dec_vectors[i].result, chacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE)) {
 			pr_info("chacha20poly1305 decryption self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
 	}
 	for (i = 0; i < ARRAY_SIZE(xchacha20poly1305_enc_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
-		success = xchacha20poly1305_encrypt(computed_result, xchacha20poly1305_enc_vectors[i].input, xchacha20poly1305_enc_vectors[i].ilen, xchacha20poly1305_enc_vectors[i].assoc, xchacha20poly1305_enc_vectors[i].alen, xchacha20poly1305_enc_vectors[i].nonce, xchacha20poly1305_enc_vectors[i].key);
+		xchacha20poly1305_encrypt(computed_result, xchacha20poly1305_enc_vectors[i].input, xchacha20poly1305_enc_vectors[i].ilen, xchacha20poly1305_enc_vectors[i].assoc, xchacha20poly1305_enc_vectors[i].alen, xchacha20poly1305_enc_vectors[i].nonce, xchacha20poly1305_enc_vectors[i].key);
 		if (memcmp(computed_result, xchacha20poly1305_enc_vectors[i].result, xchacha20poly1305_enc_vectors[i].ilen + POLY1305_MAC_SIZE)) {
 			pr_info("xchacha20poly1305 encryption self-test %zu: FAIL\n", i + 1);
 			success = false;
@@ -76,8 +76,8 @@ bool chacha20poly1305_selftest(void)
 	}
 	for (i = 0; i < ARRAY_SIZE(xchacha20poly1305_dec_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
-		success = xchacha20poly1305_decrypt(computed_result, xchacha20poly1305_dec_vectors[i].input, xchacha20poly1305_dec_vectors[i].ilen, xchacha20poly1305_dec_vectors[i].assoc, xchacha20poly1305_dec_vectors[i].alen, xchacha20poly1305_dec_vectors[i].nonce, xchacha20poly1305_dec_vectors[i].key);
-		if (!success || memcmp(computed_result, xchacha20poly1305_dec_vectors[i].result, xchacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE)) {
+		ret = xchacha20poly1305_decrypt(computed_result, xchacha20poly1305_dec_vectors[i].input, xchacha20poly1305_dec_vectors[i].ilen, xchacha20poly1305_dec_vectors[i].assoc, xchacha20poly1305_dec_vectors[i].alen, xchacha20poly1305_dec_vectors[i].nonce, xchacha20poly1305_dec_vectors[i].key);
+		if (!ret || memcmp(computed_result, xchacha20poly1305_dec_vectors[i].result, xchacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE)) {
 			pr_info("xchacha20poly1305 decryption self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}

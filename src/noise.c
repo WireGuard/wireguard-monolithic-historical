@@ -298,12 +298,10 @@ static void handshake_init(u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 chaining_key[NOIS
 	mix_hash(hash, remote_static, NOISE_PUBLIC_KEY_LEN);
 }
 
-static bool handshake_encrypt(u8 *dst_ciphertext, const u8 *src_plaintext, size_t src_len, u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 hash[NOISE_HASH_LEN])
+static void handshake_encrypt(u8 *dst_ciphertext, const u8 *src_plaintext, size_t src_len, u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 hash[NOISE_HASH_LEN])
 {
-	if (!chacha20poly1305_encrypt(dst_ciphertext, src_plaintext, src_len, hash, NOISE_HASH_LEN, 0 /* Always zero for Noise_IK */, key))
-		return false;
+	chacha20poly1305_encrypt(dst_ciphertext, src_plaintext, src_len, hash, NOISE_HASH_LEN, 0 /* Always zero for Noise_IK */, key);
 	mix_hash(hash, dst_ciphertext, noise_encrypted_len(src_len));
-	return true;
 }
 
 static bool handshake_decrypt(u8 *dst_plaintext, const u8 *src_ciphertext, size_t src_len, u8 key[NOISE_SYMMETRIC_KEY_LEN], u8 hash[NOISE_HASH_LEN])
@@ -358,8 +356,7 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 		goto out;
 
 	/* s */
-	if (!handshake_encrypt(dst->encrypted_static, handshake->static_identity->static_public, NOISE_PUBLIC_KEY_LEN, handshake->key, handshake->hash))
-		goto out;
+	handshake_encrypt(dst->encrypted_static, handshake->static_identity->static_public, NOISE_PUBLIC_KEY_LEN, handshake->key, handshake->hash);
 
 	/* ss */
 	if (!mix_dh(handshake->key, handshake->chaining_key, handshake->static_identity->static_private, handshake->remote_static))
@@ -367,8 +364,7 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 
 	/* t */
 	tai64n_now(timestamp);
-	if (!handshake_encrypt(dst->encrypted_timestamp, timestamp, NOISE_TIMESTAMP_LEN, handshake->key, handshake->hash))
-		goto out;
+	handshake_encrypt(dst->encrypted_timestamp, timestamp, NOISE_TIMESTAMP_LEN, handshake->key, handshake->hash);
 
 	dst->sender_index = index_hashtable_insert(&handshake->entry.peer->device->index_hashtable, &handshake->entry);
 
@@ -484,8 +480,7 @@ bool noise_handshake_create_response(struct message_handshake_response *dst, str
 	if (!mix_dh(handshake->key, handshake->chaining_key, handshake->ephemeral_private, handshake->remote_static))
 		goto out;
 
-	if (!handshake_encrypt(dst->encrypted_nothing, NULL, 0, handshake->key, handshake->hash))
-		goto out;
+	handshake_encrypt(dst->encrypted_nothing, NULL, 0, handshake->key, handshake->hash);
 
 	dst->sender_index = index_hashtable_insert(&handshake->entry.peer->device->index_hashtable, &handshake->entry);
 

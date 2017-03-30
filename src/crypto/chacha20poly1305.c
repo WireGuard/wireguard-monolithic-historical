@@ -568,7 +568,7 @@ static struct blkcipher_desc chacha20_desc = {
 	.tfm = &chacha20_cipher
 };
 
-bool chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
+void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			      const u8 *ad, const size_t ad_len,
 			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
 {
@@ -605,11 +605,9 @@ bool chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 
 	chacha20poly1305_deinit_simd(have_simd);
-
-	return true;
 }
 
-bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
+void chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
 				 const u8 *ad, const size_t ad_len,
 				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 				 bool have_simd)
@@ -660,7 +658,6 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	memzero_explicit(&poly1305_state, sizeof(poly1305_state));
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 	memzero_explicit(mac, sizeof(mac));
-	return true;
 }
 
 bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
@@ -782,17 +779,15 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 }
 
 
-bool xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
+void xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			       const u8 *ad, const size_t ad_len,
 			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],
 			       const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	u8 derived_key[CHACHA20POLY1305_KEYLEN];
-	bool ret;
 	hchacha20(derived_key, nonce, key);
-	ret = chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key);
+	chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key);
 	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
-	return ret;
 }
 
 bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,

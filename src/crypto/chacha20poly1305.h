@@ -15,29 +15,29 @@ enum chacha20poly1305_lengths {
 
 void chacha20poly1305_fpu_init(void);
 
-bool chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
+void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			      const u8 *ad, const size_t ad_len,
 			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN]);
 
-bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
+void chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
 				 const u8 *ad, const size_t ad_len,
 				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 				 bool have_simd);
 
-bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
+bool __must_check chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 			      const u8 *ad, const size_t ad_len,
 			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN]);
 
-bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
+bool __must_check chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
 				 const u8 *ad, const size_t ad_len,
 				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN]);
 
-bool xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
+void xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			       const u8 *ad, const size_t ad_len,
 			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],
 			       const u8 key[CHACHA20POLY1305_KEYLEN]);
 
-bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
+bool __must_check xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 			       const u8 *ad, const size_t ad_len,
 			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],
 			       const u8 key[CHACHA20POLY1305_KEYLEN]);
