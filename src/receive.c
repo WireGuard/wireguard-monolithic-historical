@@ -205,16 +205,11 @@ static void keep_key_fresh(struct wireguard_peer *peer)
 	}
 }
 
-static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer, struct endpoint *endpoint, bool used_new_key, int err)
+void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, struct endpoint *endpoint, bool used_new_key)
 {
 	struct net_device *dev;
 	struct wireguard_peer *routed_peer;
 	struct wireguard_device *wg;
-
-	if (unlikely(err < 0 || !peer || !endpoint)) {
-		dev_kfree_skb(skb);
-		return;
-	}
 
 	socket_set_peer_endpoint(peer, endpoint);
 
@@ -305,7 +300,7 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 		break;
 	case MESSAGE_DATA:
 		PACKET_CB(skb)->ds = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
-		packet_consume_data(skb, wg, receive_data_packet);
+		packet_consume_data(skb, wg);
 		break;
 	default:
 		net_dbg_skb_ratelimited("Invalid packet from %pISpfsc\n", skb);

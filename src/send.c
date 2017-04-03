@@ -118,7 +118,7 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 	packet_send_queue(peer);
 }
 
-static void message_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *peer)
+void packet_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *peer)
 {
 	struct sk_buff *skb, *tmp;
 	bool is_keepalive, data_sent = false;
@@ -157,7 +157,7 @@ void packet_send_queue(struct wireguard_peer *peer)
 		return;
 
 	/* We submit it for encryption and sending. */
-	switch (packet_create_data(&queue, peer, message_create_data_done)) {
+	switch (packet_create_data(&queue, peer)) {
 	case 0:
 		break;
 	case -EBUSY:
