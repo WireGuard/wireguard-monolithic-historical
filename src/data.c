@@ -282,11 +282,11 @@ int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer, 
 	struct noise_keypair *keypair;
 	struct sk_buff *skb;
 
-	rcu_read_lock();
-	keypair = noise_keypair_get(rcu_dereference(peer->keypairs.current_keypair));
+	rcu_read_lock_bh();
+	keypair = noise_keypair_get(rcu_dereference_bh(peer->keypairs.current_keypair));
 	if (unlikely(!keypair))
 		goto err_rcu;
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	skb_queue_walk(queue, skb) {
 		if (unlikely(!get_encryption_nonce(&PACKET_CB(skb)->nonce, &keypair->sending)))
@@ -338,7 +338,7 @@ err:
 	noise_keypair_put(keypair);
 	return ret;
 err_rcu:
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return ret;
 }
 
@@ -421,9 +421,9 @@ void packet_consume_data(struct sk_buff *skb, struct wireguard_device *wg, packe
 	__le32 idx = ((struct message_data *)skb->data)->key_idx;
 
 	ret = -EINVAL;
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	keypair = noise_keypair_get((struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx));
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	if (unlikely(!keypair))
 		goto err;
 

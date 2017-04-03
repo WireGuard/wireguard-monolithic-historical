@@ -192,12 +192,12 @@ static void keep_key_fresh(struct wireguard_peer *peer)
 	if (peer->sent_lastminute_handshake)
 		return;
 
-	rcu_read_lock();
-	keypair = rcu_dereference(peer->keypairs.current_keypair);
+	rcu_read_lock_bh();
+	keypair = rcu_dereference_bh(peer->keypairs.current_keypair);
 	if (likely(keypair && keypair->sending.is_valid) && keypair->i_am_the_initiator &&
 	    unlikely(time_is_before_eq_jiffies64(keypair->sending.birthdate + REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - REKEY_TIMEOUT)))
 		send = true;
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	if (send) {
 		peer->sent_lastminute_handshake = true;

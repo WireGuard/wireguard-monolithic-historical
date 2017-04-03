@@ -34,9 +34,13 @@ static inline void copy_and_assign_cidr(struct routing_table_node *node, const u
  *       return;
  *     free_node(node->bit[0]);
  *     free_node(node->bit[1]);
- *     kfree_rcu(node);
+ *     kfree_rcu_bh(node);
  * }
  */
+static void node_free_rcu(struct rcu_head *rcu)
+{
+	kfree(container_of(rcu, struct routing_table_node, rcu));
+}
 #define ref(p) rcu_access_pointer(p)
 #define push(p) do { BUG_ON(len >= 128); stack[len++] = rcu_dereference_protected(p, lockdep_is_held(lock)); } while (0)
 static void free_node(struct routing_table_node *top, struct mutex *lock)
@@ -61,7 +65,7 @@ static void free_node(struct routing_table_node *top, struct mutex *lock)
 			if (ref(node->bit[1]))
 				push(node->bit[1]);
 		} else {
-			kfree_rcu(node, rcu);
+			call_rcu_bh(&node->rcu, node_free_rcu);
 			--len;
 		}
 		prev = node;
@@ -185,7 +189,7 @@ static inline struct routing_table_node *find_node(struct routing_table_node *tr
 			found = node;
 		if (node->cidr == bits)
 			break;
-		node = rcu_dereference(node->bit[bit_at(key, node->bit_at_a, node->bit_at_b)]);
+		node = rcu_dereference_bh(node->bit[bit_at(key, node->bit_at_a, node->bit_at_b)]);
 	}
 	return found;
 }
@@ -276,7 +280,7 @@ static int add(struct routing_table_node __rcu **trie, u8 bits, const u8 *key, u
 }
 
 #define push(p) do { \
-	struct routing_table_node *next = (maybe_lock ? rcu_dereference_protected(p, lockdep_is_held(maybe_lock)) : rcu_dereference(p)); \
+	struct routing_table_node *next = (maybe_lock ? rcu_dereference_protected(p, lockdep_is_held(maybe_lock)) : rcu_dereference_bh(p)); \
 	if (next) { \
 		BUG_ON(len >= 128); \
 		stack[len++] = next; \
@@ -385,11 +389,11 @@ inline struct wireguard_peer *routing_table_lookup_v4(struct routing_table *tabl
 	struct wireguard_peer *peer = NULL;
 	struct routing_table_node *node;
 
-	rcu_read_lock();
-	node = find_node(rcu_dereference(table->root4), 32, (const u8 *)ip);
+	rcu_read_lock_bh();
+	node = find_node(rcu_dereference_bh(table->root4), 32, (const u8 *)ip);
 	if (node)
 		peer = peer_get(node->peer);
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return peer;
 }
 
@@ -399,11 +403,11 @@ inline struct wireguard_peer *routing_table_lookup_v6(struct routing_table *tabl
 	struct wireguard_peer *peer = NULL;
 	struct routing_table_node *node;
 
-	rcu_read_lock();
-	node = find_node(rcu_dereference(table->root6), 128, (const u8 *)ip);
+	rcu_read_lock_bh();
+	node = find_node(rcu_dereference_bh(table->root6), 128, (const u8 *)ip);
 	if (node)
 		peer = peer_get(node->peer);
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return peer;
 }
 
@@ -439,28 +443,28 @@ int routing_table_remove_by_peer(struct routing_table *table, struct wireguard_p
 int routing_table_walk_ips(struct routing_table *table, void *ctx, int (*func)(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, u8 cidr, int family))
 {
 	int ret;
-	rcu_read_lock();
-	ret = walk_ips(rcu_dereference(table->root4), AF_INET, ctx, func, NULL);
-	rcu_read_unlock();
+	rcu_read_lock_bh();
+	ret = walk_ips(rcu_dereference_bh(table->root4), AF_INET, ctx, func, NULL);
+	rcu_read_unlock_bh();
 	if (ret)
 		return ret;
-	rcu_read_lock();
-	ret = walk_ips(rcu_dereference(table->root6), AF_INET6, ctx, func, NULL);
-	rcu_read_unlock();
+	rcu_read_lock_bh();
+	ret = walk_ips(rcu_dereference_bh(table->root6), AF_INET6, ctx, func, NULL);
+	rcu_read_unlock_bh();
 	return ret;
 }
 
 int routing_table_walk_ips_by_peer(struct routing_table *table, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, u8 cidr, int family))
 {
 	int ret;
-	rcu_read_lock();
-	ret = walk_ips_by_peer(rcu_dereference(table->root4), AF_INET, ctx, peer, func, NULL);
-	rcu_read_unlock();
+	rcu_read_lock_bh();
+	ret = walk_ips_by_peer(rcu_dereference_bh(table->root4), AF_INET, ctx, peer, func, NULL);
+	rcu_read_unlock_bh();
 	if (ret)
 		return ret;
-	rcu_read_lock();
-	ret = walk_ips_by_peer(rcu_dereference(table->root6), AF_INET6, ctx, peer, func, NULL);
-	rcu_read_unlock();
+	rcu_read_lock_bh();
+	ret = walk_ips_by_peer(rcu_dereference_bh(table->root6), AF_INET6, ctx, peer, func, NULL);
+	rcu_read_unlock_bh();
 	return ret;
 }
 

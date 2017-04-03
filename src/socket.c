@@ -30,8 +30,8 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 	skb->next = skb->prev = NULL;
 	skb->dev = netdev_pub(wg);
 
-	rcu_read_lock();
-	sock = rcu_dereference(wg->sock4);
+	rcu_read_lock_bh();
+	sock = rcu_dereference_bh(wg->sock4);
 
 	if (unlikely(!sock)) {
 		ret = -ENONET;
@@ -73,7 +73,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 err:
 	kfree_skb(skb);
 out:
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return ret;
 }
 
@@ -97,8 +97,8 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 	skb->next = skb->prev = NULL;
 	skb->dev = netdev_pub(wg);
 
-	rcu_read_lock();
-	sock = rcu_dereference(wg->sock6);
+	rcu_read_lock_bh();
+	sock = rcu_dereference_bh(wg->sock6);
 
 	if (unlikely(!sock)) {
 		ret = -ENONET;
@@ -139,7 +139,7 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 err:
 	kfree_skb(skb);
 out:
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return ret;
 #else
 	return -EAFNOSUPPORT;
@@ -377,7 +377,7 @@ void socket_uninit(struct wireguard_device *wg)
 	rcu_assign_pointer(wg->sock4, NULL);
 	rcu_assign_pointer(wg->sock6, NULL);
 	mutex_unlock(&wg->socket_update_lock);
-	synchronize_rcu();
+	synchronize_rcu_bh();
 	synchronize_net();
 	sock_free(old4);
 	sock_free(old6);
