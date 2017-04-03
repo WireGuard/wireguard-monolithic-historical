@@ -164,10 +164,9 @@ static inline bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypai
 	/* Now we can encrypt the scattergather segments */
 	sg = __builtin_alloca(num_frags * sizeof(struct scatterlist)); /* bounded to 128 */
 	sg_init_table(sg, num_frags);
-	skb_to_sgvec(skb, sg, sizeof(struct message_data), noise_encrypted_len(plaintext_len));
-	chacha20poly1305_encrypt_sg(sg, sg, plaintext_len, NULL, 0, PACKET_CB(skb)->nonce, keypair->sending.key, have_simd);
-
-	return true;
+	if (skb_to_sgvec(skb, sg, sizeof(struct message_data), noise_encrypted_len(plaintext_len)) <= 0)
+		return false;
+	return chacha20poly1305_encrypt_sg(sg, sg, plaintext_len, NULL, 0, PACKET_CB(skb)->nonce, keypair->sending.key, have_simd);
 }
 
 static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *key)
@@ -192,7 +191,8 @@ static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *
 	sg = __builtin_alloca(num_frags * sizeof(struct scatterlist)); /* bounded to 128 */
 
 	sg_init_table(sg, num_frags);
-	skb_to_sgvec(skb, sg, 0, skb->len);
+	if (skb_to_sgvec(skb, sg, 0, skb->len) <= 0)
+		return false;
 
 	if (!chacha20poly1305_decrypt_sg(sg, sg, skb->len, NULL, 0, PACKET_CB(skb)->nonce, key->key))
 		return false;
