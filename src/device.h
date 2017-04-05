@@ -21,9 +21,7 @@ struct wireguard_device {
 	u16 incoming_port;
 	u32 fwmark;
 	struct net *creating_net;
-	struct workqueue_struct *workqueue;
-	struct workqueue_struct *parallelqueue;
-	struct padata_instance *parallel_send, *parallel_receive;
+	struct workqueue_struct *handshake_wq;
 	struct noise_static_identity static_identity;
 	struct sk_buff_head incoming_handshakes;
 	struct work_struct incoming_handshakes_work;
@@ -36,6 +34,10 @@ struct wireguard_device {
 	struct mutex socket_update_lock;
 #ifdef CONFIG_PM_SLEEP
 	struct notifier_block clear_peers_on_suspend;
+#endif
+#ifdef CONFIG_WIREGUARD_PARALLEL
+	struct workqueue_struct *crypt_wq;
+	struct padata_instance *encrypt_pd, *decrypt_pd;
 #endif
 };
 

@@ -304,7 +304,7 @@ int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer)
 		if (unlikely(!ctx->peer))
 			goto err_parallel;
 		atomic_inc(&peer->parallel_encryption_inflight);
-		if (unlikely(padata_do_parallel(peer->device->parallel_send, &ctx->padata, choose_cpu(keypair->remote_index)))) {
+		if (unlikely(padata_do_parallel(peer->device->encrypt_pd, &ctx->padata, choose_cpu(keypair->remote_index)))) {
 			atomic_dec(&peer->parallel_encryption_inflight);
 			peer_put(ctx->peer);
 err_parallel:
@@ -397,7 +397,7 @@ void packet_consume_data(struct sk_buff *skb, struct wireguard_device *wg)
 		memset(&ctx->padata, 0, sizeof(ctx->padata));
 		ctx->padata.parallel = begin_parallel_decryption;
 		ctx->padata.serial = finish_parallel_decryption;
-		if (unlikely(padata_do_parallel(wg->parallel_receive, &ctx->padata, choose_cpu(idx)))) {
+		if (unlikely(padata_do_parallel(wg->decrypt_pd, &ctx->padata, choose_cpu(idx)))) {
 			kmem_cache_free(decryption_ctx_cache, ctx);
 			goto err_peer;
 		}

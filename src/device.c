@@ -233,11 +233,11 @@ static void destruct(struct net_device *dev)
 	mutex_lock(&wg->device_update_lock);
 	peer_remove_all(wg);
 	wg->incoming_port = 0;
-	destroy_workqueue(wg->workqueue);
+	destroy_workqueue(wg->handshake_wq);
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	padata_free(wg->parallel_send);
-	padata_free(wg->parallel_receive);
-	destroy_workqueue(wg->parallelqueue);
+	padata_free(wg->encrypt_pd);
+	padata_free(wg->decrypt_pd);
+	destroy_workqueue(wg->crypt_wq);
 #endif
 	routing_table_free(&wg->peer_routing_table);
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
@@ -306,24 +306,24 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (!dev->tstats)
 		goto error_1;
 
-	wg->workqueue = alloc_workqueue("wg-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
-	if (!wg->workqueue)
+	wg->handshake_wq = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
+	if (!wg->handshake_wq)
 		goto error_2;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	wg->parallelqueue = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
-	if (!wg->parallelqueue)
+	wg->crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 2, dev->name);
+	if (!wg->crypt_wq)
 		goto error_3;
 
-	wg->parallel_send = padata_alloc_possible(wg->parallelqueue);
-	if (!wg->parallel_send)
+	wg->encrypt_pd = padata_alloc_possible(wg->crypt_wq);
+	if (!wg->encrypt_pd)
 		goto error_4;
-	padata_start(wg->parallel_send);
+	padata_start(wg->encrypt_pd);
 
-	wg->parallel_receive = padata_alloc_possible(wg->parallelqueue);
-	if (!wg->parallel_receive)
+	wg->decrypt_pd = padata_alloc_possible(wg->crypt_wq);
+	if (!wg->decrypt_pd)
 		goto error_5;
-	padata_start(wg->parallel_receive);
+	padata_start(wg->decrypt_pd);
 #endif
 
 	ret = cookie_checker_init(&wg->cookie_checker, wg);
@@ -353,14 +353,14 @@ error_7:
 	cookie_checker_uninit(&wg->cookie_checker);
 error_6:
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	padata_free(wg->parallel_receive);
+	padata_free(wg->decrypt_pd);
 error_5:
-	padata_free(wg->parallel_send);
+	padata_free(wg->encrypt_pd);
 error_4:
-	destroy_workqueue(wg->parallelqueue);
+	destroy_workqueue(wg->crypt_wq);
 error_3:
 #endif
-	destroy_workqueue(wg->workqueue);
+	destroy_workqueue(wg->handshake_wq);
 error_2:
 	free_percpu(dev->tstats);
 error_1:

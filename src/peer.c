@@ -77,8 +77,8 @@ void peer_remove(struct wireguard_peer *peer)
 	timers_uninit_peer(peer);
 	routing_table_remove_by_peer(&peer->device->peer_routing_table, peer);
 	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
-	if (peer->device->workqueue)
-		flush_workqueue(peer->device->workqueue);
+	if (peer->device->handshake_wq)
+		flush_workqueue(peer->device->handshake_wq);
 	skb_queue_purge(&peer->tx_packet_queue);
 	peer_put(peer);
 }

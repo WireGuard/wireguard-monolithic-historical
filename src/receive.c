@@ -179,7 +179,7 @@ void packet_process_queued_handshake_packets(struct work_struct *work)
 		receive_handshake_packet(wg, skb);
 		dev_kfree_skb(skb);
 		if (++num_processed == MAX_BURST_INCOMING_HANDSHAKES) {
-			queue_work(wg->workqueue, &wg->incoming_handshakes_work);
+			queue_work(wg->handshake_wq, &wg->incoming_handshakes_work);
 			return;
 		}
 	}
@@ -296,7 +296,7 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 		}
 		skb_queue_tail(&wg->incoming_handshakes, skb);
 		/* Queues up a call to packet_process_queued_handshake_packets(skb): */
-		queue_work(wg->workqueue, &wg->incoming_handshakes_work);
+		queue_work(wg->handshake_wq, &wg->incoming_handshakes_work);
 		break;
 	case MESSAGE_DATA:
 		PACKET_CB(skb)->ds = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
