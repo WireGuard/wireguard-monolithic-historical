@@ -120,7 +120,7 @@ $(KERNEL_PATH)/.config: kernel.config | $(KERNEL_PATH)/.installed
 $(KERNEL_BZIMAGE): $(KERNEL_PATH)/.installed $(KERNEL_PATH)/.config $(BUILD_PATH)/init-cpio-spec.txt $(MUSL_PATH)/lib/libc.so $(IPERF_PATH)/src/iperf3 $(BUILD_PATH)/tools/wg $(IPUTILS_PATH)/ping $(BASH_PATH)/bash $(IPROUTE2_PATH)/ip/ip $(IPTABLES_PATH)/iptables/xtables-multi $(NMAP_PATH)/ncat/ncat $(BUILD_PATH)/init ../netns.sh $(WIREGUARD_SOURCES) $(TOOLS_SOURCES)
 	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH)
 
-$(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.installed
+$(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.installed $(KERNEL_PATH)/.config
 	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH) INSTALL_HDR_PATH=$(BUILD_PATH) headers_install
 	touch $@
 
