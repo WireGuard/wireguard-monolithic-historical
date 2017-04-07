@@ -152,8 +152,13 @@ EXPORT_SYMBOL_GPL(dst_cache_get_ip6);
 
 int dst_cache_init(struct dst_cache *dst_cache, gfp_t gfp)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+	BUG_ON(gfp & GFP_ATOMIC);
+	dst_cache->cache = alloc_percpu(struct dst_cache_pcpu);
+#else
 	dst_cache->cache = alloc_percpu_gfp(struct dst_cache_pcpu,
 					    gfp | __GFP_ZERO);
+#endif
 	if (!dst_cache->cache)
 		return -ENOMEM;
 

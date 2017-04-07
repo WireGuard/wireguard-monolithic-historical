@@ -1,0 +1,232 @@
+#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/socket.h>
+#include <linux/udp.h>
+#include <linux/types.h>
+#include <linux/kernel.h>
+#include <net/net_namespace.h>
+#include <net/inet_common.h>
+#include <net/udp.h>
+#include <net/udp_tunnel.h>
+
+/* This is global so, uh, only one real call site... This is the kind of horrific hack you'd expect to see in compat code. */
+static udp_tunnel_encap_rcv_t encap_rcv = NULL;
+static void our_sk_data_ready(struct sock *sk)
+{
+	struct sk_buff *skb;
+	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+		skb_orphan(skb);
+		sk_mem_reclaim(sk);
+		encap_rcv(sk, skb);
+	}
+}
+
+int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
+		     struct socket **sockp)
+{
+	int err;
+	struct socket *sock = NULL;
+	struct sockaddr_in udp_addr;
+
+	err = __sock_create(net, AF_INET, SOCK_DGRAM, 0, &sock, 1);
+	if (err < 0)
+		goto error;
+
+	udp_addr.sin_family = AF_INET;
+	udp_addr.sin_addr = cfg->local_ip;
+	udp_addr.sin_port = cfg->local_udp_port;
+	err = kernel_bind(sock, (struct sockaddr *)&udp_addr,
+			  sizeof(udp_addr));
+	if (err < 0)
+		goto error;
+
+	if (cfg->peer_udp_port) {
+		udp_addr.sin_family = AF_INET;
+		udp_addr.sin_addr = cfg->peer_ip;
+		udp_addr.sin_port = cfg->peer_udp_port;
+		err = kernel_connect(sock, (struct sockaddr *)&udp_addr,
+				     sizeof(udp_addr), 0);
+		if (err < 0)
+			goto error;
+	}
+
+	sock->sk->sk_no_check_tx = !cfg->use_udp_checksums;
+
+	*sockp = sock;
+	return 0;
+
+error:
+	if (sock) {
+		kernel_sock_shutdown(sock, SHUT_RDWR);
+		sock_release(sock);
+	}
+	*sockp = NULL;
+	return err;
+}
+EXPORT_SYMBOL(udp_sock_create4);
+
+void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
+			   struct udp_tunnel_sock_cfg *cfg)
+{
+	inet_sk(sock->sk)->mc_loop = 0;
+	encap_rcv = cfg->encap_rcv;
+	rcu_assign_sk_user_data(sock->sk, cfg->sk_user_data);
+	sock->sk->sk_data_ready = our_sk_data_ready;
+}
+EXPORT_SYMBOL_GPL(setup_udp_tunnel_sock);
+
+static void fake_destructor(struct sk_buff *skb)
+{
+}
+
+void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
+			 __be32 src, __be32 dst, __u8 tos, __u8 ttl,
+			 __be16 df, __be16 src_port, __be16 dst_port,
+			 bool xnet, bool nocheck)
+{
+	struct udphdr *uh;
+
+	__skb_push(skb, sizeof(*uh));
+	skb_reset_transport_header(skb);
+	uh = udp_hdr(skb);
+
+	uh->dest = dst_port;
+	uh->source = src_port;
+	uh->len = htons(skb->len);
+
+	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
+
+	udp_set_csum(nocheck, skb, src, dst, skb->len);
+
+	if (!skb->sk) {
+		skb->sk = sk;
+		skb->destructor = fake_destructor;
+	}
+
+	iptunnel_xmit(sk, rt, skb, src, dst, IPPROTO_UDP, tos, ttl, df, xnet);
+}
+EXPORT_SYMBOL_GPL(udp_tunnel_xmit_skb);
+
+void udp_tunnel_sock_release(struct socket *sock)
+{
+	rcu_assign_sk_user_data(sock->sk, NULL);
+	kernel_sock_shutdown(sock, SHUT_RDWR);
+	sock_release(sock);
+}
+EXPORT_SYMBOL_GPL(udp_tunnel_sock_release);
+
+#if IS_ENABLED(CONFIG_IPV6)
+#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/socket.h>
+#include <linux/udp.h>
+#include <linux/types.h>
+#include <linux/kernel.h>
+#include <linux/in6.h>
+#include <net/udp.h>
+#include <net/udp_tunnel.h>
+#include <net/net_namespace.h>
+#include <net/netns/generic.h>
+#include <net/ip6_tunnel.h>
+#include <net/ip6_checksum.h>
+
+int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
+		     struct socket **sockp)
+{
+	struct sockaddr_in6 udp6_addr;
+	int err;
+	struct socket *sock = NULL;
+
+	err = __sock_create(net, AF_INET6, SOCK_DGRAM, 0, &sock, 1);
+	if (err < 0)
+		goto error;
+
+	if (cfg->ipv6_v6only) {
+		int val = 1;
+
+		err = kernel_setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+					(char *) &val, sizeof(val));
+		if (err < 0)
+			goto error;
+	}
+
+	udp6_addr.sin6_family = AF_INET6;
+	memcpy(&udp6_addr.sin6_addr, &cfg->local_ip6,
+	       sizeof(udp6_addr.sin6_addr));
+	udp6_addr.sin6_port = cfg->local_udp_port;
+	err = kernel_bind(sock, (struct sockaddr *)&udp6_addr,
+			  sizeof(udp6_addr));
+	if (err < 0)
+		goto error;
+
+	if (cfg->peer_udp_port) {
+		udp6_addr.sin6_family = AF_INET6;
+		memcpy(&udp6_addr.sin6_addr, &cfg->peer_ip6,
+		       sizeof(udp6_addr.sin6_addr));
+		udp6_addr.sin6_port = cfg->peer_udp_port;
+		err = kernel_connect(sock,
+				     (struct sockaddr *)&udp6_addr,
+				     sizeof(udp6_addr), 0);
+	}
+	if (err < 0)
+		goto error;
+
+	udp_set_no_check6_tx(sock->sk, !cfg->use_udp6_tx_checksums);
+	udp_set_no_check6_rx(sock->sk, !cfg->use_udp6_rx_checksums);
+
+	*sockp = sock;
+	return 0;
+
+error:
+	if (sock) {
+		kernel_sock_shutdown(sock, SHUT_RDWR);
+		sock_release(sock);
+	}
+	*sockp = NULL;
+	return err;
+}
+EXPORT_SYMBOL_GPL(udp_sock_create6);
+
+int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
+			 struct sk_buff *skb,
+			 struct net_device *dev, struct in6_addr *saddr,
+			 struct in6_addr *daddr,
+			 __u8 prio, __u8 ttl, __be32 label,
+			 __be16 src_port, __be16 dst_port, bool nocheck)
+{
+	struct udphdr *uh;
+	struct ipv6hdr *ip6h;
+
+	__skb_push(skb, sizeof(*uh));
+	skb_reset_transport_header(skb);
+	uh = udp_hdr(skb);
+
+	uh->dest = dst_port;
+	uh->source = src_port;
+
+	uh->len = htons(skb->len);
+
+	skb_dst_set(skb, dst);
+
+	udp6_set_csum(nocheck, skb, saddr, daddr, skb->len);
+
+	__skb_push(skb, sizeof(*ip6h));
+	skb_reset_network_header(skb);
+	ip6h		  = ipv6_hdr(skb);
+	ip6_flow_hdr(ip6h, prio, label);
+	ip6h->payload_len = htons(skb->len);
+	ip6h->nexthdr     = IPPROTO_UDP;
+	ip6h->hop_limit   = ttl;
+	ip6h->daddr	  = *daddr;
+	ip6h->saddr	  = *saddr;
+
+	if (!skb->sk) {
+		skb->sk = sk;
+		skb->destructor = fake_destructor;
+	}
+
+	ip6tunnel_xmit(skb, dev);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(udp_tunnel6_xmit_skb);
+#endif

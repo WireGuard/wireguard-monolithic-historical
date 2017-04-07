@@ -39,7 +39,9 @@ static int open(struct net_device *dev)
 {
 	int ret;
 	struct wireguard_device *wg = netdev_priv(dev);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 	struct inet6_dev *dev_v6 = __in6_dev_get(dev);
+#endif
 	struct in_device *dev_v4 = __in_dev_get_rtnl(dev);
 
 	if (dev_v4) {
@@ -50,11 +52,13 @@ static int open(struct net_device *dev)
 		IN_DEV_CONF_SET(dev_v4, SEND_REDIRECTS, false);
 		IPV4_DEVCONF_ALL(dev_net(dev), SEND_REDIRECTS) = false;
 	}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 	if (dev_v6)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 		dev_v6->addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
 #else
 		dev_v6->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
+#endif
 #endif
 
 	ret = socket_init(wg);
