@@ -14,7 +14,7 @@ DOWNLOAD := wget -O
 MIRROR := https://download.wireguard.io/qemu-test/distfiles/
 
 CHOST := x86_64-pc-linux-gnu
-WIREGUARD_SOURCES := $(wildcard ../../*.c ../../*.h ../../selftest/*.h ../../crypto/*.c ../../crypto/*.h ../../crypto/*.S)
+WIREGUARD_SOURCES := $(wildcard ../../*.c ../../*.h ../../selftest/*.h ../../crypto/*.c ../../crypto/*.h ../../crypto/*.S ../../compat/*.h)
 TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools*.h ../../uapi.h)
 
 default: qemu
@@ -113,7 +113,7 @@ $(KERNEL_PATH)/.installed: $(KERNEL_TAR)
 $(KERNEL_PATH)/.config: kernel.config | $(KERNEL_PATH)/.installed
 	cp kernel.config $(KERNEL_PATH)/minimal.config
 	printf 'CONFIG_NR_CPUS=$(NR_CPUS)\nCONFIG_INITRAMFS_SOURCE="$(BUILD_PATH)/init-cpio-spec.txt"\n' >> $(KERNEL_PATH)/minimal.config
-	$(MAKE) -C $(KERNEL_PATH) ARCH=x86_64 tinyconfig
+	$(MAKE) -C $(KERNEL_PATH) ARCH=x86_64 allnoconfig
 	cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config minimal.config
 	-[ "$(DEBUG_KERNEL)" = "yes" ] && ( cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config )
 
