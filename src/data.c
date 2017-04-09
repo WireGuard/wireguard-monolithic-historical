@@ -121,7 +121,7 @@ static inline void skb_reset(struct sk_buff *skb)
 
 static inline bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypair, bool have_simd)
 {
-	struct scatterlist *sg;
+	struct scatterlist sg[MAX_SKB_FRAGS * 2 + 1];
 	struct message_data *header;
 	unsigned int padding_len, plaintext_len, trailer_len;
 	int num_frags;
@@ -137,7 +137,7 @@ static inline bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypai
 
 	/* Expand data section to have room for padding and auth tag */
 	num_frags = skb_cow_data(skb, trailer_len, &trailer);
-	if (unlikely(num_frags < 0 || num_frags > 128))
+	if (unlikely(num_frags < 0 || num_frags > ARRAY_SIZE(sg)))
 		return false;
 
 	/* Set the padding to zeros, and make sure it and the auth tag are part of the skb */
@@ -159,7 +159,6 @@ static inline bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypai
 	pskb_put(skb, trailer, trailer_len);
 
 	/* Now we can encrypt the scattergather segments */
-	sg = __builtin_alloca(num_frags * sizeof(struct scatterlist)); /* bounded to 128 */
 	sg_init_table(sg, num_frags);
 	if (skb_to_sgvec(skb, sg, sizeof(struct message_data), noise_encrypted_len(plaintext_len)) <= 0)
 		return false;
@@ -168,7 +167,7 @@ static inline bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypai
 
 static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *key)
 {
-	struct scatterlist *sg;
+	struct scatterlist sg[MAX_SKB_FRAGS * 2 + 1];
 	struct sk_buff *trailer;
 	int num_frags;
 
@@ -183,9 +182,8 @@ static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *
 	PACKET_CB(skb)->nonce = le64_to_cpu(((struct message_data *)skb->data)->counter);
 	skb_pull(skb, sizeof(struct message_data));
 	num_frags = skb_cow_data(skb, 0, &trailer);
-	if (unlikely(num_frags < 0 || num_frags > 128))
+	if (unlikely(num_frags < 0 || num_frags > ARRAY_SIZE(sg)))
 		return false;
-	sg = __builtin_alloca(num_frags * sizeof(struct scatterlist)); /* bounded to 128 */
 
 	sg_init_table(sg, num_frags);
 	if (skb_to_sgvec(skb, sg, 0, skb->len) <= 0)
