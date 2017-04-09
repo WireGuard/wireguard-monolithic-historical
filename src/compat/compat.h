@@ -7,8 +7,8 @@
 #include <linux/version.h>
 #include <linux/types.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
-#error "WireGuard requires Linux >= 3.14"
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
+#error "WireGuard requires Linux >= 3.12"
 #endif
 
 /* These conditionals can't be enforced by an out of tree module very easily,
@@ -41,7 +41,7 @@
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 6)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 12) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 17, 0)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 8) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)) || \
-    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
+    LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40)
 #define dev_recursion_level() 0
 #endif
 
@@ -110,7 +110,10 @@ static inline void netif_keep_dst(struct net_device *dev)
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+#define pcpu_sw_netstats pcpu_tstats
+#define netdev_alloc_pcpu_stats alloc_percpu
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0)
 #define netdev_alloc_pcpu_stats(type)					\
 ({									\
 	typeof(type) __percpu *pcpu_stats = alloc_percpu(type);		\
@@ -124,6 +127,19 @@ static inline void netif_keep_dst(struct net_device *dev)
 	}								\
 	pcpu_stats;							\
 })
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+#include "checksum/checksum_partial_compat.h"
+static inline void *our_pskb_put(struct sk_buff *skb, struct sk_buff *tail, int len)
+{
+	if (tail != skb) {
+		skb->data_len += len;
+		skb->len += len;
+	}
+	return skb_put(tail, len);
+}
+#define pskb_put our_pskb_put
 #endif
 
 /* https://lkml.org/lkml/2015/6/12/415 */

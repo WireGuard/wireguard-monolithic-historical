@@ -13,6 +13,16 @@
 #include <linux/siphash.h>
 #include <asm/unaligned.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+#ifdef __LITTLE_ENDIAN
+ #define HASH_LEN_DECLARE u32 hash; u32 len;
+ #define bytemask_from_count(cnt)	(~(~0ul << (cnt)*8))
+#else
+ #define HASH_LEN_DECLARE u32 len; u32 hash;
+ #define bytemask_from_count(cnt)	(~(~0ul >> (cnt)*8))
+#endif
+#endif
+
 #if defined(CONFIG_DCACHE_WORD_ACCESS) && BITS_PER_LONG == 64
 #include <linux/dcache.h>
 #include <asm/word-at-a-time.h>
