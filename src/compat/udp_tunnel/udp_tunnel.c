@@ -193,10 +193,10 @@ void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb
 
 	udp_set_csum(nocheck, skb, src, dst, skb->len);
 
-	if (!skb->sk) {
+	if (!skb->sk)
 		skb->sk = sk;
+	if (!skb->destructor)
 		skb->destructor = fake_destructor;
-	}
 
 	iptunnel_xmit(
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
@@ -366,10 +366,10 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 	ip6h->daddr	  = *daddr;
 	ip6h->saddr	  = *saddr;
 
-	if (!skb->sk) {
+	if (!skb->sk)
 		skb->sk = sk;
+	if (!skb->destructor)
 		skb->destructor = fake_destructor;
-	}
 
 	ip6tunnel_xmit(skb, dev);
 	return 0;

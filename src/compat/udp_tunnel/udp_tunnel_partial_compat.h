@@ -116,14 +116,14 @@ static inline int udp_tunnel6_xmit_skb(struct socket *sock, struct dst_entry *ds
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 #include <linux/if.h>
 #include <net/udp_tunnel.h>
-#if LINUX_VERISON_CODE >= KERNEL_VERSION(3, 18, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 static inline void fake_destructor(struct sk_buff *skb)
 {
 }
 #endif
-#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; (c)->destructor = fake_destructor; (c)->sk = (b); ret__ = udp_tunnel_xmit_skb(a, c, d, e, f, g, h, i, j, k, l); iptunnel_xmit_stats(ret__, &dev__->stats, dev__->tstats); } while (0)
+#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; if (!(c)->destructor) (c)->destructor = fake_destructor; if (!(c)->sk) (c)->sk = (b); ret__ = udp_tunnel_xmit_skb(a, c, d, e, f, g, h, i, j, k, l); iptunnel_xmit_stats(ret__, &dev__->stats, dev__->tstats); } while (0)
 #if IS_ENABLED(CONFIG_IPV6)
-#define udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { (c)->destructor = fake_destructor; (c)->sk = (b); udp_tunnel6_xmit_skb(a, c, d, e, f, g, h, j, k, l); } while(0)
+#define udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { if (!(c)->destructor) (c)->destructor = fake_destructor; if (!(c)->sk) (c)->sk = (b); udp_tunnel6_xmit_skb(a, c, d, e, f, g, h, j, k, l); } while(0)
 #endif
 #else
 
