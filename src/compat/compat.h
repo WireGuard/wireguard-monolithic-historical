@@ -9,6 +9,8 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
 #error "WireGuard requires Linux >= 3.10"
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+#warning "WireGuard support for kernels < 4.1 should work but is slightly experimental."
 #endif
 
 /* These conditionals can't be enforced by an out of tree module very easily,
