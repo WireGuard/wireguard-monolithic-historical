@@ -7,8 +7,8 @@
 #include <linux/version.h>
 #include <linux/types.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
-#error "WireGuard requires Linux >= 3.16"
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+#error "WireGuard requires Linux >= 3.14"
 #endif
 
 /* These conditionals can't be enforced by an out of tree module very easily,
@@ -38,7 +38,10 @@
 #define RCU_LOCKDEP_WARN(cond, message) rcu_lockdep_assert(!(cond), message)
 #endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 6)) || (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 12) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 17, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 8)
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 6)) || \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 12) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 17, 0)) || \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 8) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)) || \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
 #define dev_recursion_level() 0
 #endif
 
@@ -46,7 +49,11 @@
 #define ipv6_dst_lookup(a, b, c, d) ipv6_dst_lookup(b, c, d)
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 5) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 17) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0)) || (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 27) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 8)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 5) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)) || \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 17) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0)) || \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 27) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 8) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)) || \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
 #include <linux/if.h>
 #include <net/ip_tunnels.h>
 #define IP6_ECN_set_ce(a, b) IP6_ECN_set_ce(b)
@@ -101,6 +108,22 @@ static inline void netif_keep_dst(struct net_device *dev)
 {
 	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
 }
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0)
+#define netdev_alloc_pcpu_stats(type)					\
+({									\
+	typeof(type) __percpu *pcpu_stats = alloc_percpu(type);		\
+	if (pcpu_stats)	{						\
+		int __cpu;						\
+		for_each_possible_cpu(__cpu) {				\
+			typeof(type) *stat;				\
+			stat = per_cpu_ptr(pcpu_stats, __cpu);		\
+			u64_stats_init(&stat->syncp);			\
+		}							\
+	}								\
+	pcpu_stats;							\
+})
 #endif
 
 /* https://lkml.org/lkml/2015/6/12/415 */
