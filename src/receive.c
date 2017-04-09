@@ -210,6 +210,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 	struct net_device *dev;
 	struct wireguard_peer *routed_peer;
 	struct wireguard_device *wg;
+	unsigned int len;
 
 	socket_set_peer_endpoint(peer, endpoint);
 
@@ -265,8 +266,9 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		goto packet_processed;
 	}
 
+	len = skb->len;
 	if (likely(netif_rx(skb) == NET_RX_SUCCESS))
-		rx_stats(peer, skb->len);
+		rx_stats(peer, len);
 	else {
 		++dev->stats.rx_dropped;
 		net_dbg_ratelimited("Failed to give packet to userspace from peer %Lu (%pISpfsc)\n", peer->internal_id, &peer->endpoint.addr);
