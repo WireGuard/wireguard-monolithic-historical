@@ -9,6 +9,12 @@
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
+#define __sk_user_data(sk) ((*((void __rcu **)&(sk)->sk_user_data)))
+#define rcu_dereference_sk_user_data(sk) rcu_dereference(__sk_user_data((sk)))
+#define rcu_assign_sk_user_data(sk, ptr) rcu_assign_pointer(__sk_user_data((sk)), ptr)
+#endif
+
 /* This is global so, uh, only one real call site... This is the kind of horrific hack you'd expect to see in compat code. */
 static udp_tunnel_encap_rcv_t encap_rcv = NULL;
 static void our_sk_data_ready(struct sock *sk
@@ -128,6 +134,45 @@ static void udp_set_csum(bool nocheck, struct sk_buff *skb,
 static void fake_destructor(struct sk_buff *skb)
 {
 }
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
+static int our_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
+		  __be32 src, __be32 dst, __u8 proto,
+		  __u8 tos, __u8 ttl, __be16 df, bool xnet)
+{
+	int pkt_len = skb->len;
+	struct iphdr *iph;
+	int err;
+
+	skb_scrub_packet(skb, xnet);
+
+	skb->rxhash = 0;
+	skb_dst_set(skb, &rt->dst);
+	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
+
+	/* Push down and install the IP header. */
+	skb_push(skb, sizeof(struct iphdr));
+	skb_reset_network_header(skb);
+
+	iph = ip_hdr(skb);
+
+	iph->version	=	4;
+	iph->ihl	=	sizeof(struct iphdr) >> 2;
+	iph->frag_off	=	df;
+	iph->protocol	=	proto;
+	iph->tos	=	tos;
+	iph->daddr	=	dst;
+	iph->saddr	=	src;
+	iph->ttl	=	ttl;
+	__ip_select_ident(iph, skb_shinfo(skb)->gso_segs ?: 1);
+
+	err = ip_local_out(skb);
+	if (unlikely(net_xmit_eval(err)))
+		pkt_len = 0;
+	return pkt_len;
+}
+#define iptunnel_xmit our_iptunnel_xmit
+#endif
 
 void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 			 __be32 src, __be32 dst, __u8 tos, __u8 ttl,

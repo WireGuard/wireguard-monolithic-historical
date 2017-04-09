@@ -7,8 +7,8 @@
 #include <linux/version.h>
 #include <linux/types.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
-#error "WireGuard requires Linux >= 3.12"
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
+#error "WireGuard requires Linux >= 3.10"
 #endif
 
 /* These conditionals can't be enforced by an out of tree module very easily,
@@ -53,7 +53,9 @@
     (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 17) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 27) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 8) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)) || \
-    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
+    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)) || \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 54))
+
 #include <linux/if.h>
 #include <net/ip_tunnels.h>
 #define IP6_ECN_set_ce(a, b) IP6_ECN_set_ce(b)
@@ -65,6 +67,20 @@
 #define time_is_before_eq_jiffies64(a) time_after_eq64(get_jiffies_64(), a)
 #define time_is_after_eq_jiffies64(a) time_before_eq64(get_jiffies_64(), a)
 #endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) && IS_ENABLED(CONFIG_IPV6)
+#include <net/ipv6.h>
+struct ipv6_stub_type {
+	void *udpv6_encap_enable;
+	int (*ipv6_dst_lookup)(struct sock *sk, struct dst_entry **dst, struct flowi6 *fl6);
+};
+static const struct ipv6_stub_type ipv6_stub_impl = {
+	.udpv6_encap_enable = (void *)1,
+	.ipv6_dst_lookup = ip6_dst_lookup
+};
+static const struct ipv6_stub_type *ipv6_stub = &ipv6_stub_impl;
+#endif
+
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0) && IS_ENABLED(CONFIG_IPV6)
 #include <net/addrconf.h>
@@ -140,6 +156,46 @@ static inline void *our_pskb_put(struct sk_buff *skb, struct sk_buff *tail, int 
 	return skb_put(tail, len);
 }
 #define pskb_put our_pskb_put
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 11, 0)
+#include <net/xfrm.h>
+static inline void skb_scrub_packet(struct sk_buff *skb, bool xnet)
+{
+	skb->tstamp.tv64 = 0;
+	skb->pkt_type = PACKET_HOST;
+	skb->skb_iif = 0;
+	skb_dst_drop(skb);
+	secpath_reset(skb);
+	nf_reset(skb);
+	nf_reset_trace(skb);
+	if (!xnet)
+		return;
+	skb_orphan(skb);
+	skb->mark = 0;
+}
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
+#include <linux/random.h>
+static inline u32 prandom_u32_max(u32 ep_ro)
+{
+	return (u32)(((u64) prandom_u32() * ep_ro) >> 32);
+}
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 59)
+static inline int crypto_memneq(const void *a, const void *b, size_t size)
+{
+	unsigned long neq = 0;
+	while (size > 0) {
+		neq |= *(unsigned char *)a ^ *(unsigned char *)b;
+		a += 1;
+		b += 1;
+		size -= 1;
+	}
+	return neq != 0UL ? 1 : 0;
+}
 #endif
 
 /* https://lkml.org/lkml/2015/6/12/415 */
