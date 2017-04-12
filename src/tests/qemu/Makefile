@@ -13,7 +13,8 @@ DOWNLOAD := wget -O
 
 MIRROR := https://download.wireguard.io/qemu-test/distfiles/
 
-CHOST := x86_64-pc-linux-gnu
+CHOST := $(shell gcc -dumpmachine)
+ARCH := $(shell uname -m)
 WIREGUARD_SOURCES := $(wildcard ../../*.c ../../*.h ../../selftest/*.h ../../crypto/*.c ../../crypto/*.h ../../crypto/*.S ../../compat/*.h)
 TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools*.h ../../uapi.h)
 
@@ -41,7 +42,6 @@ KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v$(firstword $(s
 endif
 
 $(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.xz,$(KERNEL_URL_DIRECTORY)))
-KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
 $(eval $(call tar_download,MUSL,musl,1.1.15,.tar.gz,https://www.musl-libc.org/releases/))
 $(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,http://ftp.netfilter.org/pub/libmnl/))
 $(eval $(call tar_download,IPERF,iperf,3.1.3,.tar.gz,http://downloads.es.net/pub/iperf/))
@@ -49,6 +49,16 @@ $(eval $(call tar_download,BASH,bash,f459cbd8be37b28be1dc90315e0ab51d7f211301,.t
 $(eval $(call tar_download,IPROUTE2,iproute2,4.3.0,.tar.gz,http://www.kernel.org/pub/linux/utils/net/iproute2/))
 $(eval $(call tar_download,IPTABLES,iptables,1.6.0,.tar.bz2,http://ftp.netfilter.org/pub/iptables/))
 $(eval $(call tar_download,NMAP,nmap,7.25BETA1,.tar.bz2,http://nmap.org/dist/))
+
+ifeq ($(ARCH),aarch64)
+KERNEL_ARCH := arm64
+KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm64/boot/Image
+QEMU_MACHINE := -machine virt,accel=kvm,gic_version=host
+else
+KERNEL_ARCH := $(ARCH)
+KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
+QEMU_MACHINE := -machine q35,accel=kvm
+endif
 
 IPUTILS_VERSION := s20160308
 IPUTILS_TAR := $(DISTFILES_PATH)/$(IPUTILS_VERSION).tar.gz
@@ -62,10 +72,10 @@ MUSL_CC := $(BUILD_PATH)/musl-gcc
 
 qemu: $(KERNEL_BZIMAGE)
 	rm -f $(BUILD_PATH)/result
-	qemu-system-x86_64 \
+	qemu-system-$(ARCH) \
 		-nodefaults \
 		-nographic \
-		-machine q35,accel=kvm \
+		$(QEMU_MACHINE) \
 		-cpu host \
 		-smp $(NR_CPUS) \
 		-m 96M \
@@ -113,7 +123,7 @@ $(KERNEL_PATH)/.installed: $(KERNEL_TAR)
 $(KERNEL_PATH)/.config: kernel.config | $(KERNEL_PATH)/.installed
 	cp kernel.config $(KERNEL_PATH)/minimal.config
 	printf 'CONFIG_NR_CPUS=$(NR_CPUS)\nCONFIG_INITRAMFS_SOURCE="$(BUILD_PATH)/init-cpio-spec.txt"\n' >> $(KERNEL_PATH)/minimal.config
-	$(MAKE) -C $(KERNEL_PATH) ARCH=x86_64 allnoconfig
+	$(MAKE) -C $(KERNEL_PATH) ARCH=$(KERNEL_ARCH) allnoconfig
 	cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config minimal.config
 	-[ "$(DEBUG_KERNEL)" = "yes" ] && ( cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config )
 
