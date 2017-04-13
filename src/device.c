@@ -83,7 +83,7 @@ static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long
 	struct wireguard_device *wg = container_of(nb, struct wireguard_device, clear_peers_on_suspend);
 	if (action == PM_HIBERNATION_PREPARE || action == PM_SUSPEND_PREPARE) {
 		peer_for_each(wg, clear_noise_peer, NULL);
-		rcu_barrier();
+		rcu_barrier_bh();
 	}
 	return 0;
 }
@@ -387,5 +387,5 @@ int device_init(void)
 void device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
-	rcu_barrier();
+	rcu_barrier_bh();
 }
