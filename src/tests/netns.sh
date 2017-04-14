@@ -193,11 +193,12 @@ kill $nmap_pid
 n1 wg set wg0 peer "$more_specific_key" remove
 [[ $(n1 wg show wg0 endpoints) == "$pub2	[::1]:9997" ]]
 
+ip1 link del wg0
+ip2 link del wg0
 
 # Test using NAT. We now change the topology to this:
 # ┌────────────────────────────────────────┐    ┌────────────────────────────────────────────────┐     ┌────────────────────────────────────────┐
 # │             $ns1 namespace             │    │                 $ns0 namespace                 │     │             $ns2 namespace             │
-# │                                        │    │                                                │     │                                        │
 # │                                        │    │                                                │     │                                        │
 # │  ┌─────┐             ┌─────┐           │    │    ┌──────┐              ┌──────┐              │     │  ┌─────┐            ┌─────┐            │
 # │  │ wg0 │─────────────│vethc│───────────┼────┼────│vethrc│              │vethrs│──────────────┼─────┼──│veths│────────────│ wg0 │            │
@@ -205,13 +206,8 @@ n1 wg set wg0 peer "$more_specific_key" remove
 # │  │192.168.241.1/24│  │192.168.1.100/24││    │    │192.168.1.100/24│    │10.0.0.1/24        │ │     │  │10.0.0.100/24   │ │192.168.241.2/24│ │
 # │  │fd00::1/24      │  │                ││    │    │                │    │SNAT:192.168.1.0/24│ │     │  │                │ │fd00::2/24      │ │
 # │  └────────────────┘  └────────────────┘│    │    └────────────────┘    └───────────────────┘ │     │  └────────────────┘ └────────────────┘ │
-# │                                        │    │                                                │     │                                        │
-# │                                        │    │                                                │     │                                        │
-# │                                        │    │                                                │     │                                        │
 # └────────────────────────────────────────┘    └────────────────────────────────────────────────┘     └────────────────────────────────────────┘
 
-ip1 link del wg0
-ip2 link del wg0
 ip1 link add dev wg0 type wireguard
 ip2 link add dev wg0 type wireguard
 configure_peers
@@ -253,7 +249,18 @@ ip0 link del vethrs
 ip1 link del wg0
 ip2 link del wg0
 
-# Test that saddr routing isn't overly sticky
+# Test that saddr routing isn't overly sticky, changing to this topology:
+# ┌────────────────────────────────────────┐    ┌────────────────────────────────────────┐
+# │             $ns1 namespace             │    │             $ns2 namespace             │
+# │                                        │    │                                        │
+# │  ┌─────┐             ┌─────┐           │    │  ┌─────┐            ┌─────┐            │
+# │  │ wg0 │─────────────│veth1│───────────┼────┼──│veth2│────────────│ wg0 │            │
+# │  ├─────┴──────────┐  ├─────┴──────────┐│    │  ├─────┴──────────┐ ├─────┴──────────┐ │
+# │  │192.168.241.1/24│  │10.0.0.1/24     ││    │  │10.0.0.2/24     │ │192.168.241.2/24│ │
+# │  │fd00::1/24      │  │fd00:aa::1/96   ││    │  │fd00:aa::2/96   │ │fd00::2/24      │ │
+# │  └────────────────┘  └────────────────┘│    │  └────────────────┘ └────────────────┘ │
+# └────────────────────────────────────────┘    └────────────────────────────────────────┘
+
 ip1 link add dev wg0 type wireguard
 ip2 link add dev wg0 type wireguard
 configure_peers
@@ -280,3 +287,7 @@ n1 ping -W 1 -c 1 192.168.241.2
 ip1 addr add fd00:aa::10/96 dev veth1
 ip1 addr del fd00:aa::1/96 dev veth1
 n1 ping -W 1 -c 1 192.168.241.2
+
+ip1 link del veth1
+ip1 link del wg0
+ip2 link del wg0
