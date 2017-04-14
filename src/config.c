@@ -209,20 +209,6 @@ static inline int use_data(struct data_remaining *data, size_t size)
 	return 0;
 }
 
-static int calculate_ipmasks_size(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, u8 cidr, int family)
-{
-	size_t *count = ctx;
-	*count += sizeof(struct wgipmask);
-	return 0;
-}
-
-static size_t calculate_peers_size(struct wireguard_device *wg)
-{
-	size_t len = peer_total_count(wg) * sizeof(struct wgpeer);
-	routing_table_walk_ips(&wg->peer_routing_table, &len, calculate_ipmasks_size);
-	return len;
-}
-
 static int populate_ipmask(void *ctx, union nf_inet_addr ip, u8 cidr, int family)
 {
 	int ret;
@@ -305,7 +291,8 @@ int config_get_device(struct wireguard_device *wg, void __user *user_device)
 	mutex_lock(&wg->device_update_lock);
 
 	if (!user_device) {
-		ret = calculate_peers_size(wg);
+		ret = peer_total_count(wg) * sizeof(struct wgpeer)
+		    + routing_table_count_nodes(&wg->peer_routing_table) * sizeof(struct wgipmask);
 		goto out;
 	}
 

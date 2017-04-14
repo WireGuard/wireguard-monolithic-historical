@@ -20,16 +20,12 @@ void routing_table_init(struct routing_table *table);
 void routing_table_free(struct routing_table *table);
 int routing_table_insert_v4(struct routing_table *table, const struct in_addr *ip, u8 cidr, struct wireguard_peer *peer);
 int routing_table_insert_v6(struct routing_table *table, const struct in6_addr *ip, u8 cidr, struct wireguard_peer *peer);
-int routing_table_remove_v4(struct routing_table *table, const struct in_addr *ip, u8 cidr);
-int routing_table_remove_v6(struct routing_table *table, const struct in6_addr *ip, u8 cidr);
-int routing_table_remove_by_peer(struct routing_table *table, struct wireguard_peer *peer);
-int routing_table_walk_ips(struct routing_table *table, void *ctx, int (*func)(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, u8 cidr, int family));
+void routing_table_remove_by_peer(struct routing_table *table, struct wireguard_peer *peer);
+size_t routing_table_count_nodes(struct routing_table *table);
 int routing_table_walk_ips_by_peer(struct routing_table *table, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, u8 cidr, int family));
 int routing_table_walk_ips_by_peer_sleepable(struct routing_table *table, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, u8 cidr, int family));
 
 /* These return a strong reference to a peer: */
-struct wireguard_peer *routing_table_lookup_v4(struct routing_table *table, const struct in_addr *ip);
-struct wireguard_peer *routing_table_lookup_v6(struct routing_table *table, const struct in6_addr *ip);
 struct wireguard_peer *routing_table_lookup_dst(struct routing_table *table, struct sk_buff *skb);
 struct wireguard_peer *routing_table_lookup_src(struct routing_table *table, struct sk_buff *skb);
 
