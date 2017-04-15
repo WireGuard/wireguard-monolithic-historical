@@ -34,8 +34,8 @@ static inline ssize_t get_random_bytes(uint8_t *out, size_t len)
 
 int genkey_main(int argc, char *argv[])
 {
-	unsigned char private_key[CURVE25519_POINT_SIZE];
-	char private_key_base64[b64_len(CURVE25519_POINT_SIZE)];
+	uint8_t key[WG_KEY_LEN];
+	char base64[WG_KEY_LEN_BASE64];
 	struct stat stat;
 
 	if (argc != 1) {
@@ -46,19 +46,14 @@ int genkey_main(int argc, char *argv[])
 	if (!fstat(STDOUT_FILENO, &stat) && S_ISREG(stat.st_mode) && stat.st_mode & S_IRWXO)
 		fputs("Warning: writing to world accessible file.\nConsider setting the umask to 077 and trying again.\n", stderr);
 
-	if (get_random_bytes(private_key, CURVE25519_POINT_SIZE) != CURVE25519_POINT_SIZE) {
+	if (get_random_bytes(key, WG_KEY_LEN) != WG_KEY_LEN) {
 		perror("getrandom");
 		return 1;
 	}
 	if (argc && !strcmp(argv[0], "genkey"))
-		curve25519_normalize_secret(private_key);
+		curve25519_normalize_secret(key);
 
-	if (b64_ntop(private_key, sizeof(private_key), private_key_base64, sizeof(private_key_base64)) != sizeof(private_key_base64) - 1) {
-		fprintf(stderr, "%s: Could not convert key to base64\n", PROG_NAME);
-		return 1;
-	}
-
-	puts(private_key_base64);
+	key_to_base64(base64, key);
+	puts(base64);
 	return 0;
-
 }

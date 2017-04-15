@@ -191,7 +191,7 @@ static inline int crypto_memneq(const void *a, const void *b, size_t size)
 {
 	unsigned long neq = 0;
 	while (size > 0) {
-		neq |= *(unsigned char *)a ^ *(unsigned char *)b;
+		neq |= *(u8 *)a ^ *(u8 *)b;
 		a += 1;
 		b += 1;
 		size -= 1;

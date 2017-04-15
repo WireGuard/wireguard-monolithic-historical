@@ -4,7 +4,6 @@
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#include <resolv.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -78,17 +77,16 @@ static void sort_peers(struct wgdevice *device)
 
 static const uint8_t zero[WG_KEY_LEN] = { 0 };
 
-static char *key(const unsigned char key[static WG_KEY_LEN])
+static char *key(const uint8_t key[static WG_KEY_LEN])
 {
-	static char b64[b64_len(WG_KEY_LEN)];
+	static char base64[WG_KEY_LEN_BASE64];
 	if (!memcmp(key, zero, WG_KEY_LEN))
 		return "(none)";
-	memset(b64, 0, b64_len(WG_KEY_LEN));
-	b64_ntop(key, WG_KEY_LEN, b64, b64_len(WG_KEY_LEN));
-	return b64;
+	key_to_base64(base64, key);
+	return base64;
 }
 
-static char *masked_key(const unsigned char masked_key[static WG_KEY_LEN])
+static char *masked_key(const uint8_t masked_key[static WG_KEY_LEN])
 {
 	const char *var = getenv("WG_HIDE_KEYS");
 	if (var && !strcmp(var, "never"))

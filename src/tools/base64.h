@@ -3,18 +3,13 @@
 #ifndef BASE64_H
 #define BASE64_H
 
-#include <resolv.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include "../uapi.h"
 
-#define b64_len(len) ((((len) + 2) / 3) * 4 + 1)
+#define WG_KEY_LEN_BASE64 ((((WG_KEY_LEN) + 2) / 3) * 4 + 1)
 
-#ifndef b64_ntop
-int b64_ntop(unsigned char const *, size_t, char *, size_t);
-#define NEED_B64_NTOP
-#endif
-
-#ifndef b64_pton
-int b64_pton(char const *, unsigned char *, size_t);
-#define NEED_B64_PTON
-#endif
+void key_to_base64(char base64[static WG_KEY_LEN_BASE64], const uint8_t key[static WG_KEY_LEN]);
+bool key_from_base64(uint8_t key[static WG_KEY_LEN], const char *base64);
 
 #endif

@@ -3,7 +3,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#include <resolv.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -18,7 +17,7 @@
 int showconf_main(int argc, char *argv[])
 {
 	static const uint8_t zero[WG_KEY_LEN] = { 0 };
-	char b64[b64_len(WG_KEY_LEN)] = { 0 };
+	char base64[WG_KEY_LEN_BASE64];
 	char ip[INET6_ADDRSTRLEN];
 	struct wgdevice *device = NULL;
 	struct wgpeer *peer;
@@ -48,17 +47,17 @@ int showconf_main(int argc, char *argv[])
 	if (device->fwmark)
 		printf("FwMark = 0x%x\n", device->fwmark);
 	if (memcmp(device->private_key, zero, WG_KEY_LEN)) {
-		b64_ntop(device->private_key, WG_KEY_LEN, b64, b64_len(WG_KEY_LEN));
-		printf("PrivateKey = %s\n", b64);
+		key_to_base64(base64, device->private_key);
+		printf("PrivateKey = %s\n", base64);
 	}
 	if (memcmp(device->preshared_key, zero, WG_KEY_LEN)) {
-		b64_ntop(device->preshared_key, WG_KEY_LEN, b64, b64_len(WG_KEY_LEN));
-		printf("PresharedKey = %s\n", b64);
+		key_to_base64(base64, device->preshared_key);
+		printf("PresharedKey = %s\n", base64);
 	}
 	printf("\n");
 	for_each_wgpeer(device, peer, i) {
-		b64_ntop(peer->public_key, WG_KEY_LEN, b64, b64_len(WG_KEY_LEN));
-		printf("[Peer]\nPublicKey = %s\n", b64);
+		key_to_base64(base64, peer->public_key);
+		printf("[Peer]\nPublicKey = %s\n", base64);
 		if (peer->num_ipmasks)
 			printf("AllowedIPs = ");
 		for_each_wgipmask(peer, ipmask, j) {

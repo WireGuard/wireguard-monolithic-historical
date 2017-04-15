@@ -118,12 +118,10 @@ static inline bool parse_fwmark(uint32_t *fwmark, unsigned int *flags, const cha
 
 static inline bool parse_key(uint8_t key[static WG_KEY_LEN], const char *value)
 {
-	uint8_t tmp[WG_KEY_LEN + 1];
-	if (strlen(value) != b64_len(WG_KEY_LEN) - 1 || b64_pton(value, tmp, WG_KEY_LEN + 1) != WG_KEY_LEN) {
+	if (!key_from_base64(key, value)) {
 		fprintf(stderr, "Key is not the correct length or format: `%s`\n", value);
 		return false;
 	}
-	memcpy(key, tmp, WG_KEY_LEN);
 	return true;
 }
 

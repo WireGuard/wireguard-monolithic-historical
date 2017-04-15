@@ -177,7 +177,7 @@ static int userspace_set_device(struct wgdevice *dev)
 	if (fd < 0)
 		return fd;
 	for_each_wgpeer(dev, peer, len);
-	len = (unsigned char *)peer - (unsigned char *)dev;
+	len = (uint8_t *)peer - (uint8_t *)dev;
 	ret = -EBADMSG;
 	if (!len)
 		goto out;
