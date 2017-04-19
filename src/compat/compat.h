@@ -200,6 +200,37 @@ static inline int crypto_memneq(const void *a, const void *b, size_t size)
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 75)
+#define U8_MAX ((u8)~0U)
+#define S8_MAX ((s8)(U8_MAX >> 1))
+#define S8_MIN ((s8)(-S8_MAX - 1))
+#define U16_MAX ((u16)~0U)
+#define S16_MAX ((s16)(U16_MAX >> 1))
+#define S16_MIN ((s16)(-S16_MAX - 1))
+#define U32_MAX ((u32)~0U)
+#define S32_MAX ((s32)(U32_MAX >> 1))
+#define S32_MIN ((s32)(-S32_MAX - 1))
+#define U64_MAX ((u64)~0ULL)
+#define S64_MAX ((s64)(U64_MAX >> 1))
+#define S64_MIN ((s64)(-S64_MAX - 1))
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 60)
+/* Making this static may very well invalidate its usefulness,
+ * but so it goes with compat code. */
+static inline void memzero_explicit(void *s, size_t count)
+{
+	memset(s, 0, count);
+	barrier();
+}
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
+static const struct in6_addr our_in6addr_any = IN6ADDR_ANY_INIT;
+#define in6addr_any our_in6addr_any
+#endif
+
+
 /* https://lkml.org/lkml/2015/6/12/415 */
 #include <linux/netdevice.h>
 static inline struct net_device *netdev_pub(void *dev)

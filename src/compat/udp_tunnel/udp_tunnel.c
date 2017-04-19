@@ -164,7 +164,11 @@ static int our_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 	iph->daddr	=	dst;
 	iph->saddr	=	src;
 	iph->ttl	=	ttl;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 53)
+	__ip_select_ident(iph, &rt->dst, (skb_shinfo(skb)->gso_segs ?: 1) - 1);
+#else
 	__ip_select_ident(iph, skb_shinfo(skb)->gso_segs ?: 1);
+#endif
 
 	err = ip_local_out(skb);
 	if (unlikely(net_xmit_eval(err)))
