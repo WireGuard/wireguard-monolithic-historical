@@ -32,7 +32,7 @@ static int precompute_peer_key(struct wireguard_peer *peer, void *psk)
 void cookie_checker_precompute_keys(struct cookie_checker *checker, struct wireguard_peer *peer)
 {
 	down_read(&checker->device->static_identity.lock);
-	if (unlikely(checker->device->static_identity.has_identity)) {
+	if (unlikely(!checker->device->static_identity.has_identity)) {
 		memset(checker->cookie_encryption_key, 0, NOISE_SYMMETRIC_KEY_LEN);
 		goto out;
 	}
@@ -188,7 +188,7 @@ void cookie_message_consume(struct message_handshake_cookie *src, struct wiregua
 	bool ret;
 
 	entry = index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_HANDSHAKE | INDEX_HASHTABLE_KEYPAIR, src->receiver_index);
-	if (!unlikely(entry))
+	if (unlikely(!entry))
 		return;
 
 	down_read(&entry->peer->latest_cookie.lock);
