@@ -50,7 +50,7 @@ int genkey_main(int argc, char *argv[])
 		perror("getrandom");
 		return 1;
 	}
-	if (argc && !strcmp(argv[0], "genkey"))
+	if (!strcmp(argv[0], "genkey"))
 		curve25519_normalize_secret(key);
 
 	key_to_base64(base64, key);
