@@ -153,6 +153,10 @@ static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 		.ai_socktype = SOCK_DGRAM,
 		.ai_protocol = IPPROTO_UDP
 	};
+	if (!mutable) {
+		perror("strdup");
+		return false;
+	}
 	if (!strlen(value)) {
 		free(mutable);
 		fprintf(stderr, "Unable to parse empty endpoint\n");
