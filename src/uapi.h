@@ -52,9 +52,9 @@
  *     If `wgpeer->flags & WGPEER_REMOVE_ME` is true, the peer identified by `wgpeer->public_key` is removed.
  *     If `wgpeer->flags & WGPEER_REPLACE_IPMASKS` is true, removes all ipmasks before adding new ones.
  *     If `wgdevice->private_key` is filled with zeros, no action is taken on the private key.
- *     If `wgdevice->preshared_key` is filled with zeros, no action is taken on the pre-shared key.
+ *     If `wgdevice->preshared_key` is filled with zeros, no action is taken on the preshared key.
  *     If `wgdevice->flags & WGDEVICE_REMOVE_PRIVATE_KEY` is true, the private key is removed.
- *     If `wgdevice->flags & WGDEVICE_REMOVE_PRESHARED_KEY` is true, the pre-shared key is removed.
+ *     If `wgdevice->flags & WGDEVICE_REMOVE_PRESHARED_KEY` is true, the preshared key is removed.
  *
  *     Returns 0 on success, or -errno if an error occurred.
  */
