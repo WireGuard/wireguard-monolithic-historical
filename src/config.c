@@ -327,8 +327,9 @@ int config_get_device(struct wireguard_device *wg, void __user *user_device)
 	if (wg->static_identity.has_identity) {
 		memcpy(out_device.private_key, wg->static_identity.static_private, WG_KEY_LEN);
 		memcpy(out_device.public_key, wg->static_identity.static_public, WG_KEY_LEN);
-		memcpy(out_device.preshared_key, wg->static_identity.preshared_key, WG_KEY_LEN);
 	}
+	if (wg->static_identity.has_psk)
+		memcpy(out_device.preshared_key, wg->static_identity.preshared_key, WG_KEY_LEN);
 	up_read(&wg->static_identity.lock);
 
 	peer_data.out_len = in_device.peers_size;
