@@ -136,13 +136,11 @@ static void fake_destructor(struct sk_buff *skb)
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
-static int our_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
+static void our_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 		  __be32 src, __be32 dst, __u8 proto,
 		  __u8 tos, __u8 ttl, __be16 df, bool xnet)
 {
-	int pkt_len = skb->len;
 	struct iphdr *iph;
-	int err;
 
 	skb_scrub_packet(skb, xnet);
 
@@ -170,10 +168,7 @@ static int our_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 	__ip_select_ident(iph, skb_shinfo(skb)->gso_segs ?: 1);
 #endif
 
-	err = ip_local_out(skb);
-	if (unlikely(net_xmit_eval(err)))
-		pkt_len = 0;
-	return pkt_len;
+	iptunnel_xmit(skb, skb->dev);
 }
 #define iptunnel_xmit our_iptunnel_xmit
 #endif
