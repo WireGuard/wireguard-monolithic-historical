@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -189,7 +190,15 @@ static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 		*end = '\0';
 		++end;
 	}
-	ret = getaddrinfo(begin, end, &hints, &resolved);
+
+	for (unsigned int timeout = 1000000; timeout < 90000000; timeout = timeout * 3 / 2) {
+		ret = getaddrinfo(begin, end, &hints, &resolved);
+		if (ret != EAI_AGAIN)
+			break;
+		fprintf(stderr, "%s: `%s`. Trying again in %.2f seconds...\n", gai_strerror(ret), value, timeout / 1000000.0);
+		usleep(timeout);
+	}
+
 	if (ret != 0) {
 		free(mutable);
 		fprintf(stderr, "%s: `%s`\n", gai_strerror(ret), value);
