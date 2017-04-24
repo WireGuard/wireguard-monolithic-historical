@@ -13,6 +13,7 @@ export PATH="${SELF%/*}:$PATH"
 WG_CONFIG=""
 INTERFACE=""
 ADDRESSES=( )
+MTU=""
 PRE_UP=""
 POST_UP=""
 PRE_DOWN=""
@@ -39,6 +40,7 @@ parse_options() {
 		if [[ $interface_section -eq 1 ]]; then
 			case "$key" in
 			Address) ADDRESSES+=( ${value//,/ } ); continue ;;
+			MTU) MTU="$value"; continue ;;
 			PreUp) PRE_UP="$value"; continue ;;
 			PreDown) PRE_DOWN="$value"; continue ;;
 			PostUp) POST_UP="$value"; continue ;;
@@ -108,6 +110,25 @@ add_addr() {
 	cmd ip address add "$1" dev "$INTERFACE"
 }
 
+set_mtu() {
+	local mtu=0 endpoint output
+	if [[ -n $MTU ]]; then
+		cmd ip link set mtu "$MTU" dev "$INTERFACE"
+		return
+	fi
+	while read -r _ endpoint; do
+		[[ $endpoint =~ ^([a-z0-9:.]+):[0-9]+$ ]] || continue
+		output="$(ip route get "${BASH_REMATCH[1]}" || true)"
+		[[ ( $output =~ mtu\ ([0-9]+) || ( $output =~ dev\ ([^ ]+) && $(ip link show dev "${BASH_REMATCH[1]}") =~ mtu\ ([0-9]+) ) ) && ${BASH_REMATCH[1]} -gt $mtu ]] && mtu="${BASH_REMATCH[1]}"
+	done < <(wg show "$INTERFACE" endpoints)
+	if [[ $mtu -eq 0 ]]; then
+		read -r output < <(ip route show default || true) || true
+		[[ ( $output =~ mtu\ ([0-9]+) || ( $output =~ dev\ ([^ ]+) && $(ip link show dev "${BASH_REMATCH[1]}") =~ mtu\ ([0-9]+) ) ) && ${BASH_REMATCH[1]} -gt $mtu ]] && mtu="${BASH_REMATCH[1]}"
+	fi
+	[[ $mtu -gt 0 ]] || mtu=1500
+	cmd ip link set mtu $(( mtu - 80 )) dev "$INTERFACE"
+}
+
 add_route() {
 	if [[ $1 == 0.0.0.0/0 || $1 == ::/0 ]]; then
 		add_default "$1"
@@ -146,6 +167,7 @@ save_config() {
 	for address in ${BASH_REMATCH[1]}; do
 		new_config+="Address = $address"$'\n'
 	done
+	[[ -n $MTU && $(ip link show dev "$INTERFACE") =~ mtu\ ([0-9]+) ]] && new_config+="MTU = ${BASH_REMATCH[1]}"$'\n'
 	[[ $SAVE_CONFIG -eq 0 ]] || new_config+=$'SaveConfig = true\n'
 	[[ -z $PRE_UP ]] || new_config+="PreUp = $PRE_UP"$'\n'
 	[[ -z $POST_UP ]] || new_config+="PostUp = $POST_UP"$'\n'
@@ -200,6 +222,7 @@ cmd_up() {
 	for i in "${ADDRESSES[@]}"; do
 		add_addr "$i"
 	done
+	set_mtu
 	up_if
 	for i in $(wg show "$INTERFACE" allowed-ips | grep -Po '(?<=[\t ])[0-9.:/a-f]+' | sort -nr -k 2 -t /); do
 		[[ $(ip route get "$i" 2>/dev/null) == *dev\ $INTERFACE\ * ]] || add_route "$i"

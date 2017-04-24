@@ -22,7 +22,7 @@ suitable for a few common use cases.
 
 Use \fIup\fP to add and set up an interface, and use \fIdown\fP to tear down and remove
 an interface. Running \fIup\fP adds a WireGuard interface, brings up the interface with the
-supplied IP addresses, sets up routes, and optionally runs pre/post up scripts. Running \fIdown\fP
+supplied IP addresses, sets up mtu and routes, and optionally runs pre/post up scripts. Running \fIdown\fP
 optionally saves the current configuration, removes the WireGuard interface, and optionally
 runs pre/post down scripts.
 
@@ -64,6 +64,10 @@ which are handled by this tool:
 .IP \(bu
 Address \(em a comma-separated list of ip (v4 or v6) addresses (optionally with CIDR masks)
 to be assigned to the interface. May be specified multiple times.
+.IP \(bu
+MTU \(em if not specified, the MTU is automatically determined from the endpoint addresses
+or the system default route, which is usually a sane choice. However, to manually specify
+an MTU to override this automatic discovery, this value may be specified explicitly.
 .IP \(bu
 PreUp, PostUp, PreDown, PostDown \(em script snippets which will be executed by
 .BR bash (1)
