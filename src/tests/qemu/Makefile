@@ -10,7 +10,6 @@ NR_CPUS ?= 2
 
 DOWNLOAD := wget -O
 # DOWNLOAD := curl -f -o
-
 MIRROR := https://download.wireguard.io/qemu-test/distfiles/
 
 CHOST := $(shell gcc -dumpmachine)
@@ -42,13 +41,14 @@ KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v$(firstword $(s
 endif
 
 $(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.xz,$(KERNEL_URL_DIRECTORY)))
-$(eval $(call tar_download,MUSL,musl,1.1.15,.tar.gz,https://www.musl-libc.org/releases/))
+$(eval $(call tar_download,MUSL,musl,1.1.16,.tar.gz,https://www.musl-libc.org/releases/))
 $(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,http://ftp.netfilter.org/pub/libmnl/))
-$(eval $(call tar_download,IPERF,iperf,3.1.3,.tar.gz,http://downloads.es.net/pub/iperf/))
-$(eval $(call tar_download,BASH,bash,f459cbd8be37b28be1dc90315e0ab51d7f211301,.tar.gz,http://git.savannah.gnu.org/cgit/bash.git/snapshot/))
-$(eval $(call tar_download,IPROUTE2,iproute2,4.3.0,.tar.gz,http://www.kernel.org/pub/linux/utils/net/iproute2/))
-$(eval $(call tar_download,IPTABLES,iptables,1.6.0,.tar.bz2,http://ftp.netfilter.org/pub/iptables/))
-$(eval $(call tar_download,NMAP,nmap,7.25BETA1,.tar.bz2,http://nmap.org/dist/))
+$(eval $(call tar_download,IPERF,iperf,3.1.7,.tar.gz,http://downloads.es.net/pub/iperf/))
+$(eval $(call tar_download,BASH,bash,bc007799f0e1362100375bb95d952d28de4c62fb,.tar.gz,http://git.savannah.gnu.org/cgit/bash.git/snapshot/))
+$(eval $(call tar_download,IPROUTE2,iproute2,4.5.0,.tar.gz,http://www.kernel.org/pub/linux/utils/net/iproute2/))
+$(eval $(call tar_download,IPTABLES,iptables,1.6.1,.tar.bz2,http://ftp.netfilter.org/pub/iptables/))
+$(eval $(call tar_download,NMAP,nmap,7.40,.tar.bz2,http://nmap.org/dist/))
+$(eval $(call tar_download,IPUTILS,iputils,s20161105,.tar.gz,https://github.com/iputils/iputils/archive/s20161105.tar.gz/#))
 
 ifeq ($(ARCH),aarch64)
 KERNEL_ARCH := arm64
@@ -59,11 +59,6 @@ KERNEL_ARCH := $(ARCH)
 KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
 QEMU_MACHINE := -machine q35,accel=kvm
 endif
-
-IPUTILS_VERSION := s20160308
-IPUTILS_TAR := $(DISTFILES_PATH)/$(IPUTILS_VERSION).tar.gz
-IPUTILS_PATH := $(BUILD_PATH)/iputils-$(IPUTILS_VERSION)
-$(eval $(call file_download,$(IPUTILS_VERSION).tar.gz,https://github.com/iputils/iputils/archive/))
 
 CFLAGS ?= -O3 -march=native -pipe
 CPPFLAGS := -I$(BUILD_PATH)/include
