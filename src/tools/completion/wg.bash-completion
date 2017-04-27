@@ -21,7 +21,7 @@ _wg_completion() {
 	fi
 
 	if [[ $COMP_CWORD -eq 3 && ${COMP_WORDS[1]} == show && ${COMP_WORDS[2]} != interfaces ]]; then
-		COMPREPLY+=( $(compgen -W "public-key private-key preshared-key listen-port peers endpoints allowed-ips fwmark latest-handshakes persistent-keepalive transfer dump" -- "${COMP_WORDS[3]}") )
+		COMPREPLY+=( $(compgen -W "public-key private-key listen-port peers preshared-keys endpoints allowed-ips fwmark latest-handshakes persistent-keepalive transfer dump" -- "${COMP_WORDS[3]}") )
 		return
 	fi
 
@@ -39,7 +39,6 @@ _wg_completion() {
 		[[ ${COMP_WORDS[i]} == listen-port ]] && has_listen_port=1
 		[[ ${COMP_WORDS[i]} == fwmark ]] && has_fwmark=1
 		[[ ${COMP_WORDS[i]} == private-key ]] && has_private_key=1
-		[[ ${COMP_WORDS[i]} == preshared-key ]] && has_preshared_key=1
 		[[ ${COMP_WORDS[i]} == peer ]] && { has_peer=$i; break; }
 	done
 	if [[ $has_peer -eq 0 ]]; then
@@ -47,7 +46,6 @@ _wg_completion() {
 			[[ $has_listen_port -eq 1 ]] || words+=( listen-port )
 			[[ $has_fwmark -eq 1 ]] || words+=( fwmark )
 			[[ $has_private_key -eq 1 ]] || words+=( private-key )
-			[[ $has_preshared_key -eq 1 ]] || words+=( preshared-key )
 			words+=( peer )
 			COMPREPLY+=( $(compgen -W "${words[*]}" -- "${COMP_WORDS[COMP_CWORD]}") )
 		elif [[ ${COMP_WORDS[COMP_CWORD-1]} == *-key ]]; then
@@ -70,6 +68,7 @@ _wg_completion() {
 			has_endpoint=0
 			has_persistent_keepalive=0
 			has_allowed_ips=0
+			has_preshared_key=0
 			[[ ${COMP_WORDS[i+2]} == = ]] && ((i+=2)) || ((i++))
 			continue
 		fi
@@ -77,6 +76,7 @@ _wg_completion() {
 		[[ ${COMP_WORDS[i]} == endpoint ]] && has_endpoint=1
 		[[ ${COMP_WORDS[i]} == persistent-keepalive ]] && has_persistent_keepalive=1
 		[[ ${COMP_WORDS[i]} == allowed-ips ]] && has_allowed_ips=1
+		[[ ${COMP_WORDS[i]} == preshared-key ]] && has_preshared_key=1
 
 		[[ ${COMP_WORDS[i]} == remove ]] || ((i++))
 	done
@@ -84,6 +84,7 @@ _wg_completion() {
 	((COMP_CWORD == j)) || return
 
 	if [[ $has_remove -ne 1 ]]; then
+		[[ $has_preshared_key -eq 1 ]] || words+=( preshared-key )
 		[[ $has_endpoint -eq 1 ]] || words+=( endpoint )
 		[[ $has_allowed_ips -eq 1 ]] || words+=( allowed-ips )
 		[[ $has_persistent_keepalive -eq 1 ]] || words+=( persistent-keepalive )

@@ -34,7 +34,7 @@ w :: PublicKey Curve25519
   -> IO ()
 w theirPub (Plaintext myPSK) sock addr msg = do
   let x      = "\x01\x00\x00\x00\x00\x00" `mappend` msg
-      mac    = hash 16 myPSK (sbToBS' (curvePubToBytes theirPub) `mappend` sbToBS' x)
+      mac    = hash 16 myPSK (sbToBS' (curvePubToBytes theirPub) `mappend` sbToBS' x) -- TODO: this should actually be blake2s(key=blake2s("mac1----" || theirPub), payload=blah)
   void $ NBS.sendTo sock (x `mappend` mac `mappend` replicate 16 '\0') addr
 
 r :: MVar ByteString -> Socket -> IO ByteString
@@ -63,8 +63,8 @@ main = do
       serverkey' = curveBytesToPub   . bsToSB' . either undefined id . B64.decode . pack $ serverkey :: PublicKey Curve25519
       psk'       = Plaintext . bsToSB' . either undefined id . B64.decode . pack $ psk
       hs         = handshakeState $ HandshakeStateParams
-                   noiseIK
-                   "WireGuard v0 zx2c4 Jason@zx2c4.com"
+                   noiseIK -- TODO: specify psk2 mode
+                   "WireGuard v1 zx2c4 Jason@zx2c4.com"
                    (Just psk')
                    (Just mykey')
                    Nothing

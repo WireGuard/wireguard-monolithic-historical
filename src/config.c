@@ -60,7 +60,9 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	peer = pubkey_hashtable_lookup(&wg->peer_hashtable, in_peer.public_key);
 	if (!peer) { /* Peer doesn't exist yet. Add a new one. */
 		if (in_peer.flags & WGPEER_REMOVE_ME)
-			return -ENODEV; /* Tried to remove a non existing peer. */
+			return -ENODEV; /* Tried to remove a non-existing peer. */
+		if (in_peer.flags & WGPEER_REMOVE_PRESHARED_KEY)
+			return -EINVAL; /* Tried to remove a psk for a non-existing peer. */
 
 		down_read(&wg->static_identity.lock);
 		if (wg->static_identity.has_identity && !memcmp(in_peer.public_key, wg->static_identity.static_public, NOISE_PUBLIC_KEY_LEN)) {
@@ -71,7 +73,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 		}
 		up_read(&wg->static_identity.lock);
 
-		peer = peer_rcu_get(peer_create(wg, in_peer.public_key));
+		peer = peer_rcu_get(peer_create(wg, in_peer.public_key, in_peer.preshared_key));
 		if (!peer)
 			return -ENOMEM;
 		if (netdev_pub(wg)->flags & IFF_UP)
@@ -82,6 +84,16 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 		peer_put(peer);
 		peer_remove(peer);
 		goto out;
+	}
+
+	if (in_peer.flags & WGPEER_REMOVE_PRESHARED_KEY) {
+		down_write(&peer->handshake.lock);
+		memset(&peer->handshake.preshared_key, 0, NOISE_SYMMETRIC_KEY_LEN);
+		up_write(&peer->handshake.lock);
+	} else if (memcmp(zeros, in_peer.preshared_key, WG_KEY_LEN)) {
+		down_write(&peer->handshake.lock);
+		memcpy(&peer->handshake.preshared_key, in_peer.preshared_key, NOISE_SYMMETRIC_KEY_LEN);
+		up_write(&peer->handshake.lock);
 	}
 
 	if (in_peer.endpoint.addr.sa_family == AF_INET || in_peer.endpoint.addr.sa_family == AF_INET6) {
@@ -170,16 +182,8 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 		modified_static_identity = true;
 	}
 
-	if (in_device.flags & WGDEVICE_REMOVE_PRESHARED_KEY) {
-		noise_set_static_identity_preshared_key(&wg->static_identity, NULL);
-		modified_static_identity = true;
-	} else if (memcmp(zeros, in_device.preshared_key, WG_KEY_LEN)) {
-		noise_set_static_identity_preshared_key(&wg->static_identity, in_device.preshared_key);
-		modified_static_identity = true;
-	}
-
 	if (modified_static_identity)
-		cookie_checker_precompute_keys(&wg->cookie_checker, NULL);
+		cookie_checker_precompute_device_keys(&wg->cookie_checker);
 
 	for (i = 0, offset = 0, user_peer = user_device + sizeof(struct wgdevice); i < in_device.num_peers; ++i, user_peer += offset) {
 		ret = set_peer(wg, user_peer, &offset);
@@ -249,7 +253,11 @@ static int populate_peer(struct wireguard_peer *peer, void *ctx)
 	if (ret)
 		return ret;
 
+	down_read(&peer->handshake.lock);
 	memcpy(out_peer.public_key, peer->handshake.remote_static, NOISE_PUBLIC_KEY_LEN);
+	memcpy(out_peer.preshared_key, peer->handshake.preshared_key, NOISE_SYMMETRIC_KEY_LEN);
+	up_read(&peer->handshake.lock);
+
 	read_lock_bh(&peer->endpoint_lock);
 	if (peer->endpoint.addr.sa_family == AF_INET)
 		out_peer.endpoint.addr4 = peer->endpoint.addr4;
@@ -315,8 +323,6 @@ int config_get_device(struct wireguard_device *wg, void __user *user_device)
 		memcpy(out_device.private_key, wg->static_identity.static_private, WG_KEY_LEN);
 		memcpy(out_device.public_key, wg->static_identity.static_public, WG_KEY_LEN);
 	}
-	if (wg->static_identity.has_psk)
-		memcpy(out_device.preshared_key, wg->static_identity.preshared_key, WG_KEY_LEN);
 	up_read(&wg->static_identity.lock);
 
 	peer_data.out_len = in_device.peers_size;

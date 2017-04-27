@@ -37,16 +37,17 @@ func ipChecksum(buf []byte) uint16 {
 func main() {
 	ourPrivate, _ := base64.StdEncoding.DecodeString("WAmgVYXkbT2bCtdcDwolI88/iVi/aV3/PHcUBTQSYmo=")
 	ourPublic, _ := base64.StdEncoding.DecodeString("K5sF9yESrSBsOXPd6TcpKNgqoy1Ik3ZFKl4FolzrRyI=")
-	preshared, _ := base64.StdEncoding.DecodeString("FpCyhws9cxwWoV4xELtfJvjJN+zQVRPISllRWgeopVE=")
 	theirPublic, _ := base64.StdEncoding.DecodeString("qRCwZSKInrMAq5sepfCdaCsRJaoLe5jhtzfiw7CjbwM=")
+	preshared, _ := base64.StdEncoding.DecodeString("FpCyhws9cxwWoV4xELtfJvjJN+zQVRPISllRWgeopVE=")
 	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherChaChaPoly, noise.HashBLAKE2s)
 	hs := noise.NewHandshakeState(noise.Config{
 		CipherSuite:   cs,
 		Random:        rand.Reader,
 		Pattern:       noise.HandshakeIK,
 		Initiator:     true,
-		Prologue:      []byte("WireGuard v0 zx2c4 Jason@zx2c4.com"),
+		Prologue:      []byte("WireGuard v1 zx2c4 Jason@zx2c4.com"),
 		PresharedKey:  preshared,
+		PresharedKeyPlacement: 2,
 		StaticKeypair: noise.DHKey{Private: ourPrivate, Public: ourPublic},
 		PeerStatic:    theirPublic,
 	})
@@ -68,8 +69,10 @@ func main() {
 	initiationPacket[3] = 0	// Reserved
 	binary.LittleEndian.PutUint32(initiationPacket[4:], 28) // Sender index: 28 (arbitrary)
 	initiationPacket, _, _ = hs.WriteMessage(initiationPacket, tai64n)
-	hasher, _ := blake2s.New(&blake2s.Config{Size: 16, Key: preshared})
+	hasher, _ := blake2s.New(&blake2s.Config{Size: 32})
+	hasher.Write([]byte("mac1----"))
 	hasher.Write(theirPublic)
+	hasher, _ = blake2s.New(&blake2s.Config{Size: 16, Key: hasher.Sum(nil)})
 	hasher.Write(initiationPacket)
 	initiationPacket = append(initiationPacket, hasher.Sum(nil)[:16]...)
 	initiationPacket = append(initiationPacket, make([]byte, 16)...)

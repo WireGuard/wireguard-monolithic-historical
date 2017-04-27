@@ -323,10 +323,6 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 			ret = parse_key(ctx->buf.dev->private_key, value);
 			if (!ret)
 				memset(ctx->buf.dev->private_key, 0, WG_KEY_LEN);
-		} else if (key_match("PresharedKey")) {
-			ret = parse_key(ctx->buf.dev->preshared_key, value);
-			if (!ret)
-				memset(ctx->buf.dev->preshared_key, 0, WG_KEY_LEN);
 		} else
 			goto error;
 	} else if (ctx->is_peer_section) {
@@ -338,7 +334,11 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 			ret = parse_ipmasks(&ctx->buf, ctx->peer_offset, value);
 		else if (key_match("PersistentKeepalive"))
 			ret = parse_persistent_keepalive(&peer_from_offset(ctx->buf.dev, ctx->peer_offset)->persistent_keepalive_interval, value);
-		else
+		else if (key_match("PresharedKey")) {
+			ret = parse_key(peer_from_offset(ctx->buf.dev, ctx->peer_offset)->preshared_key, value);
+			if (!ret)
+				memset(peer_from_offset(ctx->buf.dev, ctx->peer_offset)->preshared_key, 0, WG_KEY_LEN);
+		} else
 			goto error;
 	} else
 		goto error;
@@ -408,8 +408,6 @@ bool config_read_finish(struct config_ctx *ctx)
 		fprintf(stderr, "No private key configured\n");
 		goto err;
 	}
-	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && !key_is_valid(ctx->buf.dev->preshared_key))
-		ctx->buf.dev->flags |= WGDEVICE_REMOVE_PRESHARED_KEY;
 	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && !ctx->buf.dev->fwmark)
 		ctx->buf.dev->flags |= WGDEVICE_REMOVE_FWMARK;
 
@@ -508,21 +506,6 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 				goto error;
 			argv += 2;
 			argc -= 2;
-		} else if (!strcmp(argv[0], "preshared-key") && argc >= 2 && !buf.dev->num_peers) {
-			char *line;
-			int ret = read_line(&line, argv[1]);
-			if (ret == 0) {
-				if (!parse_key(buf.dev->preshared_key, line)) {
-					free(line);
-					goto error;
-				}
-				free(line);
-			} else if (ret == 1)
-				buf.dev->flags |= WGDEVICE_REMOVE_PRESHARED_KEY;
-			else
-				goto error;
-			argv += 2;
-			argc -= 2;
 		} else if (!strcmp(argv[0], "peer") && argc >= 2) {
 			peer_offset = buf.pos;
 			if (use_space(&buf, sizeof(struct wgpeer)) < 0) {
@@ -557,6 +540,22 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 			argc -= 2;
 		} else if (!strcmp(argv[0], "persistent-keepalive") && argc >= 2 && buf.dev->num_peers) {
 			if (!parse_persistent_keepalive(&peer_from_offset(buf.dev, peer_offset)->persistent_keepalive_interval, argv[1]))
+				goto error;
+			argv += 2;
+			argc -= 2;
+		} else if (!strcmp(argv[0], "preshared-key") && argc >= 2 && buf.dev->num_peers) {
+			char *line;
+			int ret = read_line(&line, argv[1]);
+			if (ret == 0) {
+				if (!parse_key(peer_from_offset(buf.dev, peer_offset)->preshared_key, line)) {
+					free(line);
+					goto error;
+				}
+				free(line);
+			} else if (ret == 1) {
+				free(line);
+				buf.dev->flags |= WGPEER_REMOVE_PRESHARED_KEY;
+			} else
 				goto error;
 			argv += 2;
 			argc -= 2;

@@ -99,10 +99,13 @@ struct wgipmask {
 
 enum {
 	WGPEER_REMOVE_ME = (1 << 0),
-	WGPEER_REPLACE_IPMASKS = (1 << 1)
+	WGPEER_REPLACE_IPMASKS = (1 << 1),
+	WGPEER_REMOVE_PRESHARED_KEY = (1 << 2)
 };
+
 struct wgpeer {
 	__u8 public_key[WG_KEY_LEN]; /* Get/Set */
+	__u8 preshared_key[WG_KEY_LEN]; /* Get/Set */
 	__u32 flags; /* Set */
 
 	union {
@@ -121,12 +124,11 @@ struct wgpeer {
 enum {
 	WGDEVICE_REPLACE_PEERS = (1 << 0),
 	WGDEVICE_REMOVE_PRIVATE_KEY = (1 << 1),
-	WGDEVICE_REMOVE_PRESHARED_KEY = (1 << 2),
-	WGDEVICE_REMOVE_FWMARK = (1 << 3)
+	WGDEVICE_REMOVE_FWMARK = (1 << 2)
 };
 
 enum {
-	WG_API_VERSION_MAGIC = 0xbeef0001
+	WG_API_VERSION_MAGIC = 0xbeef0002
 };
 
 struct wgdevice {
@@ -136,7 +138,6 @@ struct wgdevice {
 
 	__u8 public_key[WG_KEY_LEN]; /* Get */
 	__u8 private_key[WG_KEY_LEN]; /* Get/Set */
-	__u8 preshared_key[WG_KEY_LEN]; /* Get/Set */
 	__u32 fwmark; /* Get/Set */
 	__u16 port; /* Get/Set */
 

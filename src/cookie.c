@@ -23,29 +23,37 @@ int cookie_checker_init(struct cookie_checker *checker, struct wireguard_device 
 	return 0;
 }
 
-static int precompute_peer_key(struct wireguard_peer *peer, void *psk)
+enum { COOKIE_KEY_LABEL_LEN = 8 };
+static const u8 mac1_key_label[COOKIE_KEY_LABEL_LEN] = "mac1----";
+static const u8 cookie_key_label[COOKIE_KEY_LABEL_LEN] = "cookie--";
+
+static void precompute_key(u8 key[NOISE_SYMMETRIC_KEY_LEN], const u8 pubkey[NOISE_PUBLIC_KEY_LEN], const u8 label[COOKIE_KEY_LABEL_LEN])
 {
-	blake2s(peer->latest_cookie.cookie_decryption_key, peer->handshake.remote_static, psk, NOISE_SYMMETRIC_KEY_LEN, NOISE_PUBLIC_KEY_LEN, psk ? NOISE_SYMMETRIC_KEY_LEN : 0);
-	return 0;
+	struct blake2s_state blake;
+	blake2s_init(&blake, NOISE_SYMMETRIC_KEY_LEN);
+	blake2s_update(&blake, label, COOKIE_KEY_LABEL_LEN);
+	blake2s_update(&blake, pubkey, NOISE_PUBLIC_KEY_LEN);
+	blake2s_final(&blake, key, NOISE_SYMMETRIC_KEY_LEN);
 }
 
-void cookie_checker_precompute_keys(struct cookie_checker *checker, struct wireguard_peer *peer)
+void cookie_checker_precompute_device_keys(struct cookie_checker *checker)
 {
 	down_read(&checker->device->static_identity.lock);
-	if (unlikely(!checker->device->static_identity.has_identity)) {
-		memset(checker->cookie_encryption_key, 0, NOISE_SYMMETRIC_KEY_LEN);
-		goto out;
+	if (likely(checker->device->static_identity.has_identity)) {
+		precompute_key(checker->cookie_encryption_key, checker->device->static_identity.static_public, cookie_key_label);
+		precompute_key(checker->message_mac1_key, checker->device->static_identity.static_public, mac1_key_label);
 	}
-
-	if (peer)
-		precompute_peer_key(peer, checker->device->static_identity.has_psk ? checker->device->static_identity.preshared_key : NULL);
 	else {
-		blake2s(checker->cookie_encryption_key, checker->device->static_identity.static_public, checker->device->static_identity.preshared_key, NOISE_SYMMETRIC_KEY_LEN, NOISE_PUBLIC_KEY_LEN, checker->device->static_identity.has_psk ? NOISE_SYMMETRIC_KEY_LEN : 0);
-		peer_for_each_unlocked(checker->device, precompute_peer_key, checker->device->static_identity.has_psk ? checker->device->static_identity.preshared_key : NULL);
+		memset(checker->cookie_encryption_key, 0, NOISE_SYMMETRIC_KEY_LEN);
+		memset(checker->message_mac1_key, 0, NOISE_SYMMETRIC_KEY_LEN);
 	}
-
-out:
 	up_read(&checker->device->static_identity.lock);
+}
+
+void cookie_checker_precompute_peer_keys(struct wireguard_peer *peer)
+{
+	precompute_key(peer->latest_cookie.cookie_decryption_key, peer->handshake.remote_static, cookie_key_label);
+	precompute_key(peer->latest_cookie.message_mac1_key, peer->handshake.remote_static, mac1_key_label);
 }
 
 void cookie_checker_uninit(struct cookie_checker *checker)
@@ -59,18 +67,10 @@ void cookie_init(struct cookie *cookie)
 	init_rwsem(&cookie->lock);
 }
 
-static void compute_mac1(u8 mac1[COOKIE_LEN], const void *message, size_t len, const u8 pubkey[NOISE_PUBLIC_KEY_LEN], const u8 psk[NOISE_SYMMETRIC_KEY_LEN])
+static void compute_mac1(u8 mac1[COOKIE_LEN], const void *message, size_t len, const u8 key[NOISE_SYMMETRIC_KEY_LEN])
 {
-	struct blake2s_state state;
 	len = len - sizeof(struct message_macs) + offsetof(struct message_macs, mac1);
-
-	if (psk)
-		blake2s_init_key(&state, COOKIE_LEN, psk, NOISE_SYMMETRIC_KEY_LEN);
-	else
-		blake2s_init(&state, COOKIE_LEN);
-	blake2s_update(&state, pubkey, NOISE_PUBLIC_KEY_LEN);
-	blake2s_update(&state, message, len);
-	blake2s_final(&state, mac1, COOKIE_LEN);
+	blake2s(mac1, message, key, COOKIE_LEN, len, NOISE_SYMMETRIC_KEY_LEN);
 }
 
 static void compute_mac2(u8 mac2[COOKIE_LEN], const void *message, size_t len, const u8 cookie[COOKIE_LEN])
@@ -111,13 +111,7 @@ enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, str
 	struct message_macs *macs = (struct message_macs *)(skb->data + skb->len - sizeof(struct message_macs));
 
 	ret = INVALID_MAC;
-	down_read(&checker->device->static_identity.lock);
-	if (unlikely(!checker->device->static_identity.has_identity)) {
-		up_read(&checker->device->static_identity.lock);
-		goto out;
-	}
-	compute_mac1(computed_mac, skb->data, skb->len, checker->device->static_identity.static_public, checker->device->static_identity.has_psk ? checker->device->static_identity.preshared_key : NULL);
-	up_read(&checker->device->static_identity.lock);
+	compute_mac1(computed_mac, skb->data, skb->len, checker->message_mac1_key);
 	if (crypto_memneq(computed_mac, macs->mac1, COOKIE_LEN))
 		goto out;
 
@@ -146,16 +140,8 @@ void cookie_add_mac_to_packet(void *message, size_t len, struct wireguard_peer *
 {
 	struct message_macs *macs = (struct message_macs *)((u8 *)message + len - sizeof(struct message_macs));
 
-	down_read(&peer->device->static_identity.lock);
-	if (unlikely(!peer->device->static_identity.has_identity)) {
-		memset(macs, 0, sizeof(struct message_macs));
-		up_read(&peer->device->static_identity.lock);
-		return;
-	}
-	compute_mac1(macs->mac1, message, len, peer->handshake.remote_static, peer->device->static_identity.has_psk ? peer->device->static_identity.preshared_key : NULL);
-	up_read(&peer->device->static_identity.lock);
-
 	down_write(&peer->latest_cookie.lock);
+	compute_mac1(macs->mac1, message, len, peer->latest_cookie.message_mac1_key);
 	memcpy(peer->latest_cookie.last_mac1_sent, macs->mac1, COOKIE_LEN);
 	peer->latest_cookie.have_sent_mac1 = true;
 	up_write(&peer->latest_cookie.lock);

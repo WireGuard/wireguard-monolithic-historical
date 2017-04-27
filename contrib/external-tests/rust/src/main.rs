@@ -39,11 +39,12 @@ fn main() {
 	owner.set_rs(&their_public);
 	let mut cipherstate1 : CipherState<CipherChaChaPoly> = Default::default();
         let mut cipherstate2 : CipherState<CipherChaChaPoly> = Default::default();
-	let mut handshake = HandshakeState::new_from_owner(&mut owner, true, HandshakePattern::IK, "WireGuard v0 zx2c4 Jason@zx2c4.com".as_bytes(), Some(&my_preshared[..]), &mut cipherstate1, &mut cipherstate2);
+	//TODO: specify psk2 mode
+	let mut handshake = HandshakeState::new_from_owner(&mut owner, true, HandshakePattern::IK, "WireGuard v1 zx2c4 Jason@zx2c4.com".as_bytes(), Some(&my_preshared[..]), &mut cipherstate1, &mut cipherstate2);
 
 	let now = time::get_time();
 	let mut tai64n = [0; 12];
-	BigEndian::write_i64(&mut tai64n[0..], 4611686018427387914ULL + now.sec);
+	BigEndian::write_i64(&mut tai64n[0..], 4611686018427387914 + now.sec);
 	BigEndian::write_i32(&mut tai64n[8..], now.nsec);
 	let mut initiation_packet = [0; 148];
 	initiation_packet[0] = 1; /* Type: Initiation */
@@ -52,11 +53,13 @@ fn main() {
 	initiation_packet[3] = 0; /* Reserved */
 	LittleEndian::write_u32(&mut initiation_packet[4..], 28); /* Sender index: 28 (arbitrary) */
 	handshake.write_message(&tai64n, &mut initiation_packet[8..]);
-	let mut mac_material = [0; 148];
-	memcpy(&mut mac_material, &their_public);
-	memcpy(&mut mac_material[32..], &initiation_packet[0..116]);
+	let mut mac_key_input = [0; 40];
+	let mut mac_key = [0; 32];
+	memcpy(&mut mac_key_input, b"mac1----");
+	memcpy(&mut mac_key_input[8..], &their_public);
+	Blake2s::blake2s(&mut mac_key, &mac_key_input, &[0; 0]);
 	let mut mac = [0; 16];
-	Blake2s::blake2s(&mut mac, &mac_material, &my_preshared);
+	Blake2s::blake2s(&mut mac, &initiation_packet[0..116], &mac_key);
 	memcpy(&mut initiation_packet[116..], &mac);
 	socket.send_to(&initiation_packet, &send_addr).unwrap();
 

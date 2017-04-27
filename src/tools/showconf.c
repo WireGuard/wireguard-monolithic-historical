@@ -50,14 +50,14 @@ int showconf_main(int argc, char *argv[])
 		key_to_base64(base64, device->private_key);
 		printf("PrivateKey = %s\n", base64);
 	}
-	if (memcmp(device->preshared_key, zero, WG_KEY_LEN)) {
-		key_to_base64(base64, device->preshared_key);
-		printf("PresharedKey = %s\n", base64);
-	}
 	printf("\n");
 	for_each_wgpeer(device, peer, i) {
 		key_to_base64(base64, peer->public_key);
 		printf("[Peer]\nPublicKey = %s\n", base64);
+		if (memcmp(peer->preshared_key, zero, WG_KEY_LEN)) {
+			key_to_base64(base64, peer->preshared_key);
+			printf("PresharedKey = %s\n", base64);
+		}
 		if (peer->num_ipmasks)
 			printf("AllowedIPs = ");
 		for_each_wgipmask(peer, ipmask, j) {

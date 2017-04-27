@@ -88,15 +88,15 @@ configure_peers() {
 
 	n1 wg set wg0 \
 		private-key <(echo "$key1") \
-		preshared-key <(echo "$psk") \
 		listen-port 1 \
 		peer "$pub2" \
+			preshared-key <(echo "$psk") \
 			allowed-ips 192.168.241.2/32,fd00::2/128
 	n2 wg set wg0 \
 		private-key <(echo "$key2") \
-		preshared-key <(echo "$psk") \
 		listen-port 2 \
 		peer "$pub1" \
+			preshared-key <(echo "$psk") \
 			allowed-ips 192.168.241.1/32,fd00::1/128
 
 	ip1 link set up dev wg0

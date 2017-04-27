@@ -201,7 +201,7 @@ static char *bytes(uint64_t b)
 static const char *COMMAND_NAME = NULL;
 static void show_usage(void)
 {
-	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | preshared-key | listen-port | fwmark | peers | endpoints | allowed-ips | latest-handshakes | transfer | persistent-keepalive | dump]\n", PROG_NAME, COMMAND_NAME);
+	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | listen-port | fwmark | peers | preshared-keys | endpoints | allowed-ips | latest-handshakes | transfer | persistent-keepalive | dump]\n", PROG_NAME, COMMAND_NAME);
 }
 
 static void pretty_print(struct wgdevice *device)
@@ -216,8 +216,6 @@ static void pretty_print(struct wgdevice *device)
 		terminal_printf("  " TERMINAL_BOLD "public key" TERMINAL_RESET ": %s\n", key(device->public_key));
 	if (memcmp(device->private_key, zero, WG_KEY_LEN))
 		terminal_printf("  " TERMINAL_BOLD "private key" TERMINAL_RESET ": %s\n", masked_key(device->private_key));
-	if (memcmp(device->preshared_key, zero, WG_KEY_LEN))
-		terminal_printf("  " TERMINAL_BOLD "preshared key" TERMINAL_RESET ": %s\n", masked_key(device->preshared_key));
 	if (device->port)
 		terminal_printf("  " TERMINAL_BOLD "listening port" TERMINAL_RESET ": %u\n", device->port);
 	if (device->fwmark)
@@ -228,6 +226,8 @@ static void pretty_print(struct wgdevice *device)
 	}
 	for_each_wgpeer(device, peer, i) {
 		terminal_printf(TERMINAL_FG_YELLOW TERMINAL_BOLD "peer" TERMINAL_RESET ": " TERMINAL_FG_YELLOW "%s" TERMINAL_RESET "\n", key(peer->public_key));
+		if (memcmp(peer->preshared_key, zero, WG_KEY_LEN))
+			terminal_printf("  " TERMINAL_BOLD "preshared key" TERMINAL_RESET ": %s\n", masked_key(peer->preshared_key));
 		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6)
 			terminal_printf("  " TERMINAL_BOLD "endpoint" TERMINAL_RESET ": %s\n", endpoint(&peer->endpoint.addr));
 		terminal_printf("  " TERMINAL_BOLD "allowed ips" TERMINAL_RESET ": ");
@@ -260,7 +260,6 @@ static void dump_print(struct wgdevice *device, bool with_interface)
 		printf("%s\t", device->interface);
 	printf("%s\t", key(device->private_key));
 	printf("%s\t", key(device->public_key));
-	printf("%s\t", key(device->preshared_key));
 	printf("%u\t", device->port);
 	if (device->fwmark)
 		printf("0x%x\n", device->fwmark);
@@ -270,6 +269,7 @@ static void dump_print(struct wgdevice *device, bool with_interface)
 		if (with_interface)
 			printf("%s\t", device->interface);
 		printf("%s\t", key(peer->public_key));
+		printf("%s\t", key(peer->preshared_key));
 		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6)
 			printf("%s\t", endpoint(&peer->endpoint.addr));
 		else
@@ -301,10 +301,6 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 		if (with_interface)
 			printf("%s\t", device->interface);
 		printf("%s\n", key(device->private_key));
-	} else if (!strcmp(param, "preshared-key")) {
-		if (with_interface)
-			printf("%s\t", device->interface);
-		printf("%s\n", key(device->preshared_key));
 	} else if (!strcmp(param, "listen-port")) {
 		if (with_interface)
 			printf("%s\t", device->interface);
@@ -357,6 +353,13 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 				printf("%s\t%u\n", key(peer->public_key), peer->persistent_keepalive_interval);
 			else
 				printf("%s\toff\n", key(peer->public_key));
+		}
+	} else if (!strcmp(param, "preshared-keys")) {
+		for_each_wgpeer(device, peer, i) {
+			if (with_interface)
+				printf("%s\t", device->interface);
+			printf("%s\t", key(peer->public_key));
+			printf("%s\n", key(peer->preshared_key));
 		}
 	} else if (!strcmp(param, "peers")) {
 		for_each_wgpeer(device, peer, i) {
