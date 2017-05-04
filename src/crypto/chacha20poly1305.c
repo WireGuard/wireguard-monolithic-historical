@@ -16,6 +16,7 @@
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 #ifdef CONFIG_AS_SSSE3
+asmlinkage void hchacha20_asm_ssse3(u8 *derived_key, const u8 *nonce, const u8 *key);
 asmlinkage void chacha20_asm_block_xor_ssse3(u32 *state, u8 *dst, const u8 *src);
 asmlinkage void chacha20_asm_4block_xor_ssse3(u32 *state, u8 *dst, const u8 *src);
 #endif
@@ -140,7 +141,7 @@ static void chacha20_generic_block(struct chacha20_ctx *ctx, void *stream)
 
 static const char constant[16] = "expand 32-byte k";
 
-static void hchacha20(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 nonce[16], const u8 key[CHACHA20POLY1305_KEYLEN])
+static void hchacha20_generic(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 nonce[16], const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	u32 x[CHACHA20_BLOCK_SIZE / sizeof(u32)];
 	__le32 *out = (__force __le32 *)derived_key;
@@ -213,6 +214,22 @@ static void hchacha20(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 nonce[16
 	out[5] = cpu_to_le32(x[13]);
 	out[6] = cpu_to_le32(x[14]);
 	out[7] = cpu_to_le32(x[15]);
+}
+
+static inline void hchacha20(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 nonce[16], const u8 key[CHACHA20POLY1305_KEYLEN], bool have_simd)
+{
+	if (!have_simd)
+		goto no_simd;
+
+#if defined(CONFIG_X86_64) && defined(CONFIG_AS_SSSE3)
+	if (chacha20poly1305_use_ssse3) {
+		hchacha20_asm_ssse3(derived_key, nonce, key);
+		return;
+	}
+#endif
+
+no_simd:
+	hchacha20_generic(derived_key, nonce, key);
 }
 
 static void chacha20_keysetup(struct chacha20_ctx *ctx, const u8 key[CHACHA20_KEY_SIZE], const u8 nonce[sizeof(u64)])
@@ -464,7 +481,6 @@ static void poly1305_update(struct poly1305_ctx *ctx, const u8 *src, unsigned in
 
 		if (ctx->buflen == POLY1305_BLOCK_SIZE) {
 #ifdef CONFIG_X86_64
-
 			if (have_simd && chacha20poly1305_use_sse2)
 				poly1305_simd_blocks(ctx, ctx->buf, POLY1305_BLOCK_SIZE);
 			else
@@ -476,7 +492,6 @@ static void poly1305_update(struct poly1305_ctx *ctx, const u8 *src, unsigned in
 
 	if (likely(srclen >= POLY1305_BLOCK_SIZE)) {
 #ifdef CONFIG_X86_64
-
 		if (have_simd && chacha20poly1305_use_sse2)
 			bytes = poly1305_simd_blocks(ctx, src, srclen);
 		else
@@ -568,16 +583,16 @@ static struct blkcipher_desc chacha20_desc = {
 	.tfm = &chacha20_cipher
 };
 
-void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
-			      const u8 *ad, const size_t ad_len,
-			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
+static inline void __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
+					      const u8 *ad, const size_t ad_len,
+					      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
+					      bool have_simd)
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
 	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
 	__le64 len;
 	__le64 le_nonce = cpu_to_le64(nonce);
-	bool have_simd = chacha20poly1305_init_simd();
 
 	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
@@ -603,7 +618,15 @@ void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 
 	memzero_explicit(&poly1305_state, sizeof(poly1305_state));
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
+}
 
+void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
+			      const u8 *ad, const size_t ad_len,
+			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
+{
+	bool have_simd;
+	have_simd = chacha20poly1305_init_simd();
+	__chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, nonce, key, have_simd);
 	chacha20poly1305_deinit_simd(have_simd);
 }
 
@@ -665,9 +688,10 @@ err:
 	return !ret;
 }
 
-bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
-			      const u8 *ad, const size_t ad_len,
-			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
+static inline bool __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
+					      const u8 *ad, const size_t ad_len,
+					      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
+					      bool have_simd)
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
@@ -677,12 +701,9 @@ bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 	size_t dst_len;
 	__le64 len;
 	__le64 le_nonce = cpu_to_le64(nonce);
-	bool have_simd;
 
 	if (unlikely(src_len < POLY1305_MAC_SIZE))
 		return false;
-
-	have_simd = chacha20poly1305_init_simd();
 
 	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
@@ -713,8 +734,18 @@ bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 
-	chacha20poly1305_deinit_simd(have_simd);
 	return !ret;
+}
+
+bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
+			      const u8 *ad, const size_t ad_len,
+			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
+{
+	bool have_simd, ret;
+	have_simd = chacha20poly1305_init_simd();
+	ret = __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len, nonce, key, have_simd);
+	chacha20poly1305_deinit_simd(have_simd);
+	return ret;
 }
 
 bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
@@ -792,10 +823,12 @@ void xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],
 			       const u8 key[CHACHA20POLY1305_KEYLEN])
 {
-	u8 derived_key[CHACHA20POLY1305_KEYLEN];
-	hchacha20(derived_key, nonce, key);
-	chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key);
+	bool have_simd = chacha20poly1305_init_simd();
+	u8 derived_key[CHACHA20POLY1305_KEYLEN] __aligned(16);
+	hchacha20(derived_key, nonce, key, have_simd);
+	__chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key, have_simd);
 	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
+	chacha20poly1305_deinit_simd(have_simd);
 }
 
 bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
@@ -803,11 +836,12 @@ bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],
 			       const u8 key[CHACHA20POLY1305_KEYLEN])
 {
-	u8 derived_key[CHACHA20POLY1305_KEYLEN];
-	bool ret;
-	hchacha20(derived_key, nonce, key);
-	ret = chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key);
+	bool ret, have_simd = chacha20poly1305_init_simd();
+	u8 derived_key[CHACHA20POLY1305_KEYLEN] __aligned(16);
+	hchacha20(derived_key, nonce, key, have_simd);
+	ret = __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key, have_simd);
 	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
+	chacha20poly1305_deinit_simd(have_simd);
 	return ret;
 }
 

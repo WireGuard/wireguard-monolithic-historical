@@ -2,6 +2,7 @@
  * ChaCha20 256-bit cipher algorithm, RFC7539, x64 SSSE3 functions
  *
  * Copyright (C) 2015 Martin Willi
+ * Copyright (C) 2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +18,7 @@
 ROT8:	.octa 0x0e0d0c0f0a09080b0605040702010003
 ROT16:	.octa 0x0d0c0f0e09080b0a0504070601000302
 CTRINC:	.octa 0x00000003000000020000000100000000
+CONST:	.ascii "expand 32-byte k"
 
 .text
 
@@ -625,3 +627,103 @@ ENTRY(chacha20_asm_4block_xor_ssse3)
 	mov		%r11,%rsp
 	ret
 ENDPROC(chacha20_asm_4block_xor_ssse3)
+
+ENTRY(hchacha20_asm_ssse3)
+	# %rdi: 32 byte output key, o
+	# %rsi: 16 byte nonce, n
+	# %rdx: 32 byte input key, i
+
+	# x0 = constant
+	movdqa		CONST(%rip),%xmm0
+	# x1, x2 = i
+	movdqu		0x00(%rdx),%xmm1
+	movdqu		0x10(%rdx),%xmm2
+	# x3 = n
+	movdqu		0x00(%rsi),%xmm3
+
+	movdqa		%xmm0,%xmm8
+	movdqa		%xmm1,%xmm9
+	movdqa		%xmm2,%xmm10
+	movdqa		%xmm3,%xmm11
+	movdqa		ROT8(%rip),%xmm4
+	movdqa		ROT16(%rip),%xmm5
+
+	mov	$10,%ecx
+
+.Lhdoubleround:
+
+	# x0 += x1, x3 = rotl32(x3 ^ x0, 16)
+	paddd		%xmm1,%xmm0
+	pxor		%xmm0,%xmm3
+	pshufb		%xmm5,%xmm3
+
+	# x2 += x3, x1 = rotl32(x1 ^ x2, 12)
+	paddd		%xmm3,%xmm2
+	pxor		%xmm2,%xmm1
+	movdqa		%xmm1,%xmm6
+	pslld		$12,%xmm6
+	psrld		$20,%xmm1
+	por		%xmm6,%xmm1
+
+	# x0 += x1, x3 = rotl32(x3 ^ x0, 8)
+	paddd		%xmm1,%xmm0
+	pxor		%xmm0,%xmm3
+	pshufb		%xmm4,%xmm3
+
+	# x2 += x3, x1 = rotl32(x1 ^ x2, 7)
+	paddd		%xmm3,%xmm2
+	pxor		%xmm2,%xmm1
+	movdqa		%xmm1,%xmm7
+	pslld		$7,%xmm7
+	psrld		$25,%xmm1
+	por		%xmm7,%xmm1
+
+	# x1 = shuffle32(x1, MASK(0, 3, 2, 1))
+	pshufd		$0x39,%xmm1,%xmm1
+	# x2 = shuffle32(x2, MASK(1, 0, 3, 2))
+	pshufd		$0x4e,%xmm2,%xmm2
+	# x3 = shuffle32(x3, MASK(2, 1, 0, 3))
+	pshufd		$0x93,%xmm3,%xmm3
+
+	# x0 += x1, x3 = rotl32(x3 ^ x0, 16)
+	paddd		%xmm1,%xmm0
+	pxor		%xmm0,%xmm3
+	pshufb		%xmm5,%xmm3
+
+	# x2 += x3, x1 = rotl32(x1 ^ x2, 12)
+	paddd		%xmm3,%xmm2
+	pxor		%xmm2,%xmm1
+	movdqa		%xmm1,%xmm6
+	pslld		$12,%xmm6
+	psrld		$20,%xmm1
+	por		%xmm6,%xmm1
+
+	# x0 += x1, x3 = rotl32(x3 ^ x0, 8)
+	paddd		%xmm1,%xmm0
+	pxor		%xmm0,%xmm3
+	pshufb		%xmm4,%xmm3
+
+	# x2 += x3, x1 = rotl32(x1 ^ x2, 7)
+	paddd		%xmm3,%xmm2
+	pxor		%xmm2,%xmm1
+	movdqa		%xmm1,%xmm7
+	pslld		$7,%xmm7
+	psrld		$25,%xmm1
+	por		%xmm7,%xmm1
+
+	# x1 = shuffle32(x1, MASK(2, 1, 0, 3))
+	pshufd		$0x93,%xmm1,%xmm1
+	# x2 = shuffle32(x2, MASK(1, 0, 3, 2))
+	pshufd		$0x4e,%xmm2,%xmm2
+	# x3 = shuffle32(x3, MASK(0, 3, 2, 1))
+	pshufd		$0x39,%xmm3,%xmm3
+
+	dec		%ecx
+	jnz		.Lhdoubleround
+
+	# o0 = x0
+	movdqu		%xmm0,0x00(%rdi)
+	# o1 = x3
+	movdqu		%xmm3,0x10(%rdi)
+	ret
+ENDPROC(hchacha20_asm_ssse3)
