@@ -22,6 +22,10 @@
 #error "WireGuard requires CONFIG_IP6_NF_IPTABLES when using CONFIG_IPV6."
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0) && defined(CONFIG_X86_64)
+#define CONFIG_AS_SSSE3
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
 #define headers_start data
 #define headers_end data
