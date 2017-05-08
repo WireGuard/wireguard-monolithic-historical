@@ -194,20 +194,6 @@ static inline u32 prandom_u32_max(u32 ep_ro)
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 59)
-static inline int crypto_memneq(const void *a, const void *b, size_t size)
-{
-	unsigned long neq = 0;
-	while (size > 0) {
-		neq |= *(u8 *)a ^ *(u8 *)b;
-		a += 1;
-		b += 1;
-		size -= 1;
-	}
-	return neq != 0UL ? 1 : 0;
-}
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 75)
 #define U8_MAX ((u8)~0U)
 #define S8_MAX ((s8)(U8_MAX >> 1))

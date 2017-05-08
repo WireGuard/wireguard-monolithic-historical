@@ -26,3 +26,8 @@ ifeq ($(wildcard $(srctree)/include/net/udp_tunnel.h),)
 ccflags-y += -I$(src)/compat/udp_tunnel/include
 wireguard-y += compat/udp_tunnel/udp_tunnel.o
 endif
+
+ifeq ($(shell grep -F "int crypto_memneq" "$(srctree)/include/crypto/algapi.h"),)
+ccflags-y += -include $(src)/compat/memneq/include.h
+wireguard-y += compat/memneq/memneq.o
+endif
