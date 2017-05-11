@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 WG="$(readlink -f "$(dirname "$(readlink -f "$0")")/../../src/")"
 
