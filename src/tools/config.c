@@ -424,32 +424,48 @@ err:
 	return false;
 }
 
-static int read_line(char **dst, const char *path)
+static int read_keyfile(char dst[WG_KEY_LEN_BASE64], const char *path)
 {
 	FILE *f;
-	size_t n = 0;
-
-	*dst = NULL;
+	int ret = -1, c;
 
 	f = fopen(path, "r");
 	if (!f) {
 		perror("fopen");
 		return -1;
 	}
-	if (getline(dst, &n, f) < 0 && errno) {
-		perror("getline");
-		fclose(f);
-		return -1;
+
+	if (fread(dst, WG_KEY_LEN_BASE64 - 1, 1, f) != 1) {
+		if (errno) {
+			perror("fread");
+			goto out;
+		}
+		/* If we're at the end and we didn't read anything, we're /dev/null. */
+		if (!ferror(f) && feof(f) && !ftell(f)) {
+			ret = 1;
+			goto out;
+		}
+
+		fprintf(stderr, "Invalid length key in key file\n");
+		goto out;
 	}
+	dst[WG_KEY_LEN_BASE64 - 1] = '\0';
+
+	while ((c = getc(f)) != EOF) {
+		if (!isspace(c)) {
+			fprintf(stderr, "Found trailing character in key file: `%c`\n", c);
+			goto out;
+		}
+	}
+	if (ferror(f) && errno) {
+		perror("getc");
+		goto out;
+	}
+	ret = 0;
+
+out:
 	fclose(f);
-	n = strlen(*dst);
-	if (!n)
-		return 1;
-	while (--n) {
-		if (isspace((*dst)[n]))
-			(*dst)[n] = '\0';
-	}
-	return 0;
+	return ret;
 }
 
 static char *strip_spaces(const char *in)
@@ -492,14 +508,11 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 			argv += 2;
 			argc -= 2;
 		} else if (!strcmp(argv[0], "private-key") && argc >= 2 && !buf.dev->num_peers) {
-			char *line;
-			int ret = read_line(&line, argv[1]);
+			char key_line[WG_KEY_LEN_BASE64];
+			int ret = read_keyfile(key_line, argv[1]);
 			if (ret == 0) {
-				if (!parse_key(buf.dev->private_key, line)) {
-					free(line);
+				if (!parse_key(buf.dev->private_key, key_line))
 					goto error;
-				}
-				free(line);
 			} else if (ret == 1)
 				buf.dev->flags |= WGDEVICE_REMOVE_PRIVATE_KEY;
 			else
@@ -544,18 +557,14 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 			argv += 2;
 			argc -= 2;
 		} else if (!strcmp(argv[0], "preshared-key") && argc >= 2 && buf.dev->num_peers) {
-			char *line;
-			int ret = read_line(&line, argv[1]);
+			char key_line[WG_KEY_LEN_BASE64];
+			int ret = read_keyfile(key_line, argv[1]);
 			if (ret == 0) {
-				if (!parse_key(peer_from_offset(buf.dev, peer_offset)->preshared_key, line)) {
-					free(line);
+				if (!parse_key(peer_from_offset(buf.dev, peer_offset)->preshared_key, key_line))
 					goto error;
-				}
-				free(line);
-			} else if (ret == 1) {
-				free(line);
+			} else if (ret == 1)
 				buf.dev->flags |= WGPEER_REMOVE_PRESHARED_KEY;
-			} else
+			else
 				goto error;
 			argv += 2;
 			argc -= 2;
