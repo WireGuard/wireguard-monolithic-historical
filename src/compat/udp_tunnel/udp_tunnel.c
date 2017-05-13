@@ -179,6 +179,10 @@ void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb
 			 bool xnet, bool nocheck)
 {
 	struct udphdr *uh;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
+	struct net_device *dev = skb->dev;
+	int ret;
+#endif
 
 	__skb_push(skb, sizeof(*uh));
 	skb_reset_transport_header(skb);
@@ -196,12 +200,17 @@ void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb
 		skb->sk = sk;
 	if (!skb->destructor)
 		skb->destructor = fake_destructor;
-
-	iptunnel_xmit(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
-		       sk,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
+	ret =
 #endif
-		       rt, skb, src, dst, IPPROTO_UDP, tos, ttl, df, xnet);
+	     iptunnel_xmit(
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
+			   sk,
+#endif
+			   rt, skb, src, dst, IPPROTO_UDP, tos, ttl, df, xnet);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
+	iptunnel_xmit_stats(ret, &dev->stats, dev->tstats);
+#endif
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_xmit_skb);
 
