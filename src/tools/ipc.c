@@ -45,7 +45,8 @@ struct inflatable_buffer {
 static int check_version_magic(struct wgdevice *device, int ret)
 {
 	if (ret == -EPROTO || (!ret && device->version_magic != WG_API_VERSION_MAGIC)) {
-		fprintf(stderr, "This program was built for a different version of WireGuard than\nwhat is currently running. Either this version of wg(8) is out\nof date, or the currently loaded WireGuard module is out of date.\nIf you have just updated your WireGuard installation, you may have\nforgotten to unload the previous running WireGuard module. Try\nrunning `rmmod wireguard` as root, and then try re-adding the device\nand trying again.\n\n");
+		fprintf(stderr, "This program was built for a different version of WireGuard than\nwhat is currently running. Either this version of wg(8) is out\nof date, or the currently loaded WireGuard module is out of date.\nIf you have just updated your WireGuard installation, you may have\nforgotten to unload the previous running WireGuard module. Try\nrunning `rmmod wireguard` as root, and then try re-adding the interface\nand trying again.\n\n");
+		errno = EPROTO;
 		return -EPROTO;
 	}
 	return ret;
@@ -196,7 +197,7 @@ static int userspace_set_device(struct wgdevice *dev)
 out:
 	close(fd);
 	errno = -ret;
-	return (int)ret;
+	return check_version_magic(dev, ret);
 }
 
 #define READ_BYTES(bytes) ({ \
@@ -413,7 +414,7 @@ static int kernel_set_device(struct wgdevice *dev)
 	memcpy(&ifreq.ifr_name, dev->interface, IFNAMSIZ);
 	ifreq.ifr_name[IFNAMSIZ - 1] = 0;
 	dev->version_magic = WG_API_VERSION_MAGIC;
-	return do_ioctl(WG_SET_DEVICE, &ifreq);
+	return check_version_magic(dev, do_ioctl(WG_SET_DEVICE, &ifreq));
 }
 
 static int kernel_get_device(struct wgdevice **dev, const char *interface)
