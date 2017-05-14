@@ -35,12 +35,12 @@ $(DISTFILES_PATH)/$(1):
 endef
 
 ifeq ($(findstring -rc,$(KERNEL_VERSION)),)
-KERNEL_URL_DIRECTORY := https://www.kernel.org/pub/linux/kernel/v$(firstword $(subst ., ,$(KERNEL_VERSION))).x/
+KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v$(firstword $(subst ., ,$(KERNEL_VERSION))).x/
 else
-KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v$(firstword $(subst ., ,$(KERNEL_VERSION))).x/testing/
+KERNEL_URL_DIRECTORY := https://git.kernel.org/torvalds/t/
 endif
 
-$(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.xz,$(KERNEL_URL_DIRECTORY)))
+$(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.gz,$(KERNEL_URL_DIRECTORY)))
 $(eval $(call tar_download,MUSL,musl,1.1.16,.tar.gz,https://www.musl-libc.org/releases/))
 $(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,http://ftp.netfilter.org/pub/libmnl/))
 $(eval $(call tar_download,IPERF,iperf,3.1.7,.tar.gz,http://downloads.es.net/pub/iperf/))
