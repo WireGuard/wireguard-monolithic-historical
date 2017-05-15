@@ -12,7 +12,7 @@
 #endif
 
 #include "curve25519.h"
-#include "base64.h"
+#include "encoding.h"
 #include "subcommands.h"
 
 static inline ssize_t get_random_bytes(uint8_t *out, size_t len)

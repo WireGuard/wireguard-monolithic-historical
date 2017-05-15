@@ -19,14 +19,19 @@
 #include <time.h>
 #include <dirent.h>
 #include <signal.h>
+#include <netdb.h>
+#include <limits.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <arpa/inet.h>
 
 #include "ipc.h"
+#include "encoding.h"
+#include "curve25519.h"
 #include "../uapi.h"
 
 #define SOCK_PATH RUNSTATEDIR "/wireguard/"
@@ -41,16 +46,6 @@ struct inflatable_buffer {
 };
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
-
-static int check_version_magic(struct wgdevice *device, int ret)
-{
-	if (ret == -EPROTO || (!ret && device->version_magic != WG_API_VERSION_MAGIC)) {
-		fprintf(stderr, "This program was built for a different version of WireGuard than\nwhat is currently running. Either this version of wg(8) is out\nof date, or the currently loaded WireGuard module is out of date.\nIf you have just updated your WireGuard installation, you may have\nforgotten to unload the previous running WireGuard module. Try\nrunning `rmmod wireguard` as root, and then try re-adding the interface\nand trying again.\n\n");
-		errno = EPROTO;
-		return -EPROTO;
-	}
-	return ret;
-}
 
 static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 {
@@ -90,11 +85,12 @@ static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 	return 0;
 }
 
-static int userspace_interface_fd(const char *interface)
+static FILE *userspace_interface_file(const char *interface)
 {
 	struct stat sbuf;
 	struct sockaddr_un addr = { .sun_family = AF_UNIX };
 	int fd = -1, ret;
+	FILE *f;
 
 	ret = -EINVAL;
 	if (strchr(interface, '/'))
@@ -119,20 +115,25 @@ static int userspace_interface_fd(const char *interface)
 			unlink(addr.sun_path);
 		goto out;
 	}
+	f = fdopen(fd, "r+");
+	if (!f)
+		ret = -errno;
 out:
 	if (ret && fd >= 0)
 		close(fd);
-	if (!ret)
-		ret = fd;
-	return ret;
+	if (ret) {
+		errno = -ret;
+		return NULL;
+	}
+	return f;
 }
 
 static bool userspace_has_wireguard_interface(const char *interface)
 {
-	int fd = userspace_interface_fd(interface);
-	if (fd < 0)
+	FILE *f = userspace_interface_file(interface);
+	if (!f)
 		return false;
-	close(fd);
+	fclose(f);
 	return true;
 }
 
@@ -170,110 +171,261 @@ out:
 
 static int userspace_set_device(struct wgdevice *dev)
 {
+	static const uint8_t zero[WG_KEY_LEN] = { 0 };
+	char hex[WG_KEY_LEN_HEX], ip[INET6_ADDRSTRLEN], host[4096 + 1], service[512 + 1];
 	struct wgpeer *peer;
-	size_t len;
-	ssize_t ret;
-	int ret_code;
-	int fd = userspace_interface_fd(dev->interface);
-	if (fd < 0)
-		return fd;
-	for_each_wgpeer(dev, peer, len);
-	len = (uint8_t *)peer - (uint8_t *)dev;
-	ret = -EBADMSG;
-	if (!len)
-		goto out;
-	dev->version_magic = WG_API_VERSION_MAGIC;
-	ret = write(fd, dev, len);
-	if (ret < 0)
-		goto out;
-	ret = read(fd, &ret_code, sizeof(ret_code));
-	if (ret < 0)
-		goto out;
-	if (ret != sizeof(ret_code)) {
-		ret = -EBADMSG;
-		goto out;
+	struct wgipmask *ipmask;
+	FILE *f;
+	int ret;
+	size_t i, j;
+	socklen_t addr_len;
+
+	f = userspace_interface_file(dev->interface);
+	if (!f)
+		return -errno;
+	fprintf(f, "set=1\n");
+
+	if (dev->flags & WGDEVICE_REMOVE_PRIVATE_KEY)
+		fprintf(f, "private_key=\n");
+	else if (memcmp(dev->private_key, zero, WG_KEY_LEN)) {
+		key_to_hex(hex, dev->private_key);
+		fprintf(f, "private_key=%s\n", hex);
 	}
-	ret = ret_code;
-out:
-	close(fd);
+	if (dev->port)
+		fprintf(f, "listen_port=%u\n", dev->port);
+	if (dev->flags & WGDEVICE_REMOVE_FWMARK)
+		fprintf(f, "fwmark=\n");
+	else if (dev->fwmark)
+		fprintf(f, "fwmark=%u\n", dev->fwmark);
+	if (dev->flags & WGDEVICE_REPLACE_PEERS)
+		fprintf(f, "replace_peers=true\n");
+
+	for_each_wgpeer(dev, peer, i) {
+		key_to_hex(hex, peer->public_key);
+		fprintf(f, "public_key=%s\n", hex);
+		if (peer->flags & WGPEER_REMOVE_ME) {
+			fprintf(f, "remove=true\n");
+			continue;
+		}
+		if (peer->flags & WGPEER_REMOVE_PRESHARED_KEY)
+			fprintf(f, "preshared_key=\n");
+		else if (memcmp(peer->preshared_key, zero, WG_KEY_LEN)) {
+			key_to_hex(hex, peer->preshared_key);
+			fprintf(f, "preshared_key=%s\n", hex);
+		}
+		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6) {
+			addr_len = 0;
+			if (peer->endpoint.addr.sa_family == AF_INET)
+				addr_len = sizeof(struct sockaddr_in);
+			else if (peer->endpoint.addr.sa_family == AF_INET6)
+				addr_len = sizeof(struct sockaddr_in6);
+			if (!getnameinfo(&peer->endpoint.addr, addr_len, host, sizeof(host), service, sizeof(service), NI_DGRAM | NI_NUMERICSERV | NI_NUMERICHOST)) {
+				if (peer->endpoint.addr.sa_family == AF_INET6 && strchr(host, ':'))
+					fprintf(f, "endpoint=[%s]:%s\n", host, service);
+				else
+					fprintf(f, "endpoint=%s:%s\n", host, service);
+			}
+		}
+		if (peer->persistent_keepalive_interval != (uint16_t)-1)
+			fprintf(f, "persistent_keepalive_interval=%u\n", peer->persistent_keepalive_interval);
+		if (peer->flags & WGPEER_REPLACE_IPMASKS)
+			fprintf(f, "replace_allowed_ips=true\n");
+		for_each_wgipmask(peer, ipmask, j) {
+			if (ipmask->family == AF_INET) {
+				if (!inet_ntop(AF_INET, &ipmask->ip4, ip, INET6_ADDRSTRLEN))
+					continue;
+			} else if (ipmask->family == AF_INET6) {
+				if (!inet_ntop(AF_INET6, &ipmask->ip6, ip, INET6_ADDRSTRLEN))
+					continue;
+			} else
+				continue;
+			fprintf(f, "allowed_ip=%s/%d\n", ip, ipmask->cidr);
+		}
+	}
+	fprintf(f, "\n");
+	fflush(f);
+
+	if (fscanf(f, "errno=%d\n\n", &ret) != 1)
+		ret = errno ? -errno : -EPROTO;
+	fclose(f);
 	errno = -ret;
-	return check_version_magic(dev, ret);
+	return ret;
 }
 
-#define READ_BYTES(bytes) ({ \
-	void *__p; \
-	size_t __bytes = (bytes); \
-	if (bytes_left < __bytes) { \
-		offset = p - buffer; \
-		bytes_left += buffer_size; \
-		buffer_size *= 2; \
-		ret = -ENOMEM; \
-		p = realloc(buffer, buffer_size); \
-		if (!p) \
-			goto out; \
-		buffer = p; \
-		p += offset; \
+#define ADD(bytes) ({ \
+	if (buffer_len - buffer_end < bytes) { \
+		ptrdiff_t peer_offset = (void *)peer - (void *)*out; \
+		buffer_len = buffer_len * 2 + bytes; \
+		*out = realloc(*out, buffer_len); \
+		if (!*out) { \
+			ret = -errno; \
+			goto err; \
+		} \
+		memset((void *)*out + buffer_end, 0, buffer_len - buffer_end); \
+		if (peer) \
+			peer = (void *)*out + peer_offset; \
+		dev = *out; \
 	} \
-	bytes_left -= __bytes; \
-	ret = read(fd, p, __bytes); \
-	if (ret < 0) \
-		goto out; \
-	if ((size_t)ret != __bytes) { \
-		ret = -EBADMSG; \
-		goto out; \
-	} \
-	__p = p; \
-	p += __bytes; \
-	__p; \
+	buffer_end += bytes; \
+	(void *)*out + buffer_end - bytes; \
 })
-static int userspace_get_device(struct wgdevice **dev, const char *interface)
+
+#define NUM(max) ({ \
+	unsigned long long num; \
+	char *end; \
+	if (!strlen(value)) \
+		break; \
+	num = strtoull(value, &end, 10); \
+	if (*end || num > max) \
+		break; \
+	num; \
+})
+
+static int userspace_get_device(struct wgdevice **out, const char *interface)
 {
-	unsigned int len = 0, i;
-	size_t buffer_size, bytes_left;
-	ssize_t ret;
-	ptrdiff_t offset;
-	uint8_t *buffer = NULL, *p, byte = 0;
+	struct wgdevice *dev;
+	struct wgpeer *peer = NULL;
+	size_t buffer_len = 0, buffer_end = 0, line_buffer_len = 0, line_len;
+	char *key = NULL, *value;
+	FILE *f;
+	int ret = -EPROTO;
 
-	int fd = userspace_interface_fd(interface);
-	if (fd < 0)
-		return fd;
+	f = userspace_interface_file(interface);
+	if (!f)
+		return -errno;
 
-	ret = write(fd, &byte, sizeof(byte));
-	if (ret < 0)
-		goto out;
-	if (ret != sizeof(byte)) {
-		ret = -EBADMSG;
-		goto out;
+	fprintf(f, "get=1\n\n");
+	fflush(f);
+
+	*out = NULL;
+	dev = ADD(sizeof(struct wgdevice));
+	dev->version_magic = WG_API_VERSION_MAGIC;
+	strncpy(dev->interface, interface, IFNAMSIZ - 1);
+	dev->interface[IFNAMSIZ - 1] = '\0';
+
+	while (getline(&key, &line_buffer_len, f) > 0) {
+		line_len = strlen(key);
+		if (line_len == 1 && key[0] == '\n') {
+			free(key);
+			fclose(f);
+			return ret;
+		}
+		value = strchr(key, '=');
+		if (!value || line_len == 0 || key[line_len - 1] != '\n')
+			break;
+		*value++ = key[--line_len] = '\0';
+
+		if (!strcmp(key, "private_key")) {
+			if (!key_from_hex(dev->private_key, value))
+				break;
+			curve25519_generate_public(dev->public_key, dev->private_key);
+		} else if (!strcmp(key, "listen_port"))
+			dev->port = NUM(0xffffU);
+		else if (!strcmp(key, "fwmark"))
+			dev->fwmark = NUM(0xffffffffU);
+		else if (!strcmp(key, "public_key")) {
+			peer = ADD(sizeof(struct wgpeer));
+			if (!key_from_hex(peer->public_key, value))
+				break;
+			++dev->num_peers;
+		} else if (peer && !strcmp(key, "preshared_key")) {
+			if (!key_from_hex(peer->preshared_key, value))
+				break;
+		} else if (peer && !strcmp(key, "endpoint")) {
+			char *begin, *end;
+			struct addrinfo *resolved;
+			struct addrinfo hints = {
+				.ai_family = AF_UNSPEC,
+				.ai_socktype = SOCK_DGRAM,
+				.ai_protocol = IPPROTO_UDP
+			};
+			if (!strlen(value))
+				break;
+			if (value[0] == '[') {
+				begin = &value[1];
+				end = strchr(value, ']');
+				if (!end)
+					break;
+				*end++ = '\0';
+				if (*end++ != ':' || !*end)
+					break;
+			} else {
+				begin = value;
+				end = strrchr(value, ':');
+				if (!end || !*(end + 1))
+					break;
+				*end++ = '\0';
+			}
+			if (getaddrinfo(begin, end, &hints, &resolved) != 0) {
+				errno = ENETUNREACH;
+				goto err;
+			}
+			if ((resolved->ai_family == AF_INET && resolved->ai_addrlen == sizeof(struct sockaddr_in)) ||
+			    (resolved->ai_family == AF_INET6 && resolved->ai_addrlen == sizeof(struct sockaddr_in6)))
+				memcpy(&peer->endpoint.addr, resolved->ai_addr, resolved->ai_addrlen);
+			else  {
+				freeaddrinfo(resolved);
+				break;
+			}
+			freeaddrinfo(resolved);
+		} else if (peer && !strcmp(key, "persistent_keepalive_interval"))
+			peer->persistent_keepalive_interval = NUM(65535U);
+		else if (peer && !strcmp(key, "allowed_ip")) {
+			struct wgipmask *ipmask = ADD(sizeof(struct wgipmask));
+			char *end, *cidr = strchr(value, '/');
+			if (!cidr || strlen(cidr) <= 1)
+				break;
+			*cidr++ = '\0';
+			ipmask->family = AF_UNSPEC;
+			if (strchr(value, ':')) {
+				if (inet_pton(AF_INET6, value, &ipmask->ip6) == 1)
+					ipmask->family = AF_INET6;
+			} else {
+				if (inet_pton(AF_INET, value, &ipmask->ip4) == 1)
+					ipmask->family = AF_INET;
+			}
+			ipmask->cidr = strtoul(cidr, &end, 10);
+			if (*end || ipmask->family == AF_UNSPEC || (ipmask->family == AF_INET6 && ipmask->cidr > 128) || (ipmask->family == AF_INET && ipmask->cidr > 32))
+				break;
+			++peer->num_ipmasks;
+		} else if (peer && !strcmp(key, "last_handshake_time_sec"))
+			peer->last_handshake_time.tv_sec = NUM(0xffffffffffffffffULL);
+		else if (peer && !strcmp(key, "last_handshake_time_nsec"))
+			peer->last_handshake_time.tv_usec = NUM(0xffffffffffffffffULL) / 1000;
+		else if (peer && !strcmp(key, "rx_bytes"))
+			peer->rx_bytes = NUM(0xffffffffffffffffULL);
+		else if (peer && !strcmp(key, "tx_bytes"))
+			peer->tx_bytes = NUM(0xffffffffffffffffULL);
+		else if (!strcmp(key, "errno"))
+			ret = -NUM(0x7fffffffU);
+		else
+			break;
 	}
-
-	ioctl(fd, FIONREAD, &len);
-	bytes_left = buffer_size = max(len, sizeof(struct wgdevice) + sizeof(struct wgpeer) + sizeof(struct wgipmask));
-	p = buffer = malloc(buffer_size);
-	ret = -ENOMEM;
-	if (!buffer)
-		goto out;
-
-	len = ((struct wgdevice *)READ_BYTES(sizeof(struct wgdevice)))->num_peers;
-	ret = check_version_magic((struct wgdevice *)buffer, ret);
-	if (ret)
-		goto out;
-	for (i = 0; i < len; ++i)
-		READ_BYTES(sizeof(struct wgipmask) * ((struct wgpeer *)READ_BYTES(sizeof(struct wgpeer)))->num_ipmasks);
-	ret = 0;
-out:
-	if (buffer && ret) {
-		free(buffer);
-		buffer = NULL;
-	}
-	*dev = (struct wgdevice *)buffer;
-	close(fd);
+	ret = -EPROTO;
+err:
+	free(key);
+	free(*out);
+	*out = NULL;
+	fclose(f);
 	errno = -ret;
 	return ret;
 
 }
-#undef READ_BYTES
+#undef ADD
+#undef NUM
+#undef KEY
 
 #ifdef __linux__
+static int check_version_magic(struct wgdevice *device, int ret)
+{
+	if (ret == -EPROTO || (!ret && device->version_magic != WG_API_VERSION_MAGIC)) {
+		fprintf(stderr, "This program was built for a different version of WireGuard than\nwhat is currently running. Either this version of wg(8) is out\nof date, or the currently loaded WireGuard module is out of date.\nIf you have just updated your WireGuard installation, you may have\nforgotten to unload the previous running WireGuard module. Try\nrunning `rmmod wireguard` as root, and then try re-adding the interface\nand trying again.\n\n");
+		errno = EPROTO;
+		return -EPROTO;
+	}
+	return ret;
+}
+
 static int parse_linkinfo(const struct nlattr *attr, void *data)
 {
 	struct inflatable_buffer *buffer = data;
@@ -295,9 +447,11 @@ static int parse_infomsg(const struct nlattr *attr, void *data)
 static int read_devices_cb(const struct nlmsghdr *nlh, void *data)
 {
 	struct inflatable_buffer *buffer = data;
+	int ret;
+
 	buffer->good = false;
 	buffer->next = NULL;
-	int ret = mnl_attr_parse(nlh, sizeof(struct ifinfomsg), parse_infomsg, data);
+	ret = mnl_attr_parse(nlh, sizeof(struct ifinfomsg), parse_infomsg, data);
 	if (ret != MNL_CB_OK)
 		return ret;
 	ret = add_next_to_inflatable_buffer(buffer);

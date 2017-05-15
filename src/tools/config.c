@@ -15,7 +15,7 @@
 
 #include "config.h"
 #include "ipc.h"
-#include "base64.h"
+#include "encoding.h"
 
 #define COMMENT_CHAR '#'
 
@@ -171,14 +171,12 @@ static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 			fprintf(stderr, "Unable to find matching brace of endpoint: `%s`\n", value);
 			return false;
 		}
-		*end = '\0';
-		++end;
-		if (*end != ':' || !*(end + 1)) {
+		*end++ = '\0';
+		if (*end++ != ':' || !*end) {
 			free(mutable);
 			fprintf(stderr, "Unable to find port of endpoint: `%s`\n", value);
 			return false;
 		}
-		++end;
 	} else {
 		begin = mutable;
 		end = strrchr(mutable, ':');
@@ -187,8 +185,7 @@ static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 			fprintf(stderr, "Unable to find port of endpoint: `%s`\n", value);
 			return false;
 		}
-		*end = '\0';
-		++end;
+		*end++ = '\0';
 	}
 
 	for (unsigned int timeout = 1000000; timeout < 90000000; timeout = timeout * 3 / 2) {

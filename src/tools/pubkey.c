@@ -5,7 +5,7 @@
 #include <ctype.h>
 
 #include "curve25519.h"
-#include "base64.h"
+#include "encoding.h"
 #include "subcommands.h"
 
 int pubkey_main(int argc, char *argv[])

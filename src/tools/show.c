@@ -16,7 +16,7 @@
 #include "ipc.h"
 #include "subcommands.h"
 #include "terminal.h"
-#include "base64.h"
+#include "encoding.h"
 #include "../uapi.h"
 
 static int peer_cmp(const void *first, const void *second)
