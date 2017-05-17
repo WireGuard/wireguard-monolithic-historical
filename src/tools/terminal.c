@@ -1,6 +1,5 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#define _GNU_SOURCE
 #include <ctype.h>
 #include <stdarg.h>
 #include <stddef.h>
