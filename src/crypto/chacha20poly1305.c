@@ -12,7 +12,7 @@
 #include <crypto/scatterwalk.h>
 #include <asm/unaligned.h>
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64)
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 #ifdef CONFIG_AS_SSSE3
@@ -36,6 +36,20 @@ void chacha20poly1305_fpu_init(void)
 	chacha20poly1305_use_sse2 = boot_cpu_has(X86_FEATURE_XMM2);
 	chacha20poly1305_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
 	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2);
+}
+#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+#include <asm/hwcap.h>
+#include <asm/neon.h>
+asmlinkage void chacha20_asm_block_xor_neon(u32 *state, u8 *dst, const u8 *src);
+asmlinkage void chacha20_asm_4block_xor_neon(u32 *state, u8 *dst, const u8 *src);
+static bool chacha20poly1305_use_neon __read_mostly = false;
+void chacha20poly1305_fpu_init(void)
+{
+#if defined(CONFIG_ARM64)
+	chacha20poly1305_use_neon = elf_hwcap & HWCAP_ASIMD;
+#elif defined(CONFIG_ARM)
+	chacha20poly1305_use_neon = elf_hwcap & HWCAP_NEON;
+#endif
 }
 #else
 void chacha20poly1305_fpu_init(void) { }
@@ -257,13 +271,16 @@ static void chacha20_crypt(struct chacha20_ctx *ctx, u8 *dst, const u8 *src, uns
 	u8 buf[CHACHA20_BLOCK_SIZE];
 
 	if (!have_simd
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64)
 		|| !chacha20poly1305_use_ssse3
+
+#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+		|| !chacha20poly1305_use_neon
 #endif
 	)
 		goto no_simd;
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64)
 #ifdef CONFIG_AS_AVX2
 	if (chacha20poly1305_use_avx2) {
 		while (bytes >= CHACHA20_BLOCK_SIZE * 8) {
@@ -297,6 +314,27 @@ static void chacha20_crypt(struct chacha20_ctx *ctx, u8 *dst, const u8 *src, uns
 	}
 	return;
 #endif
+#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+	while (bytes >= CHACHA20_BLOCK_SIZE * 4) {
+		chacha20_asm_4block_xor_neon(ctx->state, dst, src);
+		bytes -= CHACHA20_BLOCK_SIZE * 4;
+		src += CHACHA20_BLOCK_SIZE * 4;
+		dst += CHACHA20_BLOCK_SIZE * 4;
+		ctx->state[12] += 4;
+	}
+	while (bytes >= CHACHA20_BLOCK_SIZE) {
+		chacha20_asm_block_xor_neon(ctx->state, dst, src);
+		bytes -= CHACHA20_BLOCK_SIZE;
+		src += CHACHA20_BLOCK_SIZE;
+		dst += CHACHA20_BLOCK_SIZE;
+		ctx->state[12]++;
+	}
+	if (bytes) {
+		memcpy(buf, src, bytes);
+		chacha20_asm_block_xor_neon(ctx->state, buf, buf);
+		memcpy(dst, buf, bytes);
+	}
+	return;
 #endif
 
 no_simd:
