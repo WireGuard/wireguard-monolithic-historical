@@ -5,13 +5,16 @@
 
 #include <linux/linkage.h>
 
-.data
+.section .rodata.cst32.BLAKECONST, "aM", @progbits, 32
 .align 32
 IV:	.octa 0xA54FF53A3C6EF372BB67AE856A09E667
 	.octa 0x5BE0CD191F83D9AB9B05688C510E527F
+.section .rodata.cst16.ROT16, "aM", @progbits, 16
 .align 16
-ARG1:	.octa 0x0D0C0F0E09080B0A0504070601000302
-ARG2:	.octa 0x0C0F0E0D080B0A090407060500030201
+ROT16:	.octa 0x0D0C0F0E09080B0A0504070601000302
+.section .rodata.cst16.ROR328, "aM", @progbits, 16
+.align 16
+ROR328:	.octa 0x0C0F0E0D080B0A090407060500030201
 
 .text
 ENTRY(blake2s_compress_avx)
@@ -20,7 +23,7 @@ ENTRY(blake2s_compress_avx)
 	vpxor		32(%rdi), %xmm1, %xmm1
 	vmovdqu		16(%rsi), %xmm3
 	vshufps		$136, %xmm3, %xmm4, %xmm6
-	vmovdqa		ARG1(%rip), %xmm7
+	vmovdqa		ROT16(%rip), %xmm7
 	vpaddd		(%rdi), %xmm6, %xmm6
 	vpaddd		16(%rdi), %xmm6, %xmm6
 	vpxor		%xmm6, %xmm1, %xmm1
@@ -40,7 +43,7 @@ ENTRY(blake2s_compress_avx)
 	vpaddd		%xmm9, %xmm6, %xmm9
 	vpaddd		%xmm0, %xmm9, %xmm9
 	vpxor		%xmm9, %xmm1, %xmm1
-	vmovdqa		ARG2(%rip), %xmm6
+	vmovdqa		ROR328(%rip), %xmm6
 	vpshufb		%xmm6, %xmm1, %xmm1
 	vpaddd		%xmm1, %xmm8, %xmm8
 	vpxor		%xmm8, %xmm0, %xmm0
