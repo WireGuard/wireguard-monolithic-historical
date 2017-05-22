@@ -98,9 +98,9 @@ traffic:
 .br
     \fBAddress = 10.200.100.8/24\fP
 .br
-    \fBPostUp = echo nameserver 10.200.100.1 | resolvconf -a %i -m 0 -x\fP
+    \fBPostUp = echo nameserver 10.200.100.1 | resolvconf -a tun.%i -m 0 -x\fP
 .br
-    \fBPostDown = resolvconf -d %i\fP
+    \fBPostDown = resolvconf -d tun.%i\fP
 .br
     PrivateKey = oK56DE9Ue9zK76rAc8pBl6opph+1v36lm7cXXsQKrQM= 
 .br
