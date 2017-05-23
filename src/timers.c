@@ -74,7 +74,7 @@ static void expired_new_handshake(unsigned long ptr)
 static void expired_kill_ephemerals(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
-	if (!queue_work(peer->device->handshake_wq, &peer->clear_peer_work)) /* Takes our reference. */
+	if (!queue_work(peer->device->peer_wq, &peer->clear_peer_work)) /* Takes our reference. */
 		peer_put(peer); /* If the work was already on the queue, we want to drop the extra reference */
 }
 static void queued_expired_kill_ephemerals(struct work_struct *work)
