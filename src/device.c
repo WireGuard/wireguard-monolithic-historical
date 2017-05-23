@@ -237,7 +237,8 @@ static void destruct(struct net_device *dev)
 	mutex_lock(&wg->device_update_lock);
 	peer_remove_all(wg);
 	wg->incoming_port = 0;
-	destroy_workqueue(wg->handshake_wq);
+	destroy_workqueue(wg->incoming_handshake_wq);
+	destroy_workqueue(wg->peer_wq);
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	padata_free(wg->encrypt_pd);
 	padata_free(wg->decrypt_pd);
@@ -253,7 +254,7 @@ static void destruct(struct net_device *dev)
 #endif
 	mutex_unlock(&wg->device_update_lock);
 	free_percpu(dev->tstats);
-
+	free_percpu(wg->incoming_handshakes_worker);
 	put_net(wg->creating_net);
 
 	pr_debug("Device %s has been deleted\n", dev->name);
@@ -292,7 +293,7 @@ static void setup(struct net_device *dev)
 
 static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *tb[], struct nlattr *data[])
 {
-	int ret = -ENOMEM;
+	int ret = -ENOMEM, cpu;
 	struct wireguard_device *wg = netdev_priv(dev);
 
 	wg->creating_net = get_net(src_net);
@@ -300,7 +301,6 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	mutex_init(&wg->socket_update_lock);
 	mutex_init(&wg->device_update_lock);
 	skb_queue_head_init(&wg->incoming_handshakes);
-	INIT_WORK(&wg->incoming_handshakes_work, packet_process_queued_handshake_packets);
 	pubkey_hashtable_init(&wg->peer_hashtable);
 	index_hashtable_init(&wg->index_hashtable);
 	routing_table_init(&wg->peer_routing_table);
@@ -310,61 +310,78 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (!dev->tstats)
 		goto error_1;
 
-	wg->handshake_wq = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
-	if (!wg->handshake_wq)
+	wg->incoming_handshakes_worker = alloc_percpu(struct handshake_worker);
+	if (!wg->incoming_handshakes_worker)
 		goto error_2;
+	for_each_possible_cpu(cpu) {
+		per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->wg = wg;
+		INIT_WORK(&per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->work, packet_process_queued_handshake_packets);
+	}
+	atomic_set(&wg->incoming_handshake_seqnr, 0);
+
+	wg->incoming_handshake_wq = alloc_workqueue("wg-kex-%s", WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
+	if (!wg->incoming_handshake_wq)
+		goto error_3;
+
+	wg->peer_wq = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
+	if (!wg->peer_wq)
+		goto error_4;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	wg->crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 2, dev->name);
 	if (!wg->crypt_wq)
-		goto error_3;
+		goto error_5;
 
 	wg->encrypt_pd = padata_alloc_possible(wg->crypt_wq);
 	if (!wg->encrypt_pd)
-		goto error_4;
+		goto error_6;
 	padata_start(wg->encrypt_pd);
 
 	wg->decrypt_pd = padata_alloc_possible(wg->crypt_wq);
 	if (!wg->decrypt_pd)
-		goto error_5;
+		goto error_7;
 	padata_start(wg->decrypt_pd);
 #endif
 
 	ret = cookie_checker_init(&wg->cookie_checker, wg);
 	if (ret < 0)
-		goto error_6;
+		goto error_8;
 
 #ifdef CONFIG_PM_SLEEP
 	wg->clear_peers_on_suspend.notifier_call = suspending_clear_noise_peers;
 	ret = register_pm_notifier(&wg->clear_peers_on_suspend);
 	if (ret < 0)
-		goto error_7;
+		goto error_9;
 #endif
 
 	ret = register_netdevice(dev);
 	if (ret < 0)
-		goto error_8;
+		goto error_10;
 
 	pr_debug("Device %s has been created\n", dev->name);
 
 	return 0;
 
-error_8:
+error_10:
 #ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&wg->clear_peers_on_suspend);
-error_7:
+error_9:
 #endif
 	cookie_checker_uninit(&wg->cookie_checker);
-error_6:
+error_8:
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	padata_free(wg->decrypt_pd);
-error_5:
+error_7:
 	padata_free(wg->encrypt_pd);
-error_4:
+error_6:
 	destroy_workqueue(wg->crypt_wq);
-error_3:
+error_5:
 #endif
-	destroy_workqueue(wg->handshake_wq);
+	destroy_workqueue(wg->peer_wq);
+error_4:
+	destroy_workqueue(wg->incoming_handshake_wq);
+error_3:
+	free_percpu(wg->incoming_handshakes_worker);
 error_2:
 	free_percpu(dev->tstats);
 error_1:

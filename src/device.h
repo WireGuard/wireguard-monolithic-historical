@@ -16,15 +16,22 @@
 #include <linux/padata.h>
 #include <linux/notifier.h>
 
+struct wireguard_device;
+struct handshake_worker {
+	struct wireguard_device *wg;
+	struct work_struct work;
+};
+
 struct wireguard_device {
 	struct sock __rcu *sock4, *sock6;
 	u16 incoming_port;
 	u32 fwmark;
 	struct net *creating_net;
-	struct workqueue_struct *handshake_wq;
 	struct noise_static_identity static_identity;
+	struct workqueue_struct *incoming_handshake_wq, *peer_wq;
 	struct sk_buff_head incoming_handshakes;
-	struct work_struct incoming_handshakes_work;
+	atomic_t incoming_handshake_seqnr;
+	struct handshake_worker __percpu *incoming_handshakes_worker;
 	struct cookie_checker cookie_checker;
 	struct pubkey_hashtable peer_hashtable;
 	struct index_hashtable index_hashtable;

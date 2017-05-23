@@ -103,7 +103,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 		return;
 	}
 
-	under_load = skb_queue_len(&wg->incoming_handshakes) >= MAX_QUEUED_INCOMING_HANDSHAKES / 2;
+	under_load = skb_queue_len(&wg->incoming_handshakes) >= MAX_QUEUED_INCOMING_HANDSHAKES / 8;
 	mac_state = cookie_validate_packet(&wg->cookie_checker, skb, under_load);
 	if ((under_load && mac_state == VALID_MAC_WITH_COOKIE) || (!under_load && mac_state == VALID_MAC_BUT_NO_COOKIE))
 		packet_needs_cookie = false;
@@ -171,17 +171,13 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 
 void packet_process_queued_handshake_packets(struct work_struct *work)
 {
-	struct wireguard_device *wg = container_of(work, struct wireguard_device, incoming_handshakes_work);
+	struct wireguard_device *wg = container_of(work, struct handshake_worker, work)->wg;
 	struct sk_buff *skb;
-	size_t num_processed = 0;
 
 	while ((skb = skb_dequeue(&wg->incoming_handshakes)) != NULL) {
 		receive_handshake_packet(wg, skb);
 		dev_kfree_skb(skb);
-		if (++num_processed == MAX_BURST_INCOMING_HANDSHAKES) {
-			queue_work(wg->handshake_wq, &wg->incoming_handshakes_work);
-			return;
-		}
+		cond_resched();
 	}
 }
 
@@ -291,15 +287,22 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 	switch (message_type) {
 	case MESSAGE_HANDSHAKE_INITIATION:
 	case MESSAGE_HANDSHAKE_RESPONSE:
-	case MESSAGE_HANDSHAKE_COOKIE:
+	case MESSAGE_HANDSHAKE_COOKIE: {
+		int cpu_index, cpu, target_cpu;
 		if (skb_queue_len(&wg->incoming_handshakes) > MAX_QUEUED_INCOMING_HANDSHAKES) {
 			net_dbg_skb_ratelimited("Too many handshakes queued, dropping packet from %pISpfsc\n", skb);
 			goto err;
 		}
 		skb_queue_tail(&wg->incoming_handshakes, skb);
+		/* Select the CPU in a round-robin */
+		cpu_index = ((unsigned int)atomic_inc_return(&wg->incoming_handshake_seqnr)) % cpumask_weight(cpu_online_mask);
+		target_cpu = cpumask_first(cpu_online_mask);
+		for (cpu = 0; cpu < cpu_index; ++cpu)
+			target_cpu = cpumask_next(target_cpu, cpu_online_mask);
 		/* Queues up a call to packet_process_queued_handshake_packets(skb): */
-		queue_work(wg->handshake_wq, &wg->incoming_handshakes_work);
+		queue_work_on(target_cpu, wg->incoming_handshake_wq, &per_cpu_ptr(wg->incoming_handshakes_worker, target_cpu)->work);
 		break;
+	}
 	case MESSAGE_DATA:
 		PACKET_CB(skb)->ds = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
 		packet_consume_data(skb, wg);
