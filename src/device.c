@@ -26,18 +26,10 @@
 #include <net/netfilter/nf_nat_core.h>
 #endif
 
-static int open_peer(struct wireguard_peer *peer, void *data)
-{
-	timers_init_peer(peer);
-	packet_send_queue(peer);
-	if (peer->persistent_keepalive_interval)
-		packet_send_keepalive(peer);
-	return 0;
-}
-
 static int open(struct net_device *dev)
 {
 	int ret;
+	struct wireguard_peer *peer, *temp;
 	struct wireguard_device *wg = netdev_priv(dev);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 	struct inet6_dev *dev_v6 = __in6_dev_get(dev);
@@ -64,16 +56,12 @@ static int open(struct net_device *dev)
 	ret = socket_init(wg);
 	if (ret < 0)
 		return ret;
-	peer_for_each(wg, open_peer, NULL);
-	return 0;
-}
-
-static int clear_noise_peer(struct wireguard_peer *peer, void *data)
-{
-	noise_handshake_clear(&peer->handshake);
-	noise_keypairs_clear(&peer->keypairs);
-	if (peer->timers_enabled)
-		del_timer(&peer->timer_kill_ephemerals);
+	peer_for_each (wg, peer, temp, true) {
+		timers_init_peer(peer);
+		packet_send_queue(peer);
+		if (peer->persistent_keepalive_interval)
+			packet_send_keepalive(peer);
+	}
 	return 0;
 }
 
@@ -81,25 +69,31 @@ static int clear_noise_peer(struct wireguard_peer *peer, void *data)
 static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct wireguard_device *wg = container_of(nb, struct wireguard_device, clear_peers_on_suspend);
+	struct wireguard_peer *peer, *temp;
 	if (action == PM_HIBERNATION_PREPARE || action == PM_SUSPEND_PREPARE) {
-		peer_for_each(wg, clear_noise_peer, NULL);
+		peer_for_each (wg, peer, temp, true) {
+			noise_handshake_clear(&peer->handshake);
+			noise_keypairs_clear(&peer->keypairs);
+			if (peer->timers_enabled)
+				del_timer(&peer->timer_kill_ephemerals);
+		}
 		rcu_barrier_bh();
 	}
 	return 0;
 }
 #endif
 
-static int stop_peer(struct wireguard_peer *peer, void *data)
-{
-	timers_uninit_peer(peer);
-	clear_noise_peer(peer, data);
-	return 0;
-}
-
 static int stop(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
-	peer_for_each(wg, stop_peer, NULL);
+	struct wireguard_peer *peer, *temp;
+	peer_for_each (wg, peer, temp, true) {
+		timers_uninit_peer(peer);
+		noise_handshake_clear(&peer->handshake);
+		noise_keypairs_clear(&peer->keypairs);
+		if (peer->timers_enabled)
+			del_timer(&peer->timer_kill_ephemerals);
+	}
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);
 	return 0;

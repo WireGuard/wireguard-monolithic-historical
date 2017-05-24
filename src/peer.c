@@ -108,33 +108,6 @@ void peer_put(struct wireguard_peer *peer)
 	kref_put(&peer->refcount, kref_release);
 }
 
-int peer_for_each_unlocked(struct wireguard_device *wg, int (*fn)(struct wireguard_peer *peer, void *ctx), void *data)
-{
-	struct wireguard_peer *peer, *temp;
-	int ret = 0;
-
-	lockdep_assert_held(&wg->device_update_lock);
-	list_for_each_entry_safe(peer, temp, &wg->peer_list, peer_list) {
-		peer = peer_rcu_get(peer);
-		if (unlikely(!peer))
-			continue;
-		ret = fn(peer, data);
-		peer_put(peer);
-		if (ret < 0)
-			break;
-	}
-	return ret;
-}
-
-int peer_for_each(struct wireguard_device *wg, int (*fn)(struct wireguard_peer *peer, void *ctx), void *data)
-{
-	int ret;
-	mutex_lock(&wg->device_update_lock);
-	ret = peer_for_each_unlocked(wg, fn, data);
-	mutex_unlock(&wg->device_update_lock);
-	return ret;
-}
-
 void peer_remove_all(struct wireguard_device *wg)
 {
 	struct wireguard_peer *peer, *temp;

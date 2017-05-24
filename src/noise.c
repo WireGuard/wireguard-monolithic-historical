@@ -38,12 +38,12 @@ void noise_init(void)
 	blake2s_final(&blake, handshake_init_hash, NOISE_HASH_LEN);
 }
 
-int noise_precompute_static_static(struct wireguard_peer *peer, void *ctx)
+bool noise_precompute_static_static(struct wireguard_peer *peer)
 {
 	if (peer->handshake.static_identity->has_identity)
-		return curve25519(peer->handshake.precomputed_static_static, peer->handshake.static_identity->static_private, peer->handshake.remote_static) ? 0 : -EINVAL;
+		return curve25519(peer->handshake.precomputed_static_static, peer->handshake.static_identity->static_private, peer->handshake.remote_static);
 	memset(peer->handshake.precomputed_static_static, 0, NOISE_PUBLIC_KEY_LEN);
-	return 0;
+	return true;
 }
 
 bool noise_handshake_init(struct noise_handshake *handshake, struct noise_static_identity *static_identity, const u8 peer_public_key[NOISE_PUBLIC_KEY_LEN], const u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN], struct wireguard_peer *peer)
@@ -56,7 +56,7 @@ bool noise_handshake_init(struct noise_handshake *handshake, struct noise_static
 	memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
 	handshake->static_identity = static_identity;
 	handshake->state = HANDSHAKE_ZEROED;
-	return !noise_precompute_static_static(peer, static_identity);
+	return noise_precompute_static_static(peer);
 }
 
 void noise_handshake_clear(struct noise_handshake *handshake)
