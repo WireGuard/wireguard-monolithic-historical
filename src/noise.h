@@ -109,7 +109,7 @@ void noise_keypairs_clear(struct noise_keypairs *keypairs);
 bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_keypair *received_keypair);
 
 void noise_set_static_identity_private_key(struct noise_static_identity *static_identity, const u8 private_key[NOISE_PUBLIC_KEY_LEN]);
-int noise_precompute_static_static(struct wireguard_peer *peer, void *ctx);
+bool noise_precompute_static_static(struct wireguard_peer *peer);
 
 bool noise_handshake_create_initiation(struct message_handshake_initiation *dst, struct noise_handshake *handshake);
 struct wireguard_peer *noise_handshake_consume_initiation(struct message_handshake_initiation *src, struct wireguard_device *wg);
