@@ -54,7 +54,6 @@ void noise_handshake_clear(struct noise_handshake *handshake)
 {
 	index_hashtable_remove(&handshake->entry.peer->device->index_hashtable, &handshake->entry);
 	down_write(&handshake->lock);
-	memset(&handshake->ephemeral_public, 0, NOISE_PUBLIC_KEY_LEN);
 	memset(&handshake->ephemeral_private, 0, NOISE_PUBLIC_KEY_LEN);
 	memset(&handshake->remote_ephemeral, 0, NOISE_PUBLIC_KEY_LEN);
 	memset(&handshake->hash, 0, NOISE_HASH_LEN);
@@ -310,7 +309,8 @@ static bool message_decrypt(u8 *dst_plaintext, const u8 *src_ciphertext, size_t 
 
 static void message_ephemeral(u8 ephemeral_dst[NOISE_PUBLIC_KEY_LEN], const u8 ephemeral_src[NOISE_PUBLIC_KEY_LEN], u8 chaining_key[NOISE_HASH_LEN], u8 hash[NOISE_HASH_LEN])
 {
-	memcpy(ephemeral_dst, ephemeral_src, NOISE_PUBLIC_KEY_LEN);
+	if (ephemeral_dst != ephemeral_src)
+		memcpy(ephemeral_dst, ephemeral_src, NOISE_PUBLIC_KEY_LEN);
 	mix_hash(hash, ephemeral_src, NOISE_PUBLIC_KEY_LEN);
 	kdf(chaining_key, NULL, NULL, ephemeral_src, NOISE_HASH_LEN, 0, 0, NOISE_PUBLIC_KEY_LEN, chaining_key);
 }
@@ -342,9 +342,9 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 
 	/* e */
 	curve25519_generate_secret(handshake->ephemeral_private);
-	if (!curve25519_generate_public(handshake->ephemeral_public, handshake->ephemeral_private))
+	if (!curve25519_generate_public(dst->unencrypted_ephemeral, handshake->ephemeral_private))
 		goto out;
-	message_ephemeral(dst->unencrypted_ephemeral, handshake->ephemeral_public, handshake->chaining_key, handshake->hash);
+	message_ephemeral(dst->unencrypted_ephemeral, dst->unencrypted_ephemeral, handshake->chaining_key, handshake->hash);
 
 	/* es */
 	if (!mix_dh(handshake->chaining_key, key, handshake->ephemeral_private, handshake->remote_static))
@@ -459,9 +459,9 @@ bool noise_handshake_create_response(struct message_handshake_response *dst, str
 
 	/* e */
 	curve25519_generate_secret(handshake->ephemeral_private);
-	if (!curve25519_generate_public(handshake->ephemeral_public, handshake->ephemeral_private))
+	if (!curve25519_generate_public(dst->unencrypted_ephemeral, handshake->ephemeral_private))
 		goto out;
-	message_ephemeral(dst->unencrypted_ephemeral, handshake->ephemeral_public, handshake->chaining_key, handshake->hash);
+	message_ephemeral(dst->unencrypted_ephemeral, dst->unencrypted_ephemeral, handshake->chaining_key, handshake->hash);
 
 	/* ee */
 	if (!mix_dh(handshake->chaining_key, NULL, handshake->ephemeral_private, handshake->remote_ephemeral))
