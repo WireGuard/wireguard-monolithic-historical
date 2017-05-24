@@ -75,7 +75,6 @@ struct noise_handshake {
 
 	struct noise_static_identity *static_identity;
 
-	u8 ephemeral_public[NOISE_PUBLIC_KEY_LEN];
 	u8 ephemeral_private[NOISE_PUBLIC_KEY_LEN];
 
 	u8 remote_static[NOISE_PUBLIC_KEY_LEN];
