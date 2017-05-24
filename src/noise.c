@@ -38,7 +38,15 @@ void noise_init(void)
 	blake2s_final(&blake, handshake_init_hash, NOISE_HASH_LEN);
 }
 
-void noise_handshake_init(struct noise_handshake *handshake, struct noise_static_identity *static_identity, const u8 peer_public_key[NOISE_PUBLIC_KEY_LEN], const u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN], struct wireguard_peer *peer)
+int noise_precompute_static_static(struct wireguard_peer *peer, void *ctx)
+{
+	if (peer->handshake.static_identity->has_identity)
+		return curve25519(peer->handshake.precomputed_static_static, peer->handshake.static_identity->static_private, peer->handshake.remote_static) ? 0 : -EINVAL;
+	memset(peer->handshake.precomputed_static_static, 0, NOISE_PUBLIC_KEY_LEN);
+	return 0;
+}
+
+bool noise_handshake_init(struct noise_handshake *handshake, struct noise_static_identity *static_identity, const u8 peer_public_key[NOISE_PUBLIC_KEY_LEN], const u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN], struct wireguard_peer *peer)
 {
 	memset(handshake, 0, sizeof(struct noise_handshake));
 	init_rwsem(&handshake->lock);
@@ -48,6 +56,7 @@ void noise_handshake_init(struct noise_handshake *handshake, struct noise_static
 	memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
 	handshake->static_identity = static_identity;
 	handshake->state = HANDSHAKE_ZEROED;
+	return !noise_precompute_static_static(peer, static_identity);
 }
 
 void noise_handshake_clear(struct noise_handshake *handshake)
@@ -354,8 +363,7 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 	message_encrypt(dst->encrypted_static, handshake->static_identity->static_public, NOISE_PUBLIC_KEY_LEN, key, handshake->hash);
 
 	/* ss */
-	if (!mix_dh(handshake->chaining_key, key, handshake->static_identity->static_private, handshake->remote_static))
-		goto out;
+	kdf(handshake->chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, handshake->chaining_key);
 
 	/* {t} */
 	tai64n_now(timestamp);
@@ -402,19 +410,19 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	if (!message_decrypt(s, src->encrypted_static, sizeof(src->encrypted_static), key, hash))
 		goto out;
 
-	/* ss */
-	if (!mix_dh(chaining_key, key, wg->static_identity.static_private, s))
-		goto out;
-
-	/* {t} */
-	if (!message_decrypt(t, src->encrypted_timestamp, sizeof(src->encrypted_timestamp), key, hash))
-		goto out;
-
 	/* Lookup which peer we're actually talking to */
 	wg_peer = pubkey_hashtable_lookup(&wg->peer_hashtable, s);
 	if (!wg_peer)
 		goto out;
 	handshake = &wg_peer->handshake;
+
+	/* ss */
+	kdf(chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, chaining_key);
+
+	/* {t} */
+	if (!message_decrypt(t, src->encrypted_timestamp, sizeof(src->encrypted_timestamp), key, hash))
+		goto out;
+
 	down_read(&handshake->lock);
 	replay_attack = memcmp(t, handshake->latest_timestamp, NOISE_TIMESTAMP_LEN) <= 0;
 	flood_attack = !time_is_before_jiffies64(handshake->last_initiation_consumption + INITIATIONS_PER_SECOND);

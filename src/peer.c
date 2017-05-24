@@ -34,7 +34,10 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	peer->internal_id = atomic64_inc_return(&peer_counter);
 	peer->device = wg;
 	cookie_init(&peer->latest_cookie);
-	noise_handshake_init(&peer->handshake, &wg->static_identity, public_key, preshared_key, peer);
+	if (!noise_handshake_init(&peer->handshake, &wg->static_identity, public_key, preshared_key, peer)) {
+		kfree(peer);
+		return NULL;
+	}
 	cookie_checker_precompute_peer_keys(peer);
 	mutex_init(&peer->keypairs.keypair_update_lock);
 	INIT_WORK(&peer->transmit_handshake_work, packet_send_queued_handshakes);
