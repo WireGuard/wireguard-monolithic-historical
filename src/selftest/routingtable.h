@@ -65,7 +65,7 @@ static void horrible_routing_table_free(struct horrible_routing_table *table)
 {
 	struct hlist_node *h;
 	struct horrible_routing_table_node *node;
-	hlist_for_each_entry_safe(node, h, &table->head, table) {
+	hlist_for_each_entry_safe (node, h, &table->head, table) {
 		hlist_del(&node->table);
 		kfree(node);
 	};
@@ -112,7 +112,7 @@ static void horrible_insert_ordered(struct horrible_routing_table *table, struct
 {
 	struct horrible_routing_table_node *other = NULL, *where = NULL;
 	uint8_t my_cidr = horrible_mask_to_cidr(node->mask);
-	hlist_for_each_entry(other, &table->head, table) {
+	hlist_for_each_entry (other, &table->head, table) {
 		if (!memcmp(&other->mask, &node->mask, sizeof(union nf_inet_addr)) &&
 		    !memcmp(&other->ip, &node->ip, sizeof(union nf_inet_addr)) &&
 		    other->ip_version == node->ip_version) {
@@ -161,7 +161,7 @@ static void *horrible_routing_table_lookup_v4(struct horrible_routing_table *tab
 {
 	struct horrible_routing_table_node *node;
 	void *ret = NULL;
-	hlist_for_each_entry(node, &table->head, table) {
+	hlist_for_each_entry (node, &table->head, table) {
 		if (node->ip_version != 4)
 			continue;
 		if (horrible_match_v4(node, ip)) {
@@ -175,7 +175,7 @@ static void *horrible_routing_table_lookup_v6(struct horrible_routing_table *tab
 {
 	struct horrible_routing_table_node *node;
 	void *ret = NULL;
-	hlist_for_each_entry(node, &table->head, table) {
+	hlist_for_each_entry (node, &table->head, table) {
 		if (node->ip_version != 6)
 			continue;
 		if (horrible_match_v6(node, ip)) {

@@ -218,7 +218,7 @@ static inline void queue_encrypt_reset(struct sk_buff_head *queue, struct noise_
 {
 	struct sk_buff *skb, *tmp;
 	bool have_simd = chacha20poly1305_init_simd();
-	skb_queue_walk_safe(queue, skb, tmp) {
+	skb_queue_walk_safe (queue, skb, tmp) {
 		if (unlikely(!skb_encrypt(skb, keypair, have_simd))) {
 			__skb_unlink(skb, queue);
 			kfree_skb(skb);
@@ -273,7 +273,7 @@ int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer)
 		goto err_rcu;
 	rcu_read_unlock_bh();
 
-	skb_queue_walk(queue, skb) {
+	skb_queue_walk (queue, skb) {
 		if (unlikely(!get_encryption_nonce(&PACKET_CB(skb)->nonce, &keypair->sending)))
 			goto err;
 

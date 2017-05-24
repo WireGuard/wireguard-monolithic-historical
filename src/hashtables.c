@@ -37,7 +37,7 @@ struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, c
 {
 	struct wireguard_peer *iter_peer, *peer = NULL;
 	rcu_read_lock_bh();
-	hlist_for_each_entry_rcu_bh(iter_peer, pubkey_bucket(table, pubkey), pubkey_hash) {
+	hlist_for_each_entry_rcu_bh (iter_peer, pubkey_bucket(table, pubkey), pubkey_hash) {
 		if (!memcmp(pubkey, iter_peer->handshake.remote_static, NOISE_PUBLIC_KEY_LEN)) {
 			peer = iter_peer;
 			break;
@@ -74,7 +74,7 @@ __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashta
 search_unused_slot:
 	/* First we try to find an unused slot, randomly, while unlocked. */
 	entry->index = (__force __le32)get_random_u32();
-	hlist_for_each_entry_rcu_bh(existing_entry, index_bucket(table, entry->index), index_hash) {
+	hlist_for_each_entry_rcu_bh (existing_entry, index_bucket(table, entry->index), index_hash) {
 		if (existing_entry->index == entry->index)
 			goto search_unused_slot; /* If it's already in use, we continue searching. */
 	}
@@ -82,7 +82,7 @@ search_unused_slot:
 	/* Once we've found an unused slot, we lock it, and then double-check
 	 * that nobody else stole it from us. */
 	spin_lock_bh(&table->lock);
-	hlist_for_each_entry_rcu_bh(existing_entry, index_bucket(table, entry->index), index_hash) {
+	hlist_for_each_entry_rcu_bh (existing_entry, index_bucket(table, entry->index), index_hash) {
 		if (existing_entry->index == entry->index) {
 			spin_unlock_bh(&table->lock);
 			goto search_unused_slot; /* If it was stolen, we start over. */
@@ -118,7 +118,7 @@ struct index_hashtable_entry *index_hashtable_lookup(struct index_hashtable *tab
 {
 	struct index_hashtable_entry *iter_entry, *entry = NULL;
 	rcu_read_lock_bh();
-	hlist_for_each_entry_rcu_bh(iter_entry, index_bucket(table, index), index_hash) {
+	hlist_for_each_entry_rcu_bh (iter_entry, index_bucket(table, index), index_hash) {
 		if (iter_entry->index == index && (iter_entry->type & type_mask)) {
 			entry = iter_entry;
 			break;
