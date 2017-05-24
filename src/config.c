@@ -182,8 +182,11 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 		modified_static_identity = true;
 	}
 
-	if (modified_static_identity)
+	if (modified_static_identity) {
+		if (peer_for_each_unlocked(wg, noise_precompute_static_static, NULL) < 0)
+			noise_set_static_identity_private_key(&wg->static_identity, NULL);
 		cookie_checker_precompute_device_keys(&wg->cookie_checker);
+	}
 
 	for (i = 0, offset = 0, user_peer = user_device + sizeof(struct wgdevice); i < in_device.num_peers; ++i, user_peer += offset) {
 		ret = set_peer(wg, user_peer, &offset);
