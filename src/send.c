@@ -127,7 +127,7 @@ void packet_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *
 		return;
 
 	timers_any_authenticated_packet_traversal(peer);
-	skb_queue_walk_safe(queue, skb, tmp) {
+	skb_queue_walk_safe (queue, skb, tmp) {
 		is_keepalive = skb->len == message_data_len(0);
 		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
 			data_sent = true;

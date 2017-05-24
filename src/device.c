@@ -307,7 +307,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	wg->incoming_handshakes_worker = alloc_percpu(struct handshake_worker);
 	if (!wg->incoming_handshakes_worker)
 		goto error_2;
-	for_each_possible_cpu(cpu) {
+	for_each_possible_cpu (cpu) {
 		per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->wg = wg;
 		INIT_WORK(&per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->work, packet_process_queued_handshake_packets);
 	}
