@@ -10,6 +10,9 @@ export LC_ALL=C
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 export PATH="${SELF%/*}:$PATH"
 
+DIG="${DIG-$(which dig)}"
+WG_STYPE=_wireguard._udp
+
 WG_CONFIG=""
 INTERFACE=""
 ADDRESSES=( )
@@ -22,6 +25,42 @@ SAVE_CONFIG=0
 CONFIG_FILE=""
 PROGRAM="${0##*/}"
 ARGS=( "$@" )
+
+resolve_service_domain() {
+	service_domain=$1
+
+	# first lookup the SRV record
+	read priority weight port dst_domain < <(${DIG} +short -t SRV ${service_domain})
+	[[ "$weight" == "" ]] && echo "lookup of SRV ${service_domain} failed" >&2 && exit 1
+
+	# then lookup the TXT record which contains the pubkey
+	IFS="=" read type pubkey < <(${DIG} +short -t TXT ${service_domain} | sed "s/\"//g")
+	[[ "$type" != "PUBKEY" && "$type" != "pubkey" ]] && echo "error, malformed TXT service entry: \"$type $pubkey\"" >&2 && exit 1
+
+	dst_domain=${dst_domain%.} # strip dot suffix
+	echo "Endpoint=$dst_domain:$port"
+	echo "PublicKey=$pubkey"
+}
+
+parse_endpoint() {
+	ENDPOINT=$1
+
+	# if the parameter already contains a port do nothing
+	[[ "${ENDPOINT}" == *":"* ]] && echo "Endpoint = ${ENDPOINT}" && return
+
+	[ ! -x ${DIG} ] && echo "warning dig tool not found" >&2 && echo "Endpoint = ${ENDPOINT}" && return
+
+	# a domain may offer multiple wireguard endpoints. Setting endpoint to "myservice@mydomain.com" will lookup
+	# the service "myservice._wireguard._udp.mydomain.com"
+	#
+	# Setting endpoint to "mydomain.com" will lookup "_wireguard._udp.mydomain.com"
+	if [[ "${ENDPOINT}" == *"@"* ]]; then
+		IFS=@ read service domain < <(echo ${ENDPOINT})
+		resolve_service_domain ${service}.${WG_STYPE}.${domain}
+	else
+		resolve_service_domain ${WG_STYPE}.${ENDPOINT}
+	fi
+}
 
 parse_options() {
 	local interface_section=0 line key value
@@ -48,6 +87,8 @@ parse_options() {
 			SaveConfig) read_bool SAVE_CONFIG "$value"; continue ;;
 			esac
 		fi
+		# parse_endpoint may also add a "PublicKey=" line
+		[[ $key == "Endpoint" ]] && line="$(parse_endpoint $value)"
 		WG_CONFIG+="$line"$'\n'
 	done < "$CONFIG_FILE"
 	shopt -u nocasematch
