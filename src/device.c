@@ -131,6 +131,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
 	struct wireguard_peer *peer;
+	struct sk_buff *next;
 	int ret;
 
 	if (unlikely(dev_recursion_level() > 4)) {
@@ -172,8 +173,8 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 		skb = segs;
 	}
-	while (skb) {
-		struct sk_buff *next = skb->next;
+	do {
+		next = skb->next;
 		skb->next = skb->prev = NULL;
 
 		skb = skb_share_check(skb, GFP_ATOMIC);
@@ -185,8 +186,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_dst_drop(skb);
 
 		skb_queue_tail(&peer->tx_packet_queue, skb);
-		skb = next;
-	}
+	} while ((skb = next));
 
 	packet_send_queue(peer);
 	peer_put(peer);
