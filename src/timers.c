@@ -145,7 +145,7 @@ void timers_ephemeral_key_created(struct wireguard_peer *peer)
 	do_gettimeofday(&peer->walltime_last_handshake);
 }
 
-/* Should be called before an packet with authentication -- data, keepalive, either handshake -- is sent, or after one is received. */
+/* Should be called before a packet with authentication -- data, keepalive, either handshake -- is sent, or after one is received. */
 void timers_any_authenticated_packet_traversal(struct wireguard_peer *peer)
 {
 	if (peer->persistent_keepalive_interval && likely(peer->timers_enabled))
