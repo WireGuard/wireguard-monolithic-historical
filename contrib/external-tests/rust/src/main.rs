@@ -1,46 +1,35 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-extern crate screech;
-extern crate crypto;
+extern crate snow;
+extern crate base64;
 extern crate time;
-extern crate rustc_serialize;
 extern crate byteorder;
+extern crate crypto;
 
-use screech::*;
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
-use crypto::curve25519::curve25519_base;
 use crypto::blake2s::Blake2s;
-use rustc_serialize::base64::FromBase64;
+use snow::NoiseBuilder;
 use std::net::*;
 
+static TEST_SERVER: &'static str = "demo.wireguard.io:12913";
+
 fn memcpy(out: &mut [u8], data: &[u8]) {
-	for count in 0..data.len() {
-		out[count] = data[count];
-	}
+	out[..data.len()].copy_from_slice(data);
 }
 
 fn main() {
-	let send_addr = "demo.wireguard.io:12913".to_socket_addrs().unwrap().next().unwrap();
-	let listen_addr = "0.0.0.0:0".to_socket_addrs().unwrap().next().unwrap();
-	let socket = UdpSocket::bind(listen_addr).unwrap();
-	let mut empty_payload = [0; 0];
+	let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
 
-	let mut their_public = [0; 32];
-	memcpy(&mut their_public, &"qRCwZSKInrMAq5sepfCdaCsRJaoLe5jhtzfiw7CjbwM=".from_base64().unwrap());
-	let mut my_private = [0; 32];
-	memcpy(&mut my_private, &"WAmgVYXkbT2bCtdcDwolI88/iVi/aV3/PHcUBTQSYmo=".from_base64().unwrap());
-	let mut my_preshared = [0; 32];
-	memcpy(&mut my_preshared, &"FpCyhws9cxwWoV4xELtfJvjJN+zQVRPISllRWgeopVE=".from_base64().unwrap());
-	let my_public = curve25519_base(&my_private);
-	let mut my_keypair : Dh25519 = Default::default();
-	my_keypair.set(&my_private, &my_public);
-	let mut owner : HandshakeCryptoOwner<RandomOs, Dh25519, CipherChaChaPoly, HashBLAKE2s> = Default::default();
-	owner.set_s(my_keypair);
-	owner.set_rs(&their_public);
-	let mut cipherstate1 : CipherState<CipherChaChaPoly> = Default::default();
-        let mut cipherstate2 : CipherState<CipherChaChaPoly> = Default::default();
-	//TODO: specify psk2 mode
-	let mut handshake = HandshakeState::new_from_owner(&mut owner, true, HandshakePattern::IK, "WireGuard v1 zx2c4 Jason@zx2c4.com".as_bytes(), Some(&my_preshared[..]), &mut cipherstate1, &mut cipherstate2);
+	let their_public = base64::decode(&"qRCwZSKInrMAq5sepfCdaCsRJaoLe5jhtzfiw7CjbwM=").unwrap();
+	let my_private = base64::decode(&"WAmgVYXkbT2bCtdcDwolI88/iVi/aV3/PHcUBTQSYmo=").unwrap();
+	let my_preshared = base64::decode(&"FpCyhws9cxwWoV4xELtfJvjJN+zQVRPISllRWgeopVE=").unwrap();
+
+	let mut noise = NoiseBuilder::new("Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s".parse().unwrap())
+		.local_private_key(&my_private[..])
+		.remote_public_key(&their_public[..])
+		.prologue("WireGuard v1 zx2c4 Jason@zx2c4.com".as_bytes())
+		.psk(2, &my_preshared[..])
+		.build_initiator().unwrap();
 
 	let now = time::get_time();
 	let mut tai64n = [0; 12];
@@ -52,7 +41,7 @@ fn main() {
 	initiation_packet[2] = 0; /* Reserved */
 	initiation_packet[3] = 0; /* Reserved */
 	LittleEndian::write_u32(&mut initiation_packet[4..], 28); /* Sender index: 28 (arbitrary) */
-	handshake.write_message(&tai64n, &mut initiation_packet[8..]);
+	noise.write_message(&tai64n, &mut initiation_packet[8..]).unwrap();
 	let mut mac_key_input = [0; 40];
 	let mut mac_key = [0; 32];
 	memcpy(&mut mac_key_input, b"mac1----");
@@ -61,7 +50,7 @@ fn main() {
 	let mut mac = [0; 16];
 	Blake2s::blake2s(&mut mac, &initiation_packet[0..116], &mac_key);
 	memcpy(&mut initiation_packet[116..], &mac);
-	socket.send_to(&initiation_packet, &send_addr).unwrap();
+	socket.send_to(&initiation_packet, TEST_SERVER).unwrap();
 
 	let mut response_packet = [0; 92];
 	socket.recv_from(&mut response_packet).unwrap();
@@ -72,8 +61,9 @@ fn main() {
 	let their_index = LittleEndian::read_u32(&response_packet[4..]);
 	let our_index = LittleEndian::read_u32(&response_packet[8..]);
 	assert!(our_index == 28);
-	let (payload_len, last) = handshake.read_message(&response_packet[12..60], &mut empty_payload).unwrap();
-	assert!(payload_len == 0 && last);
+	let payload_len = noise.read_message(&response_packet[12..60], &mut []).unwrap();
+	assert!(payload_len == 0);
+	noise = noise.into_transport_mode().unwrap();
 
 	let mut keepalive_packet = [0; 32];
 	keepalive_packet[0] = 4; /* Type: Data */
@@ -81,7 +71,7 @@ fn main() {
 	keepalive_packet[2] = 0; /* Reserved */
 	keepalive_packet[3] = 0; /* Reserved */
 	LittleEndian::write_u32(&mut keepalive_packet[4..], their_index);
-	LittleEndian::write_u64(&mut keepalive_packet[8..], cipherstate1.n);
-	cipherstate1.encrypt(&empty_payload, &mut keepalive_packet[16..]); /* Empty payload means keepalive */
-	socket.send_to(&keepalive_packet, &send_addr).unwrap();
+	LittleEndian::write_u64(&mut keepalive_packet[8..], 0);
+	noise.write_message(&[], &mut keepalive_packet[16..]).unwrap(); /* Empty payload means keepalive */
+	socket.send_to(&keepalive_packet, TEST_SERVER).unwrap();
 }
