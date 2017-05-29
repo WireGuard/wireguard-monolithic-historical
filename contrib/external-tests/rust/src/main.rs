@@ -5,11 +5,17 @@ extern crate base64;
 extern crate time;
 extern crate byteorder;
 extern crate crypto;
+extern crate pnet;
 
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use crypto::blake2s::Blake2s;
 use snow::NoiseBuilder;
+use pnet::packet::Packet;
+use pnet::packet::ip::IpNextHeaderProtocols;
+use pnet::packet::ipv4::{MutableIpv4Packet, self};
+use pnet::packet::icmp::{MutableIcmpPacket, IcmpTypes, echo_reply, echo_request, self};
 use std::net::*;
+use std::str::FromStr;
 
 static TEST_SERVER: &'static str = "demo.wireguard.io:12913";
 
@@ -65,13 +71,56 @@ fn main() {
 	assert!(payload_len == 0);
 	noise = noise.into_transport_mode().unwrap();
 
-	let mut keepalive_packet = [0; 32];
-	keepalive_packet[0] = 4; /* Type: Data */
-	keepalive_packet[1] = 0; /* Reserved */
-	keepalive_packet[2] = 0; /* Reserved */
-	keepalive_packet[3] = 0; /* Reserved */
-	LittleEndian::write_u32(&mut keepalive_packet[4..], their_index);
-	LittleEndian::write_u64(&mut keepalive_packet[8..], 0);
-	noise.write_message(&[], &mut keepalive_packet[16..]).unwrap(); /* Empty payload means keepalive */
-	socket.send_to(&keepalive_packet, TEST_SERVER).unwrap();
+	let mut icmp_packet = [0; 48];
+	{
+		let mut ipv4 = MutableIpv4Packet::new(&mut icmp_packet).unwrap();
+		ipv4.set_version(4);
+		ipv4.set_header_length(5);
+		ipv4.set_total_length(37);
+		ipv4.set_ttl(20);
+		ipv4.set_next_level_protocol(IpNextHeaderProtocols::Icmp);
+		ipv4.set_source(Ipv4Addr::from_str("10.189.129.2").unwrap());
+		ipv4.set_destination(Ipv4Addr::from_str("10.189.129.1").unwrap());
+		let checksum = ipv4::checksum(&ipv4.to_immutable());
+		ipv4.set_checksum(checksum);
+	}
+	{
+		let mut icmp = echo_request::MutableEchoRequestPacket::new(&mut icmp_packet[20..]).unwrap();
+		icmp.set_icmp_type(IcmpTypes::EchoRequest);
+		icmp.set_icmp_code(echo_request::IcmpCodes::NoCode);
+		icmp.set_identifier(921);
+		icmp.set_sequence_number(438);
+		icmp.set_payload(b"WireGuard");
+	}
+	{
+		let mut icmp = MutableIcmpPacket::new(&mut icmp_packet[20..]).unwrap();
+		let checksum = icmp::checksum(&icmp.to_immutable());
+		icmp.set_checksum(checksum);
+	}
+
+	let mut ping_packet = [0; 80];
+	ping_packet[0] = 4; /* Type: Data */
+	ping_packet[1] = 0; /* Reserved */
+	ping_packet[2] = 0; /* Reserved */
+	ping_packet[3] = 0; /* Reserved */
+	LittleEndian::write_u32(&mut ping_packet[4..], their_index);
+	LittleEndian::write_u64(&mut ping_packet[8..], 0);
+	noise.write_message(&icmp_packet, &mut ping_packet[16..]).unwrap();
+	socket.send_to(&ping_packet, TEST_SERVER).unwrap();
+
+	socket.recv_from(&mut ping_packet).unwrap();
+	assert!(ping_packet[0] == 4 /* Type: Data */);
+	assert!(ping_packet[1] == 0 /* Reserved */);
+	assert!(ping_packet[2] == 0 /* Reserved */);
+	assert!(ping_packet[3] == 0 /* Reserved */);
+	let our_index_received = LittleEndian::read_u32(&ping_packet[4..]);
+	assert!(our_index_received == 28);
+	let nonce = LittleEndian::read_u64(&ping_packet[8..]);
+	assert!(nonce == 0);
+	let payload_len = noise.read_message(&ping_packet[16..], &mut icmp_packet).unwrap();
+	assert!(payload_len == 48);
+	let icmp_reply = echo_reply::EchoReplyPacket::new(&icmp_packet[20..37]).unwrap();
+	assert!(icmp_reply.get_icmp_type() == IcmpTypes::EchoReply && icmp_reply.get_icmp_code() == echo_reply::IcmpCodes::NoCode);
+	assert!(icmp_reply.get_identifier() == 921 && icmp_reply.get_sequence_number() == 438);
+	assert!(icmp_reply.payload() == b"WireGuard");
 }

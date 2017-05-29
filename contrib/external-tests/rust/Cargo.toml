@@ -1,5 +1,5 @@
 [package]
-name = "wireguard-keepalive"
+name = "wireguard-ping"
 version = "0.1.0"
 authors = ["jason@zx2c4.com", "me@jake.su"]
 publish = false
@@ -10,3 +10,7 @@ base64 = "^0.5"
 rust-crypto = "*"
 byteorder = "*"
 time = "*"
+
+[dependencies.pnet]
+version = "*"
+features = [ ]
