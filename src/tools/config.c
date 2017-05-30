@@ -397,10 +397,6 @@ bool config_read_finish(struct config_ctx *ctx)
 {
 	size_t i;
 	struct wgpeer *peer;
-	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && !ctx->buf.dev->num_peers) {
-		fprintf(stderr, "No peers configured\n");
-		goto err;
-	}
 	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && !key_is_valid(ctx->buf.dev->private_key)) {
 		fprintf(stderr, "No private key configured\n");
 		goto err;
