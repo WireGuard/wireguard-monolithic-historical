@@ -234,7 +234,13 @@ static inline void queue_encrypt_reset(struct sk_buff_head *queue, struct noise_
 static void begin_parallel_encryption(struct padata_priv *padata)
 {
 	struct encryption_ctx *ctx = container_of(padata, struct encryption_ctx, padata);
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
+	local_bh_enable();
+#endif
 	queue_encrypt_reset(&ctx->queue, ctx->keypair);
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
+	local_bh_disable();
+#endif
 	padata_do_serial(padata);
 }
 
@@ -362,7 +368,13 @@ static void finish_decrypt_packet(struct decryption_ctx *ctx)
 static void begin_parallel_decryption(struct padata_priv *padata)
 {
 	struct decryption_ctx *ctx = container_of(padata, struct decryption_ctx, padata);
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
+	local_bh_enable();
+#endif
 	begin_decrypt_packet(ctx);
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
+	local_bh_disable();
+#endif
 	padata_do_serial(padata);
 }
 
