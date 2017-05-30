@@ -175,8 +175,7 @@ static inline bool node_placement(struct routing_table_node __rcu *trie, const u
 		}
 		node = rcu_dereference_protected(choose_node(parent, key), lockdep_is_held(lock));
 	}
-	if (rnode)
-		*rnode = parent;
+	*rnode = parent;
 	return exact;
 }
 
