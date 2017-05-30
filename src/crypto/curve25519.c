@@ -10,6 +10,12 @@
 #include <linux/random.h>
 #include <crypto/algapi.h>
 
+#define ARCH_HAS_SEPARATE_IRQ_STACK
+
+#if (defined(CONFIG_MIPS) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)) || defined(CONFIG_ARM)
+#undef ARCH_HAS_SEPARATE_IRQ_STACK
+#endif
+
 static __always_inline void normalize_secret(u8 secret[CURVE25519_POINT_SIZE])
 {
 	secret[0] &= 248;
@@ -1178,6 +1184,7 @@ static void crecip(limb *out, const limb *z)
 }
 
 
+#ifdef ARCH_HAS_SEPARATE_IRQ_STACK
 /* Input: Q, Q', Q-Q'
  * Output: 2Q, Q+Q'
  *
@@ -1338,7 +1345,170 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 	memzero_explicit(zmone, sizeof(zmone));
 	return crypto_memneq(mypublic, null_point, CURVE25519_POINT_SIZE);
 }
+#else
+struct other_stack {
+	limb origx[10], origxprime[10], zzz[19], xx[19], zz[19], xxprime[19], zzprime[19], zzzprime[19], xxxprime[19];
+	limb a[19], b[19], c[19], d[19], e[19], f[19], g[19], h[19];
+	limb bp[10], x[10], z[11], zmone[10];
+	u8 ee[32];
+};
 
+/* Input: Q, Q', Q-Q'
+ * Output: 2Q, Q+Q'
+ *
+ *   x2 z3: long form
+ *   x3 z3: long form
+ *   x z: short form, destroyed
+ *   xprime zprime: short form, destroyed
+ *   qmqp: short form, preserved
+ *
+ * On entry and exit, the absolute value of the limbs of all inputs and outputs
+ * are < 2^26. */
+static void fmonty(struct other_stack *s,
+		   limb *x2, limb *z2,  /* output 2Q */
+		   limb *x3, limb *z3,  /* output Q + Q' */
+		   limb *x, limb *z,    /* input Q */
+		   limb *xprime, limb *zprime,  /* input Q' */
+		   const limb *qmqp /* input Q - Q' */)
+{
+	memcpy(s->origx, x, 10 * sizeof(limb));
+	fsum(x, z);
+	/* |x[i]| < 2^27 */
+	fdifference(z, s->origx);  /* does x - z */
+	/* |z[i]| < 2^27 */
+
+	memcpy(s->origxprime, xprime, sizeof(limb) * 10);
+	fsum(xprime, zprime);
+	/* |xprime[i]| < 2^27 */
+	fdifference(zprime, s->origxprime);
+	/* |zprime[i]| < 2^27 */
+	fproduct(s->xxprime, xprime, z);
+	/* |s->xxprime[i]| < 14*2^54: the largest product of two limbs will be <
+	 * 2^(27+27) and fproduct adds together, at most, 14 of those products.
+	 * (Approximating that to 2^58 doesn't work out.) */
+	fproduct(s->zzprime, x, zprime);
+	/* |s->zzprime[i]| < 14*2^54 */
+	freduce_degree(s->xxprime);
+	freduce_coefficients(s->xxprime);
+	/* |s->xxprime[i]| < 2^26 */
+	freduce_degree(s->zzprime);
+	freduce_coefficients(s->zzprime);
+	/* |s->zzprime[i]| < 2^26 */
+	memcpy(s->origxprime, s->xxprime, sizeof(limb) * 10);
+	fsum(s->xxprime, s->zzprime);
+	/* |s->xxprime[i]| < 2^27 */
+	fdifference(s->zzprime, s->origxprime);
+	/* |s->zzprime[i]| < 2^27 */
+	fsquare(s->xxxprime, s->xxprime);
+	/* |s->xxxprime[i]| < 2^26 */
+	fsquare(s->zzzprime, s->zzprime);
+	/* |s->zzzprime[i]| < 2^26 */
+	fproduct(s->zzprime, s->zzzprime, qmqp);
+	/* |s->zzprime[i]| < 14*2^52 */
+	freduce_degree(s->zzprime);
+	freduce_coefficients(s->zzprime);
+	/* |s->zzprime[i]| < 2^26 */
+	memcpy(x3, s->xxxprime, sizeof(limb) * 10);
+	memcpy(z3, s->zzprime, sizeof(limb) * 10);
+
+	fsquare(s->xx, x);
+	/* |s->xx[i]| < 2^26 */
+	fsquare(s->zz, z);
+	/* |s->zz[i]| < 2^26 */
+	fproduct(x2, s->xx, s->zz);
+	/* |x2[i]| < 14*2^52 */
+	freduce_degree(x2);
+	freduce_coefficients(x2);
+	/* |x2[i]| < 2^26 */
+	fdifference(s->zz, s->xx);  // does s->zz = s->xx - s->zz
+	/* |s->zz[i]| < 2^27 */
+	memset(s->zzz + 10, 0, sizeof(limb) * 9);
+	fscalar_product(s->zzz, s->zz, 121665);
+	/* |s->zzz[i]| < 2^(27+17) */
+	/* No need to call freduce_degree here:
+		 fscalar_product doesn't increase the degree of its input. */
+	freduce_coefficients(s->zzz);
+	/* |s->zzz[i]| < 2^26 */
+	fsum(s->zzz, s->xx);
+	/* |s->zzz[i]| < 2^27 */
+	fproduct(z2, s->zz, s->zzz);
+	/* |z2[i]| < 14*2^(26+27) */
+	freduce_degree(z2);
+	freduce_coefficients(z2);
+	/* |z2|i| < 2^26 */
+}
+
+/* Calculates nQ where Q is the x-coordinate of a point on the curve
+ *
+ *   resultx/resultz: the x coordinate of the resulting curve point (short form)
+ *   n: a little endian, 32-byte number
+ *   q: a point of the curve (short form) */
+static void cmult(struct other_stack *s, limb *resultx, limb *resultz, const u8 *n, const limb *q)
+{
+	unsigned i, j;
+	limb *nqpqx = s->a, *nqpqz = s->b, *nqx = s->c, *nqz = s->d, *t;
+	limb *nqpqx2 = s->e, *nqpqz2 = s->f, *nqx2 = s->g, *nqz2 = s->h;
+
+	*nqpqz = *nqx = *nqpqz2 = *nqz2 = 1;
+	memcpy(nqpqx, q, sizeof(limb) * 10);
+
+	for (i = 0; i < 32; ++i) {
+		u8 byte = n[31 - i];
+		for (j = 0; j < 8; ++j) {
+			const limb bit = byte >> 7;
+
+			swap_conditional(nqx, nqpqx, bit);
+			swap_conditional(nqz, nqpqz, bit);
+			fmonty(s,
+			       nqx2, nqz2,
+			       nqpqx2, nqpqz2,
+			       nqx, nqz,
+			       nqpqx, nqpqz,
+			       q);
+			swap_conditional(nqx2, nqpqx2, bit);
+			swap_conditional(nqz2, nqpqz2, bit);
+
+			t = nqx;
+			nqx = nqx2;
+			nqx2 = t;
+			t = nqz;
+			nqz = nqz2;
+			nqz2 = t;
+			t = nqpqx;
+			nqpqx = nqpqx2;
+			nqpqx2 = t;
+			t = nqpqz;
+			nqpqz = nqpqz2;
+			nqpqz2 = t;
+
+			byte <<= 1;
+		}
+	}
+
+	memcpy(resultx, nqx, sizeof(limb) * 10);
+	memcpy(resultz, nqz, sizeof(limb) * 10);
+}
+
+bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
+{
+	struct other_stack *s = kzalloc(sizeof(struct other_stack), GFP_KERNEL);
+	if (unlikely(!s))
+		return false;
+
+	memcpy(s->ee, secret, 32);
+	normalize_secret(s->ee);
+
+	fexpand(s->bp, basepoint);
+	cmult(s, s->x, s->z, s->ee, s->bp);
+	crecip(s->zmone, s->z);
+	fmul(s->z, s->x, s->zmone);
+	fcontract(mypublic, s->z);
+
+	kzfree(s);
+
+	return crypto_memneq(mypublic, null_point, CURVE25519_POINT_SIZE);
+}
+#endif
 bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
 	static const u8 basepoint[CURVE25519_POINT_SIZE] = { 9 };
