@@ -18,10 +18,10 @@ ifeq ($(CONFIG_X86_64),y)
 endif
 
 ifeq ($(CONFIG_ARM64),y)
-	wireguard-y += crypto/chacha20-neon-arm64.o
+	wireguard-$(CONFIG_KERNEL_MODE_NEON) += crypto/chacha20-neon-arm64.o
 endif
 ifeq ($(CONFIG_ARM),y)
-	wireguard-y += crypto/chacha20-neon-arm.o
+	wireguard-$(CONFIG_KERNEL_MODE_NEON) += crypto/chacha20-neon-arm.o crypto/curve25519-neon-arm.o
 endif
 
 ifneq ($(KBUILD_EXTMOD),)
