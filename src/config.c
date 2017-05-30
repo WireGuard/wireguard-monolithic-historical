@@ -330,6 +330,7 @@ int config_get_device(struct wireguard_device *wg, void __user *user_device)
 	peer_data.out_len = in_device.peers_size;
 	peer_data.data = user_device + sizeof(struct wgdevice);
 
+	ret = 0;
 	peer_for_each (wg, peer, temp, false) {
 		ret = populate_peer(peer, &peer_data);
 		if (ret)
