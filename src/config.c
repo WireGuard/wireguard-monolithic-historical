@@ -317,8 +317,7 @@ int config_get_device(struct wireguard_device *wg, void __user *user_device)
 	out_device.version_magic = WG_API_VERSION_MAGIC;
 	out_device.port = wg->incoming_port;
 	out_device.fwmark = wg->fwmark;
-	strncpy(out_device.interface, dev->name, IFNAMSIZ - 1);
-	out_device.interface[IFNAMSIZ - 1] = 0;
+	memcpy(out_device.interface, dev->name, IFNAMSIZ);
 
 	down_read(&wg->static_identity.lock);
 	if (wg->static_identity.has_identity) {
