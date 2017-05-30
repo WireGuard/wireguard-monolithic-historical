@@ -523,7 +523,7 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 
 bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
-	static const u8 basepoint[CURVE25519_POINT_SIZE] = { 9 };
+	static const u8 basepoint[CURVE25519_POINT_SIZE] __aligned(32) = { 9 };
 #ifdef CONFIG_X86_64
 	if (curve25519_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
@@ -1511,7 +1511,7 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 #endif
 bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
-	static const u8 basepoint[CURVE25519_POINT_SIZE] = { 9 };
+	static const u8 basepoint[CURVE25519_POINT_SIZE] __aligned(32) = { 9 };
 	return curve25519(pub, secret, basepoint);
 }
 #endif
