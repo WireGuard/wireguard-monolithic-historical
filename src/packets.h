@@ -28,7 +28,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 /* send.c */
 void packet_send_queue(struct wireguard_peer *peer);
 void packet_send_keepalive(struct wireguard_peer *peer);
-void packet_queue_handshake_initiation(struct wireguard_peer *peer);
+void packet_queue_handshake_initiation(struct wireguard_peer *peer, bool is_retry);
 void packet_send_queued_handshakes(struct work_struct *work);
 void packet_send_handshake_response(struct wireguard_peer *peer);
 void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *initiating_skb, __le32 sender_index);

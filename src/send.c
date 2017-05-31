@@ -44,8 +44,11 @@ void packet_send_queued_handshakes(struct work_struct *work)
 	peer_put(peer);
 }
 
-void packet_queue_handshake_initiation(struct wireguard_peer *peer)
+void packet_queue_handshake_initiation(struct wireguard_peer *peer, bool is_retry)
 {
+	if (!is_retry)
+		peer->timer_handshake_attempts = 0;
+
 	/* First checking the timestamp here is just an optimization; it will
 	 * be caught while properly locked inside the actual work queue. */
 	if (!time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT))
@@ -100,7 +103,7 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 	rcu_read_unlock_bh();
 
 	if (send)
-		packet_queue_handshake_initiation(peer);
+		packet_queue_handshake_initiation(peer, false);
 }
 
 void packet_send_keepalive(struct wireguard_peer *peer)
@@ -183,7 +186,7 @@ void packet_send_queue(struct wireguard_peer *peer)
 		skb_queue_splice(&queue, &peer->tx_packet_queue);
 		spin_unlock_bh(&peer->tx_packet_queue.lock);
 
-		packet_queue_handshake_initiation(peer);
+		packet_queue_handshake_initiation(peer, false);
 		break;
 	default:
 		/* If we failed for any other reason, we want to just free the packets and

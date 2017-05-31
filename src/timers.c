@@ -45,7 +45,7 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		/* We clear the endpoint address src address, in case this is the cause of trouble. */
 		socket_clear_peer_endpoint_src(peer);
 
-		packet_queue_handshake_initiation(peer);
+		packet_queue_handshake_initiation(peer, true);
 	}
 	peer_put(peer);
 }
@@ -68,7 +68,7 @@ static void expired_new_handshake(unsigned long ptr)
 	pr_debug("%s: Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
 	/* We clear the endpoint address src address, in case this is the cause of trouble. */
 	socket_clear_peer_endpoint_src(peer);
-	packet_queue_handshake_initiation(peer);
+	packet_queue_handshake_initiation(peer, false);
 	peer_put(peer);
 }
 

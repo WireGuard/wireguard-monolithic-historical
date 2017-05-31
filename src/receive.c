@@ -197,7 +197,7 @@ static void keep_key_fresh(struct wireguard_peer *peer)
 
 	if (send) {
 		peer->sent_lastminute_handshake = true;
-		packet_queue_handshake_initiation(peer);
+		packet_queue_handshake_initiation(peer, false);
 	}
 }
 
