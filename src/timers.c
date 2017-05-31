@@ -36,7 +36,7 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		skb_queue_purge(&peer->tx_packet_queue);
 		/* We set a timer for destroying any residue that might be left
 		 * of a partial exchange. */
-		if (likely(peer->timers_enabled))
+		if (likely(peer->timers_enabled) && !timer_pending(&peer->timer_kill_ephemerals))
 			mod_timer(&peer->timer_kill_ephemerals, jiffies + (REJECT_AFTER_TIME * 3));
 	} else {
 		++peer->timer_handshake_attempts;
