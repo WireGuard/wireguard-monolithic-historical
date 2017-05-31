@@ -130,12 +130,13 @@ void timers_handshake_initiated(struct wireguard_peer *peer)
 	}
 }
 
-/* Should be called after a handshake response message is received and processed. */
+/* Should be called after a handshake response message is received and processed or when getting key confirmation via the first data message. */
 void timers_handshake_complete(struct wireguard_peer *peer)
 {
 	if (likely(peer->timers_enabled))
 		del_timer(&peer->timer_retransmit_handshake);
 	peer->timer_handshake_attempts = 0;
+	do_gettimeofday(&peer->walltime_last_handshake);
 }
 
 /* Should be called after an ephemeral key is created, which is before sending a handshake response or after receiving a handshake response. */
@@ -143,7 +144,6 @@ void timers_ephemeral_key_created(struct wireguard_peer *peer)
 {
 	if (likely(peer->timers_enabled))
 		mod_timer(&peer->timer_kill_ephemerals, jiffies + (REJECT_AFTER_TIME * 3));
-	do_gettimeofday(&peer->walltime_last_handshake);
 }
 
 /* Should be called before a packet with authentication -- data, keepalive, either handshake -- is sent, or after one is received. */
