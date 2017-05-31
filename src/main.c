@@ -61,7 +61,7 @@ static void __exit mod_exit(void)
 	packet_deinit_data_caches();
 #endif
 	ratelimiter_module_deinit();
-	pr_debug("WireGuard has been unloaded\n");
+	pr_debug("WireGuard unloaded\n");
 }
 
 module_init(mod_init);

@@ -136,7 +136,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(dev_recursion_level() > 4)) {
 		ret = -ELOOP;
-		net_dbg_ratelimited("Routing loop detected\n");
+		net_dbg_ratelimited("%s: Routing loop detected\n", dev->name);
 		skb_unsendable(skb, dev);
 		goto err;
 	}
@@ -144,7 +144,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	peer = routing_table_lookup_dst(&wg->peer_routing_table, skb);
 	if (unlikely(!peer)) {
 		ret = -ENOKEY;
-		net_dbg_skb_ratelimited("No peer is configured for %pISc\n", skb);
+		net_dbg_skb_ratelimited("%s: No peer is configured for %pISc\n", dev->name, skb);
 		goto err;
 	}
 
@@ -153,7 +153,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	read_unlock_bh(&peer->endpoint_lock);
 	if (unlikely(ret)) {
 		ret = -EHOSTUNREACH;
-		net_dbg_ratelimited("No valid endpoint has been configured or discovered for peer %Lu\n", peer->internal_id);
+		net_dbg_ratelimited("%s: No valid endpoint has been configured or discovered for peer %Lu\n", dev->name, peer->internal_id);
 		goto err_peer;
 	}
 
@@ -251,7 +251,7 @@ static void destruct(struct net_device *dev)
 	free_percpu(wg->incoming_handshakes_worker);
 	put_net(wg->creating_net);
 
-	pr_debug("Device %s has been deleted\n", dev->name);
+	pr_debug("%s: Interface deleted\n", dev->name);
 	free_netdev(dev);
 }
 
@@ -352,7 +352,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (ret < 0)
 		goto error_10;
 
-	pr_debug("Device %s has been created\n", dev->name);
+	pr_debug("%s: Interface created\n", dev->name);
 
 	return 0;
 

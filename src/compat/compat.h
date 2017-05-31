@@ -238,10 +238,10 @@ static inline struct net_device *netdev_pub(void *dev)
 #endif
 
 #if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
-#define net_dbg_skb_ratelimited(fmt, skb, ...) do { \
+#define net_dbg_skb_ratelimited(fmt, dev, skb, ...) do { \
 	struct endpoint __endpoint; \
 	socket_endpoint_from_skb(&__endpoint, skb); \
-	net_dbg_ratelimited(fmt, &__endpoint.addr, ##__VA_ARGS__); \
+	net_dbg_ratelimited(fmt, dev, &__endpoint.addr, ##__VA_ARGS__); \
 } while(0)
 #else
 #define net_dbg_skb_ratelimited(fmt, skb, ...)

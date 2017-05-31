@@ -193,7 +193,7 @@ void cookie_message_consume(struct message_handshake_cookie *src, struct wiregua
 		entry->peer->latest_cookie.have_sent_mac1 = false;
 		up_write(&entry->peer->latest_cookie.lock);
 	} else
-		net_dbg_ratelimited("Could not decrypt invalid cookie response\n");
+		net_dbg_ratelimited("%s: Could not decrypt invalid cookie response\n", netdev_pub(wg)->name);
 
 out:
 	peer_put(entry->peer);
