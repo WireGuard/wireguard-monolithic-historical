@@ -1,6 +1,7 @@
 cscope.out
 *.o
 *.d
+*.dwo
 *.ko
 *.mod.c
 src/tools/wg
