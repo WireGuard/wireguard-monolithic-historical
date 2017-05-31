@@ -28,7 +28,7 @@ static void expired_retransmit_handshake(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
-		pr_debug("%s: Handshake for peer %Lu (%pISpfsc) did not complete after %d attempts, giving up\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr, MAX_TIMER_HANDSHAKES);
+		pr_debug("%s: Handshake for peer %Lu (%pISpfsc) did not complete after %d attempts, giving up\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr, MAX_TIMER_HANDSHAKES + 2);
 
 		del_timer(&peer->timer_send_keepalive);
 		/* We remove all existing packets and don't try again,
@@ -38,16 +38,15 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		 * of a partial exchange. */
 		if (likely(peer->timers_enabled))
 			mod_timer(&peer->timer_kill_ephemerals, jiffies + (REJECT_AFTER_TIME * 3));
-		goto out;
+	} else {
+		++peer->timer_handshake_attempts;
+		pr_debug("%s: Handshake for peer %Lu (%pISpfsc) did not complete after %d seconds, retrying (try %d)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr, REKEY_TIMEOUT / HZ, peer->timer_handshake_attempts + 1);
+
+		/* We clear the endpoint address src address, in case this is the cause of trouble. */
+		socket_clear_peer_endpoint_src(peer);
+
+		packet_queue_handshake_initiation(peer);
 	}
-	pr_debug("%s: Handshake for peer %Lu (%pISpfsc) did not complete after %d seconds, retrying\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr, REKEY_TIMEOUT / HZ);
-
-	/* We clear the endpoint address src address, in case this is the cause of trouble. */
-	socket_clear_peer_endpoint_src(peer);
-
-	packet_queue_handshake_initiation(peer);
-	++peer->timer_handshake_attempts;
-out:
 	peer_put(peer);
 }
 
