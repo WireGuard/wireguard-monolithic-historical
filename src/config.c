@@ -8,6 +8,7 @@
 #include "hashtables.h"
 #include "peer.h"
 #include "uapi.h"
+
 static int set_device_port(struct wireguard_device *wg, u16 port)
 {
 	struct wireguard_peer *peer, *temp;
