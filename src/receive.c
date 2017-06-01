@@ -237,10 +237,15 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 	skb->dev = dev;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	if (skb->len >= sizeof(struct iphdr) && ip_hdr(skb)->version == 4) {
+		len = ntohs(ip_hdr(skb)->tot_len);
+		if (unlikely(len < sizeof(struct iphdr)))
+			goto dishonest_packet_size;
 		skb->protocol = htons(ETH_P_IP);
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP_ECN_set_ce(ip_hdr(skb));
+
 	} else if (skb->len >= sizeof(struct ipv6hdr) && ip_hdr(skb)->version == 6) {
+		len = ntohs(ipv6_hdr(skb)->payload_len) + sizeof(struct ipv6hdr);
 		skb->protocol = htons(ETH_P_IPV6);
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP6_ECN_set_ce(skb, ipv6_hdr(skb));
@@ -250,6 +255,16 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		net_dbg_ratelimited("%s: Packet neither ipv4 nor ipv6 from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
 		goto packet_processed;
 	}
+
+	if (unlikely(len > skb->len)) {
+dishonest_packet_size:
+		net_dbg_ratelimited("%s: Packet is lying about its size from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+		++dev->stats.rx_errors;
+		++dev->stats.rx_length_errors;
+		goto packet_processed;
+	}
+	if (len < skb->len && pskb_trim(skb, len))
+		goto packet_processed;
 
 	timers_data_received(peer);
 

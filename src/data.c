@@ -192,7 +192,7 @@ static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *
 	if (!chacha20poly1305_decrypt_sg(sg, sg, skb->len, NULL, 0, PACKET_CB(skb)->nonce, key->key))
 		return false;
 
-	return pskb_trim(skb, skb->len - noise_encrypted_len(0)) == 0;
+	return !pskb_trim(skb, skb->len - noise_encrypted_len(0));
 }
 
 static inline bool get_encryption_nonce(u64 *nonce, struct noise_symmetric_key *key)
