@@ -186,7 +186,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_dst_drop(skb);
 
 		skb_queue_tail(&peer->tx_packet_queue, skb);
-	} while ((skb = next));
+	} while ((skb = next) != NULL);
 
 	packet_send_queue(peer);
 	peer_put(peer);
