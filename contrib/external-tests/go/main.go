@@ -127,7 +127,7 @@ func main() {
 		Dst:      net.IPv4(10, 189, 129, 1),
 	}).Marshal()
 	binary.BigEndian.PutUint16(pingHeader[2:], uint16(ipv4.HeaderLen+len(pingMessage))) // fix the length endianness on BSDs
-	pingData := append(pingHeader, pingMessage...)
+	pingData := append(append(pingHeader, pingMessage...), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	binary.BigEndian.PutUint16(pingData[10:], ipChecksum(pingData))
 	pingPacket := make([]byte, 16)
 	pingPacket[0] = 4 // Type: Data
@@ -142,7 +142,7 @@ func main() {
 	}
 
 	// read ICMP Echo Reply packet
-	replyPacket := make([]byte, 128)
+	replyPacket := make([]byte, 80)
 	n, err = conn.Read(replyPacket)
 	if err != nil {
 		log.Fatalf("error reading ping reply message: %s", err)
