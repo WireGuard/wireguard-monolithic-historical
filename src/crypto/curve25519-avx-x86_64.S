@@ -225,7 +225,7 @@ ENTRY(curve25519_sandy2x_fe51_nsquare)
 	mov %rdx,%rsi
 
 	.align 16
-	._loop:
+	.Lloop:
 	sub $1,%rsi
 	mov %rcx,%rax
 	mul %rcx
@@ -337,7 +337,7 @@ ENTRY(curve25519_sandy2x_fe51_nsquare)
 	and %rdx,%r10
 	movq %r10,32(%rdi)
 	cmp $0,%rsi
-	jne ._loop
+	jne .Lloop
 
 	movq %rcx,0(%rdi)
 	movq %r8,8(%rdi)
@@ -370,7 +370,7 @@ ENTRY(curve25519_sandy2x_fe51_pack)
 	mov $3,%r11
 
 	.align 16
-	._reduceloop:
+	.Lreduceloop:
 	mov %rdx,%r12
 	shr $51,%r12
 	and %rax,%rdx
@@ -393,7 +393,7 @@ ENTRY(curve25519_sandy2x_fe51_pack)
 	imulq $19, %r12,%r12
 	add %r12,%rdx
 	sub $1,%r11
-	ja ._reduceloop
+	ja .Lreduceloop
 
 	mov $1,%r12
 	cmp %r10,%rdx
@@ -654,7 +654,7 @@ ENTRY(curve25519_sandy2x_ladder)
 	mov $64,%rax
 
 	.align 16
-	._ladder_small_loop:
+	.Lladder_small_loop:
 	mov %rdx,%r10
 	mov %rcx,%r11
 	mov %r8,%r12
@@ -677,12 +677,12 @@ ENTRY(curve25519_sandy2x_ladder)
 	movl %r13d,768(%rsi)
 	add $4,%rsi
 	sub $1,%rax
-	jne ._ladder_small_loop
+	jne .Lladder_small_loop
 	mov $255,%rdx
 	add $760,%rsi
 
 	.align 16
-	._ladder_loop:
+	.Lladder_loop:
 	sub $1,%rdx
 	vbroadcastss 0(%rsi),%xmm10
 	sub $4,%rsi
@@ -1961,7 +1961,7 @@ ENTRY(curve25519_sandy2x_ladder)
 	vpunpckhqdq %xmm14,%xmm13,%xmm9
 	vpunpcklqdq %xmm14,%xmm13,%xmm8
 	cmp $0,%rdx
-	jne ._ladder_loop
+	jne .Lladder_loop
 	vmovdqu %xmm1,160(%rdi)
 	vmovdqu %xmm0,80(%rdi)
 	vmovdqu %xmm3,176(%rdi)
@@ -2028,7 +2028,7 @@ ENTRY(curve25519_sandy2x_ladder_base)
 	mov $64,%rax
 
 	.align 16
-	._ladder_base_small_loop:
+	.Lladder_base_small_loop:
 	mov %rdx,%r10
 	mov %rcx,%r11
 	mov %r8,%r12
@@ -2051,12 +2051,12 @@ ENTRY(curve25519_sandy2x_ladder_base)
 	movl %r13d,768(%rsi)
 	add $4,%rsi
 	sub $1,%rax
-	jne ._ladder_base_small_loop
+	jne .Lladder_base_small_loop
 	mov $255,%rdx
 	add $760,%rsi
 
 	.align 16
-	._ladder_base_loop:
+	.Lladder_base_loop:
 	sub $1,%rdx
 	vbroadcastss 0(%rsi),%xmm10
 	sub $4,%rsi
@@ -3240,7 +3240,7 @@ ENTRY(curve25519_sandy2x_ladder_base)
 	vpunpckhqdq %xmm14,%xmm13,%xmm9
 	vpunpcklqdq %xmm14,%xmm13,%xmm8
 	cmp $0,%rdx
-	jne ._ladder_base_loop
+	jne .Lladder_base_loop
 	vmovdqu %xmm1,80(%rdi)
 	vmovdqu %xmm0,0(%rdi)
 	vmovdqu %xmm3,96(%rdi)

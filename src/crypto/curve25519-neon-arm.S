@@ -210,7 +210,7 @@ ENTRY(curve25519_asm_neon)
 	vst1.8 {d0-d1},[r6,: 128]!
 	vst1.8 {d2-d3},[r6,: 128]!
 	vst1.8 d4,[r6,: 64]
-	._mainloop:
+	.Lmainloop:
 	mov r2,r5,LSR #3
 	and r6,r5,#7
 	ldrb r2,[r1,r2]
@@ -1542,7 +1542,7 @@ ENTRY(curve25519_asm_neon)
 	ldr r2,[sp,#488]
 	ldr r4,[sp,#492]
 	subs r5,r2,#1
-	bge ._mainloop
+	bge .Lmainloop
 	add r1,r3,#144
 	add r2,r3,#336
 	vld1.8 {d0-d1},[r1,: 128]!
@@ -1552,7 +1552,7 @@ ENTRY(curve25519_asm_neon)
 	vst1.8 {d2-d3},[r2,: 128]!
 	vst1.8 d4,[r2,: 64]
 	ldr r1,=0
-	._invertloop:
+	.Linvertloop:
 	add r2,r3,#144
 	ldr r4,=0
 	ldr r5,=2
@@ -1596,8 +1596,8 @@ ENTRY(curve25519_asm_neon)
 	vst1.8 {d2-d3},[r7,: 128]!
 	vst1.8 d4,[r7,: 64]
 	cmp r5,#0
-	beq ._skipsquaringloop
-	._squaringloop:
+	beq .Lskipsquaringloop
+	.Lsquaringloop:
 	add r6,r3,#288
 	add r7,r3,#288
 	add r8,r3,#288
@@ -1787,8 +1787,8 @@ ENTRY(curve25519_asm_neon)
 	sub r6,r6,#32
 	vst1.8 d4,[r6,: 64]
 	subs r5,r5,#1
-	bhi ._squaringloop
-	._skipsquaringloop:
+	bhi .Lsquaringloop
+	.Lskipsquaringloop:
 	mov r2,r2
 	add r5,r3,#288
 	add r6,r3,#144
@@ -1978,7 +1978,7 @@ ENTRY(curve25519_asm_neon)
 	sub r2,r2,#32
 	vst1.8 d4,[r2,: 64]
 	cmp r4,#0
-	beq ._skippostcopy
+	beq .Lskippostcopy
 	add r2,r3,#144
 	mov r4,r4
 	vld1.8 {d0-d1},[r2,: 128]!
@@ -1987,9 +1987,9 @@ ENTRY(curve25519_asm_neon)
 	vst1.8 {d0-d1},[r4,: 128]!
 	vst1.8 {d2-d3},[r4,: 128]!
 	vst1.8 d4,[r4,: 64]
-	._skippostcopy:
+	.Lskippostcopy:
 	cmp r1,#1
-	bne ._skipfinalcopy
+	bne .Lskipfinalcopy
 	add r2,r3,#288
 	add r4,r3,#144
 	vld1.8 {d0-d1},[r2,: 128]!
@@ -1998,10 +1998,10 @@ ENTRY(curve25519_asm_neon)
 	vst1.8 {d0-d1},[r4,: 128]!
 	vst1.8 {d2-d3},[r4,: 128]!
 	vst1.8 d4,[r4,: 64]
-	._skipfinalcopy:
+	.Lskipfinalcopy:
 	add r1,r1,#1
 	cmp r1,#12
-	blo ._invertloop
+	blo .Linvertloop
 	add r1,r3,#144
 	ldr r2,[r1],#4
 	ldr r3,[r1],#4
