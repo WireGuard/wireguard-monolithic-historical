@@ -123,4 +123,15 @@ fn main() {
 	assert!(icmp_reply.get_icmp_type() == IcmpTypes::EchoReply && icmp_reply.get_icmp_code() == echo_reply::IcmpCodes::NoCode);
 	assert!(icmp_reply.get_identifier() == 921 && icmp_reply.get_sequence_number() == 438);
 	assert!(icmp_reply.payload() == b"WireGuard");
+
+	let mut keepalive_packet = [0; 32];
+	keepalive_packet[0] = 4; /* Type: Data */
+	keepalive_packet[1] = 0; /* Reserved */
+	keepalive_packet[2] = 0; /* Reserved */
+	keepalive_packet[3] = 0; /* Reserved */
+	LittleEndian::write_u32(&mut keepalive_packet[4..], their_index);
+	LittleEndian::write_u64(&mut keepalive_packet[8..], 1);
+	let empty_payload = [0; 0]; /* Empty payload means keepalive */
+	noise.write_message(&empty_payload, &mut keepalive_packet[16..]).unwrap();
+	socket.send_to(&keepalive_packet, TEST_SERVER).unwrap();
 }

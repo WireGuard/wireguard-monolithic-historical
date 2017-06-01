@@ -172,4 +172,16 @@ func main() {
 	if echo.ID != 921 || echo.Seq != 438 || string(echo.Data) != "WireGuard" {
 		log.Fatalf("incorrect echo response: %#v", echo)
 	}
+
+	keepalivePacket := make([]byte, 16)
+	keepalivePacket[0] = 4 // Type: Data
+	keepalivePacket[1] = 0 // Reserved
+	keepalivePacket[2] = 0 // Reserved
+	keepalivePacket[3] = 0 // Reserved
+	binary.LittleEndian.PutUint32(keepalivePacket[4:], theirIndex)
+	binary.LittleEndian.PutUint64(keepalivePacket[8:], 1) // Nonce
+	keepalivePacket = sendCipher.Encrypt(keepalivePacket, nil, nil) // Empty data means keepalive
+	if _, err := conn.Write(keepalivePacket); err != nil {
+		log.Fatalf("error writing keepalive message: %s", err)
+	}
 }
