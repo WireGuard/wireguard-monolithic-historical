@@ -46,6 +46,9 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	kref_init(&peer->refcount);
 	pubkey_hashtable_add(&wg->peer_hashtable, peer);
 	list_add_tail(&peer->peer_list, &wg->peer_list);
+#ifdef CONFIG_WIREGUARD_PARALLEL
+	atomic_set(&peer->parallel_encryption_inflight, 0);
+#endif
 	pr_debug("%s: Peer %Lu created\n", netdev_pub(wg)->name, peer->internal_id);
 	return peer;
 }
