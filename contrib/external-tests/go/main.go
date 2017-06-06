@@ -10,10 +10,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/dchest/blake2s"
 	"github.com/titanous/noise"
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
+	"golang.org/x/crypto/blake2s"
 )
 
 func ipChecksum(buf []byte) uint16 {
@@ -69,10 +69,10 @@ func main() {
 	initiationPacket[3] = 0                                 // Reserved
 	binary.LittleEndian.PutUint32(initiationPacket[4:], 28) // Sender index: 28 (arbitrary)
 	initiationPacket, _, _ = hs.WriteMessage(initiationPacket, tai64n)
-	hasher, _ := blake2s.New(&blake2s.Config{Size: 32})
+	hasher, _ := blake2s.New256(nil)
 	hasher.Write([]byte("mac1----"))
 	hasher.Write(theirPublic)
-	hasher, _ = blake2s.New(&blake2s.Config{Size: 16, Key: hasher.Sum(nil)})
+	hasher, _ = blake2s.New128(hasher.Sum(nil))
 	hasher.Write(initiationPacket)
 	initiationPacket = append(initiationPacket, hasher.Sum(nil)[:16]...)
 	initiationPacket = append(initiationPacket, make([]byte, 16)...)
