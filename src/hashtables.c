@@ -97,13 +97,16 @@ search_unused_slot:
 	return entry->index;
 }
 
-void index_hashtable_replace(struct index_hashtable *table, struct index_hashtable_entry *old, struct index_hashtable_entry *new)
+bool index_hashtable_replace(struct index_hashtable *table, struct index_hashtable_entry *old, struct index_hashtable_entry *new)
 {
+	if (unlikely(hlist_unhashed(&old->index_hash)))
+		return false;
 	spin_lock_bh(&table->lock);
 	new->index = old->index;
 	hlist_replace_rcu(&old->index_hash, &new->index_hash);
 	INIT_HLIST_NODE(&old->index_hash);
 	spin_unlock_bh(&table->lock);
+	return true;
 }
 
 void index_hashtable_remove(struct index_hashtable *table, struct index_hashtable_entry *entry)
