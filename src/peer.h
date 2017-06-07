@@ -3,6 +3,7 @@
 #ifndef PEER_H
 #define PEER_H
 
+#include "device.h"
 #include "noise.h"
 #include "cookie.h"
 
@@ -46,17 +47,15 @@ struct wireguard_peer {
 	unsigned long persistent_keepalive_interval;
 	bool timers_enabled;
 	bool timer_need_another_keepalive;
-	bool need_resend_queue;
 	bool sent_lastminute_handshake;
 	struct timeval walltime_last_handshake;
-	struct sk_buff_head tx_packet_queue;
 	struct kref refcount;
 	struct rcu_head rcu;
 	struct list_head peer_list;
 	u64 internal_id;
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	atomic_t parallel_encryption_inflight;
-#endif
+	int work_cpu;
+	struct crypt_queue init_queue, send_queue, receive_queue;
+	spinlock_t init_queue_lock;
 };
 
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN], const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN]);

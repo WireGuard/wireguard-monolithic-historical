@@ -57,7 +57,7 @@ static int open(struct net_device *dev)
 		return ret;
 	peer_for_each (wg, peer, temp, true) {
 		timers_init_peer(peer);
-		packet_send_queue(peer);
+		queue_work(wg->crypt_wq, &peer->init_queue.work);
 		if (peer->persistent_keepalive_interval)
 			packet_send_keepalive(peer);
 	}
@@ -111,6 +111,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	struct wireguard_device *wg = netdev_priv(dev);
 	struct wireguard_peer *peer;
 	struct sk_buff *next;
+	struct sk_buff_head queue;
 	int ret;
 
 	if (unlikely(dev_recursion_level() > 4)) {
@@ -141,11 +142,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_peer;
 	}
 
-	/* If the queue is getting too big, we start removing the oldest packets until it's small again.
-	 * We do this before adding the new packet, so we don't remove GSO segments that are in excess. */
-	while (skb_queue_len(&peer->tx_packet_queue) > MAX_QUEUED_OUTGOING_PACKETS)
-		dev_kfree_skb(skb_dequeue(&peer->tx_packet_queue));
-
+	__skb_queue_head_init(&queue);
 	if (!skb_is_gso(skb))
 		skb->next = NULL;
 	else {
@@ -169,10 +166,11 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		 * so at this point we're in a position to drop it. */
 		skb_dst_drop(skb);
 
-		skb_queue_tail(&peer->tx_packet_queue, skb);
+		__skb_queue_tail(&queue, skb);
 	} while ((skb = next) != NULL);
 
-	packet_send_queue(peer);
+	packet_create_data(peer, &queue);
+
 	peer_put(peer);
 	return NETDEV_TX_OK;
 
@@ -224,11 +222,9 @@ static void destruct(struct net_device *dev)
 	wg->incoming_port = 0;
 	destroy_workqueue(wg->incoming_handshake_wq);
 	destroy_workqueue(wg->peer_wq);
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	padata_free(wg->encrypt_pd);
-	padata_free(wg->decrypt_pd);
+	free_percpu(wg->decrypt_queue);
+	free_percpu(wg->encrypt_queue);
 	destroy_workqueue(wg->crypt_wq);
-#endif
 	routing_table_free(&wg->peer_routing_table);
 	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
@@ -310,21 +306,25 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (!wg->peer_wq)
 		goto error_4;
 
-#ifdef CONFIG_WIREGUARD_PARALLEL
 	wg->crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 2, dev->name);
 	if (!wg->crypt_wq)
 		goto error_5;
 
-	wg->encrypt_pd = padata_alloc_possible(wg->crypt_wq);
-	if (!wg->encrypt_pd)
+	wg->encrypt_queue = alloc_percpu(struct crypt_queue);
+	if (!wg->encrypt_queue)
 		goto error_6;
-	padata_start(wg->encrypt_pd);
+	for_each_possible_cpu (cpu) {
+		INIT_LIST_HEAD(&per_cpu_ptr(wg->encrypt_queue, cpu)->list);
+		INIT_WORK(&per_cpu_ptr(wg->encrypt_queue, cpu)->work, packet_encrypt_worker);
+	}
 
-	wg->decrypt_pd = padata_alloc_possible(wg->crypt_wq);
-	if (!wg->decrypt_pd)
+	wg->decrypt_queue = alloc_percpu(struct crypt_queue);
+	if (!wg->decrypt_queue)
 		goto error_7;
-	padata_start(wg->decrypt_pd);
-#endif
+	for_each_possible_cpu (cpu) {
+		INIT_LIST_HEAD(&per_cpu_ptr(wg->decrypt_queue, cpu)->list);
+		INIT_WORK(&per_cpu_ptr(wg->decrypt_queue, cpu)->work, packet_decrypt_worker);
+	}
 
 	ret = ratelimiter_init();
 	if (ret < 0)
@@ -346,14 +346,12 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 error_9:
 	ratelimiter_uninit();
 error_8:
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	padata_free(wg->decrypt_pd);
+	free_percpu(wg->decrypt_queue);
 error_7:
-	padata_free(wg->encrypt_pd);
+	free_percpu(wg->encrypt_queue);
 error_6:
 	destroy_workqueue(wg->crypt_wq);
 error_5:
-#endif
 	destroy_workqueue(wg->peer_wq);
 error_4:
 	destroy_workqueue(wg->incoming_handshake_wq);
