@@ -31,11 +31,3 @@ ifeq ($(shell grep -F "int crypto_memneq" "$(srctree)/include/crypto/algapi.h"),
 ccflags-y += -include $(src)/compat/memneq/include.h
 wireguard-y += compat/memneq/memneq.o
 endif
-
-ifneq ($(KBUILD_EXTMOD),)
-ifneq ($(CONFIG_SMP),)
-ifeq (,$(filter $(CONFIG_PADATA),y m))
-wireguard-y += compat/padata/padata.o
-endif
-endif
-endif

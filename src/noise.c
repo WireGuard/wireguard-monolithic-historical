@@ -4,7 +4,7 @@
 #include "device.h"
 #include "peer.h"
 #include "messages.h"
-#include "packets.h"
+#include "queueing.h"
 #include "hashtables.h"
 
 #include <linux/rcupdate.h>

@@ -13,12 +13,25 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
-#include <linux/padata.h>
 
 struct wireguard_device;
-struct handshake_worker {
-	struct wireguard_device *wg;
+
+struct multicore_worker {
+	void *ptr;
 	struct work_struct work;
+};
+
+struct crypt_queue {
+	spinlock_t lock;
+	struct list_head queue;
+	union {
+		struct {
+			struct multicore_worker __percpu *worker;
+			int last_cpu;
+		};
+		struct work_struct work;
+	};
+	int len;
 };
 
 struct wireguard_device {
@@ -29,21 +42,17 @@ struct wireguard_device {
 	u32 fwmark;
 	struct net *creating_net;
 	struct noise_static_identity static_identity;
-	struct workqueue_struct *incoming_handshake_wq, *peer_wq;
+	struct workqueue_struct *handshake_receive_wq, *handshake_send_wq, *packet_crypt_wq;
 	struct sk_buff_head incoming_handshakes;
-	atomic_t incoming_handshake_seqnr;
-	struct handshake_worker __percpu *incoming_handshakes_worker;
+	struct crypt_queue encrypt_queue, decrypt_queue;
+	int incoming_handshake_cpu;
+	struct multicore_worker __percpu *incoming_handshakes_worker;
 	struct cookie_checker cookie_checker;
 	struct pubkey_hashtable peer_hashtable;
 	struct index_hashtable index_hashtable;
 	struct routing_table peer_routing_table;
 	struct list_head peer_list;
-	struct mutex device_update_lock;
-	struct mutex socket_update_lock;
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	struct workqueue_struct *crypt_wq;
-	struct padata_instance *encrypt_pd, *decrypt_pd;
-#endif
+	struct mutex device_update_lock, socket_update_lock;
 };
 
 int device_init(void);

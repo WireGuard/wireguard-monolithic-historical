@@ -3,7 +3,7 @@
 #include "config.h"
 #include "device.h"
 #include "socket.h"
-#include "packets.h"
+#include "queueing.h"
 #include "timers.h"
 #include "hashtables.h"
 #include "peer.h"
@@ -114,7 +114,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	}
 
 	if (wg->dev->flags & IFF_UP)
-		packet_send_queue(peer);
+		packet_send_staged_packets(peer);
 
 	peer_put(peer);
 

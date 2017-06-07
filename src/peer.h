@@ -3,6 +3,7 @@
 #ifndef PEER_H
 #define PEER_H
 
+#include "device.h"
 #include "noise.h"
 #include "cookie.h"
 
@@ -34,8 +35,10 @@ struct wireguard_peer {
 	struct endpoint endpoint;
 	struct dst_cache endpoint_cache;
 	rwlock_t endpoint_lock;
-	struct noise_handshake handshake;
+	struct crypt_queue tx_queue, rx_queue;
+	int serial_work_cpu;
 	struct noise_keypairs keypairs;
+	struct noise_handshake handshake;
 	u64 last_sent_handshake;
 	struct work_struct transmit_handshake_work, clear_peer_work;
 	struct cookie latest_cookie;
@@ -44,19 +47,13 @@ struct wireguard_peer {
 	struct timer_list timer_retransmit_handshake, timer_send_keepalive, timer_new_handshake, timer_zero_key_material, timer_persistent_keepalive;
 	unsigned int timer_handshake_attempts;
 	unsigned long persistent_keepalive_interval;
-	bool timers_enabled;
-	bool timer_need_another_keepalive;
-	bool need_resend_queue;
-	bool sent_lastminute_handshake;
+	bool timers_enabled, timer_need_another_keepalive, sent_lastminute_handshake;
 	struct timeval walltime_last_handshake;
-	struct sk_buff_head tx_packet_queue;
+	struct sk_buff_head staged_packet_queue;
 	struct kref refcount;
 	struct rcu_head rcu;
 	struct list_head peer_list;
 	u64 internal_id;
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	atomic_t parallel_encryption_inflight;
-#endif
 };
 
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN], const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN]);

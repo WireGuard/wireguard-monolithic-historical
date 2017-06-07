@@ -3,7 +3,7 @@
 #include "device.h"
 #include "peer.h"
 #include "socket.h"
-#include "packets.h"
+#include "queueing.h"
 #include "messages.h"
 
 #include <linux/ctype.h>

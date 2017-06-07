@@ -1,6 +1,6 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "packets.h"
+#include "queueing.h"
 #include "socket.h"
 #include "timers.h"
 #include "device.h"
@@ -57,7 +57,7 @@ static int open(struct net_device *dev)
 		return ret;
 	peer_for_each (wg, peer, temp, true) {
 		timers_init_peer(peer);
-		packet_send_queue(peer);
+		packet_send_staged_packets(peer);
 		if (peer->persistent_keepalive_interval)
 			packet_send_keepalive(peer);
 	}
@@ -95,11 +95,10 @@ static int stop(struct net_device *dev)
 	struct wireguard_device *wg = netdev_priv(dev);
 	struct wireguard_peer *peer, *temp;
 	peer_for_each (wg, peer, temp, true) {
+		skb_queue_purge(&peer->staged_packet_queue);
 		timers_uninit_peer(peer);
 		noise_handshake_clear(&peer->handshake);
 		noise_keypairs_clear(&peer->keypairs);
-		if (peer->timers_enabled)
-			del_timer(&peer->timer_zero_key_material);
 	}
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);
@@ -111,6 +110,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	struct wireguard_device *wg = netdev_priv(dev);
 	struct wireguard_peer *peer;
 	struct sk_buff *next;
+	struct sk_buff_head packets;
 	int ret;
 
 	if (unlikely(dev_recursion_level() > 4)) {
@@ -141,11 +141,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_peer;
 	}
 
-	/* If the queue is getting too big, we start removing the oldest packets until it's small again.
-	 * We do this before adding the new packet, so we don't remove GSO segments that are in excess. */
-	while (skb_queue_len(&peer->tx_packet_queue) > MAX_QUEUED_OUTGOING_PACKETS)
-		dev_kfree_skb(skb_dequeue(&peer->tx_packet_queue));
-
+	__skb_queue_head_init(&packets);
 	if (!skb_is_gso(skb))
 		skb->next = NULL;
 	else {
@@ -169,10 +165,19 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		 * so at this point we're in a position to drop it. */
 		skb_dst_drop(skb);
 
-		skb_queue_tail(&peer->tx_packet_queue, skb);
+		__skb_queue_tail(&packets, skb);
 	} while ((skb = next) != NULL);
 
-	packet_send_queue(peer);
+	spin_lock_bh(&peer->staged_packet_queue.lock);
+	/* If the queue is getting too big, we start removing the oldest packets until it's small again.
+	 * We do this before adding the new packet, so we don't remove GSO segments that are in excess. */
+	while (skb_queue_len(&peer->staged_packet_queue) > MAX_STAGED_PACKETS)
+		dev_kfree_skb(__skb_dequeue(&peer->staged_packet_queue));
+	skb_queue_splice_tail(&packets, &peer->staged_packet_queue);
+	spin_unlock_bh(&peer->staged_packet_queue.lock);
+
+	packet_send_staged_packets(peer);
+
 	peer_put(peer);
 	return NETDEV_TX_OK;
 
@@ -220,15 +225,13 @@ static void destruct(struct net_device *dev)
 	list_del(&wg->device_list);
 	rtnl_unlock();
 	mutex_lock(&wg->device_update_lock);
-	peer_remove_all(wg);
+	peer_remove_all(wg); /* The final references are cleared in the below calls to destroy_workqueue. */
 	wg->incoming_port = 0;
-	destroy_workqueue(wg->incoming_handshake_wq);
-	destroy_workqueue(wg->peer_wq);
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	padata_free(wg->encrypt_pd);
-	padata_free(wg->decrypt_pd);
-	destroy_workqueue(wg->crypt_wq);
-#endif
+	destroy_workqueue(wg->handshake_receive_wq);
+	destroy_workqueue(wg->handshake_send_wq);
+	free_percpu(wg->decrypt_queue.worker);
+	free_percpu(wg->encrypt_queue.worker);
+	destroy_workqueue(wg->packet_crypt_wq);
 	routing_table_free(&wg->peer_routing_table);
 	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
@@ -275,7 +278,7 @@ static void setup(struct net_device *dev)
 
 static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *tb[], struct nlattr *data[], struct netlink_ext_ack *extack)
 {
-	int ret = -ENOMEM, cpu;
+	int ret = -ENOMEM;
 	struct wireguard_device *wg = netdev_priv(dev);
 
 	wg->creating_net = get_net(src_net);
@@ -293,38 +296,27 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (!dev->tstats)
 		goto error_1;
 
-	wg->incoming_handshakes_worker = alloc_percpu(struct handshake_worker);
+	wg->incoming_handshakes_worker = packet_alloc_percpu_multicore_worker(packet_handshake_receive_worker, wg);
 	if (!wg->incoming_handshakes_worker)
 		goto error_2;
-	for_each_possible_cpu (cpu) {
-		per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->wg = wg;
-		INIT_WORK(&per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->work, packet_process_queued_handshake_packets);
-	}
-	atomic_set(&wg->incoming_handshake_seqnr, 0);
 
-	wg->incoming_handshake_wq = alloc_workqueue("wg-kex-%s", WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
-	if (!wg->incoming_handshake_wq)
+	wg->handshake_receive_wq = alloc_workqueue("wg-kex-%s", WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
+	if (!wg->handshake_receive_wq)
 		goto error_3;
 
-	wg->peer_wq = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
-	if (!wg->peer_wq)
+	wg->handshake_send_wq = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
+	if (!wg->handshake_send_wq)
 		goto error_4;
 
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	wg->crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 2, dev->name);
-	if (!wg->crypt_wq)
+	wg->packet_crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
+	if (!wg->packet_crypt_wq)
 		goto error_5;
 
-	wg->encrypt_pd = padata_alloc_possible(wg->crypt_wq);
-	if (!wg->encrypt_pd)
+	if (packet_queue_init(&wg->encrypt_queue, packet_encrypt_worker, true) < 0)
 		goto error_6;
-	padata_start(wg->encrypt_pd);
 
-	wg->decrypt_pd = padata_alloc_possible(wg->crypt_wq);
-	if (!wg->decrypt_pd)
+	if (packet_queue_init(&wg->decrypt_queue, packet_decrypt_worker, true) < 0)
 		goto error_7;
-	padata_start(wg->decrypt_pd);
-#endif
 
 	ret = ratelimiter_init();
 	if (ret < 0)
@@ -346,17 +338,15 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 error_9:
 	ratelimiter_uninit();
 error_8:
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	padata_free(wg->decrypt_pd);
+	free_percpu(wg->decrypt_queue.worker);
 error_7:
-	padata_free(wg->encrypt_pd);
+	free_percpu(wg->encrypt_queue.worker);
 error_6:
-	destroy_workqueue(wg->crypt_wq);
+	destroy_workqueue(wg->packet_crypt_wq);
 error_5:
-#endif
-	destroy_workqueue(wg->peer_wq);
+	destroy_workqueue(wg->handshake_send_wq);
 error_4:
-	destroy_workqueue(wg->incoming_handshake_wq);
+	destroy_workqueue(wg->handshake_receive_wq);
 error_3:
 	free_percpu(wg->incoming_handshakes_worker);
 error_2:

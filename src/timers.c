@@ -3,7 +3,8 @@
 #include "timers.h"
 #include "device.h"
 #include "peer.h"
-#include "packets.h"
+#include "queueing.h"
+#include "socket.h"
 
 /*
  * Timer for retransmitting the handshake if we don't hear back after `REKEY_TIMEOUT + jitter` ms
@@ -30,10 +31,12 @@ static void expired_retransmit_handshake(unsigned long ptr)
 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
 		pr_debug("%s: Handshake for peer %Lu (%pISpfsc) did not complete after %d attempts, giving up\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, MAX_TIMER_HANDSHAKES + 2);
 
-		del_timer(&peer->timer_send_keepalive);
-		/* We remove all existing packets and don't try again,
+		if (likely(peer->timers_enabled))
+			del_timer(&peer->timer_send_keepalive);
+		/* We drop all packets without a keypair and don't try again,
 		 * if we try unsuccessfully for too long to make a handshake. */
-		skb_queue_purge(&peer->tx_packet_queue);
+		skb_queue_purge(&peer->staged_packet_queue);
+
 		/* We set a timer for destroying any residue that might be left
 		 * of a partial exchange. */
 		if (likely(peer->timers_enabled) && !timer_pending(&peer->timer_zero_key_material))
@@ -45,7 +48,7 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		/* We clear the endpoint address src address, in case this is the cause of trouble. */
 		socket_clear_peer_endpoint_src(peer);
 
-		packet_queue_handshake_initiation(peer, true);
+		packet_send_queued_handshake_initiation(peer, true);
 	}
 	peer_put(peer);
 }
@@ -56,7 +59,7 @@ static void expired_send_keepalive(unsigned long ptr)
 	packet_send_keepalive(peer);
 	if (peer->timer_need_another_keepalive) {
 		peer->timer_need_another_keepalive = false;
-		if (peer->timers_enabled)
+		if (likely(peer->timers_enabled))
 			mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
 	}
 	peer_put(peer);
@@ -68,14 +71,14 @@ static void expired_new_handshake(unsigned long ptr)
 	pr_debug("%s: Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
 	/* We clear the endpoint address src address, in case this is the cause of trouble. */
 	socket_clear_peer_endpoint_src(peer);
-	packet_queue_handshake_initiation(peer, false);
+	packet_send_queued_handshake_initiation(peer, false);
 	peer_put(peer);
 }
 
 static void expired_zero_key_material(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
-	if (!queue_work(peer->device->peer_wq, &peer->clear_peer_work)) /* Takes our reference. */
+	if (!queue_work(peer->device->handshake_send_wq, &peer->clear_peer_work)) /* Takes our reference. */
 		peer_put(peer); /* If the work was already on the queue, we want to drop the extra reference */
 }
 static void queued_expired_zero_key_material(struct work_struct *work)
