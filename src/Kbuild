@@ -26,9 +26,6 @@ endif
 
 ifneq ($(KBUILD_EXTMOD),)
 CONFIG_WIREGUARD := m
-ifneq ($(CONFIG_SMP),)
-ccflags-y += -DCONFIG_WIREGUARD_PARALLEL=y
-endif
 endif
 
 include $(src)/compat/Kbuild.include

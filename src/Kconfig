@@ -16,18 +16,6 @@ config WIREGUARD
 	  It's safe to say Y or M here, as the driver is very lightweight and
 	  is only in use when an administrator chooses to add an interface.
 
-config WIREGUARD_PARALLEL
-	bool "Enable parallel engine"
-	depends on SMP && WIREGUARD
-	select PADATA
-	default y
-	---help---
-	  This will allow WireGuard to utilize all CPU cores when encrypting
-	  and decrypting packets.
-	  
-	  It's safe to say Y here, and you probably should, as the performance
-	  improvements are substantial.
-
 config WIREGUARD_DEBUG
 	bool "Debugging checks and verbose messages"
 	depends on WIREGUARD

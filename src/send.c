@@ -4,6 +4,7 @@
 #include "timers.h"
 #include "device.h"
 #include "peer.h"
+#include "queue.h"
 #include "socket.h"
 #include "messages.h"
 #include "cookie.h"
@@ -89,7 +90,7 @@ void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *i
 	socket_send_buffer_as_reply_to_skb(wg, initiating_skb, &packet, sizeof(packet));
 }
 
-static inline void keep_key_fresh(struct wireguard_peer *peer)
+void keep_key_fresh_send(struct wireguard_peer *peer)
 {
 	struct noise_keypair *keypair;
 	bool send = false;
@@ -109,95 +110,20 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 void packet_send_keepalive(struct wireguard_peer *peer)
 {
 	struct sk_buff *skb;
-	if (skb_queue_empty(&peer->tx_packet_queue)) {
+	struct sk_buff_head queue;
+
+	if (queue_empty(&peer->init_queue)) {
 		skb = alloc_skb(DATA_PACKET_HEAD_ROOM + MESSAGE_MINIMUM_LENGTH, GFP_ATOMIC);
 		if (unlikely(!skb))
 			return;
 		skb_reserve(skb, DATA_PACKET_HEAD_ROOM);
 		skb->dev = peer->device->dev;
-		skb_queue_tail(&peer->tx_packet_queue, skb);
+		__skb_queue_head_init(&queue);
+		__skb_queue_tail(&queue, skb);
+		packet_create_data(peer, &queue);
 		net_dbg_ratelimited("%s: Sending keepalive packet to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
-	}
-	packet_send_queue(peer);
-}
-
-void packet_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *peer)
-{
-	struct sk_buff *skb, *tmp;
-	bool is_keepalive, data_sent = false;
-
-	if (unlikely(skb_queue_empty(queue)))
-		return;
-
-	timers_any_authenticated_packet_traversal(peer);
-	skb_queue_walk_safe (queue, skb, tmp) {
-		is_keepalive = skb->len == message_data_len(0);
-		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
-			data_sent = true;
-	}
-	if (likely(data_sent))
-		timers_data_sent(peer);
-
-	keep_key_fresh(peer);
-
-	if (unlikely(peer->need_resend_queue))
-		packet_send_queue(peer);
-}
-
-void packet_send_queue(struct wireguard_peer *peer)
-{
-	struct sk_buff_head queue;
-	struct sk_buff *skb;
-
-	peer->need_resend_queue = false;
-
-	/* Steal the current queue into our local one. */
-	skb_queue_head_init(&queue);
-	spin_lock_bh(&peer->tx_packet_queue.lock);
-	skb_queue_splice_init(&peer->tx_packet_queue, &queue);
-	spin_unlock_bh(&peer->tx_packet_queue.lock);
-
-	if (unlikely(skb_queue_empty(&queue)))
-		return;
-
-	/* We submit it for encryption and sending. */
-	switch (packet_create_data(&queue, peer)) {
-	case 0:
-		break;
-	case -EBUSY:
-		/* EBUSY happens when the parallel workers are all filled up, in which
-		 * case we should requeue everything. */
-
-		/* First, we mark that we should try to do this later, when existing
-		 * jobs are done. */
-		peer->need_resend_queue = true;
-
-		/* We stick the remaining skbs from local_queue at the top of the peer's
-		 * queue again, setting the top of local_queue to be the skb that begins
-		 * the requeueing. */
-		spin_lock_bh(&peer->tx_packet_queue.lock);
-		skb_queue_splice(&queue, &peer->tx_packet_queue);
-		spin_unlock_bh(&peer->tx_packet_queue.lock);
-		break;
-	case -ENOKEY:
-		/* ENOKEY means that we don't have a valid session for the peer, which
-		 * means we should initiate a session, but after requeuing like above.
-		 * Since we'll be queuing these up for potentially a little while, we
-		 * first make sure they're no longer using up a socket's write buffer. */
-
-		skb_queue_walk (&queue, skb)
-			skb_orphan(skb);
-
-		spin_lock_bh(&peer->tx_packet_queue.lock);
-		skb_queue_splice(&queue, &peer->tx_packet_queue);
-		spin_unlock_bh(&peer->tx_packet_queue.lock);
-
-		packet_queue_handshake_initiation(peer, false);
-		break;
-	default:
-		/* If we failed for any other reason, we want to just free the packets and
-		 * forget about them. We do this unlocked, since we're the only ones with
-		 * a reference to the local queue. */
-		__skb_queue_purge(&queue);
+	} else {
+		/* There are packets pending which need to be initialized with the new keypair. */
+		queue_work(peer->device->crypt_wq, &peer->init_queue.work);
 	}
 }

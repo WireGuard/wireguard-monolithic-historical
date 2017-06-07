@@ -187,7 +187,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 
 	if (unlikely(used_new_key)) {
 		timers_handshake_complete(peer);
-		packet_send_queue(peer);
+		queue_work(peer->device->crypt_wq, &peer->init_queue.work);
 	}
 
 	keep_key_fresh(peer);
@@ -234,7 +234,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		goto dishonest_packet_peer;
 
 	len = skb->len;
-	if (likely(netif_rx(skb) == NET_RX_SUCCESS))
+	if (likely(netif_rx_ni(skb) == NET_RX_SUCCESS))
 		rx_stats(peer, len);
 	else {
 		++dev->stats.rx_dropped;
@@ -262,7 +262,6 @@ packet_processed:
 continue_processing:
 	timers_any_authenticated_packet_received(peer);
 	timers_any_authenticated_packet_traversal(peer);
-	peer_put(peer);
 }
 
 void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
