@@ -141,7 +141,9 @@ DEFAULT_TABLE=
 add_default() {
 	if [[ -z $DEFAULT_TABLE ]]; then
 		DEFAULT_TABLE=51820
-		while [[ -n $(ip route show table $DEFAULT_TABLE) ]]; do ((DEFAULT_TABLE++)); done
+		while [[ -n $(ip -4 route show table $DEFAULT_TABLE) || -n $(ip -6 route show table $DEFAULT_TABLE) ]]; do
+			((DEFAULT_TABLE++))
+		done
 	fi
 	local proto=-4 src ip
 	if [[ $1 == *:* ]]; then
