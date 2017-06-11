@@ -130,7 +130,7 @@ set_mtu() {
 }
 
 add_route() {
-	if [[ $1 == 0.0.0.0/0 || $1 == ::/0 ]]; then
+	if [[ $1 == 0.0.0.0/0 || $1 =~ ^[0:]+/0$ ]]; then
 		add_default "$1"
 	else
 		cmd ip route add "$1" dev "$INTERFACE"
