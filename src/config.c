@@ -8,7 +8,6 @@
 #include "hashtables.h"
 #include "peer.h"
 #include "uapi.h"
-#include <linux/random.h>
 
 static int set_device_port(struct wireguard_device *wg, u16 port)
 {
@@ -134,10 +133,6 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 	struct wgdevice in_device;
 	void __user *user_peer;
 	bool modified_static_identity = false;
-
-	/* It's important that the Linux RNG is fully seeded before we let the user
-	 * actually configure the device, so that we're assured to have good ephemerals. */
-	wait_for_random_bytes();
 
 	BUILD_BUG_ON(WG_KEY_LEN != NOISE_PUBLIC_KEY_LEN);
 	BUILD_BUG_ON(WG_KEY_LEN != NOISE_SYMMETRIC_KEY_LEN);

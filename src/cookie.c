@@ -161,7 +161,7 @@ void cookie_message_create(struct message_handshake_cookie *dst, struct sk_buff 
 
 	dst->header.type = cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE);
 	dst->receiver_index = index;
-	get_random_bytes(dst->nonce, COOKIE_NONCE_LEN);
+	get_random_bytes_wait(dst->nonce, COOKIE_NONCE_LEN);
 
 	make_cookie(cookie, skb, checker);
 	xchacha20poly1305_encrypt(dst->encrypted_cookie, cookie, COOKIE_LEN, macs->mac1, COOKIE_LEN, dst->nonce, checker->cookie_encryption_key);

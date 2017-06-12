@@ -265,6 +265,16 @@ static inline int wait_for_random_bytes(void)
 	return 0;
 }
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
+static inline int get_random_bytes_wait(void *buf, int nbytes)
+{
+	int ret = wait_for_random_bytes();
+	if (unlikely(ret))
+		return ret;
+	get_random_bytes(buf, nbytes);
+	return 0;
+}
+#endif
 
 /* https://lkml.org/lkml/2015/6/12/415 */
 #include <linux/netdevice.h>

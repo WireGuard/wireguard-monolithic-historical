@@ -1545,7 +1545,7 @@ bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[C
 
 void curve25519_generate_secret(u8 secret[CURVE25519_POINT_SIZE])
 {
-	get_random_bytes(secret, CURVE25519_POINT_SIZE);
+	get_random_bytes_wait(secret, CURVE25519_POINT_SIZE);
 	normalize_secret(secret);
 }
 
