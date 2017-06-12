@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <fcntl.h>
-#ifdef __linux
+#ifdef __linux__
 #include <sys/syscall.h>
 #endif
 
