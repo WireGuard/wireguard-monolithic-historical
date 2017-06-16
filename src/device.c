@@ -199,7 +199,6 @@ err:
 	return ret;
 }
 
-
 static int ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
@@ -252,7 +251,9 @@ static void destruct(struct net_device *dev)
 	put_net(wg->creating_net);
 
 	pr_debug("%s: Interface deleted\n", dev->name);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
 	free_netdev(dev);
+#endif
 }
 
 static void setup(struct net_device *dev)
@@ -261,7 +262,12 @@ static void setup(struct net_device *dev)
 	enum { WG_NETDEV_FEATURES = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE | NETIF_F_HIGHDMA };
 
 	dev->netdev_ops = &netdev_ops;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
 	dev->destructor = destruct;
+#else
+	dev->priv_destructor = destruct;
+	dev->needs_free_netdev = true;
+#endif
 	dev->hard_header_len = 0;
 	dev->addr_len = 0;
 	dev->needed_headroom = DATA_PACKET_HEAD_ROOM;
@@ -349,14 +355,17 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 #endif
 
 	ret = register_netdevice(dev);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
 	if (ret < 0)
 		goto error_10;
-
+#endif
 	pr_debug("%s: Interface created\n", dev->name);
+	return ret;
 
-	return 0;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
 error_10:
+#endif
 #ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&wg->clear_peers_on_suspend);
 error_9:
