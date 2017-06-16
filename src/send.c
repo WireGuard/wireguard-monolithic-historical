@@ -109,7 +109,7 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 void packet_send_keepalive(struct wireguard_peer *peer)
 {
 	struct sk_buff *skb;
-	if (!skb_queue_len(&peer->tx_packet_queue)) {
+	if (skb_queue_empty(&peer->tx_packet_queue)) {
 		skb = alloc_skb(DATA_PACKET_HEAD_ROOM + MESSAGE_MINIMUM_LENGTH, GFP_ATOMIC);
 		if (unlikely(!skb))
 			return;
@@ -126,7 +126,7 @@ void packet_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *
 	struct sk_buff *skb, *tmp;
 	bool is_keepalive, data_sent = false;
 
-	if (unlikely(!skb_queue_len(queue)))
+	if (unlikely(skb_queue_empty(queue)))
 		return;
 
 	timers_any_authenticated_packet_traversal(peer);
@@ -157,7 +157,7 @@ void packet_send_queue(struct wireguard_peer *peer)
 	skb_queue_splice_init(&peer->tx_packet_queue, &queue);
 	spin_unlock_bh(&peer->tx_packet_queue.lock);
 
-	if (unlikely(!skb_queue_len(&queue)))
+	if (unlikely(skb_queue_empty(&queue)))
 		return;
 
 	/* We submit it for encryption and sending. */
