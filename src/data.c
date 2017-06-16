@@ -275,9 +275,9 @@ int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer)
 
 	rcu_read_lock_bh();
 	keypair = noise_keypair_get(rcu_dereference_bh(peer->keypairs.current_keypair));
-	if (unlikely(!keypair))
-		goto err_rcu;
 	rcu_read_unlock_bh();
+	if (unlikely(!keypair))
+		return ret;
 
 	skb_queue_walk (queue, skb) {
 		if (unlikely(!get_encryption_nonce(&PACKET_CB(skb)->nonce, &keypair->sending)))
@@ -327,9 +327,6 @@ serial_encrypt:
 
 err:
 	noise_keypair_put(keypair);
-	return ret;
-err_rcu:
-	rcu_read_unlock_bh();
 	return ret;
 }
 
