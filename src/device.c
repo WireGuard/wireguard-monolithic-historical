@@ -26,6 +26,8 @@
 #include <net/netfilter/nf_nat_core.h>
 #endif
 
+static LIST_HEAD(device_list);
+
 static int open(struct net_device *dev)
 {
 	int ret;
@@ -68,19 +70,27 @@ static int open(struct net_device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long action, void *data)
 {
-	struct wireguard_device *wg = container_of(nb, struct wireguard_device, clear_peers_on_suspend);
+	struct wireguard_device *wg;
 	struct wireguard_peer *peer, *temp;
-	if (action == PM_HIBERNATION_PREPARE || action == PM_SUSPEND_PREPARE) {
+
+	if (action != PM_HIBERNATION_PREPARE && action != PM_SUSPEND_PREPARE)
+		return 0;
+
+	rtnl_lock();
+	list_for_each_entry (wg, &device_list, device_list) {
 		peer_for_each (wg, peer, temp, true) {
 			noise_handshake_clear(&peer->handshake);
 			noise_keypairs_clear(&peer->keypairs);
 			if (peer->timers_enabled)
 				del_timer(&peer->timer_kill_ephemerals);
 		}
-		rcu_barrier_bh();
 	}
+	rtnl_unlock();
+	rcu_barrier_bh();
+
 	return 0;
 }
+static struct notifier_block clear_peers_on_suspend = { .notifier_call = suspending_clear_noise_peers };
 #endif
 
 static int stop(struct net_device *dev)
@@ -227,6 +237,9 @@ static void destruct(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
 
+	rtnl_lock();
+	list_del(&wg->device_list);
+	rtnl_unlock();
 	mutex_lock(&wg->device_update_lock);
 	peer_remove_all(wg);
 	wg->incoming_port = 0;
@@ -242,9 +255,6 @@ static void destruct(struct net_device *dev)
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);
 	cookie_checker_uninit(&wg->cookie_checker);
-#ifdef CONFIG_PM_SLEEP
-	unregister_pm_notifier(&wg->clear_peers_on_suspend);
-#endif
 	mutex_unlock(&wg->device_update_lock);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
@@ -347,27 +357,16 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (ret < 0)
 		goto error_8;
 
-#ifdef CONFIG_PM_SLEEP
-	wg->clear_peers_on_suspend.notifier_call = suspending_clear_noise_peers;
-	ret = register_pm_notifier(&wg->clear_peers_on_suspend);
+	ret = register_netdevice(dev);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
 	if (ret < 0)
 		goto error_9;
 #endif
-
-	ret = register_netdevice(dev);
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
-	if (ret < 0)
-		goto error_10;
-#endif
+	list_add(&wg->device_list, &device_list);
 	pr_debug("%s: Interface created\n", dev->name);
 	return ret;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
-error_10:
-#endif
-#ifdef CONFIG_PM_SLEEP
-	unregister_pm_notifier(&wg->clear_peers_on_suspend);
 error_9:
 #endif
 	cookie_checker_uninit(&wg->cookie_checker);
@@ -401,11 +400,19 @@ static struct rtnl_link_ops link_ops __read_mostly = {
 
 int __init device_init(void)
 {
+#ifdef CONFIG_PM_SLEEP
+	int ret = register_pm_notifier(&clear_peers_on_suspend);
+	if (ret)
+		return ret;
+#endif
 	return rtnl_link_register(&link_ops);
 }
 
 void __exit device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
+#ifdef CONFIG_PM_SLEEP
+	unregister_pm_notifier(&clear_peers_on_suspend);
+#endif
 	rcu_barrier_bh();
 }

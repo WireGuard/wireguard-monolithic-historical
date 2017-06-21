@@ -14,7 +14,6 @@
 #include <linux/mutex.h>
 #include <linux/net.h>
 #include <linux/padata.h>
-#include <linux/notifier.h>
 
 struct wireguard_device;
 struct handshake_worker {
@@ -23,6 +22,7 @@ struct handshake_worker {
 };
 
 struct wireguard_device {
+	struct list_head device_list;
 	struct sock __rcu *sock4, *sock6;
 	u16 incoming_port;
 	u32 fwmark;
@@ -39,9 +39,6 @@ struct wireguard_device {
 	struct list_head peer_list;
 	struct mutex device_update_lock;
 	struct mutex socket_update_lock;
-#ifdef CONFIG_PM_SLEEP
-	struct notifier_block clear_peers_on_suspend;
-#endif
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	struct workqueue_struct *crypt_wq;
 	struct padata_instance *encrypt_pd, *decrypt_pd;
