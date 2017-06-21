@@ -11,15 +11,6 @@
 #error "WireGuard requires Linux >= 3.10"
 #endif
 
-/* These conditionals can't be enforced by an out of tree module very easily,
- * so we stick them here in compat instead. */
-#if !IS_ENABLED(CONFIG_NETFILTER_XT_MATCH_HASHLIMIT)
-#error "WireGuard requires CONFIG_NETFILTER_XT_MATCH_HASHLIMIT."
-#endif
-#if IS_ENABLED(CONFIG_IPV6) && !IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
-#error "WireGuard requires CONFIG_IP6_NF_IPTABLES when using CONFIG_IPV6."
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0) && defined(CONFIG_X86_64)
 #define CONFIG_AS_SSSE3
 #endif
@@ -273,6 +264,18 @@ static inline int get_random_bytes_wait(void *buf, int nbytes)
 		return ret;
 	get_random_bytes(buf, nbytes);
 	return 0;
+}
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 11, 0)
+#define system_power_efficient_wq system_unbound_wq
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+#include <linux/ktime.h>
+static inline u64 ktime_get_ns(void)
+{
+	return ktime_to_ns(ktime_get());
 }
 #endif
 

@@ -4,7 +4,6 @@
 #define WGCOOKIE_H
 
 #include "messages.h"
-#include "ratelimiter.h"
 #include <linux/rwsem.h>
 
 struct wireguard_peer;
@@ -17,7 +16,6 @@ struct cookie_checker {
 	u8 message_mac1_key[NOISE_SYMMETRIC_KEY_LEN];
 	u64 secret_birthdate;
 	struct rw_semaphore secret_lock;
-	struct ratelimiter ratelimiter;
 	struct wireguard_device *device;
 };
 
@@ -39,8 +37,7 @@ enum cookie_mac_state {
 	VALID_MAC_WITH_COOKIE
 };
 
-int cookie_checker_init(struct cookie_checker *checker, struct wireguard_device *wg);
-void cookie_checker_uninit(struct cookie_checker *checker);
+void cookie_checker_init(struct cookie_checker *checker, struct wireguard_device *wg);
 void cookie_checker_precompute_device_keys(struct cookie_checker *checker);
 void cookie_checker_precompute_peer_keys(struct wireguard_peer *peer);
 void cookie_init(struct cookie *cookie);

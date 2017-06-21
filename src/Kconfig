@@ -2,12 +2,7 @@ config WIREGUARD
 	tristate "IP: WireGuard secure network tunnel"
 	depends on NET && INET
 	select NET_UDP_TUNNEL
-	select NETFILTER_XT_MATCH_HASHLIMIT
-	select NETFILTER
-	select NETFILTER_XTABLES
-	select NETFILTER_ADVANCED
 	select CRYPTO_BLKCIPHER
-	select IP6_NF_IPTABLES if IPV6
 	select NEON
 	select KERNEL_MODE_NEON
 	default m

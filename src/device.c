@@ -5,6 +5,7 @@
 #include "timers.h"
 #include "device.h"
 #include "config.h"
+#include "ratelimiter.h"
 #include "peer.h"
 #include "uapi.h"
 #include "messages.h"
@@ -251,10 +252,10 @@ static void destruct(struct net_device *dev)
 	destroy_workqueue(wg->crypt_wq);
 #endif
 	routing_table_free(&wg->peer_routing_table);
+	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);
-	cookie_checker_uninit(&wg->cookie_checker);
 	mutex_unlock(&wg->device_update_lock);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
@@ -314,6 +315,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	pubkey_hashtable_init(&wg->peer_hashtable);
 	index_hashtable_init(&wg->index_hashtable);
 	routing_table_init(&wg->peer_routing_table);
+	cookie_checker_init(&wg->cookie_checker, wg);
 	INIT_LIST_HEAD(&wg->peer_list);
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
@@ -353,7 +355,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	padata_start(wg->decrypt_pd);
 #endif
 
-	ret = cookie_checker_init(&wg->cookie_checker, wg);
+	ret = ratelimiter_init();
 	if (ret < 0)
 		goto error_8;
 
@@ -368,8 +370,8 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
 error_9:
+	ratelimiter_uninit();
 #endif
-	cookie_checker_uninit(&wg->cookie_checker);
 error_8:
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	padata_free(wg->decrypt_pd);

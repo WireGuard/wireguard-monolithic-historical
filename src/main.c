@@ -26,10 +26,6 @@ static int __init mod_init(void)
 #endif
 	noise_init();
 
-	ret = ratelimiter_module_init();
-	if (ret < 0)
-		return ret;
-
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	ret = packet_init_data_caches();
 	if (ret < 0)
@@ -50,7 +46,6 @@ err_device:
 	packet_deinit_data_caches();
 err_packet:
 #endif
-	ratelimiter_module_deinit();
 	return ret;
 }
 
@@ -60,7 +55,6 @@ static void __exit mod_exit(void)
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	packet_deinit_data_caches();
 #endif
-	ratelimiter_module_deinit();
 	pr_debug("WireGuard unloaded\n");
 }
 

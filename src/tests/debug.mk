@@ -18,9 +18,7 @@ endif
 test: debug
 	-sudo modprobe ip6_udp_tunnel
 	-sudo modprobe udp_tunnel
-	-sudo modprobe x_tables
 	-sudo modprobe ipv6
-	-sudo modprobe xt_hashlimit
 	-sudo modprobe nf_conntrack_ipv4
 	-sudo modprobe nf_conntrack_ipv6
 	-sudo rmmod wireguard

@@ -29,11 +29,6 @@ CONFIG_WIREGUARD := m
 ifneq ($(CONFIG_SMP),)
 ccflags-y += -DCONFIG_WIREGUARD_PARALLEL=y
 endif
-ifneq ($(CONFIG_MODULES),)
-ifeq ($(CONFIG_NETFILTER_XT_MATCH_HASHLIMIT),)
-$(error "WireGuard requires CONFIG_NETFILTER_XT_MATCH_HASHLIMIT to be configured in your kernel. See https://www.wireguard.io/install/#kernel-requirements for more info")
-endif
-endif
 endif
 
 include $(src)/compat/Kbuild.include
