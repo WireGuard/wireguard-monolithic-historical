@@ -127,7 +127,7 @@ void __init curve25519_fpu_init(void) { }
 #ifdef __SIZEOF_INT128__
 typedef u64 limb;
 typedef limb felem[5];
-typedef __uint128_t uint128_t;
+typedef __uint128_t u128;
 
 /* Sum two numbers: output += in */
 static __always_inline void fsum(limb *output, const limb *in)
@@ -161,21 +161,21 @@ static __always_inline void fdifference_backwards(felem out, const felem in)
 /* Multiply a number by a scalar: output = in * scalar */
 static __always_inline void fscalar_product(felem output, const felem in, const limb scalar)
 {
-	uint128_t a;
+	u128 a;
 
-	a = ((uint128_t) in[0]) * scalar;
+	a = ((u128) in[0]) * scalar;
 	output[0] = ((limb)a) & 0x7ffffffffffffUL;
 
-	a = ((uint128_t) in[1]) * scalar + ((limb) (a >> 51));
+	a = ((u128) in[1]) * scalar + ((limb) (a >> 51));
 	output[1] = ((limb)a) & 0x7ffffffffffffUL;
 
-	a = ((uint128_t) in[2]) * scalar + ((limb) (a >> 51));
+	a = ((u128) in[2]) * scalar + ((limb) (a >> 51));
 	output[2] = ((limb)a) & 0x7ffffffffffffUL;
 
-	a = ((uint128_t) in[3]) * scalar + ((limb) (a >> 51));
+	a = ((u128) in[3]) * scalar + ((limb) (a >> 51));
 	output[3] = ((limb)a) & 0x7ffffffffffffUL;
 
-	a = ((uint128_t) in[4]) * scalar + ((limb) (a >> 51));
+	a = ((u128) in[4]) * scalar + ((limb) (a >> 51));
 	output[4] = ((limb)a) & 0x7ffffffffffffUL;
 
 	output[0] += (a >> 51) * 19;
@@ -191,7 +191,7 @@ static __always_inline void fscalar_product(felem output, const felem in, const 
  */
 static __always_inline void fmul(felem output, const felem in2, const felem in)
 {
-	uint128_t t[5];
+	u128 t[5];
 	limb r0,r1,r2,r3,r4,s0,s1,s2,s3,s4,c;
 
 	r0 = in[0];
@@ -206,21 +206,21 @@ static __always_inline void fmul(felem output, const felem in2, const felem in)
 	s3 = in2[3];
 	s4 = in2[4];
 
-	t[0]  =  ((uint128_t) r0) * s0;
-	t[1]  =  ((uint128_t) r0) * s1 + ((uint128_t) r1) * s0;
-	t[2]  =  ((uint128_t) r0) * s2 + ((uint128_t) r2) * s0 + ((uint128_t) r1) * s1;
-	t[3]  =  ((uint128_t) r0) * s3 + ((uint128_t) r3) * s0 + ((uint128_t) r1) * s2 + ((uint128_t) r2) * s1;
-	t[4]  =  ((uint128_t) r0) * s4 + ((uint128_t) r4) * s0 + ((uint128_t) r3) * s1 + ((uint128_t) r1) * s3 + ((uint128_t) r2) * s2;
+	t[0]  =  ((u128) r0) * s0;
+	t[1]  =  ((u128) r0) * s1 + ((u128) r1) * s0;
+	t[2]  =  ((u128) r0) * s2 + ((u128) r2) * s0 + ((u128) r1) * s1;
+	t[3]  =  ((u128) r0) * s3 + ((u128) r3) * s0 + ((u128) r1) * s2 + ((u128) r2) * s1;
+	t[4]  =  ((u128) r0) * s4 + ((u128) r4) * s0 + ((u128) r3) * s1 + ((u128) r1) * s3 + ((u128) r2) * s2;
 
 	r4 *= 19;
 	r1 *= 19;
 	r2 *= 19;
 	r3 *= 19;
 
-	t[0] += ((uint128_t) r4) * s1 + ((uint128_t) r1) * s4 + ((uint128_t) r2) * s3 + ((uint128_t) r3) * s2;
-	t[1] += ((uint128_t) r4) * s2 + ((uint128_t) r2) * s4 + ((uint128_t) r3) * s3;
-	t[2] += ((uint128_t) r4) * s3 + ((uint128_t) r3) * s4;
-	t[3] += ((uint128_t) r4) * s4;
+	t[0] += ((u128) r4) * s1 + ((u128) r1) * s4 + ((u128) r2) * s3 + ((u128) r3) * s2;
+	t[1] += ((u128) r4) * s2 + ((u128) r2) * s4 + ((u128) r3) * s3;
+	t[2] += ((u128) r4) * s3 + ((u128) r3) * s4;
+	t[3] += ((u128) r4) * s4;
 
 			r0 = (limb)t[0] & 0x7ffffffffffffUL; c = (limb)(t[0] >> 51);
 	t[1] += c;      r1 = (limb)t[1] & 0x7ffffffffffffUL; c = (limb)(t[1] >> 51);
@@ -240,7 +240,7 @@ static __always_inline void fmul(felem output, const felem in2, const felem in)
 
 static __always_inline void fsquare_times(felem output, const felem in, limb count)
 {
-	uint128_t t[5];
+	u128 t[5];
 	limb r0,r1,r2,r3,r4,c;
 	limb d0,d1,d2,d4,d419;
 
@@ -257,11 +257,11 @@ static __always_inline void fsquare_times(felem output, const felem in, limb cou
 		d419 = r4 * 19;
 		d4 = d419 * 2;
 
-		t[0] = ((uint128_t) r0) * r0 + ((uint128_t) d4) * r1 + (((uint128_t) d2) * (r3     ));
-		t[1] = ((uint128_t) d0) * r1 + ((uint128_t) d4) * r2 + (((uint128_t) r3) * (r3 * 19));
-		t[2] = ((uint128_t) d0) * r2 + ((uint128_t) r1) * r1 + (((uint128_t) d4) * (r3     ));
-		t[3] = ((uint128_t) d0) * r3 + ((uint128_t) d1) * r2 + (((uint128_t) r4) * (d419   ));
-		t[4] = ((uint128_t) d0) * r4 + ((uint128_t) d1) * r3 + (((uint128_t) r2) * (r2     ));
+		t[0] = ((u128) r0) * r0 + ((u128) d4) * r1 + (((u128) d2) * (r3     ));
+		t[1] = ((u128) d0) * r1 + ((u128) d4) * r2 + (((u128) r3) * (r3 * 19));
+		t[2] = ((u128) d0) * r2 + ((u128) r1) * r1 + (((u128) d4) * (r3     ));
+		t[3] = ((u128) d0) * r3 + ((u128) d1) * r2 + (((u128) r4) * (d419   ));
+		t[4] = ((u128) d0) * r4 + ((u128) d1) * r3 + (((u128) r2) * (r2     ));
 
 				r0 = (limb)t[0] & 0x7ffffffffffffUL; c = (limb)(t[0] >> 51);
 		t[1] += c;      r1 = (limb)t[1] & 0x7ffffffffffffUL; c = (limb)(t[1] >> 51);
@@ -283,12 +283,12 @@ static __always_inline void fsquare_times(felem output, const felem in, limb cou
 /* Load a little-endian 64-bit number  */
 static inline limb load_limb(const u8 *in)
 {
-	return le64_to_cpu(*(u64 *)in);
+	return le64_to_cpu(*(__le64 *)in);
 }
 
 static inline void store_limb(u8 *out, limb in)
 {
-	*(u64 *)out = cpu_to_le64(in);
+	*(__le64 *)out = cpu_to_le64(in);
 }
 
 /* Take a little-endian, 32-byte number and expand it into polynomial form */
@@ -306,7 +306,7 @@ static inline void fexpand(limb *output, const u8 *in)
  */
 static void fcontract(u8 *output, const felem input)
 {
-	uint128_t t[5];
+	u128 t[5];
 
 	t[0] = input[0];
 	t[1] = input[1];
