@@ -28,7 +28,7 @@ static u8 handshake_init_hash[NOISE_HASH_LEN] __read_mostly;
 static u8 handshake_init_chaining_key[NOISE_HASH_LEN] __read_mostly;
 static atomic64_t keypair_counter = ATOMIC64_INIT(0);
 
-void noise_init(void)
+void __init noise_init(void)
 {
 	struct blake2s_state blake;
 	blake2s(handshake_init_chaining_key, handshake_name, NULL, NOISE_HASH_LEN, sizeof(handshake_name), 0);

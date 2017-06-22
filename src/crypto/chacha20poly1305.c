@@ -43,7 +43,7 @@ void chacha20poly1305_fpu_init(void)
 asmlinkage void chacha20_asm_block_xor_neon(u32 *state, u8 *dst, const u8 *src);
 asmlinkage void chacha20_asm_4block_xor_neon(u32 *state, u8 *dst, const u8 *src);
 static bool chacha20poly1305_use_neon __read_mostly = false;
-void chacha20poly1305_fpu_init(void)
+void __init chacha20poly1305_fpu_init(void)
 {
 #if defined(CONFIG_ARM64)
 	chacha20poly1305_use_neon = elf_hwcap & HWCAP_ASIMD;
@@ -52,7 +52,7 @@ void chacha20poly1305_fpu_init(void)
 #endif
 }
 #else
-void chacha20poly1305_fpu_init(void) { }
+void __init chacha20poly1305_fpu_init(void) { }
 #endif
 
 #define CHACHA20_IV_SIZE	16

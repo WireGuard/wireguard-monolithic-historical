@@ -33,7 +33,7 @@ struct decryption_ctx {
 static struct kmem_cache *encryption_ctx_cache __read_mostly;
 static struct kmem_cache *decryption_ctx_cache __read_mostly;
 
-int packet_init_data_caches(void)
+int __init packet_init_data_caches(void)
 {
 	encryption_ctx_cache = kmem_cache_create("wireguard_encryption_ctx", sizeof(struct encryption_ctx), 0, 0, NULL);
 	if (!encryption_ctx_cache)

@@ -110,13 +110,13 @@ void blake2s_init_key(struct blake2s_state *state, const u8 outlen, const void *
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
 static bool blake2s_use_avx __read_mostly = false;
-void blake2s_fpu_init(void)
+void __init blake2s_fpu_init(void)
 {
 	blake2s_use_avx = boot_cpu_has(X86_FEATURE_AVX);
 }
 asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 block[BLAKE2S_BLOCKBYTES]);
 #else
-void blake2s_fpu_init(void) { }
+void __init blake2s_fpu_init(void) { }
 #endif
 
 static inline void blake2s_compress(struct blake2s_state *state, const u8 block[BLAKE2S_BLOCKBYTES])

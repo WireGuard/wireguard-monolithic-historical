@@ -4,7 +4,7 @@
 
 #ifdef DEBUG_PRINT_TRIE_GRAPHVIZ
 #include <linux/siphash.h>
-static void print_node(struct routing_table_node *node, u8 bits)
+static __init void print_node(struct routing_table_node *node, u8 bits)
 {
 	u32 color = 0;
 	char *style = "dotted";
@@ -33,7 +33,7 @@ static void print_node(struct routing_table_node *node, u8 bits)
 		print_node(node->bit[1], bits);
 	}
 }
-static void print_tree(struct routing_table_node *top, u8 bits)
+static __init void print_tree(struct routing_table_node *top, u8 bits)
 {
 	printk(KERN_DEBUG "digraph trie {\n");
 	print_node(top, bits);
@@ -57,11 +57,11 @@ struct horrible_routing_table_node {
 	uint8_t ip_version;
 	void *value;
 };
-static void horrible_routing_table_init(struct horrible_routing_table *table)
+static __init void horrible_routing_table_init(struct horrible_routing_table *table)
 {
 	INIT_HLIST_HEAD(&table->head);
 }
-static void horrible_routing_table_free(struct horrible_routing_table *table)
+static __init void horrible_routing_table_free(struct horrible_routing_table *table)
 {
 	struct hlist_node *h;
 	struct horrible_routing_table_node *node;
@@ -70,7 +70,7 @@ static void horrible_routing_table_free(struct horrible_routing_table *table)
 		kfree(node);
 	};
 }
-static inline union nf_inet_addr horrible_cidr_to_mask(uint8_t cidr)
+static __init inline union nf_inet_addr horrible_cidr_to_mask(uint8_t cidr)
 {
 	union nf_inet_addr mask;
 	memset(&mask, 0x00, 128 / 8);
@@ -79,14 +79,14 @@ static inline union nf_inet_addr horrible_cidr_to_mask(uint8_t cidr)
 		mask.all[cidr / 32] = htonl((0xFFFFFFFFUL << (32 - (cidr % 32))) & 0xFFFFFFFFUL);
 	return mask;
 }
-static inline uint8_t horrible_mask_to_cidr(union nf_inet_addr subnet)
+static __init inline uint8_t horrible_mask_to_cidr(union nf_inet_addr subnet)
 {
 	return hweight32(subnet.all[0])
 	     + hweight32(subnet.all[1])
 	     + hweight32(subnet.all[2])
 	     + hweight32(subnet.all[3]);
 }
-static inline void horrible_mask_self(struct horrible_routing_table_node *node)
+static __init inline void horrible_mask_self(struct horrible_routing_table_node *node)
 {
 	if (node->ip_version == 4)
 		node->ip.ip &= node->mask.ip;
@@ -97,18 +97,18 @@ static inline void horrible_mask_self(struct horrible_routing_table_node *node)
 		node->ip.ip6[3] &= node->mask.ip6[3];
 	}
 }
-static inline bool horrible_match_v4(const struct horrible_routing_table_node *node, struct in_addr *ip)
+static __init inline bool horrible_match_v4(const struct horrible_routing_table_node *node, struct in_addr *ip)
 {
 	return (ip->s_addr & node->mask.ip) == node->ip.ip;
 }
-static inline bool horrible_match_v6(const struct horrible_routing_table_node *node, struct in6_addr *ip)
+static __init inline bool horrible_match_v6(const struct horrible_routing_table_node *node, struct in6_addr *ip)
 {
 	return	(ip->in6_u.u6_addr32[0] & node->mask.ip6[0]) == node->ip.ip6[0] &&
 		(ip->in6_u.u6_addr32[1] & node->mask.ip6[1]) == node->ip.ip6[1] &&
 		(ip->in6_u.u6_addr32[2] & node->mask.ip6[2]) == node->ip.ip6[2] &&
 		(ip->in6_u.u6_addr32[3] & node->mask.ip6[3]) == node->ip.ip6[3];
 }
-static void horrible_insert_ordered(struct horrible_routing_table *table, struct horrible_routing_table_node *node)
+static __init void horrible_insert_ordered(struct horrible_routing_table *table, struct horrible_routing_table_node *node)
 {
 	struct horrible_routing_table_node *other = NULL, *where = NULL;
 	uint8_t my_cidr = horrible_mask_to_cidr(node->mask);
@@ -131,7 +131,7 @@ static void horrible_insert_ordered(struct horrible_routing_table *table, struct
 	else
 		hlist_add_before(&node->table, &where->table);
 }
-static int horrible_routing_table_insert_v4(struct horrible_routing_table *table, struct in_addr *ip, uint8_t cidr, void *value)
+static __init int horrible_routing_table_insert_v4(struct horrible_routing_table *table, struct in_addr *ip, uint8_t cidr, void *value)
 {
 	struct horrible_routing_table_node *node = kzalloc(sizeof(struct horrible_routing_table_node), GFP_KERNEL);
 	if (!node)
@@ -144,7 +144,7 @@ static int horrible_routing_table_insert_v4(struct horrible_routing_table *table
 	horrible_insert_ordered(table, node);
 	return 0;
 }
-static int horrible_routing_table_insert_v6(struct horrible_routing_table *table, struct in6_addr *ip, uint8_t cidr, void *value)
+static __init int horrible_routing_table_insert_v6(struct horrible_routing_table *table, struct in6_addr *ip, uint8_t cidr, void *value)
 {
 	struct horrible_routing_table_node *node = kzalloc(sizeof(struct horrible_routing_table_node), GFP_KERNEL);
 	if (!node)
@@ -157,7 +157,7 @@ static int horrible_routing_table_insert_v6(struct horrible_routing_table *table
 	horrible_insert_ordered(table, node);
 	return 0;
 }
-static void *horrible_routing_table_lookup_v4(struct horrible_routing_table *table, struct in_addr *ip)
+static __init void *horrible_routing_table_lookup_v4(struct horrible_routing_table *table, struct in_addr *ip)
 {
 	struct horrible_routing_table_node *node;
 	void *ret = NULL;
@@ -171,7 +171,7 @@ static void *horrible_routing_table_lookup_v4(struct horrible_routing_table *tab
 	};
 	return ret;
 }
-static void *horrible_routing_table_lookup_v6(struct horrible_routing_table *table, struct in6_addr *ip)
+static __init void *horrible_routing_table_lookup_v6(struct horrible_routing_table *table, struct in6_addr *ip)
 {
 	struct horrible_routing_table_node *node;
 	void *ret = NULL;
@@ -186,7 +186,7 @@ static void *horrible_routing_table_lookup_v6(struct horrible_routing_table *tab
 	return ret;
 }
 
-static bool randomized_test(void)
+static __init bool randomized_test(void)
 {
 	bool ret = false;
 	unsigned int i, j, k, mutate_amount, cidr;
@@ -318,7 +318,7 @@ free:
 }
 #endif
 
-static inline struct in_addr *ip4(u8 a, u8 b, u8 c, u8 d)
+static __init inline struct in_addr *ip4(u8 a, u8 b, u8 c, u8 d)
 {
 	static struct in_addr ip;
 	u8 *split = (u8 *)&ip;
@@ -328,7 +328,7 @@ static inline struct in_addr *ip4(u8 a, u8 b, u8 c, u8 d)
 	split[3] = d;
 	return &ip;
 }
-static inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
+static __init inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 {
 	static struct in6_addr ip;
 	__be32 *split = (__be32 *)&ip;
@@ -368,7 +368,7 @@ static inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 	maybe_fail \
 } while (0)
 
-bool routing_table_selftest(void)
+bool __init routing_table_selftest(void)
 {
 	struct routing_table t;
 	struct wireguard_peer *a = NULL, *b = NULL, *c = NULL, *d = NULL, *e = NULL, *f = NULL, *g = NULL, *h = NULL;

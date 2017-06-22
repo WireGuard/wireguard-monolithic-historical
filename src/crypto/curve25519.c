@@ -116,12 +116,12 @@ static void curve25519_sandy2x_base(u8 pub[CURVE25519_POINT_SIZE], const u8 secr
 #include <asm/simd.h>
 asmlinkage void curve25519_asm_neon(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE]);
 static bool curve25519_use_neon __read_mostly = false;
-void curve25519_fpu_init(void)
+void __init curve25519_fpu_init(void)
 {
 	curve25519_use_neon = elf_hwcap & HWCAP_NEON;
 }
 #else
-void curve25519_fpu_init(void) { }
+void __init curve25519_fpu_init(void) { }
 #endif
 
 #ifdef __SIZEOF_INT128__

@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
 #ifdef DEBUG
-bool packet_counter_selftest(void)
+bool __init packet_counter_selftest(void)
 {
 	bool success = true;
 	unsigned int test_num = 0, i;
