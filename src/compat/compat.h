@@ -279,6 +279,11 @@ static inline u64 ktime_get_ns(void)
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+#include <linux/inetdevice.h>
+#define inet_confirm_addr(a,b,c,d,e) inet_confirm_addr(b,c,d,e)
+#endif
+
 /* https://lkml.org/lkml/2015/6/12/415 */
 #include <linux/netdevice.h>
 static inline struct net_device *netdev_pub(void *dev)

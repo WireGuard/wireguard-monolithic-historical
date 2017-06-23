@@ -10,6 +10,7 @@
 #include <linux/net.h>
 #include <linux/if_vlan.h>
 #include <linux/if_ether.h>
+#include <linux/inetdevice.h>
 #include <net/udp_tunnel.h>
 #include <net/ipv6.h>
 
@@ -44,10 +45,12 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 	if (!rt) {
 		security_sk_classify_flow(sock, flowi4_to_flowi(&fl));
 		rt = ip_route_output_flow(sock_net(sock), &fl, sock);
-		if (unlikely(IS_ERR(rt) && PTR_ERR(rt) == -EINVAL && fl.saddr)) {
+		if (unlikely(endpoint->src4.s_addr && ((IS_ERR(rt) && PTR_ERR(rt) == -EINVAL) || (!IS_ERR(rt) && !inet_confirm_addr(sock_net(sock), __in_dev_get_rcu(rt->dst.dev), 0, fl.saddr, RT_SCOPE_HOST))))) {
 			endpoint->src4.s_addr = fl.saddr = 0;
 			if (cache)
 				dst_cache_reset(cache);
+			if (!IS_ERR(rt))
+				dst_release(&rt->dst);
 			rt = ip_route_output_flow(sock_net(sock), &fl, sock);
 		}
 		if (unlikely(IS_ERR(rt))) {
