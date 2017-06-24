@@ -148,7 +148,6 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(dev_recursion_level() > 4)) {
 		ret = -ELOOP;
 		net_dbg_ratelimited("%s: Routing loop detected\n", dev->name);
-		skb_unsendable(skb, dev);
 		goto err;
 	}
 
