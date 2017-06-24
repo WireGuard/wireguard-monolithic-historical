@@ -284,6 +284,37 @@ static inline u64 ktime_get_ns(void)
 #define inet_confirm_addr(a,b,c,d,e) inet_confirm_addr(b,c,d,e)
 #endif
 
+/* https://lkml.org/lkml/2017/6/23/790 */
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+#include <linux/ip.h>
+#include <linux/icmpv6.h>
+#include <net/icmp.h>
+#include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_nat_core.h>
+static inline void new_icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb_in, &ctinfo);
+	if (skb_network_header(skb_in) < skb_in->head || (skb_network_header(skb_in) + sizeof(struct iphdr)) > skb_tail_pointer(skb_in))
+		return;
+	if (ct)
+		ip_hdr(skb_in)->saddr = ct->tuplehash[0].tuple.src.u3.ip;
+	icmp_send(skb_in, type, code, info);
+}
+static inline void new_icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	if (skb_network_header(skb) < skb->head || (skb_network_header(skb) + sizeof(struct ipv6hdr)) > skb_tail_pointer(skb))
+		return;
+	if (ct)
+		ipv6_hdr(skb)->saddr = ct->tuplehash[0].tuple.src.u3.in6;
+	icmpv6_send(skb, type, code, info);
+}
+#define icmp_send(a,b,c,d) new_icmp_send(a,b,c,d)
+#define icmpv6_send(a,b,c,d) new_icmpv6_send(a,b,c,d)
+#endif
+
 /* https://lkml.org/lkml/2015/6/12/415 */
 #include <linux/netdevice.h>
 static inline struct net_device *netdev_pub(void *dev)

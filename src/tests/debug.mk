@@ -19,8 +19,6 @@ test: debug
 	-sudo modprobe ip6_udp_tunnel
 	-sudo modprobe udp_tunnel
 	-sudo modprobe ipv6
-	-sudo modprobe nf_conntrack_ipv4
-	-sudo modprobe nf_conntrack_ipv6
 	-sudo rmmod wireguard
 	-sudo insmod wireguard.ko
 	sudo PATH="$(shell pwd)/tools:$$PATH:/usr/sbin:/sbin:/usr/bin:/bin:/usr/local/sbin:/usr/local/bin" ./tests/netns.sh

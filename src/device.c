@@ -22,10 +22,6 @@
 #include <net/rtnetlink.h>
 #include <net/ip_tunnels.h>
 #include <net/addrconf.h>
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-#include <net/netfilter/nf_conntrack.h>
-#include <net/netfilter/nf_nat_core.h>
-#endif
 
 static LIST_HEAD(device_list);
 
@@ -110,34 +106,6 @@ static int stop(struct net_device *dev)
 	return 0;
 }
 
-static void skb_unsendable(struct sk_buff *skb, struct net_device *dev)
-{
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-	/* This conntrack stuff is because the rate limiting needs to be applied
-	 * to the original src IP, so we have to restore saddr in the IP header.
-	 * It's not needed if conntracking isn't in the kernel, because in that
-	 * case the saddr wouldn't be NAT-transformed anyway. */
-	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-#endif
-	++dev->stats.tx_errors;
-
-	if (skb->len >= sizeof(struct iphdr) && ip_hdr(skb)->version == 4) {
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-		if (ct)
-			ip_hdr(skb)->saddr = ct->tuplehash[0].tuple.src.u3.ip;
-#endif
-		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
-	} else if (skb->len >= sizeof(struct ipv6hdr) && ip_hdr(skb)->version == 6) {
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-		if (ct)
-			ipv6_hdr(skb)->saddr = ct->tuplehash[0].tuple.src.u3.in6;
-#endif
-		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
-	}
-	kfree_skb(skb);
-}
-
 static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
@@ -205,7 +173,12 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 err_peer:
 	peer_put(peer);
 err:
-	skb_unsendable(skb, dev);
+	++dev->stats.tx_errors;
+	if (skb->protocol == htons(ETH_P_IP))
+		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
+	kfree_skb(skb);
 	return ret;
 }
 
