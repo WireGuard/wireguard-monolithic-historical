@@ -50,7 +50,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 			if (cache)
 				dst_cache_reset(cache);
 			if (!IS_ERR(rt))
-				dst_release(&rt->dst);
+				ip_rt_put(rt);
 			rt = ip_route_output_flow(sock_net(sock), &fl, sock);
 		}
 		if (unlikely(IS_ERR(rt))) {
@@ -58,7 +58,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 			net_dbg_ratelimited("%s: No route to %pISpfsc, error %d\n", netdev_pub(wg)->name, &endpoint->addr, ret);
 			goto err;
 		} else if (unlikely(rt->dst.dev == skb->dev)) {
-			dst_release(&rt->dst);
+			ip_rt_put(rt);
 			ret = -ELOOP;
 			net_dbg_ratelimited("%s: Avoiding routing loop to %pISpfsc\n", netdev_pub(wg)->name, &endpoint->addr);
 			goto err;
