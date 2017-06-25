@@ -207,12 +207,12 @@ int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg, struct sk_bu
 int socket_endpoint_from_skb(struct endpoint *endpoint, struct sk_buff *skb)
 {
 	memset(endpoint, 0, sizeof(struct endpoint));
-	if (ip_hdr(skb)->version == 4) {
+	if (skb->protocol == htons(ETH_P_IP)) {
 		endpoint->addr4.sin_family = AF_INET;
 		endpoint->addr4.sin_port = udp_hdr(skb)->source;
 		endpoint->addr4.sin_addr.s_addr = ip_hdr(skb)->saddr;
 		endpoint->src4.s_addr = ip_hdr(skb)->daddr;
-	} else if (ip_hdr(skb)->version == 6) {
+	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		endpoint->addr6.sin6_family = AF_INET6;
 		endpoint->addr6.sin6_port = udp_hdr(skb)->source;
 		endpoint->addr6.sin6_addr = ipv6_hdr(skb)->saddr;

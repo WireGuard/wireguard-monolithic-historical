@@ -322,25 +322,12 @@ int routing_table_walk_ips_by_peer_sleepable(struct routing_table *table, void *
 	return ret;
 }
 
-static inline bool has_valid_ip_header(struct sk_buff *skb)
-{
-	if (unlikely(skb->len < sizeof(struct iphdr)))
-		return false;
-	else if (unlikely(skb->len < sizeof(struct ipv6hdr) && ip_hdr(skb)->version == 6))
-		return false;
-	else if (unlikely(ip_hdr(skb)->version != 4 && ip_hdr(skb)->version != 6))
-		return false;
-	return true;
-}
-
 /* Returns a strong reference to a peer */
 struct wireguard_peer *routing_table_lookup_dst(struct routing_table *table, struct sk_buff *skb)
 {
-	if (unlikely(!has_valid_ip_header(skb)))
-		return NULL;
-	if (ip_hdr(skb)->version == 4)
+	if (skb->protocol == htons(ETH_P_IP))
 		return lookup(table->root4, 32, &ip_hdr(skb)->daddr);
-	else if (ip_hdr(skb)->version == 6)
+	else if (skb->protocol == htons(ETH_P_IPV6))
 		return lookup(table->root6, 128, &ipv6_hdr(skb)->daddr);
 	return NULL;
 }
@@ -348,11 +335,9 @@ struct wireguard_peer *routing_table_lookup_dst(struct routing_table *table, str
 /* Returns a strong reference to a peer */
 struct wireguard_peer *routing_table_lookup_src(struct routing_table *table, struct sk_buff *skb)
 {
-	if (unlikely(!has_valid_ip_header(skb)))
-		return NULL;
-	if (ip_hdr(skb)->version == 4)
+	if (skb->protocol == htons(ETH_P_IP))
 		return lookup(table->root4, 32, &ip_hdr(skb)->saddr);
-	else if (ip_hdr(skb)->version == 6)
+	else if (skb->protocol == htons(ETH_P_IPV6))
 		return lookup(table->root6, 128, &ipv6_hdr(skb)->saddr);
 	return NULL;
 }

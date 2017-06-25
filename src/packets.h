@@ -9,6 +9,9 @@
 
 #include <linux/types.h>
 #include <linux/padata.h>
+#include <linux/skbuff.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
 
 struct wireguard_device;
 struct wireguard_peer;
@@ -34,10 +37,19 @@ void packet_send_handshake_response(struct wireguard_peer *peer);
 void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *initiating_skb, __le32 sender_index);
 void packet_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *peer);
 
-
 /* data.c */
 int packet_create_data(struct sk_buff_head *queue, struct wireguard_peer *peer);
 void packet_consume_data(struct sk_buff *skb, struct wireguard_device *wg);
+
+/* Returns either the correct skb->protocol value, or 0 if invalid. */
+static inline __be16 skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
+{
+	if (skb_network_header(skb) >= skb->head && (skb_network_header(skb) + sizeof(struct iphdr)) <= skb_tail_pointer(skb) && ip_hdr(skb)->version == 4)
+		return htons(ETH_P_IP);
+	if (skb_network_header(skb) >= skb->head && (skb_network_header(skb) + sizeof(struct ipv6hdr)) <= skb_tail_pointer(skb) && ipv6_hdr(skb)->version == 6)
+		return htons(ETH_P_IPV6);
+	return 0;
+}
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
 int packet_init_data_caches(void);

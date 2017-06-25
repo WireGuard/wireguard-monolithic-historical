@@ -119,6 +119,12 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err;
 	}
 
+	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol)) {
+		ret = -EPROTONOSUPPORT;
+		net_dbg_ratelimited("%s: Invalid IP packet\n", dev->name);
+		goto err;
+	}
+
 	peer = routing_table_lookup_dst(&wg->peer_routing_table, skb);
 	if (unlikely(!peer)) {
 		ret = -ENOKEY;
@@ -130,7 +136,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	ret = peer->endpoint.addr.sa_family != AF_INET && peer->endpoint.addr.sa_family != AF_INET6;
 	read_unlock_bh(&peer->endpoint_lock);
 	if (unlikely(ret)) {
-		ret = -EHOSTUNREACH;
+		ret = -EDESTADDRREQ;
 		net_dbg_ratelimited("%s: No valid endpoint has been configured or discovered for peer %Lu\n", dev->name, peer->internal_id);
 		goto err_peer;
 	}

@@ -85,9 +85,9 @@ static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb, struct cooki
 	down_read(&checker->secret_lock);
 
 	blake2s_init_key(&state, COOKIE_LEN, checker->secret, NOISE_HASH_LEN);
-	if (ip_hdr(skb)->version == 4)
+	if (skb->protocol == htons(ETH_P_IP))
 		blake2s_update(&state, (u8 *)&ip_hdr(skb)->saddr, sizeof(struct in_addr));
-	else if (ip_hdr(skb)->version == 6)
+	else if (skb->protocol == htons(ETH_P_IPV6))
 		blake2s_update(&state, (u8 *)&ipv6_hdr(skb)->saddr, sizeof(struct in6_addr));
 	blake2s_update(&state, (u8 *)&udp_hdr(skb)->source, sizeof(__be16));
 	blake2s_final(&state, cookie, COOKIE_LEN);

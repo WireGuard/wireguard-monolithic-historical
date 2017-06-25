@@ -35,54 +35,26 @@ static inline int skb_prepare_header(struct sk_buff *skb, struct wireguard_devic
 	struct udphdr *udp;
 	size_t data_offset, data_len;
 	enum message_type message_type;
-
-	if (unlikely(skb->len < sizeof(struct iphdr)))
-		return -EINVAL;
-	if (unlikely(ip_hdr(skb)->version != 4 && ip_hdr(skb)->version != 6))
-		return -EINVAL;
-	if (unlikely(ip_hdr(skb)->version == 6 && skb->len < sizeof(struct ipv6hdr)))
-		return -EINVAL;
-
+	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol || skb_transport_header(skb) < skb->head || (skb_transport_header(skb) + sizeof(struct udphdr)) >= skb_tail_pointer(skb)))
+		return -EINVAL; /* Bogus IP header */
 	udp = udp_hdr(skb);
 	data_offset = (u8 *)udp - skb->data;
-	if (unlikely(data_offset > U16_MAX)) {
-		net_dbg_skb_ratelimited("%s: Packet has offset at impossible location from %pISpfsc\n", netdev_pub(wg)->name, skb);
-		return -EINVAL;
-	}
-	if (unlikely(data_offset + sizeof(struct udphdr) > skb->len)) {
-		net_dbg_skb_ratelimited("%s: Packet isn't big enough to have UDP fields from %pISpfsc\n", netdev_pub(wg)->name, skb);
-		return -EINVAL;
-	}
+	if (unlikely(data_offset > U16_MAX || data_offset + sizeof(struct udphdr) > skb->len))
+		return -EINVAL;  /* Packet has offset at impossible location or isn't big enough to have UDP fields*/
 	data_len = ntohs(udp->len);
-	if (unlikely(data_len < sizeof(struct udphdr))) {
-		net_dbg_skb_ratelimited("%s: UDP packet is reporting too small of a size from %pISpfsc\n", netdev_pub(wg)->name, skb);
-		return -EINVAL;
-	}
-	if (unlikely(data_len > skb->len - data_offset)) {
-		net_dbg_skb_ratelimited("%s: UDP packet is lying about its size from %pISpfsc\n", netdev_pub(wg)->name, skb);
-		return -EINVAL;
-	}
+	if (unlikely(data_len < sizeof(struct udphdr) || data_len > skb->len - data_offset))
+		return -EINVAL;  /* UDP packet is reporting too small of a size or lying about its size */
 	data_len -= sizeof(struct udphdr);
 	data_offset = (u8 *)udp + sizeof(struct udphdr) - skb->data;
-	if (unlikely(!pskb_may_pull(skb, data_offset + sizeof(struct message_header)))) {
-		net_dbg_skb_ratelimited("%s: Could not pull header into data section from %pISpfsc\n", netdev_pub(wg)->name, skb);
+	if (unlikely(!pskb_may_pull(skb, data_offset + sizeof(struct message_header)) || pskb_trim(skb, data_len + data_offset) < 0))
 		return -EINVAL;
-	}
-	if (pskb_trim(skb, data_len + data_offset) < 0) {
-		net_dbg_skb_ratelimited("%s: Could not trim packet from %pISpfsc\n", netdev_pub(wg)->name, skb);
-		return -EINVAL;
-	}
 	skb_pull(skb, data_offset);
-	if (unlikely(skb->len != data_len)) {
-		net_dbg_skb_ratelimited("%s: Final len does not agree with calculated len from %pISpfsc\n", netdev_pub(wg)->name, skb);
-		return -EINVAL;
-	}
+	if (unlikely(skb->len != data_len))
+		return -EINVAL; /* Final len does not agree with calculated len */
 	message_type = message_determine_type(skb);
 	__skb_push(skb, data_offset);
-	if (unlikely(!pskb_may_pull(skb, data_offset + message_header_sizes[message_type]))) {
-		net_dbg_skb_ratelimited("%s: Could not pull full header into data section from %pISpfsc\n", netdev_pub(wg)->name, skb);
+	if (unlikely(!pskb_may_pull(skb, data_offset + message_header_sizes[message_type])))
 		return -EINVAL;
-	}
 	__skb_pull(skb, data_offset);
 	return message_type;
 }
@@ -231,32 +203,26 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		net_dbg_ratelimited("%s: Receiving keepalive packet from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
 		goto packet_processed;
 	}
-
-	if (!pskb_may_pull(skb, 1 /* For checking the ip version below */)) {
-		++dev->stats.rx_errors;
-		++dev->stats.rx_length_errors;
-		net_dbg_ratelimited("%s: Packet missing IP version from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
-		goto packet_processed;
-	}
+	if (skb_network_header(skb) < skb->head)
+		goto dishonest_packet_size;
 
 	skb->dev = dev;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	if (skb->len >= sizeof(struct iphdr) && ip_hdr(skb)->version == 4) {
+	skb->protocol = skb_examine_untrusted_ip_hdr(skb);
+	if (skb->protocol == htons(ETH_P_IP)) {
 		len = ntohs(ip_hdr(skb)->tot_len);
 		if (unlikely(len < sizeof(struct iphdr)))
 			goto dishonest_packet_size;
-		skb->protocol = htons(ETH_P_IP);
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP_ECN_set_ce(ip_hdr(skb));
 
-	} else if (skb->len >= sizeof(struct ipv6hdr) && ip_hdr(skb)->version == 6) {
+	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		len = ntohs(ipv6_hdr(skb)->payload_len) + sizeof(struct ipv6hdr);
-		skb->protocol = htons(ETH_P_IPV6);
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP6_ECN_set_ce(skb, ipv6_hdr(skb));
 	} else {
 		++dev->stats.rx_errors;
-		++dev->stats.rx_length_errors;
+		++dev->stats.rx_frame_errors;
 		net_dbg_ratelimited("%s: Packet neither ipv4 nor ipv6 from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
 		goto packet_processed;
 	}

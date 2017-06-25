@@ -82,12 +82,12 @@ bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 	struct hlist_head *bucket;
 	struct { u32 net; __be32 ip[3]; } data = { .net = (unsigned long)net & 0xffffffff };
 
-	if (skb->len >= sizeof(struct iphdr) && ip_hdr(skb)->version == 4) {
+	if (skb->protocol == htons(ETH_P_IP)) {
 		data.ip[0] = ip_hdr(skb)->saddr;
 		bucket = &table_v4[hsiphash(&data, sizeof(u32) * 2, &key) & (table_size - 1)];
 	}
 #if IS_ENABLED(CONFIG_IPV6)
-	else if (skb->len >= sizeof(struct ipv6hdr) && ip_hdr(skb)->version == 6) {
+	else if (skb->protocol == htons(ETH_P_IPV6)) {
 		memcpy(data.ip, &ipv6_hdr(skb)->saddr, sizeof(u32) * 3); /* Only 96 bits */
 		bucket = &table_v6[hsiphash(&data, sizeof(u32) * 4, &key) & (table_size - 1)];
 	}
