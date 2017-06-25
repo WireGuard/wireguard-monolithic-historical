@@ -15,11 +15,9 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
 #ifdef __LITTLE_ENDIAN
- #define HASH_LEN_DECLARE u32 hash; u32 len;
- #define bytemask_from_count(cnt)	(~(~0ul << (cnt)*8))
+#define bytemask_from_count(cnt)	(~(~0ul << (cnt)*8))
 #else
- #define HASH_LEN_DECLARE u32 len; u32 hash;
- #define bytemask_from_count(cnt)	(~(~0ul >> (cnt)*8))
+#define bytemask_from_count(cnt)	(~(~0ul >> (cnt)*8))
 #endif
 #endif
 
