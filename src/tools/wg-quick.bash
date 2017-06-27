@@ -54,10 +54,9 @@ parse_options() {
 }
 
 read_bool() {
-	local -n out="$1"
 	case "$2" in
-	true) out=1 ;;
-	false) out=0 ;;
+	true) printf -v "$1" 1 ;;
+	false) printf -v "$1" 0 ;;
 	*) die "\`$2' is neither true nor false"
 	esac
 }
