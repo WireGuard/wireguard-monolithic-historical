@@ -87,7 +87,6 @@ u64 __siphash_aligned(const void *data, size_t len, const siphash_key_t *key)
 #endif
 	POSTAMBLE
 }
-EXPORT_SYMBOL(__siphash_aligned);
 
 #ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 u64 __siphash_unaligned(const void *data, size_t len, const siphash_key_t *key)
@@ -120,7 +119,6 @@ u64 __siphash_unaligned(const void *data, size_t len, const siphash_key_t *key)
 #endif
 	POSTAMBLE
 }
-EXPORT_SYMBOL(__siphash_unaligned);
 #endif
 
 /**
@@ -137,7 +135,6 @@ u64 siphash_1u64(const u64 first, const siphash_key_t *key)
 	v0 ^= first;
 	POSTAMBLE
 }
-EXPORT_SYMBOL(siphash_1u64);
 
 /**
  * siphash_2u64 - compute 64-bit siphash PRF value of 2 u64
@@ -158,7 +155,6 @@ u64 siphash_2u64(const u64 first, const u64 second, const siphash_key_t *key)
 	v0 ^= second;
 	POSTAMBLE
 }
-EXPORT_SYMBOL(siphash_2u64);
 
 /**
  * siphash_3u64 - compute 64-bit siphash PRF value of 3 u64
@@ -185,7 +181,6 @@ u64 siphash_3u64(const u64 first, const u64 second, const u64 third,
 	v0 ^= third;
 	POSTAMBLE
 }
-EXPORT_SYMBOL(siphash_3u64);
 
 /**
  * siphash_4u64 - compute 64-bit siphash PRF value of 4 u64
@@ -217,7 +212,6 @@ u64 siphash_4u64(const u64 first, const u64 second, const u64 third,
 	v0 ^= forth;
 	POSTAMBLE
 }
-EXPORT_SYMBOL(siphash_4u64);
 
 u64 siphash_1u32(const u32 first, const siphash_key_t *key)
 {
@@ -225,7 +219,6 @@ u64 siphash_1u32(const u32 first, const siphash_key_t *key)
 	b |= first;
 	POSTAMBLE
 }
-EXPORT_SYMBOL(siphash_1u32);
 
 u64 siphash_3u32(const u32 first, const u32 second, const u32 third,
 		 const siphash_key_t *key)
@@ -239,7 +232,6 @@ u64 siphash_3u32(const u32 first, const u32 second, const u32 third,
 	b |= third;
 	POSTAMBLE
 }
-EXPORT_SYMBOL(siphash_3u32);
 
 #if BITS_PER_LONG == 64
 /* Note that on 64-bit, we make HalfSipHash1-3 actually be SipHash1-3, for
@@ -287,7 +279,6 @@ u32 __hsiphash_aligned(const void *data, size_t len, const hsiphash_key_t *key)
 #endif
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(__hsiphash_aligned);
 
 #ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 u32 __hsiphash_unaligned(const void *data, size_t len,
@@ -320,7 +311,6 @@ u32 __hsiphash_unaligned(const void *data, size_t len,
 #endif
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(__hsiphash_unaligned);
 #endif
 
 /**
@@ -334,7 +324,6 @@ u32 hsiphash_1u32(const u32 first, const hsiphash_key_t *key)
 	b |= first;
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(hsiphash_1u32);
 
 /**
  * hsiphash_2u32 - compute 32-bit hsiphash PRF value of 2 u32
@@ -351,7 +340,6 @@ u32 hsiphash_2u32(const u32 first, const u32 second, const hsiphash_key_t *key)
 	v0 ^= combined;
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(hsiphash_2u32);
 
 /**
  * hsiphash_3u32 - compute 32-bit hsiphash PRF value of 3 u32
@@ -371,7 +359,6 @@ u32 hsiphash_3u32(const u32 first, const u32 second, const u32 third,
 	b |= third;
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(hsiphash_3u32);
 
 /**
  * hsiphash_4u32 - compute 32-bit hsiphash PRF value of 4 u32
@@ -395,7 +382,6 @@ u32 hsiphash_4u32(const u32 first, const u32 second, const u32 third,
 	v0 ^= combined;
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(hsiphash_4u32);
 #else
 #define HSIPROUND \
 	do { \
@@ -445,7 +431,6 @@ u32 __hsiphash_aligned(const void *data, size_t len, const hsiphash_key_t *key)
 	}
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(__hsiphash_aligned);
 
 #ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 u32 __hsiphash_unaligned(const void *data, size_t len,
@@ -468,7 +453,6 @@ u32 __hsiphash_unaligned(const void *data, size_t len,
 	}
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(__hsiphash_unaligned);
 #endif
 
 /**
@@ -484,7 +468,6 @@ u32 hsiphash_1u32(const u32 first, const hsiphash_key_t *key)
 	v0 ^= first;
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(hsiphash_1u32);
 
 /**
  * hsiphash_2u32 - compute 32-bit hsiphash PRF value of 2 u32
@@ -503,7 +486,6 @@ u32 hsiphash_2u32(const u32 first, const u32 second, const hsiphash_key_t *key)
 	v0 ^= second;
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(hsiphash_2u32);
 
 /**
  * hsiphash_3u32 - compute 32-bit hsiphash PRF value of 3 u32
@@ -527,7 +509,6 @@ u32 hsiphash_3u32(const u32 first, const u32 second, const u32 third,
 	v0 ^= third;
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(hsiphash_3u32);
 
 /**
  * hsiphash_4u32 - compute 32-bit hsiphash PRF value of 4 u32
@@ -555,5 +536,4 @@ u32 hsiphash_4u32(const u32 first, const u32 second, const u32 third,
 	v0 ^= forth;
 	HPOSTAMBLE
 }
-EXPORT_SYMBOL(hsiphash_4u32);
 #endif

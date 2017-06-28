@@ -80,7 +80,6 @@ struct dst_entry *dst_cache_get(struct dst_cache *dst_cache)
 
 	return dst_cache_per_cpu_get(dst_cache, this_cpu_ptr(dst_cache->cache));
 }
-EXPORT_SYMBOL_GPL(dst_cache_get);
 
 struct rtable *dst_cache_get_ip4(struct dst_cache *dst_cache, __be32 *saddr)
 {
@@ -98,7 +97,6 @@ struct rtable *dst_cache_get_ip4(struct dst_cache *dst_cache, __be32 *saddr)
 	*saddr = idst->in_saddr.s_addr;
 	return container_of(dst, struct rtable, dst);
 }
-EXPORT_SYMBOL_GPL(dst_cache_get_ip4);
 
 void dst_cache_set_ip4(struct dst_cache *dst_cache, struct dst_entry *dst,
 		       __be32 saddr)
@@ -112,7 +110,6 @@ void dst_cache_set_ip4(struct dst_cache *dst_cache, struct dst_entry *dst,
 	dst_cache_per_cpu_dst_set(idst, dst, 0);
 	idst->in_saddr.s_addr = saddr;
 }
-EXPORT_SYMBOL_GPL(dst_cache_set_ip4);
 
 #if IS_ENABLED(CONFIG_IPV6)
 void dst_cache_set_ip6(struct dst_cache *dst_cache, struct dst_entry *dst,
@@ -128,7 +125,6 @@ void dst_cache_set_ip6(struct dst_cache *dst_cache, struct dst_entry *dst,
 				  rt6_get_cookie((struct rt6_info *)dst));
 	idst->in6_saddr = *addr;
 }
-EXPORT_SYMBOL_GPL(dst_cache_set_ip6);
 
 struct dst_entry *dst_cache_get_ip6(struct dst_cache *dst_cache,
 				    struct in6_addr *saddr)
@@ -147,7 +143,6 @@ struct dst_entry *dst_cache_get_ip6(struct dst_cache *dst_cache,
 	*saddr = idst->in6_saddr;
 	return dst;
 }
-EXPORT_SYMBOL_GPL(dst_cache_get_ip6);
 #endif
 
 int dst_cache_init(struct dst_cache *dst_cache, gfp_t gfp)
@@ -165,7 +160,6 @@ int dst_cache_init(struct dst_cache *dst_cache, gfp_t gfp)
 	dst_cache_reset(dst_cache);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dst_cache_init);
 
 void dst_cache_destroy(struct dst_cache *dst_cache)
 {
@@ -179,4 +173,3 @@ void dst_cache_destroy(struct dst_cache *dst_cache)
 
 	free_percpu(dst_cache->cache);
 }
-EXPORT_SYMBOL_GPL(dst_cache_destroy);

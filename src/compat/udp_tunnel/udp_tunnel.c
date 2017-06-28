@@ -77,7 +77,6 @@ error:
 	*sockp = NULL;
 	return err;
 }
-EXPORT_SYMBOL(udp_sock_create4);
 
 void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 			   struct udp_tunnel_sock_cfg *cfg)
@@ -87,7 +86,6 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 	rcu_assign_sk_user_data(sock->sk, cfg->sk_user_data);
 	sock->sk->sk_data_ready = our_sk_data_ready;
 }
-EXPORT_SYMBOL_GPL(setup_udp_tunnel_sock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
 static inline __sum16 udp_v4_check(int len, __be32 saddr,
@@ -212,7 +210,6 @@ void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb
 	iptunnel_xmit_stats(ret, &dev->stats, dev->tstats);
 #endif
 }
-EXPORT_SYMBOL_GPL(udp_tunnel_xmit_skb);
 
 void udp_tunnel_sock_release(struct socket *sock)
 {
@@ -220,7 +217,6 @@ void udp_tunnel_sock_release(struct socket *sock)
 	kernel_sock_shutdown(sock, SHUT_RDWR);
 	sock_release(sock);
 }
-EXPORT_SYMBOL_GPL(udp_tunnel_sock_release);
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <linux/module.h>
@@ -296,7 +292,6 @@ error:
 	*sockp = NULL;
 	return err;
 }
-EXPORT_SYMBOL_GPL(udp_sock_create6);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
 static inline __sum16 udp_v6_check(int len,
@@ -382,5 +377,4 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 	ip6tunnel_xmit(skb, dev);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(udp_tunnel6_xmit_skb);
 #endif
