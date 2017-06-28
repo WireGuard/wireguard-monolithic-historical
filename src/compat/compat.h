@@ -6,10 +6,16 @@
 #include <linux/kconfig.h>
 #include <linux/version.h>
 #include <linux/types.h>
+#include <generated/utsrelease.h>
 
 #ifdef RHEL_MAJOR
 #if RHEL_MAJOR == 7
 #define ISRHEL7
+#endif
+#endif
+#ifdef UTS_UBUNTU_RELEASE_ABI
+#if LINUX_VERSION_CODE == KERNEL_VERSION(3, 13, 11)
+#define ISUBUNTU1404
 #endif
 #endif
 
@@ -42,7 +48,7 @@
 #if ((LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 6)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 12) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 17, 0)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 8) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)) || \
-    LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40)) && !defined(ISRHEL7)
+    LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40)) && !defined(ISRHEL7) && !defined(ISUBUNTU1404)
 #define dev_recursion_level() 0
 #endif
 
@@ -50,12 +56,12 @@
 #define ipv6_dst_lookup(a, b, c, d) ipv6_dst_lookup(b, c, d)
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 5) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)) || \
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 5) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 17) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 27) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 8) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)) || \
     (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)) || \
-    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 54))
+    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 54))) && !defined(ISUBUNTU1404)
 #include <linux/if.h>
 #include <net/ip_tunnels.h>
 #define IP6_ECN_set_ce(a, b) IP6_ECN_set_ce(b)
@@ -180,7 +186,7 @@ static inline void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) && !defined(ISRHEL7)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) || defined(ISUBUNTU1404)) && !defined(ISRHEL7)
 #include <linux/random.h>
 static inline u32 prandom_u32_max(u32 ep_ro)
 {
