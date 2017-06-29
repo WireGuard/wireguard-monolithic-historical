@@ -35,7 +35,7 @@ static inline int skb_prepare_header(struct sk_buff *skb, struct wireguard_devic
 	struct udphdr *udp;
 	size_t data_offset, data_len;
 	enum message_type message_type;
-	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol || skb_transport_header(skb) < skb->head || (skb_transport_header(skb) + sizeof(struct udphdr)) >= skb_tail_pointer(skb)))
+	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol || skb_transport_header(skb) < skb->head || (skb_transport_header(skb) + sizeof(struct udphdr)) > skb_tail_pointer(skb)))
 		return -EINVAL; /* Bogus IP header */
 	udp = udp_hdr(skb);
 	data_offset = (u8 *)udp - skb->data;
