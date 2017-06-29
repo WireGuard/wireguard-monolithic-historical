@@ -206,6 +206,9 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 	if (skb_network_header(skb) < skb->head)
 		goto dishonest_packet_size;
 
+	if (unlikely(!(pskb_network_may_pull(skb, sizeof(struct iphdr)) && (ip_hdr(skb)->version == 4 || (ip_hdr(skb)->version == 6 && pskb_network_may_pull(skb, sizeof(struct ipv6hdr)))))))
+		goto dishonest_packet_type;
+
 	skb->dev = dev;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->protocol = skb_examine_untrusted_ip_hdr(skb);
@@ -221,6 +224,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP6_ECN_set_ce(skb, ipv6_hdr(skb));
 	} else {
+dishonest_packet_type:
 		++dev->stats.rx_errors;
 		++dev->stats.rx_frame_errors;
 		net_dbg_ratelimited("%s: Packet neither ipv4 nor ipv6 from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
