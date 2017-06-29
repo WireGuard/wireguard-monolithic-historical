@@ -203,9 +203,9 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		net_dbg_ratelimited("%s: Receiving keepalive packet from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
 		goto packet_processed;
 	}
-	if (skb_network_header(skb) < skb->head)
-		goto dishonest_packet_size;
 
+	if (unlikely(skb_network_header(skb) < skb->head))
+		goto dishonest_packet_size;
 	if (unlikely(!(pskb_network_may_pull(skb, sizeof(struct iphdr)) && (ip_hdr(skb)->version == 4 || (ip_hdr(skb)->version == 6 && pskb_network_may_pull(skb, sizeof(struct ipv6hdr)))))))
 		goto dishonest_packet_type;
 
@@ -223,22 +223,13 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		len = ntohs(ipv6_hdr(skb)->payload_len) + sizeof(struct ipv6hdr);
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP6_ECN_set_ce(skb, ipv6_hdr(skb));
-	} else {
-dishonest_packet_type:
-		++dev->stats.rx_errors;
-		++dev->stats.rx_frame_errors;
-		net_dbg_ratelimited("%s: Packet neither ipv4 nor ipv6 from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
-		goto packet_processed;
-	}
+	} else
+		goto dishonest_packet_type;
 
 	if (unlikely(len > skb->len)) {
-dishonest_packet_size:
-		net_dbg_ratelimited("%s: Packet is lying about its size from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
-		++dev->stats.rx_errors;
-		++dev->stats.rx_length_errors;
-		goto packet_processed;
+		goto dishonest_packet_size;
 	}
-	if (len < skb->len && pskb_trim(skb, len))
+	if (len < skb->len && unlikely(pskb_trim(skb, len)))
 		goto packet_processed;
 
 	timers_data_received(peer);
@@ -246,12 +237,8 @@ dishonest_packet_size:
 	routed_peer = routing_table_lookup_src(&wg->peer_routing_table, skb);
 	peer_put(routed_peer); /* We don't need the extra reference. */
 
-	if (unlikely(routed_peer != peer)) {
-		++dev->stats.rx_errors;
-		++dev->stats.rx_frame_errors;
-		net_dbg_skb_ratelimited("%s: Packet has unallowed src IP (%pISc) from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, skb, peer->internal_id, &peer->endpoint.addr);
-		goto packet_processed;
-	}
+	if (unlikely(routed_peer != peer))
+		goto dishonest_packet_peer;
 
 	len = skb->len;
 	if (likely(netif_rx(skb) == NET_RX_SUCCESS))
@@ -262,6 +249,21 @@ dishonest_packet_size:
 	}
 	goto continue_processing;
 
+dishonest_packet_peer:
+	net_dbg_skb_ratelimited("%s: Packet has unallowed src IP (%pISc) from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, skb, peer->internal_id, &peer->endpoint.addr);
+	++dev->stats.rx_errors;
+	++dev->stats.rx_frame_errors;
+	goto packet_processed;
+dishonest_packet_type:
+	net_dbg_ratelimited("%s: Packet is neither ipv4 nor ipv6 from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+	++dev->stats.rx_errors;
+	++dev->stats.rx_frame_errors;
+	goto packet_processed;
+dishonest_packet_size:
+	net_dbg_ratelimited("%s: Packet has incorrect size from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+	++dev->stats.rx_errors;
+	++dev->stats.rx_length_errors;
+	goto packet_processed;
 packet_processed:
 	dev_kfree_skb(skb);
 continue_processing:
