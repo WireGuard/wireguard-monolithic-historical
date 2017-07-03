@@ -304,6 +304,7 @@ static inline u64 ktime_get_ns(void)
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
 #include <linux/icmpv6.h>
+#include <net/ipv6.h>
 #include <net/icmp.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_nat_core.h>
