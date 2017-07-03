@@ -18,6 +18,11 @@
 #define ISUBUNTU1404
 #endif
 #endif
+#ifdef CONFIG_SUSE_KERNEL
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+#define ISOPENSUSE42
+#endif
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
 #error "WireGuard requires Linux >= 3.10"
@@ -88,7 +93,7 @@ static const struct ipv6_stub_type *ipv6_stub = &ipv6_stub_impl;
 #endif
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0) && IS_ENABLED(CONFIG_IPV6)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0) && IS_ENABLED(CONFIG_IPV6) && !defined(ISOPENSUSE42)
 #include <net/addrconf.h>
 static inline bool ipv6_mod_enabled(void)
 {
