@@ -9,4 +9,8 @@ int ratelimiter_init(void);
 void ratelimiter_uninit(void);
 bool ratelimiter_allow(struct sk_buff *skb, struct net *net);
 
+#ifdef DEBUG
+bool ratelimiter_selftest(void);
+#endif
+
 #endif

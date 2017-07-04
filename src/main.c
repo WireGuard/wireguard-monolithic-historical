@@ -4,6 +4,7 @@
 #include "device.h"
 #include "noise.h"
 #include "packets.h"
+#include "ratelimiter.h"
 #include "crypto/chacha20poly1305.h"
 #include "crypto/blake2s.h"
 #include "crypto/curve25519.h"
@@ -21,7 +22,7 @@ static int __init mod_init(void)
 	blake2s_fpu_init();
 	curve25519_fpu_init();
 #ifdef DEBUG
-	if (!routing_table_selftest() || !packet_counter_selftest() || !curve25519_selftest() || !chacha20poly1305_selftest() || !blake2s_selftest())
+	if (!routing_table_selftest() || !packet_counter_selftest() || !curve25519_selftest() || !chacha20poly1305_selftest() || !blake2s_selftest() || !ratelimiter_selftest())
 		return -ENOTRECOVERABLE;
 #endif
 	noise_init();

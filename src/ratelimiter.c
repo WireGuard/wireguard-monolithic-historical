@@ -190,3 +190,5 @@ void ratelimiter_uninit(void)
 #endif
 	kmem_cache_destroy(entry_cache);
 }
+
+#include "selftest/ratelimiter.h"
