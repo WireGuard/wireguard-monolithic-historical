@@ -21,8 +21,8 @@ static struct hlist_head *table_v6;
 
 struct entry {
 	u64 last_time_ns, tokens;
+	__be64 ip;
 	void *net;
-	__be32 ip[3];
 	spinlock_t lock;
 	struct hlist_node hash;
 	struct rcu_head rcu;
@@ -79,23 +79,23 @@ bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 {
 	struct entry *entry;
 	struct hlist_head *bucket;
-	struct { u32 net; __be32 ip[3]; } data = { .net = (unsigned long)net & 0xffffffff };
+	struct { __be64 ip; u32 net; } data = { .net = (unsigned long)net & 0xffffffff };
 
 	if (skb->protocol == htons(ETH_P_IP)) {
-		data.ip[0] = ip_hdr(skb)->saddr;
-		bucket = &table_v4[hsiphash(&data, sizeof(u32) * 2, &key) & (table_size - 1)];
+		data.ip = (__force __be64)ip_hdr(skb)->saddr;
+		bucket = &table_v4[hsiphash(&data, sizeof(u32) * 3, &key) & (table_size - 1)];
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (skb->protocol == htons(ETH_P_IPV6)) {
-		memcpy(data.ip, &ipv6_hdr(skb)->saddr, sizeof(u32) * 3); /* Only 96 bits */
-		bucket = &table_v6[hsiphash(&data, sizeof(u32) * 4, &key) & (table_size - 1)];
+		memcpy(&data.ip, &ipv6_hdr(skb)->saddr, sizeof(__be64)); /* Only 64 bits */
+		bucket = &table_v6[hsiphash(&data, sizeof(u32) * 3, &key) & (table_size - 1)];
 	}
 #endif
 	else
 		return false;
 	rcu_read_lock();
 	hlist_for_each_entry_rcu (entry, bucket, hash) {
-		if (entry->net == net && !memcmp(entry->ip, data.ip, sizeof(data.ip))) {
+		if (entry->net == net && entry->ip == data.ip) {
 			u64 now, tokens;
 			bool ret;
 			/* Inspired by nft_limit.c, but this is actually a slightly different
@@ -122,7 +122,7 @@ bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 		goto err_oom;
 
 	entry->net = net;
-	memcpy(entry->ip, data.ip, sizeof(data.ip));
+	entry->ip = data.ip;
 	INIT_HLIST_NODE(&entry->hash);
 	spin_lock_init(&entry->lock);
 	entry->last_time_ns = ktime_get_ns();
