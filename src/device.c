@@ -240,7 +240,7 @@ static void destruct(struct net_device *dev)
 	put_net(wg->creating_net);
 
 	pr_debug("%s: Interface deleted\n", dev->name);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 9)
 	free_netdev(dev);
 #endif
 }
@@ -251,7 +251,7 @@ static void setup(struct net_device *dev)
 	enum { WG_NETDEV_FEATURES = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE | NETIF_F_HIGHDMA };
 
 	dev->netdev_ops = &netdev_ops;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 9)
 	dev->destructor = destruct;
 #else
 	dev->priv_destructor = destruct;
@@ -337,17 +337,19 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (ret < 0)
 		goto error_8;
 
+	list_add(&wg->device_list, &device_list);
+
 	ret = register_netdevice(dev);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 9)
 	if (ret < 0)
 		goto error_9;
 #endif
-	list_add(&wg->device_list, &device_list);
 	pr_debug("%s: Interface created\n", dev->name);
 	return ret;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 9)
 error_9:
+	list_del(&wg->device_list);
 	ratelimiter_uninit();
 #endif
 error_8:
