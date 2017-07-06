@@ -335,6 +335,11 @@ static inline void kvfree(const void *addr)
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 9)
+#include <linux/netdevice.h>
+#define priv_destructor destructor
+#endif
+
 /* https://lkml.org/lkml/2017/6/23/790 */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
