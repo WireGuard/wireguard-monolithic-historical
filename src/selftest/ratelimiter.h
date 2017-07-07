@@ -2,6 +2,8 @@
 
 #ifdef DEBUG
 
+#include <linux/jiffies.h>
+
 static const struct { bool result; unsigned int msec_to_sleep_before; } expected_results[] __initconst = {
 	[0 ... PACKETS_BURSTABLE - 1] = { true, 0 },
 	[PACKETS_BURSTABLE] = { false, 0 },
@@ -12,6 +14,16 @@ static const struct { bool result; unsigned int msec_to_sleep_before; } expected
 	[PACKETS_BURSTABLE + 5] = { false, 0 }
 };
 
+static unsigned int maximum_jiffies_before_index(int index)
+{
+	unsigned int total_msecs = 2 * MSEC_PER_SEC / PACKETS_PER_SECOND / 3;
+	int i;
+
+	for (i = 0; i < index; ++i)
+		total_msecs += expected_results[i].msec_to_sleep_before;
+	return msecs_to_jiffies(total_msecs);
+}
+
 bool __init ratelimiter_selftest(void)
 {
 	struct sk_buff *skb4;
@@ -20,7 +32,8 @@ bool __init ratelimiter_selftest(void)
 	struct sk_buff *skb6;
 	struct ipv6hdr *hdr6;
 #endif
-	int i = -1, ret = false;
+	int i = -1, tries = 0, ret = false;
+	unsigned long loop_start_time;
 
 	BUILD_BUG_ON(MSEC_PER_SEC % PACKETS_PER_SECOND != 0);
 
@@ -57,7 +70,18 @@ bool __init ratelimiter_selftest(void)
 	skb_reset_network_header(skb6);
 #endif
 
+restart:
+	loop_start_time = jiffies;
 	for (i = 0; i < ARRAY_SIZE(expected_results); ++i) {
+		if (time_is_before_jiffies(loop_start_time + maximum_jiffies_before_index(i))) {
+			if (++tries >= 1000)
+				goto err;
+			gc_entries(NULL);
+			rcu_barrier();
+			msleep(300);
+			goto restart;
+		}
+
 		if (expected_results[i].msec_to_sleep_before)
 			msleep(expected_results[i].msec_to_sleep_before);
 
