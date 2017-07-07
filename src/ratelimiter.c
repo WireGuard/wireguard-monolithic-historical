@@ -44,7 +44,7 @@ static void entry_free(struct rcu_head *rcu)
 static void entry_uninit(struct entry *entry)
 {
 	hlist_del_rcu(&entry->hash);
-	call_rcu_bh(&entry->rcu, entry_free);
+	call_rcu(&entry->rcu, entry_free);
 }
 
 /* Calling this function with a NULL work uninits all entries. */

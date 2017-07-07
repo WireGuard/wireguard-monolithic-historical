@@ -80,7 +80,7 @@ bool __init ratelimiter_selftest(void)
 	}
 
 	gc_entries(NULL);
-	rcu_barrier_bh();
+	rcu_barrier();
 
 	if (atomic_read(&total_entries))
 		goto err;
