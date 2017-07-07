@@ -326,13 +326,15 @@ static inline void *kvzalloc(size_t size, gfp_t flags)
 
 #if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 41)) && !defined(ISUBUNTU1404)
 #include <linux/vmalloc.h>
-static inline void kvfree(const void *addr)
+#include <linux/mm.h>
+static inline void kvfree_ours(const void *addr)
 {
 	if (is_vmalloc_addr(addr))
 		vfree(addr);
 	else
 		kfree(addr);
 }
+#define kvfree kvfree_ours
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 9)
