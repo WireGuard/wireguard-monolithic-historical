@@ -66,11 +66,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 		if (cache)
 			dst_cache_set_ip4(cache, &rt->dst, fl.saddr);
 	}
-	udp_tunnel_xmit_skb(rt, sock, skb,
-			    fl.saddr, fl.daddr,
-			    ds, ip4_dst_hoplimit(&rt->dst), 0,
-			    fl.fl4_sport, fl.fl4_dport,
-			    false, false);
+	udp_tunnel_xmit_skb(rt, sock, skb, fl.saddr, fl.daddr, ds, ip4_dst_hoplimit(&rt->dst), 0, fl.fl4_sport, fl.fl4_dport, false, false);
 	goto out;
 
 err:
@@ -132,11 +128,7 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 			dst_cache_set_ip6(cache, dst, &fl.saddr);
 	}
 
-	udp_tunnel6_xmit_skb(dst, sock, skb, skb->dev,
-			     &fl.saddr, &fl.daddr,
-			     ds, ip6_dst_hoplimit(dst), 0,
-			     fl.fl6_sport, fl.fl6_dport,
-			     false);
+	udp_tunnel6_xmit_skb(dst, sock, skb, skb->dev, &fl.saddr, &fl.daddr, ds, ip6_dst_hoplimit(dst), 0, fl.fl6_sport, fl.fl6_dport, false);
 	goto out;
 
 err:
@@ -330,8 +322,7 @@ int socket_init(struct wireguard_device *wg)
 #if IS_ENABLED(CONFIG_IPV6)
 retry:
 #endif
-	if (rcu_dereference_protected(wg->sock4, lockdep_is_held(&wg->socket_update_lock)) ||
-	    rcu_dereference_protected(wg->sock6, lockdep_is_held(&wg->socket_update_lock))) {
+	if (rcu_dereference_protected(wg->sock4, lockdep_is_held(&wg->socket_update_lock)) || rcu_dereference_protected(wg->sock6, lockdep_is_held(&wg->socket_update_lock))) {
 		ret = -EADDRINUSE;
 		goto out;
 	}
