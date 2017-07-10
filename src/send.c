@@ -27,7 +27,7 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 	peer->last_sent_handshake = get_jiffies_64();
 	up_write(&peer->handshake.lock);
 
-	net_dbg_ratelimited("%s: Sending handshake initiation to peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_ratelimited("%s: Sending handshake initiation to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 
 	if (noise_handshake_create_initiation(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
@@ -67,7 +67,7 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 {
 	struct message_handshake_response packet;
 
-	net_dbg_ratelimited("%s: Sending handshake response to peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_ratelimited("%s: Sending handshake response to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	peer->last_sent_handshake = get_jiffies_64();
 
 	if (noise_handshake_create_response(&packet, &peer->handshake)) {
@@ -84,7 +84,7 @@ void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *i
 {
 	struct message_handshake_cookie packet;
 
-	net_dbg_skb_ratelimited("%s: Sending cookie response for denied handshake message for %pISpfsc\n", netdev_pub(wg)->name, initiating_skb);
+	net_dbg_skb_ratelimited("%s: Sending cookie response for denied handshake message for %pISpfsc\n", wg->dev->name, initiating_skb);
 	cookie_message_create(&packet, initiating_skb, sender_index, &wg->cookie_checker);
 	socket_send_buffer_as_reply_to_skb(wg, initiating_skb, &packet, sizeof(packet));
 }
@@ -114,9 +114,9 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 		if (unlikely(!skb))
 			return;
 		skb_reserve(skb, DATA_PACKET_HEAD_ROOM);
-		skb->dev = netdev_pub(peer->device);
+		skb->dev = peer->device->dev;
 		skb_queue_tail(&peer->tx_packet_queue, skb);
-		net_dbg_ratelimited("%s: Sending keepalive packet to peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+		net_dbg_ratelimited("%s: Sending keepalive packet to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	}
 	packet_send_queue(peer);
 }

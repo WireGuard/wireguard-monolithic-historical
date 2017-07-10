@@ -378,13 +378,6 @@ static inline void new_icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 
 #define icmpv6_send(a,b,c,d) new_icmpv6_send(a,b,c,d)
 #endif
 
-/* https://lkml.org/lkml/2015/6/12/415 */
-#include <linux/netdevice.h>
-static inline struct net_device *netdev_pub(void *dev)
-{
-	return (struct net_device *)((char *)dev - ALIGN(sizeof(struct net_device), NETDEV_ALIGN));
-}
-
 /* PaX compatibility */
 #ifdef CONSTIFY_PLUGIN
 #include <linux/cache.h>

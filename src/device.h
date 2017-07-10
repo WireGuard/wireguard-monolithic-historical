@@ -22,6 +22,7 @@ struct handshake_worker {
 };
 
 struct wireguard_device {
+	struct net_device *dev;
 	struct list_head device_list;
 	struct sock __rcu *sock4, *sock6;
 	u16 incoming_port;

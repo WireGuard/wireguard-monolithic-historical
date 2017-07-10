@@ -351,7 +351,7 @@ static void finish_decrypt_packet(struct decryption_ctx *ctx)
 		return;
 
 	if (unlikely(!counter_validate(&ctx->keypair->receiving.counter, PACKET_CB(ctx->skb)->nonce))) {
-		net_dbg_ratelimited("%s: Packet has invalid nonce %Lu (max %Lu)\n", netdev_pub(ctx->keypair->entry.peer->device)->name, PACKET_CB(ctx->skb)->nonce, ctx->keypair->receiving.counter.receive.counter);
+		net_dbg_ratelimited("%s: Packet has invalid nonce %Lu (max %Lu)\n", ctx->keypair->entry.peer->device->dev->name, PACKET_CB(ctx->skb)->nonce, ctx->keypair->receiving.counter.receive.counter);
 		peer_put(ctx->keypair->entry.peer);
 		noise_keypair_put(ctx->keypair);
 		dev_kfree_skb(ctx->skb);

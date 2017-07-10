@@ -14,7 +14,7 @@
 
 static inline void rx_stats(struct wireguard_peer *peer, size_t len)
 {
-	struct pcpu_sw_netstats *tstats = get_cpu_ptr(netdev_pub(peer->device)->tstats);
+	struct pcpu_sw_netstats *tstats = get_cpu_ptr(peer->device->dev->tstats);
 	u64_stats_update_begin(&tstats->syncp);
 	tstats->rx_bytes += len;
 	++tstats->rx_packets;
@@ -71,7 +71,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 	message_type = message_determine_type(skb);
 
 	if (message_type == MESSAGE_HANDSHAKE_COOKIE) {
-		net_dbg_skb_ratelimited("%s: Receiving cookie response from %pISpfsc\n", netdev_pub(wg)->name, skb);
+		net_dbg_skb_ratelimited("%s: Receiving cookie response from %pISpfsc\n", wg->dev->name, skb);
 		cookie_message_consume((struct message_handshake_cookie *)skb->data, wg);
 		return;
 	}
@@ -87,7 +87,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 	else if (under_load && mac_state == VALID_MAC_BUT_NO_COOKIE)
 		packet_needs_cookie = true;
 	else {
-		net_dbg_skb_ratelimited("%s: Invalid MAC of handshake, dropping packet from %pISpfsc\n", netdev_pub(wg)->name, skb);
+		net_dbg_skb_ratelimited("%s: Invalid MAC of handshake, dropping packet from %pISpfsc\n", wg->dev->name, skb);
 		return;
 	}
 
@@ -100,11 +100,11 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 		}
 		peer = noise_handshake_consume_initiation(message, wg);
 		if (unlikely(!peer)) {
-			net_dbg_skb_ratelimited("%s: Invalid handshake initiation from %pISpfsc\n", netdev_pub(wg)->name, skb);
+			net_dbg_skb_ratelimited("%s: Invalid handshake initiation from %pISpfsc\n", wg->dev->name, skb);
 			return;
 		}
 		update_latest_addr(peer, skb);
-		net_dbg_ratelimited("%s: Receiving handshake initiation from peer %Lu (%pISpfsc)\n", netdev_pub(wg)->name, peer->internal_id, &peer->endpoint.addr);
+		net_dbg_ratelimited("%s: Receiving handshake initiation from peer %Lu (%pISpfsc)\n", wg->dev->name, peer->internal_id, &peer->endpoint.addr);
 		packet_send_handshake_response(peer);
 		break;
 	}
@@ -116,11 +116,11 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 		}
 		peer = noise_handshake_consume_response(message, wg);
 		if (unlikely(!peer)) {
-			net_dbg_skb_ratelimited("%s: Invalid handshake response from %pISpfsc\n", netdev_pub(wg)->name, skb);
+			net_dbg_skb_ratelimited("%s: Invalid handshake response from %pISpfsc\n", wg->dev->name, skb);
 			return;
 		}
 		update_latest_addr(peer, skb);
-		net_dbg_ratelimited("%s: Receiving handshake response from peer %Lu (%pISpfsc)\n", netdev_pub(wg)->name, peer->internal_id, &peer->endpoint.addr);
+		net_dbg_ratelimited("%s: Receiving handshake response from peer %Lu (%pISpfsc)\n", wg->dev->name, peer->internal_id, &peer->endpoint.addr);
 		if (noise_handshake_begin_session(&peer->handshake, &peer->keypairs, true)) {
 			timers_ephemeral_key_created(peer);
 			timers_handshake_complete(peer);
@@ -188,7 +188,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 	socket_set_peer_endpoint(peer, endpoint);
 
 	wg = peer->device;
-	dev = netdev_pub(wg);
+	dev = wg->dev;
 
 	if (unlikely(used_new_key)) {
 		peer->sent_lastminute_handshake = false;
@@ -200,7 +200,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 
 	/* A packet with length 0 is a keepalive packet */
 	if (unlikely(!skb->len)) {
-		net_dbg_ratelimited("%s: Receiving keepalive packet from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+		net_dbg_ratelimited("%s: Receiving keepalive packet from peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 		goto packet_processed;
 	}
 
@@ -245,22 +245,22 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		rx_stats(peer, len);
 	else {
 		++dev->stats.rx_dropped;
-		net_dbg_ratelimited("%s: Failed to give packet to userspace from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+		net_dbg_ratelimited("%s: Failed to give packet to userspace from peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	}
 	goto continue_processing;
 
 dishonest_packet_peer:
-	net_dbg_skb_ratelimited("%s: Packet has unallowed src IP (%pISc) from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, skb, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_skb_ratelimited("%s: Packet has unallowed src IP (%pISc) from peer %Lu (%pISpfsc)\n", peer->device->dev->name, skb, peer->internal_id, &peer->endpoint.addr);
 	++dev->stats.rx_errors;
 	++dev->stats.rx_frame_errors;
 	goto packet_processed;
 dishonest_packet_type:
-	net_dbg_ratelimited("%s: Packet is neither ipv4 nor ipv6 from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_ratelimited("%s: Packet is neither ipv4 nor ipv6 from peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	++dev->stats.rx_errors;
 	++dev->stats.rx_frame_errors;
 	goto packet_processed;
 dishonest_packet_size:
-	net_dbg_ratelimited("%s: Packet has incorrect size from peer %Lu (%pISpfsc)\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_ratelimited("%s: Packet has incorrect size from peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	++dev->stats.rx_errors;
 	++dev->stats.rx_length_errors;
 	goto packet_processed;
@@ -283,7 +283,7 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 	case MESSAGE_HANDSHAKE_COOKIE: {
 		int cpu_index, cpu, target_cpu;
 		if (skb_queue_len(&wg->incoming_handshakes) > MAX_QUEUED_INCOMING_HANDSHAKES) {
-			net_dbg_skb_ratelimited("%s: Too many handshakes queued, dropping packet from %pISpfsc\n", netdev_pub(wg)->name, skb);
+			net_dbg_skb_ratelimited("%s: Too many handshakes queued, dropping packet from %pISpfsc\n", wg->dev->name, skb);
 			goto err;
 		}
 		skb_queue_tail(&wg->incoming_handshakes, skb);
@@ -301,7 +301,7 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 		packet_consume_data(skb, wg);
 		break;
 	default:
-		net_dbg_skb_ratelimited("%s: Invalid packet from %pISpfsc\n", netdev_pub(wg)->name, skb);
+		net_dbg_skb_ratelimited("%s: Invalid packet from %pISpfsc\n", wg->dev->name, skb);
 		goto err;
 	}
 	return;

@@ -29,7 +29,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 	int ret = 0;
 
 	skb->next = skb->prev = NULL;
-	skb->dev = netdev_pub(wg);
+	skb->dev = wg->dev;
 
 	rcu_read_lock_bh();
 	sock = rcu_dereference_bh(wg->sock4);
@@ -55,12 +55,12 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 		}
 		if (unlikely(IS_ERR(rt))) {
 			ret = PTR_ERR(rt);
-			net_dbg_ratelimited("%s: No route to %pISpfsc, error %d\n", netdev_pub(wg)->name, &endpoint->addr, ret);
+			net_dbg_ratelimited("%s: No route to %pISpfsc, error %d\n", wg->dev->name, &endpoint->addr, ret);
 			goto err;
 		} else if (unlikely(rt->dst.dev == skb->dev)) {
 			ip_rt_put(rt);
 			ret = -ELOOP;
-			net_dbg_ratelimited("%s: Avoiding routing loop to %pISpfsc\n", netdev_pub(wg)->name, &endpoint->addr);
+			net_dbg_ratelimited("%s: Avoiding routing loop to %pISpfsc\n", wg->dev->name, &endpoint->addr);
 			goto err;
 		}
 		if (cache)
@@ -94,7 +94,7 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 	int ret = 0;
 
 	skb->next = skb->prev = NULL;
-	skb->dev = netdev_pub(wg);
+	skb->dev = wg->dev;
 
 	rcu_read_lock_bh();
 	sock = rcu_dereference_bh(wg->sock6);
@@ -116,12 +116,12 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 		}
 		ret = ipv6_stub->ipv6_dst_lookup(sock_net(sock), sock, &dst, &fl);
 		if (unlikely(ret)) {
-			net_dbg_ratelimited("%s: No route to %pISpfsc, error %d\n", netdev_pub(wg)->name, &endpoint->addr, ret);
+			net_dbg_ratelimited("%s: No route to %pISpfsc, error %d\n", wg->dev->name, &endpoint->addr, ret);
 			goto err;
 		} else if (unlikely(dst->dev == skb->dev)) {
 			dst_release(dst);
 			ret = -ELOOP;
-			net_dbg_ratelimited("%s: Avoiding routing loop to %pISpfsc\n", netdev_pub(wg)->name, &endpoint->addr);
+			net_dbg_ratelimited("%s: Avoiding routing loop to %pISpfsc\n", wg->dev->name, &endpoint->addr);
 			goto err;
 		}
 		if (cache)
@@ -329,7 +329,7 @@ retry:
 
 	ret = udp_sock_create(wg->creating_net, &port4, &new4);
 	if (ret < 0) {
-		pr_err("%s: Could not create IPv4 socket\n", netdev_pub(wg)->name);
+		pr_err("%s: Could not create IPv4 socket\n", wg->dev->name);
 		goto out;
 	}
 	wg->incoming_port = ntohs(inet_sk(new4->sk)->inet_sport);
@@ -349,7 +349,7 @@ retry:
 			goto retry;
 		if (!port4.local_udp_port)
 			wg->incoming_port = 0;
-		pr_err("%s: Could not create IPv6 socket\n", netdev_pub(wg)->name);
+		pr_err("%s: Could not create IPv6 socket\n", wg->dev->name);
 		goto out;
 	}
 	set_sock_opts(new6);

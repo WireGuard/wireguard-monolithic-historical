@@ -93,7 +93,7 @@ static struct noise_keypair *keypair_create(struct wireguard_peer *peer)
 static void keypair_free_rcu(struct rcu_head *rcu)
 {
 	struct noise_keypair *keypair = container_of(rcu, struct noise_keypair, rcu);
-	net_dbg_ratelimited("%s: Keypair %Lu destroyed for peer %Lu\n", netdev_pub(keypair->entry.peer->device)->name, keypair->internal_id, keypair->entry.peer->internal_id);
+	net_dbg_ratelimited("%s: Keypair %Lu destroyed for peer %Lu\n", keypair->entry.peer->device->dev->name, keypair->internal_id, keypair->entry.peer->internal_id);
 	kzfree(keypair);
 }
 
@@ -600,7 +600,7 @@ bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noi
 
 	handshake_zero(handshake);
 	add_new_keypair(keypairs, new_keypair);
-	net_dbg_ratelimited("%s: Keypair %Lu created for peer %Lu\n", netdev_pub(new_keypair->entry.peer->device)->name, new_keypair->internal_id, new_keypair->entry.peer->internal_id);
+	net_dbg_ratelimited("%s: Keypair %Lu created for peer %Lu\n", new_keypair->entry.peer->device->dev->name, new_keypair->internal_id, new_keypair->entry.peer->internal_id);
 	WARN_ON(!index_hashtable_replace(&handshake->entry.peer->device->index_hashtable, &handshake->entry, &new_keypair->entry));
 	up_write(&handshake->lock);
 

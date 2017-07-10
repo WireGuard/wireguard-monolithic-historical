@@ -14,7 +14,7 @@ static int set_device_port(struct wireguard_device *wg, u16 port)
 	struct wireguard_peer *peer, *temp;
 	socket_uninit(wg);
 	wg->incoming_port = port;
-	if (!(netdev_pub(wg)->flags & IFF_UP))
+	if (!(wg->dev->flags & IFF_UP))
 		return 0;
 	peer_for_each (wg, peer, temp, false)
 		socket_clear_peer_endpoint_src(peer);
@@ -72,7 +72,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 		peer = peer_rcu_get(peer_create(wg, in_peer.public_key, in_peer.preshared_key));
 		if (!peer)
 			return -ENOMEM;
-		if (netdev_pub(wg)->flags & IFF_UP)
+		if (wg->dev->flags & IFF_UP)
 			timers_init_peer(peer);
 	}
 
@@ -107,13 +107,13 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	}
 
 	if (in_peer.persistent_keepalive_interval != (u16)-1) {
-		const bool send_keepalive = !peer->persistent_keepalive_interval && in_peer.persistent_keepalive_interval && netdev_pub(wg)->flags & IFF_UP;
+		const bool send_keepalive = !peer->persistent_keepalive_interval && in_peer.persistent_keepalive_interval && wg->dev->flags & IFF_UP;
 		peer->persistent_keepalive_interval = (unsigned long)in_peer.persistent_keepalive_interval * HZ;
 		if (send_keepalive)
 			packet_send_keepalive(peer);
 	}
 
-	if (netdev_pub(wg)->flags & IFF_UP)
+	if (wg->dev->flags & IFF_UP)
 		packet_send_queue(peer);
 
 	peer_put(peer);
@@ -289,7 +289,6 @@ int config_get_device(struct wireguard_device *wg, void __user *user_device)
 {
 	int ret;
 	struct wireguard_peer *peer, *temp;
-	struct net_device *dev = netdev_pub(wg);
 	struct data_remaining peer_data = { NULL };
 	struct wgdevice out_device;
 	struct wgdevice in_device;
@@ -318,7 +317,7 @@ int config_get_device(struct wireguard_device *wg, void __user *user_device)
 	out_device.version_magic = WG_API_VERSION_MAGIC;
 	out_device.port = wg->incoming_port;
 	out_device.fwmark = wg->fwmark;
-	memcpy(out_device.interface, dev->name, IFNAMSIZ);
+	memcpy(out_device.interface, wg->dev->name, IFNAMSIZ);
 
 	down_read(&wg->static_identity.lock);
 	if (wg->static_identity.has_identity) {

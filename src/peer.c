@@ -49,7 +49,7 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	atomic_set(&peer->parallel_encryption_inflight, 0);
 #endif
-	pr_debug("%s: Peer %Lu created\n", netdev_pub(wg)->name, peer->internal_id);
+	pr_debug("%s: Peer %Lu created\n", wg->dev->name, peer->internal_id);
 	return peer;
 }
 
@@ -92,7 +92,7 @@ void peer_remove(struct wireguard_peer *peer)
 static void rcu_release(struct rcu_head *rcu)
 {
 	struct wireguard_peer *peer = container_of(rcu, struct wireguard_peer, rcu);
-	pr_debug("%s: Peer %Lu (%pISpfsc) destroyed\n", netdev_pub(peer->device)->name, peer->internal_id, &peer->endpoint.addr);
+	pr_debug("%s: Peer %Lu (%pISpfsc) destroyed\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	skb_queue_purge(&peer->tx_packet_queue);
 	dst_cache_destroy(&peer->endpoint_cache);
 	kzfree(peer);

@@ -119,7 +119,7 @@ enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, str
 		goto out;
 
 	ret = VALID_MAC_WITH_COOKIE_BUT_RATELIMITED;
-	if (!ratelimiter_allow(skb, dev_net(netdev_pub(checker->device))))
+	if (!ratelimiter_allow(skb, dev_net(checker->device->dev)))
 		goto out;
 
 	ret = VALID_MAC_WITH_COOKIE;
@@ -185,7 +185,7 @@ void cookie_message_consume(struct message_handshake_cookie *src, struct wiregua
 		entry->peer->latest_cookie.have_sent_mac1 = false;
 		up_write(&entry->peer->latest_cookie.lock);
 	} else
-		net_dbg_ratelimited("%s: Could not decrypt invalid cookie response\n", netdev_pub(wg)->name);
+		net_dbg_ratelimited("%s: Could not decrypt invalid cookie response\n", wg->dev->name);
 
 out:
 	peer_put(entry->peer);
