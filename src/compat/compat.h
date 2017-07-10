@@ -342,6 +342,10 @@ static inline void kvfree_ours(const void *addr)
 #define priv_destructor destructor
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
+#define newlink(a,b,c,d,e) newlink(a,b,c,d)
+#endif
+
 /* https://lkml.org/lkml/2017/6/23/790 */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
