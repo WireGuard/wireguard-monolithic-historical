@@ -147,6 +147,7 @@ void packet_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *
 void packet_send_queue(struct wireguard_peer *peer)
 {
 	struct sk_buff_head queue;
+	struct sk_buff *skb;
 
 	peer->need_resend_queue = false;
 
@@ -180,7 +181,12 @@ void packet_send_queue(struct wireguard_peer *peer)
 		break;
 	case -ENOKEY:
 		/* ENOKEY means that we don't have a valid session for the peer, which
-		 * means we should initiate a session, but after requeuing like above. */
+		 * means we should initiate a session, but after requeuing like above.
+		 * Since we'll be queuing these up for potentially a little while, we
+		 * first make sure they're no longer using up a socket's write buffer. */
+
+		skb_queue_walk (&queue, skb)
+			skb_orphan(skb);
 
 		spin_lock_bh(&peer->tx_packet_queue.lock);
 		skb_queue_splice(&queue, &peer->tx_packet_queue);
