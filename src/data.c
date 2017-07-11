@@ -35,10 +35,10 @@ static struct kmem_cache *decryption_ctx_cache __read_mostly;
 
 int __init packet_init_data_caches(void)
 {
-	encryption_ctx_cache = kmem_cache_create("wireguard_encryption_ctx", sizeof(struct encryption_ctx), 0, 0, NULL);
+	encryption_ctx_cache = KMEM_CACHE(encryption_ctx, 0);
 	if (!encryption_ctx_cache)
 		return -ENOMEM;
-	decryption_ctx_cache = kmem_cache_create("wireguard_decryption_ctx", sizeof(struct decryption_ctx), 0, 0, NULL);
+	decryption_ctx_cache = KMEM_CACHE(decryption_ctx, 0);
 	if (!decryption_ctx_cache) {
 		kmem_cache_destroy(encryption_ctx_cache);
 		return -ENOMEM;
