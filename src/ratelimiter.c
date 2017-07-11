@@ -19,7 +19,7 @@ static struct hlist_head *table_v4;
 static struct hlist_head *table_v6;
 #endif
 
-struct entry {
+struct ratelimiter_entry {
 	u64 last_time_ns, tokens;
 	__be64 ip;
 	void *net;
@@ -37,11 +37,11 @@ enum {
 
 static void entry_free(struct rcu_head *rcu)
 {
-	kmem_cache_free(entry_cache, container_of(rcu, struct entry, rcu));
+	kmem_cache_free(entry_cache, container_of(rcu, struct ratelimiter_entry, rcu));
 	atomic_dec(&total_entries);
 }
 
-static void entry_uninit(struct entry *entry)
+static void entry_uninit(struct ratelimiter_entry *entry)
 {
 	hlist_del_rcu(&entry->hash);
 	call_rcu(&entry->rcu, entry_free);
@@ -51,7 +51,7 @@ static void entry_uninit(struct entry *entry)
 static void gc_entries(struct work_struct *work)
 {
 	unsigned int i;
-	struct entry *entry;
+	struct ratelimiter_entry *entry;
 	struct hlist_node *temp;
 	const u64 now = ktime_get_ns();
 
@@ -77,7 +77,7 @@ static void gc_entries(struct work_struct *work)
 
 bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 {
-	struct entry *entry;
+	struct ratelimiter_entry *entry;
 	struct hlist_head *bucket;
 	struct { __be64 ip; u32 net; } data = { .net = (unsigned long)net & 0xffffffff };
 
@@ -142,7 +142,7 @@ int ratelimiter_init(void)
 	if (atomic64_inc_return(&refcnt) != 1)
 		return 0;
 
-	entry_cache = kmem_cache_create("wireguard_ratelimiter", sizeof(struct entry), 0, 0, NULL);
+	entry_cache = KMEM_CACHE(ratelimiter_entry, 0);
 	if (!entry_cache)
 		goto err;
 
