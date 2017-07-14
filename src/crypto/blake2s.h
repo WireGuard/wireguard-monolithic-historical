@@ -15,7 +15,7 @@ struct blake2s_state {
 	u32 h[8];
 	u32 t[2];
 	u32 f[2];
-	u8 buf[2 * BLAKE2S_BLOCKBYTES];
+	u8 buf[BLAKE2S_BLOCKBYTES];
 	size_t buflen;
 	u8 last_node;
 };

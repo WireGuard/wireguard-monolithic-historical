@@ -114,53 +114,60 @@ void __init blake2s_fpu_init(void)
 {
 	blake2s_use_avx = boot_cpu_has(X86_FEATURE_AVX);
 }
-asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 block[BLAKE2S_BLOCKBYTES]);
+asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 * block, size_t nblocks, u32 inc);
 #else
 void __init blake2s_fpu_init(void) { }
 #endif
 
-static inline void blake2s_compress(struct blake2s_state *state, const u8 block[BLAKE2S_BLOCKBYTES])
+static inline void blake2s_compress(struct blake2s_state *state, const u8 * block, size_t nblocks, u32 inc)
 {
 	u32 m[16];
 	u32 v[16];
 	int i;
 
+#ifdef DEBUG
+	BUG_ON(nblocks > 1 && inc != BLAKE2S_BLOCKBYTES);
+#endif
+
 #ifdef CONFIG_X86_64
 	if (blake2s_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
-		blake2s_compress_avx(state, block);
+		blake2s_compress_avx(state, block, nblocks, inc);
 		kernel_fpu_end();
 		return;
 	}
 #endif
 
-	for (i = 0; i < 16; ++i)
-		m[i] = le32_to_cpuvp(block + i * sizeof(m[i]));
+	while (nblocks > 0) {
+		blake2s_increment_counter(state, inc);
 
-	for (i = 0; i < 8; ++i)
-		v[i] = state->h[i];
+		for (i = 0; i < 8; ++i)
+			v[i] = state->h[i];
 
-	v[8] = blake2s_iv[0];
-	v[9] = blake2s_iv[1];
-	v[10] = blake2s_iv[2];
-	v[11] = blake2s_iv[3];
-	v[12] = state->t[0] ^ blake2s_iv[4];
-	v[13] = state->t[1] ^ blake2s_iv[5];
-	v[14] = state->f[0] ^ blake2s_iv[6];
-	v[15] = state->f[1] ^ blake2s_iv[7];
-#define G(r,i,a,b,c,d) \
-	do { \
-		a += b + m[blake2s_sigma[r][2 * i + 0]]; \
-		d = ror32(d ^ a, 16); \
-		c += d; \
-		b = ror32(b ^ c, 12); \
-		a += b + m[blake2s_sigma[r][2 * i + 1]]; \
-		d = ror32(d ^ a, 8); \
-		c += d; \
-		b = ror32(b ^ c, 7); \
-	} while(0)
-#define ROUND(r)  \
-	do { \
+		for (i = 0; i < 16; ++i)
+			m[i] = le32_to_cpuvp(block + i * sizeof(m[i]));
+
+		v[ 8] = blake2s_iv[0];
+		v[ 9] = blake2s_iv[1];
+		v[10] = blake2s_iv[2];
+		v[11] = blake2s_iv[3];
+		v[12] = blake2s_iv[4] ^ state->t[0];
+		v[13] = blake2s_iv[5] ^ state->t[1];
+		v[14] = blake2s_iv[6] ^ state->f[0];
+		v[15] = blake2s_iv[7] ^ state->f[1];
+
+#define G(r,i,a,b,c,d) do { \
+	a += b + m[blake2s_sigma[r][2 * i + 0]]; \
+	d = ror32(d ^ a, 16); \
+	c += d; \
+	b = ror32(b ^ c, 12); \
+	a += b + m[blake2s_sigma[r][2 * i + 1]]; \
+	d = ror32(d ^ a, 8); \
+	c += d; \
+	b = ror32(b ^ c, 7); \
+} while(0)
+
+#define ROUND(r) do { \
 	G(r,0,v[ 0],v[ 4],v[ 8],v[12]); \
 	G(r,1,v[ 1],v[ 5],v[ 9],v[13]); \
 	G(r,2,v[ 2],v[ 6],v[10],v[14]); \
@@ -170,46 +177,49 @@ static inline void blake2s_compress(struct blake2s_state *state, const u8 block[
 	G(r,6,v[ 2],v[ 7],v[ 8],v[13]); \
 	G(r,7,v[ 3],v[ 4],v[ 9],v[14]); \
 } while(0)
-	ROUND(0);
-	ROUND(1);
-	ROUND(2);
-	ROUND(3);
-	ROUND(4);
-	ROUND(5);
-	ROUND(6);
-	ROUND(7);
-	ROUND(8);
-	ROUND(9);
+		ROUND(0);
+		ROUND(1);
+		ROUND(2);
+		ROUND(3);
+		ROUND(4);
+		ROUND(5);
+		ROUND(6);
+		ROUND(7);
+		ROUND(8);
+		ROUND(9);
 
-	for (i = 0; i < 8; ++i)
-		state->h[i] = state->h[i] ^ v[i] ^ v[i + 8];
 #undef G
 #undef ROUND
+
+		for (i = 0; i < 8; ++i)
+			state->h[i] ^= v[i] ^ v[i + 8];
+
+		block += BLAKE2S_BLOCKBYTES;
+		--nblocks;
+	}
 }
 
 void blake2s_update(struct blake2s_state *state, const u8 *in, u64 inlen)
 {
-	size_t left, fill;
-	while (inlen > 0) {
-		left = state->buflen;
-		fill = 2 * BLAKE2S_BLOCKBYTES - left;
-
-		if (inlen > fill) {
-			memcpy(state->buf + left, in, fill); // Fill buffer
-			state->buflen += fill;
-			blake2s_increment_counter(state, BLAKE2S_BLOCKBYTES);
-			blake2s_compress(state, state->buf); // Compress
-			memcpy(state->buf, state->buf + BLAKE2S_BLOCKBYTES, BLAKE2S_BLOCKBYTES);// Shift buffer left
-			state->buflen -= BLAKE2S_BLOCKBYTES;
-			in += fill;
-			inlen -= fill;
-		} else { // inlen <= fill
-			memcpy(state->buf + left, in, inlen);
-			state->buflen += inlen; // Be lazy, do not compress
-			in += inlen;
-			inlen -= inlen;
-		}
+	const size_t fill = BLAKE2S_BLOCKBYTES - state->buflen;
+	if (unlikely(!inlen))
+		return;
+	if (inlen > fill) {
+		memcpy(state->buf + state->buflen, in, fill);
+		blake2s_compress(state, state->buf, 1, BLAKE2S_BLOCKBYTES);
+		state->buflen = 0;
+		in += fill;
+		inlen -= fill;
 	}
+	if (inlen > BLAKE2S_BLOCKBYTES) {
+		const size_t nblocks = (inlen + BLAKE2S_BLOCKBYTES - 1) / BLAKE2S_BLOCKBYTES;
+		/* Hash one less (full) block than strictly possible */
+		blake2s_compress(state, in, nblocks - 1, BLAKE2S_BLOCKBYTES);
+		in += BLAKE2S_BLOCKBYTES * (nblocks - 1);
+		inlen -= BLAKE2S_BLOCKBYTES * (nblocks - 1);
+	}
+	memcpy(state->buf + state->buflen, in, inlen);
+	state->buflen += inlen;
 }
 
 void blake2s_final(struct blake2s_state *state, u8 *out, u8 outlen)
@@ -221,17 +231,9 @@ void blake2s_final(struct blake2s_state *state, u8 *out, u8 outlen)
 	BUG_ON(!out || !outlen || outlen > BLAKE2S_OUTBYTES);
 #endif
 
-	if (state->buflen > BLAKE2S_BLOCKBYTES) {
-		blake2s_increment_counter(state, BLAKE2S_BLOCKBYTES);
-		blake2s_compress(state, state->buf);
-		state->buflen -= BLAKE2S_BLOCKBYTES;
-		memcpy(state->buf, state->buf + BLAKE2S_BLOCKBYTES, state->buflen);
-	}
-
-	blake2s_increment_counter(state, (u32) state->buflen);
 	blake2s_set_lastblock(state);
-	memset(state->buf + state->buflen, 0, 2 * BLAKE2S_BLOCKBYTES - state->buflen); /* Padding */
-	blake2s_compress(state, state->buf);
+	memset(state->buf + state->buflen, 0, BLAKE2S_BLOCKBYTES - state->buflen); /* Padding */
+	blake2s_compress(state, state->buf, 1, state->buflen);
 
 	for (i = 0; i < 8; ++i) /* output full hash to temp buffer */
 		*(__le32 *)(buffer + sizeof(state->h[i]) * i) = cpu_to_le32(state->h[i]);

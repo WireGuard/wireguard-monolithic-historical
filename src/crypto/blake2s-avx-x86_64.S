@@ -18,6 +18,12 @@ ROR328:	.octa 0x0C0F0E0D080B0A090407060500030201
 
 .text
 ENTRY(blake2s_compress_avx)
+	movl		%ecx, %ecx
+	testq		%rdx, %rdx
+	je .Lendofloop
+	.align 32
+.Lbeginofloop:
+	addq		%rcx, 32(%rdi)
 	vmovdqu		IV+16(%rip), %xmm1
 	vmovdqu		(%rsi), %xmm4
 	vpxor		32(%rdi), %xmm1, %xmm1
@@ -572,5 +578,9 @@ ENTRY(blake2s_compress_avx)
 	vpxor		16(%rdi), %xmm8, %xmm0
 	vpxor		%xmm6, %xmm0, %xmm6
 	vmovups		%xmm6, 16(%rdi)
+	addq		$64, %rsi
+	decq		%rdx
+	jnz .Lbeginofloop
+.Lendofloop:
 	ret
 ENDPROC(blake2s_compress_avx)
