@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <asm/unaligned.h>
 
 typedef struct {
 	u8 digest_length;
@@ -68,12 +69,12 @@ static inline void blake2s_init_param(struct blake2s_state *state, const blake2s
 	p = (const u32 *)param;
 	/* IV XOR ParamBlock */
 	for (i = 0; i < 8; ++i)
-		state->h[i] ^= le32_to_cpuvp(&p[i]);
+		state->h[i] ^= le32_to_cpu(p[i]);
 }
 
 void blake2s_init(struct blake2s_state *state, const u8 outlen)
 {
-	blake2s_param param = {
+	blake2s_param param __aligned(__alignof__(u32)) = {
 		.digest_length = outlen,
 		.fanout = 1,
 		.depth = 1
@@ -119,7 +120,7 @@ asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 * blo
 void __init blake2s_fpu_init(void) { }
 #endif
 
-static inline void blake2s_compress(struct blake2s_state *state, const u8 * block, size_t nblocks, u32 inc)
+static inline void blake2s_compress(struct blake2s_state *state, const u8 *block, size_t nblocks, u32 inc)
 {
 	u32 m[16];
 	u32 v[16];
@@ -141,12 +142,13 @@ static inline void blake2s_compress(struct blake2s_state *state, const u8 * bloc
 	while (nblocks > 0) {
 		blake2s_increment_counter(state, inc);
 
-		for (i = 0; i < 8; ++i)
-			v[i] = state->h[i];
-
+#ifdef __LITTLE_ENDIAN
+		memcpy(m, block, BLAKE2S_BLOCKBYTES);
+#else
 		for (i = 0; i < 16; ++i)
-			m[i] = le32_to_cpuvp(block + i * sizeof(m[i]));
-
+			m[i] = get_unaligned_le32(block + i * sizeof(m[i]));
+#endif
+		memcpy(v, state->h, 32);
 		v[ 8] = blake2s_iv[0];
 		v[ 9] = blake2s_iv[1];
 		v[10] = blake2s_iv[2];
@@ -224,7 +226,7 @@ void blake2s_update(struct blake2s_state *state, const u8 *in, u64 inlen)
 
 void blake2s_final(struct blake2s_state *state, u8 *out, u8 outlen)
 {
-	u8 buffer[BLAKE2S_OUTBYTES] = { 0 };
+	u8 buffer[BLAKE2S_OUTBYTES] __aligned(__alignof__(u32)) = { 0 };
 	int i;
 
 #ifdef DEBUG
