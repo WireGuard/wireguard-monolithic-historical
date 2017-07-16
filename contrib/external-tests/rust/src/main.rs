@@ -17,7 +17,7 @@ use pnet::packet::icmp::{MutableIcmpPacket, IcmpTypes, echo_reply, echo_request,
 use std::net::*;
 use std::str::FromStr;
 
-static TEST_SERVER: &'static str = "demo.wireguard.io:12913";
+static TEST_SERVER: &'static str = "demo.wireguard.com:12913";
 
 fn memcpy(out: &mut [u8], data: &[u8]) {
 	out[..data.len()].copy_from_slice(data);

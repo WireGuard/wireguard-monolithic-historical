@@ -129,7 +129,7 @@ static void kmod_selftests(void)
 			continue;
 		start += 11;
 		*strchrnul(start, '\n') = '\0';
-		if (strstr(start, "www.wireguard.io"))
+		if (strstr(start, "www.wireguard.com"))
 			break;
 		pass = strstr(start, ": pass");
 		if (!pass || pass[6] != '\0') {

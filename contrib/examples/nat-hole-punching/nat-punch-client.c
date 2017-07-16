@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 	const char *server = argv[1], *interface = argv[2];
 
 	if (argc < 3) {
-		fprintf(stderr, "Usage: %s SERVER WIREGUARD_INTERFACE\nExample:\n    %s demo.wireguard.io wg0\n", argv[0], argv[0]);
+		fprintf(stderr, "Usage: %s SERVER WIREGUARD_INTERFACE\nExample:\n    %s demo.wireguard.com wg0\n", argv[0], argv[0]);
 		return EINVAL;
 	}
 

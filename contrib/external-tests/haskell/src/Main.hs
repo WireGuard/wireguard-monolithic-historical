@@ -57,7 +57,7 @@ unsafeMessage write mpsk msg ns = case operation msg ns of
 
 main :: IO ()
 main = do
-  let ip           = "demo.wireguard.io"
+  let ip           = "demo.wireguard.com"
       port         = "12913"
       myKeyB64     = "WAmgVYXkbT2bCtdcDwolI88/iVi/aV3/PHcUBTQSYmo=" -- private key
       serverKeyB64 = "qRCwZSKInrMAq5sepfCdaCsRJaoLe5jhtzfiw7CjbwM=" -- public key

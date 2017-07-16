@@ -11,6 +11,6 @@ That all said, this is a pretty cool example of just how
 darn easy WireGuard can be.
 
 Disclaimer:
-  The `demo.wireguard.io` server in client.sh is for testing
+  The `demo.wireguard.com` server in client.sh is for testing
   purposes only. You may not use this server for abusive or
   illegal purposes.

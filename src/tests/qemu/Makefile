@@ -10,7 +10,7 @@ NR_CPUS ?= 2
 
 DOWNLOAD := wget -O
 # DOWNLOAD := curl -f -o
-MIRROR := https://download.wireguard.io/qemu-test/distfiles/
+MIRROR := https://download.wireguard.com/qemu-test/distfiles/
 
 CHOST := $(shell gcc -dumpmachine)
 ARCH := $(shell uname -m)

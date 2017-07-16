@@ -18,7 +18,7 @@
 #
 # After the topology is prepared we run a series of TCP/UDP iperf3 tests between the
 # wireguard peers in $ns1 and $ns2. Note that $ns0 is the endpoint for the wg0
-# interfaces in $ns1 and $ns2. See https://www.wireguard.io/netns/ for further
+# interfaces in $ns1 and $ns2. See https://www.wireguard.com/netns/ for further
 # details on how this is accomplished.
 set -e
 
