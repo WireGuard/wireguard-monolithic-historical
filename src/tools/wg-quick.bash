@@ -211,13 +211,14 @@ cmd_usage() {
 
 	  - Address: may be specified one or more times and contains one or more
 	    IP addresses (with an optional CIDR mask) to be set for the interface.
+	  - MTU: an optional MTU for the interface; if unspecified, auto-calculated.
 	  - PreUp, PostUp, PreDown, PostDown: script snippets which will be executed
 	    by bash(1) at the corresponding phases of the link, most commonly used
 	    to configure DNS. The string \`%i' is expanded to INTERFACE.
 	  - SaveConfig: if set to \`true', the configuration is saved from the current
 	    state of the interface upon shutdown.
 
-	 See wg-quick(8) for more info and examples.
+	See wg-quick(8) for more info and examples.
 	_EOF
 }
 
