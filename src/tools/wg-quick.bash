@@ -144,18 +144,10 @@ add_default() {
 			((DEFAULT_TABLE++))
 		done
 	fi
-	local proto=-4 src ip
-	if [[ $1 == *:* ]]; then
-		proto=-6
-		for ip in "${ADDRESSES[@]}"; do
-			if [[ $ip == *:* ]]; then
-				src="src ${ip%/*}"
-				break
-			fi
-		done
-	fi
+	local proto=-4
+	[[ $1 == *:* ]] && proto=-6
 	cmd wg set "$INTERFACE" fwmark $DEFAULT_TABLE
-	cmd ip $proto route add "$1" $src dev "$INTERFACE" table $DEFAULT_TABLE
+	cmd ip $proto route add "$1" dev "$INTERFACE" table $DEFAULT_TABLE
 	cmd ip $proto rule add not fwmark $DEFAULT_TABLE table $DEFAULT_TABLE
 	cmd ip $proto rule add table main suppress_prefixlength 0
 	local key value
