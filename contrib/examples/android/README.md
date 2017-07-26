@@ -13,8 +13,8 @@ as root. It should survive ROM flashes.
 
 ## Usage
 
-Compared to the ordinary wg-quick, this one gains a "DNS =" field,
-but loses SaveConfig and {Pre,Post}{Up,Down}.
+Compared to the ordinary wg-quick, this one does not support SaveConfig
+and {Pre,Post}{Up,Down}.
 
 Put your configuration files into `/data/misc/wireguard/`. After that,
 the normal `wg-quick up|down` commands will work.
