@@ -395,14 +395,4 @@ static inline void new_icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 
 #define __read_mostly
 #endif
 
-#if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
-#define net_dbg_skb_ratelimited(fmt, dev, skb, ...) do { \
-	struct endpoint __endpoint; \
-	socket_endpoint_from_skb(&__endpoint, skb); \
-	net_dbg_ratelimited(fmt, dev, &__endpoint.addr, ##__VA_ARGS__); \
-} while(0)
-#else
-#define net_dbg_skb_ratelimited(fmt, skb, ...)
-#endif
-
 #endif

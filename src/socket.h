@@ -21,4 +21,14 @@ int socket_endpoint_from_skb(struct endpoint *endpoint, struct sk_buff *skb);
 void socket_set_peer_endpoint(struct wireguard_peer *peer, struct endpoint *endpoint);
 void socket_clear_peer_endpoint_src(struct wireguard_peer *peer);
 
+#if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
+#define net_dbg_skb_ratelimited(fmt, dev, skb, ...) do { \
+	struct endpoint __endpoint; \
+	socket_endpoint_from_skb(&__endpoint, skb); \
+	net_dbg_ratelimited(fmt, dev, &__endpoint.addr, ##__VA_ARGS__); \
+} while(0)
+#else
+#define net_dbg_skb_ratelimited(fmt, skb, ...)
+#endif
+
 #endif
