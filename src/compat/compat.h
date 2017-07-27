@@ -304,7 +304,7 @@ static inline u64 ktime_get_ns(void)
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-static inline void *kvmalloc(size_t size, gfp_t flags)
+static inline void *kvmalloc_ours(size_t size, gfp_t flags)
 {
 	gfp_t kmalloc_flags = flags;
 	void *ret;
@@ -318,10 +318,12 @@ static inline void *kvmalloc(size_t size, gfp_t flags)
 		return ret;
 	return __vmalloc(size, flags, PAGE_KERNEL);
 }
-static inline void *kvzalloc(size_t size, gfp_t flags)
+static inline void *kvzalloc_ours(size_t size, gfp_t flags)
 {
-	return kvmalloc(size, flags | __GFP_ZERO);
+	return kvmalloc_ours(size, flags | __GFP_ZERO);
 }
+#define kvmalloc kvmalloc_ours
+#define kvzalloc kvzalloc_ours
 #endif
 
 #if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 41)) && !defined(ISUBUNTU1404)
