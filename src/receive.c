@@ -180,15 +180,11 @@ static void keep_key_fresh(struct wireguard_peer *peer)
 
 void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, struct endpoint *endpoint, bool used_new_key)
 {
-	struct net_device *dev;
+	struct net_device *dev = peer->device->dev;
 	struct wireguard_peer *routed_peer;
-	struct wireguard_device *wg;
 	unsigned int len;
 
 	socket_set_peer_endpoint(peer, endpoint);
-
-	wg = peer->device;
-	dev = wg->dev;
 
 	if (unlikely(used_new_key)) {
 		peer->sent_lastminute_handshake = false;
@@ -200,7 +196,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 
 	/* A packet with length 0 is a keepalive packet */
 	if (unlikely(!skb->len)) {
-		net_dbg_ratelimited("%s: Receiving keepalive packet from peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+		net_dbg_ratelimited("%s: Receiving keepalive packet from peer %Lu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
 		goto packet_processed;
 	}
 
@@ -234,7 +230,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 
 	timers_data_received(peer);
 
-	routed_peer = routing_table_lookup_src(&wg->peer_routing_table, skb);
+	routed_peer = routing_table_lookup_src(&peer->device->peer_routing_table, skb);
 	peer_put(routed_peer); /* We don't need the extra reference. */
 
 	if (unlikely(routed_peer != peer))
@@ -245,22 +241,22 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		rx_stats(peer, len);
 	else {
 		++dev->stats.rx_dropped;
-		net_dbg_ratelimited("%s: Failed to give packet to userspace from peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+		net_dbg_ratelimited("%s: Failed to give packet to userspace from peer %Lu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
 	}
 	goto continue_processing;
 
 dishonest_packet_peer:
-	net_dbg_skb_ratelimited("%s: Packet has unallowed src IP (%pISc) from peer %Lu (%pISpfsc)\n", peer->device->dev->name, skb, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_skb_ratelimited("%s: Packet has unallowed src IP (%pISc) from peer %Lu (%pISpfsc)\n", dev->name, skb, peer->internal_id, &peer->endpoint.addr);
 	++dev->stats.rx_errors;
 	++dev->stats.rx_frame_errors;
 	goto packet_processed;
 dishonest_packet_type:
-	net_dbg_ratelimited("%s: Packet is neither ipv4 nor ipv6 from peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_ratelimited("%s: Packet is neither ipv4 nor ipv6 from peer %Lu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
 	++dev->stats.rx_errors;
 	++dev->stats.rx_frame_errors;
 	goto packet_processed;
 dishonest_packet_size:
-	net_dbg_ratelimited("%s: Packet has incorrect size from peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_ratelimited("%s: Packet has incorrect size from peer %Lu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
 	++dev->stats.rx_errors;
 	++dev->stats.rx_length_errors;
 	goto packet_processed;
