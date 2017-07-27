@@ -138,9 +138,16 @@ static inline void netif_keep_dst(struct net_device *dev)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0) && !defined(ISRHEL7)
+#include <linux/netdevice.h>
+#ifndef netdev_alloc_pcpu_stats
 #define pcpu_sw_netstats pcpu_tstats
+#endif
+#ifndef netdev_alloc_pcpu_stats
 #define netdev_alloc_pcpu_stats alloc_percpu
+#endif
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0) && !defined(ISRHEL7)
+#include <linux/netdevice.h>
+#ifndef netdev_alloc_pcpu_stats
 #define netdev_alloc_pcpu_stats(type)					\
 ({									\
 	typeof(type) __percpu *pcpu_stats = alloc_percpu(type);		\
@@ -154,6 +161,7 @@ static inline void netif_keep_dst(struct net_device *dev)
 	}								\
 	pcpu_stats;							\
 })
+#endif
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
