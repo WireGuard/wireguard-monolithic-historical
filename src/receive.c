@@ -224,7 +224,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 
 	if (unlikely(len > skb->len))
 		goto dishonest_packet_size;
-	if (len < skb->len && unlikely(pskb_trim(skb, len)))
+	if (unlikely(pskb_trim(skb, len)))
 		goto packet_processed;
 
 	timers_data_received(peer);
