@@ -119,18 +119,17 @@ static void walk_remove_by_peer(struct routing_table_node __rcu **top, struct wi
 #undef deref
 #undef push
 
-static inline unsigned int fls128(u64 a, u64 b)
+static __always_inline unsigned int fls128(u64 a, u64 b)
 {
 	return a ? fls64(a) + 64 : fls64(b);
 }
 
-static inline u8 common_bits(const struct routing_table_node *node, const u8 *key, u8 bits)
+static __always_inline u8 common_bits(const struct routing_table_node *node, const u8 *key, u8 bits)
 {
 	if (bits == 32)
 		return 32 - fls(be32_to_cpu(*(const __be32 *)node->bits ^ *(const __be32 *)key));
 	else if (bits == 128)
 		return 128 - fls128(be64_to_cpu(*(const __be64 *)&node->bits[0] ^ *(const __be64 *)&key[0]), be64_to_cpu(*(const __be64 *)&node->bits[8] ^ *(const __be64 *)&key[8]));
-	BUG();
 	return 0;
 }
 
