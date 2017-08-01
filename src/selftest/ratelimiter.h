@@ -14,12 +14,12 @@ static const struct { bool result; unsigned int msec_to_sleep_before; } expected
 	[PACKETS_BURSTABLE + 5] = { false, 0 }
 };
 
-static unsigned int maximum_jiffies_before_index(int index)
+static __init unsigned int maximum_jiffies_at_index(int index)
 {
 	unsigned int total_msecs = 2 * MSEC_PER_SEC / PACKETS_PER_SECOND / 3;
 	int i;
 
-	for (i = 0; i < index; ++i)
+	for (i = 0; i <= index; ++i)
 		total_msecs += expected_results[i].msec_to_sleep_before;
 	return msecs_to_jiffies(total_msecs);
 }
@@ -73,33 +73,39 @@ bool __init ratelimiter_selftest(void)
 restart:
 	loop_start_time = jiffies;
 	for (i = 0; i < ARRAY_SIZE(expected_results); ++i) {
-		if (time_is_before_jiffies(loop_start_time + maximum_jiffies_before_index(i))) {
-			if (++tries >= 1000)
-				goto err;
-			gc_entries(NULL);
-			rcu_barrier();
-			msleep(300);
-			goto restart;
-		}
+#define ensure_time do {\
+		if (time_is_before_jiffies(loop_start_time + maximum_jiffies_at_index(i))) { \
+			if (++tries >= 5000) \
+				goto err; \
+			gc_entries(NULL); \
+			rcu_barrier(); \
+			msleep(500); \
+			goto restart; \
+		}} while (0)
 
 		if (expected_results[i].msec_to_sleep_before)
 			msleep(expected_results[i].msec_to_sleep_before);
 
+		ensure_time;
 		if (ratelimiter_allow(skb4, &init_net) != expected_results[i].result)
 			goto err;
 		hdr4->saddr = htonl(ntohl(hdr4->saddr) + i + 1);
+		ensure_time;
 		if (!ratelimiter_allow(skb4, &init_net))
 			goto err;
 		hdr4->saddr = htonl(ntohl(hdr4->saddr) - i - 1);
 
 #if IS_ENABLED(CONFIG_IPV6)
 		hdr6->saddr.in6_u.u6_addr32[2] = hdr6->saddr.in6_u.u6_addr32[3] = htonl(i);
+		ensure_time;
 		if (ratelimiter_allow(skb6, &init_net) != expected_results[i].result)
 			goto err;
 		hdr6->saddr.in6_u.u6_addr32[0] = htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) + i + 1);
+		ensure_time;
 		if (!ratelimiter_allow(skb6, &init_net))
 			goto err;
 		hdr6->saddr.in6_u.u6_addr32[0] = htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) - i - 1);
+		ensure_time;
 #endif
 	}
 
