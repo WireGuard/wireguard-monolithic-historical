@@ -314,13 +314,13 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 			break;
 		*value++ = key[--line_len] = '\0';
 
-		if (!strcmp(key, "private_key")) {
+		if (!peer && !strcmp(key, "private_key")) {
 			if (!key_from_hex(dev->private_key, value))
 				break;
 			curve25519_generate_public(dev->public_key, dev->private_key);
-		} else if (!strcmp(key, "listen_port"))
+		} else if (!peer && !strcmp(key, "listen_port"))
 			dev->port = NUM(0xffffU);
-		else if (!strcmp(key, "fwmark"))
+		else if (!peer && !strcmp(key, "fwmark"))
 			dev->fwmark = NUM(0xffffffffU);
 		else if (!strcmp(key, "public_key")) {
 			peer = ADD(sizeof(struct wgpeer));
