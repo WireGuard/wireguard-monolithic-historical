@@ -61,12 +61,12 @@ static inline void blake2s_increment_counter(struct blake2s_state *state, const 
 
 static inline void blake2s_init_param(struct blake2s_state *state, const blake2s_param *param)
 {
-	const u32 *p;
+	const __le32 *p;
 	int i;
 	memset(state, 0, sizeof(struct blake2s_state));
 	for (i = 0; i < 8; ++i)
 		state->h[i] = blake2s_iv[i];
-	p = (const u32 *)param;
+	p = (const __le32 *)param;
 	/* IV XOR ParamBlock */
 	for (i = 0; i < 8; ++i)
 		state->h[i] ^= le32_to_cpu(p[i]);
