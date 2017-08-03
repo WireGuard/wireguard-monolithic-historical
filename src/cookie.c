@@ -4,7 +4,6 @@
 #include "peer.h"
 #include "device.h"
 #include "messages.h"
-#include "ratelimiter.h"
 #include "crypto/blake2s.h"
 #include "crypto/chacha20poly1305.h"
 
@@ -93,6 +92,25 @@ static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb, struct cooki
 	blake2s_final(&state, cookie, COOKIE_LEN);
 
 	up_read(&checker->secret_lock);
+}
+
+enum { PACKETS_PER_SECOND = 20 };
+static bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
+{
+	struct inet_peer *peer = NULL;
+	bool ret;
+
+	if (skb->protocol == htons(ETH_P_IP))
+		peer = inet_getpeer_v4(net->ipv4.peers, ip_hdr(skb)->saddr, l3mdev_master_ifindex(skb->dev), true);
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		peer = inet_getpeer_v6(net->ipv6.peers, &ipv6_hdr(skb)->saddr, true);
+#endif
+	if (unlikely(!peer))
+		return false;
+	ret = inet_peer_xrlim_allow(peer, PACKETS_PER_SECOND);
+	inet_putpeer(peer);
+	return ret;
 }
 
 enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker, struct sk_buff *skb, bool check_cookie)

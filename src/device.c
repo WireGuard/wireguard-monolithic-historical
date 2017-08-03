@@ -5,7 +5,6 @@
 #include "timers.h"
 #include "device.h"
 #include "config.h"
-#include "ratelimiter.h"
 #include "peer.h"
 #include "uapi.h"
 #include "messages.h"
@@ -230,7 +229,6 @@ static void destruct(struct net_device *dev)
 	destroy_workqueue(wg->crypt_wq);
 #endif
 	routing_table_free(&wg->peer_routing_table);
-	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);
@@ -326,13 +324,9 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	padata_start(wg->decrypt_pd);
 #endif
 
-	ret = ratelimiter_init();
-	if (ret < 0)
-		goto error_8;
-
 	ret = register_netdevice(dev);
 	if (ret < 0)
-		goto error_9;
+		goto error_8;
 
 	list_add(&wg->device_list, &device_list);
 
@@ -343,8 +337,6 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	pr_debug("%s: Interface created\n", dev->name);
 	return ret;
 
-error_9:
-	ratelimiter_uninit();
 error_8:
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	padata_free(wg->decrypt_pd);
