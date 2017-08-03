@@ -253,7 +253,7 @@ ip0 link del vethrs
 ip1 link del wg0
 ip2 link del wg0
 
-# Test that saddr routing isn't overly sticky, changing to this topology:
+# Test that saddr routing is sticky but not too sticky, changing to this topology:
 # ┌────────────────────────────────────────┐    ┌────────────────────────────────────────┐
 # │             $ns1 namespace             │    │             $ns2 namespace             │
 # │                                        │    │                                        │
@@ -273,6 +273,8 @@ ip1 link set veth2 netns $netns2
 n1 bash -c 'printf 0 > /proc/sys/net/ipv6/conf/veth1/accept_dad'
 n2 bash -c 'printf 0 > /proc/sys/net/ipv6/conf/veth2/accept_dad'
 n1 bash -c 'printf 1 > /proc/sys/net/ipv4/conf/veth1/promote_secondaries'
+
+# First we check that we aren't overly sticky and can fall over to new IPs when old ones are removed
 ip1 addr add 10.0.0.1/24 dev veth1
 ip1 addr add fd00:aa::1/96 dev veth1
 ip2 addr add 10.0.0.2/24 dev veth2
@@ -291,6 +293,28 @@ n1 ping -W 1 -c 1 192.168.241.2
 ip1 addr add fd00:aa::10/96 dev veth1
 ip1 addr del fd00:aa::1/96 dev veth1
 n1 ping -W 1 -c 1 192.168.241.2
+
+# Now we show that we can successfully do reply to sender routing
+ip1 addr flush dev veth1
+ip2 addr flush dev veth2
+ip1 addr add 10.0.0.1/24 dev veth1
+ip1 addr add 10.0.0.2/24 dev veth1
+ip1 addr add fd00:aa::1/96 dev veth1
+ip1 addr add fd00:aa::2/96 dev veth1
+ip2 addr add 10.0.0.3/24 dev veth2
+ip2 addr add fd00:aa::3/96 dev veth2
+n2 wg set wg0 peer "$pub1" endpoint 10.0.0.1:1
+n2 ping -W 1 -c 1 192.168.241.1
+[[ $(n2 wg show wg0 endpoints) == "$pub1	10.0.0.1:1" ]]
+n2 wg set wg0 peer "$pub1" endpoint [fd00:aa::1]:1
+n2 ping -W 1 -c 1 192.168.241.1
+[[ $(n2 wg show wg0 endpoints) == "$pub1	[fd00:aa::1]:1" ]]
+n2 wg set wg0 peer "$pub1" endpoint 10.0.0.2:1
+n2 ping -W 1 -c 1 192.168.241.1
+[[ $(n2 wg show wg0 endpoints) == "$pub1	10.0.0.2:1" ]]
+n2 wg set wg0 peer "$pub1" endpoint [fd00:aa::2]:1
+n2 ping -W 1 -c 1 192.168.241.1
+[[ $(n2 wg show wg0 endpoints) == "$pub1	[fd00:aa::2]:1" ]]
 
 ip1 link del veth1
 ip1 link del wg0
