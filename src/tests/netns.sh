@@ -295,6 +295,8 @@ ip1 addr del fd00:aa::1/96 dev veth1
 n1 ping -W 1 -c 1 192.168.241.2
 
 # Now we show that we can successfully do reply to sender routing
+ip1 link set veth1 down
+ip2 link set veth2 down
 ip1 addr flush dev veth1
 ip2 addr flush dev veth2
 ip1 addr add 10.0.0.1/24 dev veth1
@@ -303,6 +305,10 @@ ip1 addr add fd00:aa::1/96 dev veth1
 ip1 addr add fd00:aa::2/96 dev veth1
 ip2 addr add 10.0.0.3/24 dev veth2
 ip2 addr add fd00:aa::3/96 dev veth2
+ip1 link set veth1 up
+ip2 link set veth2 up
+waitiface $netns1 veth1
+waitiface $netns2 veth2
 n2 wg set wg0 peer "$pub1" endpoint 10.0.0.1:1
 n2 ping -W 1 -c 1 192.168.241.1
 [[ $(n2 wg show wg0 endpoints) == "$pub1	10.0.0.1:1" ]]
