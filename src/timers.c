@@ -90,8 +90,11 @@ static void queued_expired_zero_key_material(struct work_struct *work)
 static void expired_send_persistent_keepalive(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
-	if (likely(peer->persistent_keepalive_interval))
+	if (likely(peer->persistent_keepalive_interval)) {
+		if (likely(peer->timers_enabled))
+			del_timer(&peer->timer_send_keepalive);
 		packet_send_keepalive(peer);
+	}
 	peer_put(peer);
 }
 
