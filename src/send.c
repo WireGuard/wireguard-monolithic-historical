@@ -72,7 +72,7 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 
 	if (noise_handshake_create_response(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
-		if (noise_handshake_begin_session(&peer->handshake, &peer->keypairs, false)) {
+		if (noise_handshake_begin_session(&peer->handshake, &peer->keypairs)) {
 			timers_session_derived(peer);
 			timers_any_authenticated_packet_traversal(peer);
 			socket_send_buffer_to_peer(peer, &packet, sizeof(struct message_handshake_response), HANDSHAKE_DSCP);

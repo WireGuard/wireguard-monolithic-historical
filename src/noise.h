@@ -117,6 +117,6 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 bool noise_handshake_create_response(struct message_handshake_response *dst, struct noise_handshake *peer);
 struct wireguard_peer *noise_handshake_consume_response(struct message_handshake_response *src, struct wireguard_device *wg);
 
-bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noise_keypairs *keypairs, bool i_am_the_initiator);
+bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noise_keypairs *keypairs);
 
 #endif

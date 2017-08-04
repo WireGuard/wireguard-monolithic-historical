@@ -121,7 +121,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 		}
 		update_latest_addr(peer, skb);
 		net_dbg_ratelimited("%s: Receiving handshake response from peer %Lu (%pISpfsc)\n", wg->dev->name, peer->internal_id, &peer->endpoint.addr);
-		if (noise_handshake_begin_session(&peer->handshake, &peer->keypairs, true)) {
+		if (noise_handshake_begin_session(&peer->handshake, &peer->keypairs)) {
 			timers_session_derived(peer);
 			timers_handshake_complete(peer);
 			/* Calling this function will either send any existing packets in the queue

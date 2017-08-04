@@ -579,7 +579,7 @@ out:
 	return ret_peer;
 }
 
-bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noise_keypairs *keypairs, bool i_am_the_initiator)
+bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noise_keypairs *keypairs)
 {
 	struct noise_keypair *new_keypair;
 
@@ -590,10 +590,10 @@ bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noi
 	new_keypair = keypair_create(handshake->entry.peer);
 	if (!new_keypair)
 		goto fail;
-	new_keypair->i_am_the_initiator = i_am_the_initiator;
+	new_keypair->i_am_the_initiator = handshake->state == HANDSHAKE_CONSUMED_RESPONSE;
 	new_keypair->remote_index = handshake->remote_index;
 
-	if (i_am_the_initiator)
+	if (new_keypair->i_am_the_initiator)
 		derive_keys(&new_keypair->sending, &new_keypair->receiving, handshake->chaining_key);
 	else
 		derive_keys(&new_keypair->receiving, &new_keypair->sending, handshake->chaining_key);
