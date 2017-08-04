@@ -79,7 +79,7 @@ static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long
 			noise_handshake_clear(&peer->handshake);
 			noise_keypairs_clear(&peer->keypairs);
 			if (peer->timers_enabled)
-				del_timer(&peer->timer_kill_ephemerals);
+				del_timer(&peer->timer_zero_key_material);
 		}
 	}
 	rtnl_unlock();
@@ -99,7 +99,7 @@ static int stop(struct net_device *dev)
 		noise_handshake_clear(&peer->handshake);
 		noise_keypairs_clear(&peer->keypairs);
 		if (peer->timers_enabled)
-			del_timer(&peer->timer_kill_ephemerals);
+			del_timer(&peer->timer_zero_key_material);
 	}
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);

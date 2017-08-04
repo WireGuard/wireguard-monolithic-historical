@@ -36,8 +36,8 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		skb_queue_purge(&peer->tx_packet_queue);
 		/* We set a timer for destroying any residue that might be left
 		 * of a partial exchange. */
-		if (likely(peer->timers_enabled) && !timer_pending(&peer->timer_kill_ephemerals))
-			mod_timer(&peer->timer_kill_ephemerals, jiffies + (REJECT_AFTER_TIME * 3));
+		if (likely(peer->timers_enabled) && !timer_pending(&peer->timer_zero_key_material))
+			mod_timer(&peer->timer_zero_key_material, jiffies + (REJECT_AFTER_TIME * 3));
 	} else {
 		++peer->timer_handshake_attempts;
 		pr_debug("%s: Handshake for peer %Lu (%pISpfsc) did not complete after %d seconds, retrying (try %d)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, REKEY_TIMEOUT / HZ, peer->timer_handshake_attempts + 1);
@@ -72,13 +72,13 @@ static void expired_new_handshake(unsigned long ptr)
 	peer_put(peer);
 }
 
-static void expired_kill_ephemerals(unsigned long ptr)
+static void expired_zero_key_material (unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
 	if (!queue_work(peer->device->peer_wq, &peer->clear_peer_work)) /* Takes our reference. */
 		peer_put(peer); /* If the work was already on the queue, we want to drop the extra reference */
 }
-static void queued_expired_kill_ephemerals(struct work_struct *work)
+static void queued_expired_zero_key_material(struct work_struct *work)
 {
 	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, clear_peer_work);
 	pr_debug("%s: Zeroing out all keys for peer %Lu (%pISpfsc), since we haven't received a new one in %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (REJECT_AFTER_TIME * 3) / HZ);
@@ -141,10 +141,10 @@ void timers_handshake_complete(struct wireguard_peer *peer)
 }
 
 /* Should be called after an ephemeral key is created, which is before sending a handshake response or after receiving a handshake response. */
-void timers_ephemeral_key_created(struct wireguard_peer *peer)
+void timers_session_derived(struct wireguard_peer *peer)
 {
 	if (likely(peer->timers_enabled))
-		mod_timer(&peer->timer_kill_ephemerals, jiffies + (REJECT_AFTER_TIME * 3));
+		mod_timer(&peer->timer_zero_key_material, jiffies + (REJECT_AFTER_TIME * 3));
 }
 
 /* Should be called before a packet with authentication -- data, keepalive, either handshake -- is sent, or after one is received. */
@@ -160,9 +160,9 @@ void timers_init_peer(struct wireguard_peer *peer)
 	setup_timer(&peer->timer_retransmit_handshake, expired_retransmit_handshake, (unsigned long)peer);
 	setup_timer(&peer->timer_send_keepalive, expired_send_keepalive, (unsigned long)peer);
 	setup_timer(&peer->timer_new_handshake, expired_new_handshake, (unsigned long)peer);
-	setup_timer(&peer->timer_kill_ephemerals, expired_kill_ephemerals, (unsigned long)peer);
+	setup_timer(&peer->timer_zero_key_material, expired_zero_key_material, (unsigned long)peer);
 	setup_timer(&peer->timer_persistent_keepalive, expired_send_persistent_keepalive, (unsigned long)peer);
-	INIT_WORK(&peer->clear_peer_work, queued_expired_kill_ephemerals);
+	INIT_WORK(&peer->clear_peer_work, queued_expired_zero_key_material);
 }
 
 void timers_uninit_peer(struct wireguard_peer *peer)
@@ -174,7 +174,7 @@ void timers_uninit_peer(struct wireguard_peer *peer)
 	del_timer_sync(&peer->timer_retransmit_handshake);
 	del_timer_sync(&peer->timer_send_keepalive);
 	del_timer_sync(&peer->timer_new_handshake);
-	del_timer_sync(&peer->timer_kill_ephemerals);
+	del_timer_sync(&peer->timer_zero_key_material);
 	del_timer_sync(&peer->timer_persistent_keepalive);
 	flush_work(&peer->clear_peer_work);
 }

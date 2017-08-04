@@ -38,7 +38,7 @@ struct wireguard_peer {
 	struct cookie latest_cookie;
 	struct hlist_node pubkey_hash;
 	u64 rx_bytes, tx_bytes;
-	struct timer_list timer_retransmit_handshake, timer_send_keepalive, timer_new_handshake, timer_kill_ephemerals, timer_persistent_keepalive;
+	struct timer_list timer_retransmit_handshake, timer_send_keepalive, timer_new_handshake, timer_zero_key_material, timer_persistent_keepalive;
 	unsigned int timer_handshake_attempts;
 	unsigned long persistent_keepalive_interval;
 	bool timers_enabled;
