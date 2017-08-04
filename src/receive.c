@@ -124,7 +124,6 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 		if (noise_handshake_begin_session(&peer->handshake, &peer->keypairs, true)) {
 			timers_ephemeral_key_created(peer);
 			timers_handshake_complete(peer);
-			peer->sent_lastminute_handshake = false;
 			/* Calling this function will either send any existing packets in the queue
 			 * and not send a keepalive, which is the best case, Or, if there's nothing
 			 * in the queue, it will send a keepalive, in order to give immediate
@@ -187,9 +186,8 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 	socket_set_peer_endpoint(peer, endpoint);
 
 	if (unlikely(used_new_key)) {
-		peer->sent_lastminute_handshake = false;
-		packet_send_queue(peer);
 		timers_handshake_complete(peer);
+		packet_send_queue(peer);
 	}
 
 	keep_key_fresh(peer);

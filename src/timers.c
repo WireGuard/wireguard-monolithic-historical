@@ -136,6 +136,7 @@ void timers_handshake_complete(struct wireguard_peer *peer)
 	if (likely(peer->timers_enabled))
 		del_timer(&peer->timer_retransmit_handshake);
 	peer->timer_handshake_attempts = 0;
+	peer->sent_lastminute_handshake = false;
 	do_gettimeofday(&peer->walltime_last_handshake);
 }
 
