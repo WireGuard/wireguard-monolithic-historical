@@ -59,7 +59,11 @@ static int padata_cpu_hash(struct parallel_data *pd)
 	pd->seq_nr++;
 	spin_unlock(&pd->seq_lock);
 #else
+#ifdef CONFIG_PAX_REFCOUNT
+	unsigned int seq_nr = atomic_inc_return_unchecked(&pd->seq_nr);
+#else
 	unsigned int seq_nr = atomic_inc_return(&pd->seq_nr);
+#endif
 	cpu_index = seq_nr % cpumask_weight(pd->cpumask.pcpu);
 #endif
 
@@ -427,7 +431,11 @@ static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 	pd->seq_nr = 0;
 #else
+#ifdef CONFIG_PAX_REFCOUNT
+	atomic_set_unchecked(&pd->seq_nr, -1);
+#else
 	atomic_set(&pd->seq_nr, -1);
+#endif
 #endif
 	atomic_set(&pd->reorder_objects, 0);
 	atomic_set(&pd->refcnt, 0);
