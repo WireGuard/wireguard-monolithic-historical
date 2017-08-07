@@ -61,6 +61,28 @@ void index_hashtable_init(struct index_hashtable *table)
 	spin_lock_init(&table->lock);
 }
 
+/* At the moment, we limit ourselves to 2^20 total peers, which generally might amount to 2^20*3
+ * items in this hashtable. The algorithm below works by picking a random number and testing it.
+ * We can see that these limits mean we usually succeed pretty quickly:
+ *
+ * >>> def calculation(tries, size):
+ * ...     return (size / 2**32)**(tries - 1) *  (1 - (size / 2**32))
+ * ... 
+ * >>> calculation(1, 2**20 * 3)
+ * 0.999267578125
+ * >>> calculation(2, 2**20 * 3)
+ * 0.0007318854331970215
+ * >>> calculation(3, 2**20 * 3)
+ * 5.360489012673497e-07
+ * >>> calculation(4, 2**20 * 3)
+ * 3.9261394135792216e-10
+ *
+ * At the moment, we don't do any masking, so this algorithm isn't exactly constant time in
+ * either the random guessing or in the hash list lookup. We could require a minimum of 3
+ * tries, which would successfully mask the guessing. TODO: this would not, however, help
+ * with the growing hash lengths.
+ */
+
 __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashtable_entry *entry)
 {
 	struct index_hashtable_entry *existing_entry;

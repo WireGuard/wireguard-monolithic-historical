@@ -128,7 +128,7 @@ enum {
 };
 
 enum {
-	WG_API_VERSION_MAGIC = 0xbeef0002
+	WG_API_VERSION_MAGIC = 0xbeef0003
 };
 
 struct wgdevice {
@@ -142,7 +142,7 @@ struct wgdevice {
 	__u16 port; /* Get/Set */
 
 	union {
-		__u16 num_peers; /* Get/Set */
+		__u32 num_peers; /* Get/Set */
 		__u32 peers_size; /* Get */
 	};
 };

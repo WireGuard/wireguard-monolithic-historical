@@ -12,7 +12,8 @@
 struct wireguard_peer;
 
 struct pubkey_hashtable {
-	DECLARE_HASHTABLE(hashtable, 8);
+	/* TODO: move to rhashtable */
+	DECLARE_HASHTABLE(hashtable, 11);
 	siphash_key_t key;
 	struct mutex lock;
 };
@@ -23,7 +24,8 @@ void pubkey_hashtable_remove(struct pubkey_hashtable *table, struct wireguard_pe
 struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, const u8 pubkey[NOISE_PUBLIC_KEY_LEN]);
 
 struct index_hashtable {
-	DECLARE_HASHTABLE(hashtable, 10);
+	/* TODO: move to rhashtable */
+	DECLARE_HASHTABLE(hashtable, 13);
 	spinlock_t lock;
 };
 
