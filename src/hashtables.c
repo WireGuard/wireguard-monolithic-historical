@@ -144,8 +144,9 @@ struct index_hashtable_entry *index_hashtable_lookup(struct index_hashtable *tab
 	struct index_hashtable_entry *iter_entry, *entry = NULL;
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu_bh (iter_entry, index_bucket(table, index), index_hash) {
-		if (iter_entry->index == index && (iter_entry->type & type_mask)) {
-			entry = iter_entry;
+		if (iter_entry->index == index) {
+			if (likely(iter_entry->type & type_mask))
+				entry = iter_entry;
 			break;
 		}
 	}
