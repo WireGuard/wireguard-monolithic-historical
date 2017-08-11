@@ -305,7 +305,52 @@ static inline u64 ktime_get_ns(void)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
 #include <linux/inetdevice.h>
-#define inet_confirm_addr(a,b,c,d,e) inet_confirm_addr(b,c,d,e)
+static inline __be32 our_confirm_addr_indev(struct in_device *in_dev, __be32 dst,  __be32 local, int scope)
+{
+	int same = 0;
+	__be32 addr = 0;
+	for_ifa(in_dev) {
+		if (!addr && (local == ifa->ifa_local || !local) && ifa->ifa_scope <= scope) {
+			addr = ifa->ifa_local;
+			if (same)
+				break;
+		}
+		if (!same) {
+			same = (!local || inet_ifa_match(local, ifa)) && (!dst || inet_ifa_match(dst, ifa));
+			if (same && addr) {
+				if (local || !dst)
+					break;
+				if (inet_ifa_match(addr, ifa))
+					break;
+				if (ifa->ifa_scope <= scope) {
+					addr = ifa->ifa_local;
+					break;
+				}
+				same = 0;
+			}
+		}
+	} endfor_ifa(in_dev);
+	return same ? addr : 0;
+}
+static inline __be32 our_inet_confirm_addr(struct net *net, struct in_device *in_dev, __be32 dst, __be32 local, int scope)
+{
+	__be32 addr = 0;
+	struct net_device *dev;
+	if (in_dev)
+		return our_confirm_addr_indev(in_dev, dst, local, scope);
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		in_dev = __in_dev_get_rcu(dev);
+		if (in_dev) {
+			addr = our_confirm_addr_indev(in_dev, dst, local, scope);
+			if (addr)
+				break;
+		}
+	}
+	rcu_read_unlock();
+	return addr;
+}
+#define inet_confirm_addr our_inet_confirm_addr
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)

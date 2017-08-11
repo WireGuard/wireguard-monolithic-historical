@@ -322,6 +322,46 @@ n2 wg set wg0 peer "$pub1" endpoint [fd00:aa::2]:1
 n2 ping -W 1 -c 1 192.168.241.1
 [[ $(n2 wg show wg0 endpoints) == "$pub1	[fd00:aa::2]:1" ]]
 
+# What happens if the inbound destination address belongs to a different interface as the default route?
+ip1 link add dummy0 type dummy
+ip1 addr add 10.50.0.1/24 dev dummy0
+ip1 link set dummy0 up
+ip2 route add 10.50.0.0/24 dev veth2
+n2 wg set wg0 peer "$pub1" endpoint 10.50.0.1:1
+n2 ping -W 1 -c 1 192.168.241.1
+[[ $(n2 wg show wg0 endpoints) == "$pub1	10.50.0.1:1" ]]
+
+ip1 link del dummy0
+ip1 addr flush dev veth1
+ip2 addr flush dev veth2
+ip1 route flush dev veth1
+ip2 route flush dev veth2
+
+# Now we see what happens if another interface route takes precedence over an ongoing one
+ip1 link add veth3 type veth peer name veth4
+ip1 link set veth4 netns $netns2
+ip1 addr add 10.0.0.1/24 dev veth1
+ip2 addr add 10.0.0.2/24 dev veth2
+ip1 addr add 10.0.0.3/24 dev veth3
+ip1 link set veth1 up
+ip2 link set veth2 up
+ip1 link set veth3 up
+ip2 link set veth4 up
+waitiface $netns1 veth1
+waitiface $netns2 veth2
+waitiface $netns1 veth3
+waitiface $netns2 veth4
+ip1 route flush dev veth1
+ip1 route flush dev veth3
+ip1 route add 10.0.0.0/24 dev veth1 src 10.0.0.1 metric 2
+n1 wg set wg0 peer "$pub2" endpoint 10.0.0.2:2
+n1 ping -W 1 -c 1 192.168.241.2
+[[ $(n2 wg show wg0 endpoints) == "$pub1	10.0.0.1:1" ]]
+ip1 route add 10.0.0.0/24 dev veth3 src 10.0.0.3 metric 1
+n1 ping -W 1 -c 1 192.168.241.2
+[[ $(n2 wg show wg0 endpoints) == "$pub1	10.0.0.3:1" ]]
+
 ip1 link del veth1
+ip1 link del veth3
 ip1 link del wg0
 ip2 link del wg0

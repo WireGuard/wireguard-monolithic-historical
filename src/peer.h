@@ -21,7 +21,10 @@ struct endpoint {
 		struct sockaddr_in6 addr6;
 	};
 	union {
-		struct in_addr src4;
+		struct {
+			struct in_addr src4;
+			int src_if4; /* Essentially the same as addr6->scope_id */
+		};
 		struct in6_addr src6;
 	};
 };
