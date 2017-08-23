@@ -556,7 +556,7 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 				if (!parse_key(peer_from_offset(buf.dev, peer_offset)->preshared_key, key_line))
 					goto error;
 			} else if (ret == 1)
-				buf.dev->flags |= WGPEER_REMOVE_PRESHARED_KEY;
+				peer_from_offset(buf.dev, peer_offset)->flags |= WGPEER_REMOVE_PRESHARED_KEY;
 			else
 				goto error;
 			argv += 2;
