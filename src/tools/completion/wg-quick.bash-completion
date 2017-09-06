@@ -4,20 +4,23 @@ _wg_quick_completion() {
 	local i a
 	if [[ $COMP_CWORD -eq 1 ]]; then
 		COMPREPLY+=( $(compgen -W "up down" -- "${COMP_WORDS[1]}") )
-		return
 	elif [[ $COMP_CWORD -eq 2 ]]; then
-		local old_glob="$(shopt -p nullglob)"
-		shopt -s nullglob
-		for i in /etc/wireguard/*.conf; do
-			i="${i##*/}"; i="${i%.conf}"
-			mapfile -t a < <(compgen -W "$i" -- "${COMP_WORDS[2]}")
+		if [[ ${COMP_WORDS[1]} == up ]]; then
+			local old_glob="$(shopt -p nullglob)"
+			shopt -s nullglob
+			for i in /etc/wireguard/*.conf; do
+				i="${i##*/}"; i="${i%.conf}"
+				mapfile -t a < <(compgen -W "$i" -- "${COMP_WORDS[2]}")
+				COMPREPLY+=( "${a[@]}" )
+			done
+			eval "$old_glob"
+			mapfile -t a < <(compgen -f -X '!*.conf' -- "${COMP_WORDS[2]}")
 			COMPREPLY+=( "${a[@]}" )
-		done
-		eval "$old_glob"
-		mapfile -t a < <(compgen -f -X '!*.conf' -- "${COMP_WORDS[2]}")
-		COMPREPLY+=( "${a[@]}" )
-		mapfile -t a < <(compgen -d -- "${COMP_WORDS[2]}")
-		COMPREPLY+=( "${a[@]}" )
+			mapfile -t a < <(compgen -d -- "${COMP_WORDS[2]}")
+			COMPREPLY+=( "${a[@]}" )
+		elif [[ ${COMP_WORDS[1]} == down ]]; then
+			COMPREPLY+=( $(compgen -W "$(wg show interfaces)" -- "${COMP_WORDS[2]}") )
+		fi
 	fi
 }
 
