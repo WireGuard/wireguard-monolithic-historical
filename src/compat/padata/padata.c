@@ -820,18 +820,6 @@ static struct kobj_type padata_attr_type = {
 };
 
 /**
- * padata_alloc_possible - Allocate and initialize padata instance.
- *                         Use the cpu_possible_mask for serial and
- *                         parallel workers.
- *
- * @wq: workqueue to use for the allocated padata instance
- */
-struct padata_instance *padata_alloc_possible(struct workqueue_struct *wq)
-{
-	return padata_alloc(wq, cpu_possible_mask, cpu_possible_mask);
-}
-
-/**
  * padata_alloc - allocate and initialize a padata instance and specify
  *                cpumasks for serial and parallel workers.
  *
@@ -890,6 +878,18 @@ err_free_inst:
 	put_online_cpus();
 err:
 	return NULL;
+}
+
+/**
+ * padata_alloc_possible - Allocate and initialize padata instance.
+ *                         Use the cpu_possible_mask for serial and
+ *                         parallel workers.
+ *
+ * @wq: workqueue to use for the allocated padata instance
+ */
+struct padata_instance *padata_alloc_possible(struct workqueue_struct *wq)
+{
+	return padata_alloc(wq, cpu_possible_mask, cpu_possible_mask);
 }
 
 /**
