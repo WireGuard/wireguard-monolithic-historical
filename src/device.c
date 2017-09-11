@@ -256,7 +256,7 @@ static void setup(struct net_device *dev)
 	dev->type = ARPHRD_NONE;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
-	dev->flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_NO_QUEUE;
 #else
 	dev->tx_queue_len = 0;
 #endif
