@@ -57,7 +57,7 @@ static int open(struct net_device *dev)
 		return ret;
 	peer_for_each (wg, peer, temp, true) {
 		timers_init_peer(peer);
-		queue_work(wg->crypt_wq, &peer->init_queue.work);
+		queue_work(wg->packet_crypt_wq, &peer->init_queue.work);
 		if (peer->persistent_keepalive_interval)
 			packet_send_keepalive(peer);
 	}
@@ -111,7 +111,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	struct wireguard_device *wg = netdev_priv(dev);
 	struct wireguard_peer *peer;
 	struct sk_buff *next;
-	struct sk_buff_head queue;
+	struct sk_buff_head packets;
 	int ret;
 
 	if (unlikely(dev_recursion_level() > 4)) {
@@ -142,7 +142,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_peer;
 	}
 
-	__skb_queue_head_init(&queue);
+	__skb_queue_head_init(&packets);
 	if (!skb_is_gso(skb))
 		skb->next = NULL;
 	else {
@@ -166,10 +166,10 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		 * so at this point we're in a position to drop it. */
 		skb_dst_drop(skb);
 
-		__skb_queue_tail(&queue, skb);
+		__skb_queue_tail(&packets, skb);
 	} while ((skb = next) != NULL);
 
-	packet_create_data(peer, &queue);
+	packet_create_data(peer, &packets);
 
 	peer_put(peer);
 	return NETDEV_TX_OK;
@@ -220,11 +220,11 @@ static void destruct(struct net_device *dev)
 	mutex_lock(&wg->device_update_lock);
 	peer_remove_all(wg);
 	wg->incoming_port = 0;
-	destroy_workqueue(wg->incoming_handshake_wq);
-	destroy_workqueue(wg->peer_wq);
-	free_percpu(wg->decrypt_queue);
-	free_percpu(wg->encrypt_queue);
-	destroy_workqueue(wg->crypt_wq);
+	destroy_workqueue(wg->handshake_receive_wq);
+	destroy_workqueue(wg->handshake_send_wq);
+	free_percpu(wg->receive_queue);
+	free_percpu(wg->send_queue);
+	destroy_workqueue(wg->packet_crypt_wq);
 	routing_table_free(&wg->peer_routing_table);
 	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
@@ -296,34 +296,33 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 		per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->wg = wg;
 		INIT_WORK(&per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->work, packet_process_queued_handshake_packets);
 	}
-	atomic_set(&wg->incoming_handshake_seqnr, 0);
 
-	wg->incoming_handshake_wq = alloc_workqueue("wg-kex-%s", WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
-	if (!wg->incoming_handshake_wq)
+	wg->handshake_receive_wq = alloc_workqueue("wg-kex-%s", WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
+	if (!wg->handshake_receive_wq)
 		goto error_3;
 
-	wg->peer_wq = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
-	if (!wg->peer_wq)
+	wg->handshake_send_wq = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
+	if (!wg->handshake_send_wq)
 		goto error_4;
 
-	wg->crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 2, dev->name);
-	if (!wg->crypt_wq)
+	wg->packet_crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
+	if (!wg->packet_crypt_wq)
 		goto error_5;
 
-	wg->encrypt_queue = alloc_percpu(struct crypt_queue);
-	if (!wg->encrypt_queue)
+	wg->send_queue = alloc_percpu(struct crypt_queue);
+	if (!wg->send_queue)
 		goto error_6;
 	for_each_possible_cpu (cpu) {
-		INIT_LIST_HEAD(&per_cpu_ptr(wg->encrypt_queue, cpu)->list);
-		INIT_WORK(&per_cpu_ptr(wg->encrypt_queue, cpu)->work, packet_encrypt_worker);
+		INIT_LIST_HEAD(&per_cpu_ptr(wg->send_queue, cpu)->list);
+		INIT_WORK(&per_cpu_ptr(wg->send_queue, cpu)->work, packet_encrypt_worker);
 	}
 
-	wg->decrypt_queue = alloc_percpu(struct crypt_queue);
-	if (!wg->decrypt_queue)
+	wg->receive_queue = alloc_percpu(struct crypt_queue);
+	if (!wg->receive_queue)
 		goto error_7;
 	for_each_possible_cpu (cpu) {
-		INIT_LIST_HEAD(&per_cpu_ptr(wg->decrypt_queue, cpu)->list);
-		INIT_WORK(&per_cpu_ptr(wg->decrypt_queue, cpu)->work, packet_decrypt_worker);
+		INIT_LIST_HEAD(&per_cpu_ptr(wg->receive_queue, cpu)->list);
+		INIT_WORK(&per_cpu_ptr(wg->receive_queue, cpu)->work, packet_decrypt_worker);
 	}
 
 	ret = ratelimiter_init();
@@ -346,15 +345,15 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 error_9:
 	ratelimiter_uninit();
 error_8:
-	free_percpu(wg->decrypt_queue);
+	free_percpu(wg->receive_queue);
 error_7:
-	free_percpu(wg->encrypt_queue);
+	free_percpu(wg->send_queue);
 error_6:
-	destroy_workqueue(wg->crypt_wq);
+	destroy_workqueue(wg->packet_crypt_wq);
 error_5:
-	destroy_workqueue(wg->peer_wq);
+	destroy_workqueue(wg->handshake_send_wq);
 error_4:
-	destroy_workqueue(wg->incoming_handshake_wq);
+	destroy_workqueue(wg->handshake_receive_wq);
 error_3:
 	free_percpu(wg->incoming_handshakes_worker);
 error_2:
