@@ -14,18 +14,6 @@
 
 static atomic64_t peer_counter = ATOMIC64_INIT(0);
 
-static int choose_cpu(u64 id)
-{
-	unsigned int cpu, cpu_index, i;
-
-	cpu_index = id % cpumask_weight(cpu_online_mask);
-	cpu = cpumask_first(cpu_online_mask);
-	for (i = 0; i < cpu_index; i += 1)
-		cpu = cpumask_next(cpu, cpu_online_mask);
-
-	return cpu;
-}
-
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN], const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN])
 {
 	struct wireguard_peer *peer;
@@ -44,6 +32,7 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	}
 
 	peer->internal_id = atomic64_inc_return(&peer_counter);
+	peer->serial_work_cpu = nr_cpumask_bits;
 	peer->device = wg;
 	cookie_init(&peer->latest_cookie);
 	if (!noise_handshake_init(&peer->handshake, &wg->static_identity, public_key, preshared_key, peer)) {
@@ -57,7 +46,6 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	kref_init(&peer->refcount);
 	pubkey_hashtable_add(&wg->peer_hashtable, peer);
 	list_add_tail(&peer->peer_list, &wg->peer_list);
-	peer->work_cpu = choose_cpu(peer->internal_id);
 	INIT_LIST_HEAD(&peer->init_queue.list);
 	INIT_WORK(&peer->init_queue.work, packet_init_worker);
 	INIT_LIST_HEAD(&peer->send_queue.list);
@@ -99,10 +87,11 @@ void peer_remove(struct wireguard_peer *peer)
 	timers_uninit_peer(peer);
 	routing_table_remove_by_peer(&peer->device->peer_routing_table, peer);
 	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
-	flush_workqueue(peer->device->crypt_wq);
-	if (peer->device->peer_wq)
-		flush_workqueue(peer->device->peer_wq);
-	peer_purge_queues(peer);
+	atomic_set(&peer->is_draining, true);
+	packet_purge_init_queue(peer);
+	flush_workqueue(peer->device->packet_crypt_wq); /* The first flush is for encrypt/decrypt step. */
+	flush_workqueue(peer->device->packet_crypt_wq); /* The second flush is for send/receive step. */
+	flush_workqueue(peer->device->handshake_send_wq);
 	peer_put(peer);
 }
 

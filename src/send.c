@@ -4,7 +4,6 @@
 #include "timers.h"
 #include "device.h"
 #include "peer.h"
-#include "queue.h"
 #include "socket.h"
 #include "messages.h"
 #include "cookie.h"
@@ -60,7 +59,7 @@ void packet_queue_handshake_initiation(struct wireguard_peer *peer, bool is_retr
 		return;
 
 	/* Queues up calling packet_send_queued_handshakes(peer), where we do a peer_put(peer) after: */
-	if (!queue_work(peer->device->peer_wq, &peer->transmit_handshake_work))
+	if (!queue_work(peer->device->handshake_send_wq, &peer->transmit_handshake_work))
 		peer_put(peer); /* If the work was already queued, we want to drop the extra reference */
 }
 
@@ -90,7 +89,7 @@ void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *i
 	socket_send_buffer_as_reply_to_skb(wg, initiating_skb, &packet, sizeof(packet));
 }
 
-void keep_key_fresh_send(struct wireguard_peer *peer)
+static inline void keep_key_fresh(struct wireguard_peer *peer)
 {
 	struct noise_keypair *keypair;
 	bool send = false;
@@ -112,7 +111,7 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 	struct sk_buff *skb;
 	struct sk_buff_head queue;
 
-	if (queue_empty(&peer->init_queue)) {
+	if (list_empty(&peer->init_queue.list)) {
 		skb = alloc_skb(DATA_PACKET_HEAD_ROOM + MESSAGE_MINIMUM_LENGTH, GFP_ATOMIC);
 		if (unlikely(!skb))
 			return;
@@ -124,6 +123,26 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 		net_dbg_ratelimited("%s: Sending keepalive packet to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	} else {
 		/* There are packets pending which need to be initialized with the new keypair. */
-		queue_work(peer->device->crypt_wq, &peer->init_queue.work);
+		queue_work(peer->device->packet_crypt_wq, &peer->init_queue.work);
 	}
+}
+
+void packet_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *peer)
+{
+	struct sk_buff *skb, *tmp;
+	bool is_keepalive, data_sent = false;
+
+	if (unlikely(skb_queue_empty(queue)))
+		return;
+
+	timers_any_authenticated_packet_traversal(peer);
+	skb_queue_walk_safe (queue, skb, tmp) {
+		is_keepalive = skb->len == message_data_len(0);
+		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
+			data_sent = true;
+	}
+	if (likely(data_sent))
+		timers_data_sent(peer);
+
+	keep_key_fresh(peer);
 }

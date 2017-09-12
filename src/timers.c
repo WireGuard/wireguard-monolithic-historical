@@ -33,7 +33,7 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		del_timer(&peer->timer_send_keepalive);
 		/* We drop all packets without a keypair and don't try again,
 		 * if we try unsuccessfully for too long to make a handshake. */
-		peer_purge_queues(peer);
+		packet_purge_init_queue(peer);
 		/* We set a timer for destroying any residue that might be left
 		 * of a partial exchange. */
 		if (likely(peer->timers_enabled) && !timer_pending(&peer->timer_zero_key_material))
@@ -75,7 +75,7 @@ static void expired_new_handshake(unsigned long ptr)
 static void expired_zero_key_material(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
-	if (!queue_work(peer->device->peer_wq, &peer->clear_peer_work)) /* Takes our reference. */
+	if (!queue_work(peer->device->handshake_send_wq, &peer->clear_peer_work)) /* Takes our reference. */
 		peer_put(peer); /* If the work was already on the queue, we want to drop the extra reference */
 }
 static void queued_expired_zero_key_material(struct work_struct *work)

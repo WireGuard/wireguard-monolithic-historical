@@ -53,9 +53,10 @@ struct wireguard_peer {
 	struct rcu_head rcu;
 	struct list_head peer_list;
 	u64 internal_id;
-	int work_cpu;
 	struct crypt_queue init_queue, send_queue, receive_queue;
 	spinlock_t init_queue_lock;
+	atomic_t is_draining;
+	int serial_work_cpu;
 };
 
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN], const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN]);

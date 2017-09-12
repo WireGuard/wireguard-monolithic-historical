@@ -187,7 +187,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 
 	if (unlikely(used_new_key)) {
 		timers_handshake_complete(peer);
-		queue_work(peer->device->crypt_wq, &peer->init_queue.work);
+		queue_work(peer->device->packet_crypt_wq, &peer->init_queue.work);
 	}
 
 	keep_key_fresh(peer);
@@ -234,7 +234,7 @@ void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, 
 		goto dishonest_packet_peer;
 
 	len = skb->len;
-	if (likely(netif_rx_ni(skb) == NET_RX_SUCCESS))
+	if (likely(netif_rx(skb) == NET_RX_SUCCESS))
 		rx_stats(peer, len);
 	else {
 		++dev->stats.rx_dropped;
@@ -273,19 +273,15 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 	case MESSAGE_HANDSHAKE_INITIATION:
 	case MESSAGE_HANDSHAKE_RESPONSE:
 	case MESSAGE_HANDSHAKE_COOKIE: {
-		int cpu_index, cpu, target_cpu;
+		int cpu;
 		if (skb_queue_len(&wg->incoming_handshakes) > MAX_QUEUED_INCOMING_HANDSHAKES) {
 			net_dbg_skb_ratelimited("%s: Too many handshakes queued, dropping packet from %pISpfsc\n", wg->dev->name, skb);
 			goto err;
 		}
 		skb_queue_tail(&wg->incoming_handshakes, skb);
-		/* Select the CPU in a round-robin */
-		cpu_index = ((unsigned int)atomic_inc_return(&wg->incoming_handshake_seqnr)) % cpumask_weight(cpu_online_mask);
-		target_cpu = cpumask_first(cpu_online_mask);
-		for (cpu = 0; cpu < cpu_index; ++cpu)
-			target_cpu = cpumask_next(target_cpu, cpu_online_mask);
 		/* Queues up a call to packet_process_queued_handshake_packets(skb): */
-		queue_work_on(target_cpu, wg->incoming_handshake_wq, &per_cpu_ptr(wg->incoming_handshakes_worker, target_cpu)->work);
+		cpu = cpumask_next_online(&wg->incoming_handshake_cpu);
+		queue_work_on(cpu, wg->handshake_receive_wq, &per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->work);
 		break;
 	}
 	case MESSAGE_DATA:
