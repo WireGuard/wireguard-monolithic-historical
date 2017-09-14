@@ -45,13 +45,13 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 	if (!rt) {
 		security_sk_classify_flow(sock, flowi4_to_flowi(&fl));
 		if (unlikely(!inet_confirm_addr(sock_net(sock), NULL, 0, fl.saddr, RT_SCOPE_HOST))) {
-			endpoint->src4.s_addr = endpoint->src_if4 = fl.saddr = 0;
+			endpoint->src4.s_addr = *(__force __be32 *)&endpoint->src_if4 = fl.saddr = 0;
 			if (cache)
 				dst_cache_reset(cache);
 		}
 		rt = ip_route_output_flow(sock_net(sock), &fl, sock);
 		if (unlikely(endpoint->src_if4 && ((IS_ERR(rt) && PTR_ERR(rt) == -EINVAL) || (!IS_ERR(rt) && rt->dst.dev->ifindex != endpoint->src_if4)))) {
-			endpoint->src4.s_addr = endpoint->src_if4 = fl.saddr = 0;
+			endpoint->src4.s_addr = *(__force __be32 *)&endpoint->src_if4 = fl.saddr = 0;
 			if (cache)
 				dst_cache_reset(cache);
 			if (!IS_ERR(rt))
