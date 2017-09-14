@@ -72,7 +72,7 @@ static void expired_new_handshake(unsigned long ptr)
 	peer_put(peer);
 }
 
-static void expired_zero_key_material (unsigned long ptr)
+static void expired_zero_key_material(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
 	if (!queue_work(peer->device->peer_wq, &peer->clear_peer_work)) /* Takes our reference. */
