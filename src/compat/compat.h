@@ -433,6 +433,50 @@ static inline void new_icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 
 #define icmpv6_send(a,b,c,d) new_icmpv6_send(a,b,c,d)
 #endif
 
+#ifndef READ_ONCE
+static __always_inline void __read_once_size(const volatile void *p, void *res, int size)
+{
+	switch (size) {
+	case 1: *(__u8 *)res = *(volatile __u8 *)p; break;
+	case 2: *(__u16 *)res = *(volatile __u16 *)p; break;
+	case 4: *(__u32 *)res = *(volatile __u32 *)p; break;
+	case 8: *(__u64 *)res = *(volatile __u64 *)p; break;
+	default:
+		barrier();
+		__builtin_memcpy((void *)res, (const void *)p, size);
+		barrier();
+	}
+
+}
+#define READ_ONCE(x) \
+({ \
+	union { typeof(x) __val; char __c[1]; } __u; \
+	__read_once_size(&(x), __u.__c, sizeof(x)); \
+	__u.__val; \
+})
+#endif
+#ifndef WRITE_ONCE
+static __always_inline void __write_once_size(volatile void *p, void *res, int size)
+{
+	switch (size) {
+	case 1: *(volatile __u8 *)p = *(__u8 *)res; break;
+	case 2: *(volatile __u16 *)p = *(__u16 *)res; break;
+	case 4: *(volatile __u32 *)p = *(__u32 *)res; break;
+	case 8: *(volatile __u64 *)p = *(__u64 *)res; break;
+	default:
+		barrier();
+		__builtin_memcpy((void *)p, (const void *)res, size);
+		barrier();
+	}
+}
+#define WRITE_ONCE(x, val) \
+({ \
+	union { typeof(x) __val; char __c[1]; } __u = { .__val = (__force typeof(x)) (val) }; \
+	__write_once_size(&(x), __u.__c, sizeof(x)); \
+	__u.__val; \
+})
+#endif
+
 /* PaX compatibility */
 #ifdef CONSTIFY_PLUGIN
 #include <linux/cache.h>
