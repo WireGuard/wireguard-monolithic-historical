@@ -81,7 +81,8 @@ static int walk_ips_by_peer(struct routing_table_node __rcu *top, int family, vo
 #define push(p) ({ BUG_ON(len >= 128); stack[len++] = p; })
 static void walk_remove_by_peer(struct routing_table_node __rcu **top, struct wireguard_peer *peer, struct mutex *lock)
 {
-	struct routing_table_node __rcu **stack[128], **nptr, *node, *prev;
+	struct routing_table_node __rcu **stack[128], **nptr;
+	struct routing_table_node *node, *prev;
 	unsigned int len;
 
 	if (unlikely(!peer || !ref(*top)))
