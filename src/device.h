@@ -16,15 +16,25 @@
 
 struct wireguard_device;
 
-struct handshake_worker {
-	struct wireguard_device *wg;
+struct multicore_worker {
+	union {
+		struct wireguard_device *wg;
+		struct crypt_queue *queue;
+	};
 	struct work_struct work;
 };
 
 struct crypt_queue {
+	spinlock_t lock;
 	struct list_head list;
-	struct work_struct work;
-	atomic_t qlen;
+	union {
+		struct {
+			struct multicore_worker __percpu *worker;
+			int last_cpu;
+		};
+		struct work_struct work;
+	};
+	int qlen;
 };
 
 struct wireguard_device {
@@ -37,9 +47,9 @@ struct wireguard_device {
 	struct noise_static_identity static_identity;
 	struct workqueue_struct *handshake_receive_wq, *handshake_send_wq, *packet_crypt_wq;
 	struct sk_buff_head incoming_handshakes;
-	struct crypt_queue __percpu *send_queue, *receive_queue;
-	int incoming_handshake_cpu, encrypt_cpu, decrypt_cpu;
-	struct handshake_worker __percpu *incoming_handshakes_worker;
+	struct crypt_queue send_queue, receive_queue;
+	int incoming_handshake_cpu;
+	struct multicore_worker __percpu *incoming_handshakes_worker;
 	struct cookie_checker cookie_checker;
 	struct pubkey_hashtable peer_hashtable;
 	struct index_hashtable index_hashtable;

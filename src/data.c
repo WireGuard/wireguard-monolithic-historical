@@ -29,51 +29,32 @@ struct crypt_ctx {
 	atomic_t is_finished;
 };
 
-/**
- * queue_dequeue - Atomically remove the first item in a queue.
- *
- * @return The address of the dequeued item, or NULL if the queue is empty.
- *
- * This function is safe to execute concurrently with any number of
- * queue_enqueue() calls, but *not* with another queue_dequeue() call
- * operating on the same queue.
- */
 static struct list_head *queue_dequeue(struct crypt_queue *queue)
 {
-	struct list_head *first, *second;
-	first = READ_ONCE(queue->list.next);
-	if (first == &queue->list)
+	struct list_head *head;
+	spin_lock_bh(&queue->lock);
+	head = READ_ONCE(queue->list.next);
+	if (&queue->list == head) {
+		spin_unlock_bh(&queue->lock);
 		return NULL;
-	do {
-		second = READ_ONCE(first->next);
-		WRITE_ONCE(queue->list.next, second);
-	} while (cmpxchg(&second->prev, first, &queue->list) != first);
-	if (first)
-		atomic_dec(&queue->qlen);
-	return first;
+	}
+	list_del(head);
+	--queue->qlen;
+	spin_unlock_bh(&queue->lock);
+	return head;
 }
 
-/**
- * queue_enqueue - Atomically append an item to the tail of a queue.
- *
- * This function is safe to execute concurrently with any number of other
- * queue_enqueue() calls, as well as with one queue_dequeue() call
- * operating on the same queue.
- */
 static bool queue_enqueue(struct crypt_queue *queue, struct list_head *head, int limit)
 {
-	bool have_space = !limit || atomic_inc_return(&queue->qlen) <= limit;
-	if (have_space) {
-		struct list_head *last;
-		WRITE_ONCE(head->next, &queue->list);
-		do {
-			last = READ_ONCE(queue->list.prev);
-			WRITE_ONCE(head->prev, last);
-		} while (cmpxchg(&queue->list.prev, last, head) != last);
-		WRITE_ONCE(last->next, head);
-	} else
-		atomic_dec(&queue->qlen);
-	return have_space;
+	spin_lock_bh(&queue->lock);
+	if (limit && queue->qlen >= limit) {
+		spin_unlock_bh(&queue->lock);
+		return false;
+	}
+	++queue->qlen;
+	list_add_tail(head, &queue->list);
+	spin_unlock_bh(&queue->lock);
+	return true;
 }
 
 static inline struct crypt_ctx *queue_dequeue_per_peer(struct crypt_queue *queue)
@@ -96,12 +77,11 @@ static inline bool queue_enqueue_per_peer(struct crypt_queue *queue, struct cryp
 	return queue_enqueue(queue, &(ctx)->per_peer_head, MAX_QUEUED_PACKETS);
 }
 
-static inline void queue_enqueue_per_device(struct crypt_queue __percpu *queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
+static inline void queue_enqueue_per_device(struct crypt_queue *queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
 {
 	int cpu = cpumask_next_online(next_cpu);
-	struct crypt_queue *cpu_queue = per_cpu_ptr(queue, cpu);
-	queue_enqueue(cpu_queue, &ctx->per_device_head, 0);
-	queue_work_on(cpu, wq, &cpu_queue->work);
+	queue_enqueue(queue, &ctx->per_device_head, 0);
+	queue_work_on(cpu, wq, &per_cpu_ptr(queue->worker, cpu)->work);
 }
 
 static inline struct crypt_ctx *queue_first_per_peer(struct crypt_queue *queue)
@@ -336,7 +316,7 @@ void packet_send_worker(struct work_struct *work)
 void packet_encrypt_worker(struct work_struct *work)
 {
 	struct crypt_ctx *ctx;
-	struct crypt_queue *queue = container_of(work, struct crypt_queue, work);
+	struct crypt_queue *queue = container_of(work, struct multicore_worker, work)->queue;
 	struct sk_buff *skb, *tmp;
 	struct wireguard_peer *peer;
 	bool have_simd = chacha20poly1305_init_simd();
@@ -375,7 +355,7 @@ void packet_init_worker(struct work_struct *work)
 		}
 		queue_dequeue(queue);
 		if (likely(queue_enqueue_per_peer(&peer->send_queue, ctx)))
-			queue_enqueue_per_device(wg->send_queue, ctx, wg->packet_crypt_wq, &wg->encrypt_cpu);
+			queue_enqueue_per_device(&wg->send_queue, ctx, wg->packet_crypt_wq, &wg->send_queue.last_cpu);
 		else
 			free_ctx(ctx);
 	}
@@ -404,7 +384,7 @@ void packet_create_data(struct wireguard_peer *peer, struct sk_buff_head *packet
 	if (likely(list_empty(&peer->init_queue.list))) {
 		if (likely(populate_sending_ctx(ctx))) {
 			if (likely(queue_enqueue_per_peer(&peer->send_queue, ctx)))
-				queue_enqueue_per_device(wg->send_queue, ctx, wg->packet_crypt_wq, &wg->encrypt_cpu);
+				queue_enqueue_per_device(&wg->send_queue, ctx, wg->packet_crypt_wq, &wg->send_queue.last_cpu);
 			else
 				free_ctx(ctx);
 			return;
@@ -475,7 +455,7 @@ void packet_receive_worker(struct work_struct *work)
 void packet_decrypt_worker(struct work_struct *work)
 {
 	struct crypt_ctx *ctx;
-	struct crypt_queue *queue = container_of(work, struct crypt_queue, work);
+	struct crypt_queue *queue = container_of(work, struct multicore_worker, work)->queue;
 	struct wireguard_peer *peer;
 
 	while ((ctx = queue_dequeue_per_device(queue)) != NULL) {
@@ -519,7 +499,7 @@ void packet_consume_data(struct sk_buff *skb, struct wireguard_device *wg)
 	ctx->peer = ctx->keypair->entry.peer;
 
 	if (likely(queue_enqueue_per_peer(&ctx->peer->receive_queue, ctx)))
-		queue_enqueue_per_device(wg->receive_queue, ctx, wg->packet_crypt_wq, &wg->decrypt_cpu);
+		queue_enqueue_per_device(&wg->receive_queue, ctx, wg->packet_crypt_wq, &wg->receive_queue.last_cpu);
 	else {
 		/* TODO: replace this with a call to free_ctx when receiving uses skb_queues as well. */
 		noise_keypair_put(ctx->keypair);
