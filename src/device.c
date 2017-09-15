@@ -222,8 +222,8 @@ static void destruct(struct net_device *dev)
 	wg->incoming_port = 0;
 	destroy_workqueue(wg->handshake_receive_wq);
 	destroy_workqueue(wg->handshake_send_wq);
-	free_percpu(wg->receive_queue);
-	free_percpu(wg->send_queue);
+	free_percpu(wg->receive_queue.worker);
+	free_percpu(wg->send_queue.worker);
 	destroy_workqueue(wg->packet_crypt_wq);
 	routing_table_free(&wg->peer_routing_table);
 	ratelimiter_uninit();
@@ -271,7 +271,7 @@ static void setup(struct net_device *dev)
 
 static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *tb[], struct nlattr *data[], struct netlink_ext_ack *extack)
 {
-	int ret = -ENOMEM, cpu;
+	int ret = -ENOMEM;
 	struct wireguard_device *wg = netdev_priv(dev);
 
 	wg->creating_net = get_net(src_net);
@@ -289,13 +289,9 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (!dev->tstats)
 		goto error_1;
 
-	wg->incoming_handshakes_worker = alloc_percpu(struct handshake_worker);
+	wg->incoming_handshakes_worker = packet_alloc_percpu_multicore_worker(packet_process_queued_handshake_packets, wg);
 	if (!wg->incoming_handshakes_worker)
 		goto error_2;
-	for_each_possible_cpu (cpu) {
-		per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->wg = wg;
-		INIT_WORK(&per_cpu_ptr(wg->incoming_handshakes_worker, cpu)->work, packet_process_queued_handshake_packets);
-	}
 
 	wg->handshake_receive_wq = alloc_workqueue("wg-kex-%s", WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
 	if (!wg->handshake_receive_wq)
@@ -309,21 +305,11 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (!wg->packet_crypt_wq)
 		goto error_5;
 
-	wg->send_queue = alloc_percpu(struct crypt_queue);
-	if (!wg->send_queue)
+	if (packet_queue_init(&wg->send_queue, packet_encrypt_worker, true) < 0)
 		goto error_6;
-	for_each_possible_cpu (cpu) {
-		INIT_LIST_HEAD(&per_cpu_ptr(wg->send_queue, cpu)->list);
-		INIT_WORK(&per_cpu_ptr(wg->send_queue, cpu)->work, packet_encrypt_worker);
-	}
 
-	wg->receive_queue = alloc_percpu(struct crypt_queue);
-	if (!wg->receive_queue)
+	if (packet_queue_init(&wg->receive_queue, packet_decrypt_worker, true) < 0)
 		goto error_7;
-	for_each_possible_cpu (cpu) {
-		INIT_LIST_HEAD(&per_cpu_ptr(wg->receive_queue, cpu)->list);
-		INIT_WORK(&per_cpu_ptr(wg->receive_queue, cpu)->work, packet_decrypt_worker);
-	}
 
 	ret = ratelimiter_init();
 	if (ret < 0)
@@ -345,9 +331,9 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 error_9:
 	ratelimiter_uninit();
 error_8:
-	free_percpu(wg->receive_queue);
+	free_percpu(wg->receive_queue.worker);
 error_7:
-	free_percpu(wg->send_queue);
+	free_percpu(wg->send_queue.worker);
 error_6:
 	destroy_workqueue(wg->packet_crypt_wq);
 error_5:

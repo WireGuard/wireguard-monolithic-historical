@@ -147,7 +147,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 
 void packet_process_queued_handshake_packets(struct work_struct *work)
 {
-	struct wireguard_device *wg = container_of(work, struct handshake_worker, work)->wg;
+	struct wireguard_device *wg = container_of(work, struct multicore_worker, work)->ptr;
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&wg->incoming_handshakes)) != NULL) {

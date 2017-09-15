@@ -14,6 +14,8 @@
 
 struct wireguard_device;
 struct wireguard_peer;
+struct multicore_worker;
+struct crypt_queue;
 struct sk_buff;
 
 struct packet_cb {
@@ -33,6 +35,8 @@ void packet_receive_worker(struct work_struct *work);
 void packet_decrypt_worker(struct work_struct *work);
 void packet_consume_data(struct sk_buff *skb, struct wireguard_device *wg);
 void packet_purge_init_queue(struct wireguard_peer *peer);
+int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool multicore);
+struct multicore_worker __percpu *packet_alloc_percpu_multicore_worker(work_func_t function, void *ptr);
 
 /* receive.c */
 void packet_process_queued_handshake_packets(struct work_struct *work);

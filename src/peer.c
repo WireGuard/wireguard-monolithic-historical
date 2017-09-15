@@ -46,13 +46,9 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	kref_init(&peer->refcount);
 	pubkey_hashtable_add(&wg->peer_hashtable, peer);
 	list_add_tail(&peer->peer_list, &wg->peer_list);
-	INIT_LIST_HEAD(&peer->init_queue.list);
-	INIT_WORK(&peer->init_queue.work, packet_init_worker);
-	INIT_LIST_HEAD(&peer->send_queue.list);
-	INIT_WORK(&peer->send_queue.work, packet_send_worker);
-	INIT_LIST_HEAD(&peer->receive_queue.list);
-	INIT_WORK(&peer->receive_queue.work, packet_receive_worker);
-	spin_lock_init(&peer->init_queue_lock);
+	packet_queue_init(&peer->send_queue, packet_send_worker, false);
+	packet_queue_init(&peer->receive_queue, packet_receive_worker, false);
+	packet_queue_init(&peer->init_queue, packet_init_worker, false);
 	pr_debug("%s: Peer %Lu created\n", wg->dev->name, peer->internal_id);
 	return peer;
 }

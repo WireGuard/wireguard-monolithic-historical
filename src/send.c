@@ -111,7 +111,7 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 	struct sk_buff *skb;
 	struct sk_buff_head queue;
 
-	if (list_empty(&peer->init_queue.list)) {
+	if (list_empty(&peer->init_queue.queue)) {
 		skb = alloc_skb(DATA_PACKET_HEAD_ROOM + MESSAGE_MINIMUM_LENGTH, GFP_ATOMIC);
 		if (unlikely(!skb))
 			return;

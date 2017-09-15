@@ -54,7 +54,6 @@ struct wireguard_peer {
 	struct list_head peer_list;
 	u64 internal_id;
 	struct crypt_queue init_queue, send_queue, receive_queue;
-	spinlock_t init_queue_lock;
 	atomic_t is_draining;
 	int serial_work_cpu;
 };
