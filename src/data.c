@@ -98,8 +98,15 @@ static inline bool queue_enqueue_per_peer(struct crypt_queue *queue, struct cryp
 
 static inline void queue_enqueue_per_device(struct crypt_queue __percpu *queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
 {
+	struct crypt_queue *cpu_queue;
 	int cpu = cpumask_next_online(next_cpu);
-	struct crypt_queue *cpu_queue = per_cpu_ptr(queue, cpu);
+	/* Avoid running parallel work on the same CPU as the one handling all
+	 * of the serial work. This improves overall throughput and especially
+	 * throughput stability where we have at least two cores left for
+	 * parallel work. */
+	if (cpu == ctx->peer->serial_work_cpu && num_online_cpus() >= 3)
+		cpu = cpumask_next_online(next_cpu);
+	cpu_queue = per_cpu_ptr(queue, cpu);
 	queue_enqueue(cpu_queue, &ctx->per_device_head, 0);
 	queue_work_on(cpu, wq, &cpu_queue->work);
 }
