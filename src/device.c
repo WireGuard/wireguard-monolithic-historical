@@ -311,6 +311,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 
 	INIT_LIST_HEAD(&wg->send_queue.list);
 	spin_lock_init(&wg->send_queue.lock);
+	dql_init(&wg->send_queue.dql, HZ);
 	wg->send_queue.worker = alloc_percpu(struct multicore_worker);
 	if (!wg->send_queue.worker)
 		goto error_6;
@@ -321,6 +322,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 
 	INIT_LIST_HEAD(&wg->receive_queue.list);
 	spin_lock_init(&wg->receive_queue.lock);
+	dql_init(&wg->receive_queue.dql, HZ);
 	wg->receive_queue.worker = alloc_percpu(struct multicore_worker);
 	if (!wg->receive_queue.worker)
 		goto error_7;

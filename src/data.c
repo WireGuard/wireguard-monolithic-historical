@@ -63,10 +63,18 @@ static inline struct crypt_ctx *queue_dequeue_per_peer(struct crypt_queue *queue
 	return head ? list_entry(head, struct crypt_ctx, per_peer_head) : NULL;
 }
 
-static inline struct crypt_ctx *queue_dequeue_per_device(struct crypt_queue *queue)
+static inline struct crypt_ctx *queue_dequeue_per_device(struct crypt_queue *queue, bool sending)
 {
 	struct list_head *head = queue_dequeue(queue);
-	return head ? list_entry(head, struct crypt_ctx, per_device_head) : NULL;
+	struct crypt_ctx *ctx;
+	if (!head)
+		return NULL;
+	ctx = list_entry(head, struct crypt_ctx, per_device_head);
+	if (sending)
+		dql_completed(&queue->dql, skb_queue_len(&ctx->packets));
+	else
+		dql_completed(&queue->dql, 1);
+	return ctx;
 }
 
 static inline bool queue_enqueue_per_peer(struct crypt_queue *queue, struct crypt_ctx *ctx)
@@ -77,9 +85,25 @@ static inline bool queue_enqueue_per_peer(struct crypt_queue *queue, struct cryp
 	return queue_enqueue(queue, &(ctx)->per_peer_head, MAX_QUEUED_PACKETS);
 }
 
-static inline void queue_enqueue_per_device(struct crypt_queue *queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
+static inline int cpumask_next_online_dql(int *next, struct dql *dql)
 {
-	int cpu = cpumask_next_online(next_cpu);
+	int cpu = *next;
+	while (unlikely(!cpumask_test_cpu(cpu, cpu_online_mask)))
+		cpu = cpumask_next(cpu, cpu_online_mask) % nr_cpumask_bits;
+	if (dql_avail(dql) < 0)
+		*next = cpumask_next(cpu, cpu_online_mask) % nr_cpumask_bits;
+	else
+		*next = cpu;
+	return cpu;
+}
+
+static inline void queue_enqueue_per_device(struct crypt_queue *queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu, bool sending)
+{
+	int cpu = cpumask_next_online_dql(next_cpu, &queue->dql);
+	if (sending)
+		dql_queued(&queue->dql, skb_queue_len(&ctx->packets));
+	else
+		dql_queued(&queue->dql, 1);
 	queue_enqueue(queue, &ctx->per_device_head, 0);
 	queue_work_on(cpu, wq, &per_cpu_ptr(queue->worker, cpu)->work);
 }
@@ -321,7 +345,7 @@ void packet_encrypt_worker(struct work_struct *work)
 	struct wireguard_peer *peer;
 	bool have_simd = chacha20poly1305_init_simd();
 
-	while ((ctx = queue_dequeue_per_device(queue)) != NULL) {
+	while ((ctx = queue_dequeue_per_device(queue, true)) != NULL) {
 		skb_queue_walk_safe(&ctx->packets, skb, tmp) {
 			if (likely(skb_encrypt(skb, ctx->keypair, have_simd))) {
 				skb_reset(skb);
@@ -355,7 +379,7 @@ void packet_init_worker(struct work_struct *work)
 		}
 		queue_dequeue(queue);
 		if (likely(queue_enqueue_per_peer(&peer->send_queue, ctx)))
-			queue_enqueue_per_device(&wg->send_queue, ctx, wg->packet_crypt_wq, &wg->send_queue.last_cpu);
+			queue_enqueue_per_device(&wg->send_queue, ctx, wg->packet_crypt_wq, &wg->send_queue.last_cpu, true);
 		else
 			free_ctx(ctx);
 	}
@@ -384,7 +408,7 @@ void packet_create_data(struct wireguard_peer *peer, struct sk_buff_head *packet
 	if (likely(list_empty(&peer->init_queue.list))) {
 		if (likely(populate_sending_ctx(ctx))) {
 			if (likely(queue_enqueue_per_peer(&peer->send_queue, ctx)))
-				queue_enqueue_per_device(&wg->send_queue, ctx, wg->packet_crypt_wq, &wg->send_queue.last_cpu);
+				queue_enqueue_per_device(&wg->send_queue, ctx, wg->packet_crypt_wq, &wg->send_queue.last_cpu, true);
 			else
 				free_ctx(ctx);
 			return;
@@ -458,7 +482,7 @@ void packet_decrypt_worker(struct work_struct *work)
 	struct crypt_queue *queue = container_of(work, struct multicore_worker, work)->queue;
 	struct wireguard_peer *peer;
 
-	while ((ctx = queue_dequeue_per_device(queue)) != NULL) {
+	while ((ctx = queue_dequeue_per_device(queue, false)) != NULL) {
 		if (unlikely(socket_endpoint_from_skb(&ctx->endpoint, ctx->skb) < 0 || !skb_decrypt(ctx->skb, &ctx->keypair->receiving))) {
 			dev_kfree_skb(ctx->skb);
 			ctx->skb = NULL;
@@ -499,7 +523,7 @@ void packet_consume_data(struct sk_buff *skb, struct wireguard_device *wg)
 	ctx->peer = ctx->keypair->entry.peer;
 
 	if (likely(queue_enqueue_per_peer(&ctx->peer->receive_queue, ctx)))
-		queue_enqueue_per_device(&wg->receive_queue, ctx, wg->packet_crypt_wq, &wg->receive_queue.last_cpu);
+		queue_enqueue_per_device(&wg->receive_queue, ctx, wg->packet_crypt_wq, &wg->receive_queue.last_cpu, false);
 	else {
 		/* TODO: replace this with a call to free_ctx when receiving uses skb_queues as well. */
 		noise_keypair_put(ctx->keypair);

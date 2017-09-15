@@ -30,6 +30,7 @@ struct crypt_queue {
 	union {
 		struct {
 			struct multicore_worker __percpu *worker;
+			struct dql dql;
 			int last_cpu;
 		};
 		struct work_struct work;
