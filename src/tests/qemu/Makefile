@@ -73,7 +73,7 @@ qemu: $(KERNEL_BZIMAGE)
 		$(QEMU_MACHINE) \
 		-cpu host \
 		-smp $(NR_CPUS) \
-		-m 96M \
+		-m 16G \
 		-object rng-random,id=rng0,filename=/dev/urandom \
 		-device virtio-rng-pci,rng=rng0 \
 		-device virtio-serial,max_ports=2 \

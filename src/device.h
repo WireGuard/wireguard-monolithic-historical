@@ -23,7 +23,7 @@ struct multicore_worker {
 
 struct crypt_queue {
 	spinlock_t lock;
-	struct list_head queue;
+	struct list_head list, *head, *tail;
 	union {
 		struct {
 			struct multicore_worker __percpu *worker;
@@ -31,7 +31,7 @@ struct crypt_queue {
 		};
 		struct work_struct work;
 	};
-	int len;
+	atomic_t len;
 };
 
 struct wireguard_device {
