@@ -82,26 +82,43 @@ static inline struct crypt_ctx *queue_dequeue_per_peer(struct crypt_queue *queue
 	return head ? list_entry(head, struct crypt_ctx, per_peer_head) : NULL;
 }
 
-static inline struct crypt_ctx *queue_dequeue_per_device(struct crypt_queue *queue)
+static inline struct crypt_ctx *queue_dequeue_per_device(struct crypt_queue *queue, bool sending)
 {
 	struct list_head *head = queue_dequeue(queue);
-	return head ? list_entry(head, struct crypt_ctx, per_device_head) : NULL;
+	struct crypt_ctx *ctx;
+	if (!head)
+		return NULL;
+	ctx = list_entry(head, struct crypt_ctx, per_device_head);
+	if (sending)
+		dql_completed(&queue->dql, skb_queue_len(&ctx->packets));
+	else if (!sending)
+		dql_completed(&queue->dql, 1);
+	smp_wmb();
+	return ctx;
 }
 
-static inline bool queue_enqueue_per_peer(struct crypt_queue *queue, struct crypt_ctx *ctx)
+static inline bool queue_enqueue_per_device_and_peer(struct crypt_queue __percpu *device_queue, struct crypt_queue *peer_queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, bool sending)
 {
-	/* TODO: While using MAX_QUEUED_PACKETS makes sense for the init_queue, it's
-	 * not ideal to be using this for the encrypt/decrypt queues or the send/receive
-	 * queues, where dynamic_queue_limit (dql) should be used instead. */
-	return queue_enqueue(queue, &(ctx)->per_peer_head, MAX_QUEUED_PACKETS);
-}
-
-static inline void queue_enqueue_per_device(struct crypt_queue __percpu *queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
-{
-	int cpu = cpumask_next_online(next_cpu);
-	struct crypt_queue *cpu_queue = per_cpu_ptr(queue, cpu);
-	queue_enqueue(cpu_queue, &ctx->per_device_head, 0);
-	queue_work_on(cpu, wq, &cpu_queue->work);
+	int cpu;
+	for_each_online_cpu (cpu) {
+		struct crypt_queue *cpu_queue = per_cpu_ptr(device_queue, cpu);
+		if (sending) {
+			if (dql_avail(&cpu_queue->dql) < 0)
+				continue;
+			else
+				dql_queued(&cpu_queue->dql, skb_queue_len(&ctx->packets));
+		} else if (!sending) {
+			if (dql_avail(&cpu_queue->dql) < 0)
+				continue;
+			else
+				dql_queued(&cpu_queue->dql, 1);
+		}
+		queue_enqueue(peer_queue, &(ctx)->per_peer_head, 0);
+		queue_enqueue(cpu_queue, &ctx->per_device_head, 0);
+		queue_work_on(cpu, wq, &cpu_queue->work);
+		return true;
+	}
+	return false;
 }
 
 static inline struct crypt_ctx *queue_first_per_peer(struct crypt_queue *queue)
@@ -341,7 +358,7 @@ void packet_encrypt_worker(struct work_struct *work)
 	struct wireguard_peer *peer;
 	bool have_simd = chacha20poly1305_init_simd();
 
-	while ((ctx = queue_dequeue_per_device(queue)) != NULL) {
+	while ((ctx = queue_dequeue_per_device(queue, true)) != NULL) {
 		skb_queue_walk_safe(&ctx->packets, skb, tmp) {
 			if (likely(skb_encrypt(skb, ctx->keypair, have_simd))) {
 				skb_reset(skb);
@@ -374,9 +391,7 @@ void packet_init_worker(struct work_struct *work)
 			break;
 		}
 		queue_dequeue(queue);
-		if (likely(queue_enqueue_per_peer(&peer->send_queue, ctx)))
-			queue_enqueue_per_device(wg->send_queue, ctx, wg->packet_crypt_wq, &wg->encrypt_cpu);
-		else
+		if (unlikely(!queue_enqueue_per_device_and_peer(wg->send_queue, &peer->send_queue, ctx, wg->packet_crypt_wq, true)))
 			free_ctx(ctx);
 	}
 	spin_unlock(&peer->init_queue_lock);
@@ -403,9 +418,7 @@ void packet_create_data(struct wireguard_peer *peer, struct sk_buff_head *packet
 	 * when the init queue is empty. */
 	if (likely(list_empty(&peer->init_queue.list))) {
 		if (likely(populate_sending_ctx(ctx))) {
-			if (likely(queue_enqueue_per_peer(&peer->send_queue, ctx)))
-				queue_enqueue_per_device(wg->send_queue, ctx, wg->packet_crypt_wq, &wg->encrypt_cpu);
-			else
+			if (unlikely(!queue_enqueue_per_device_and_peer(wg->send_queue, &peer->send_queue, ctx, wg->packet_crypt_wq, true)))
 				free_ctx(ctx);
 			return;
 		}
@@ -422,7 +435,7 @@ void packet_create_data(struct wireguard_peer *peer, struct sk_buff_head *packet
 	 * ongoing handshake. Throw out the oldest packets instead of the new
 	 * ones. If we cannot acquire the lock, packets are being dequeued on
 	 * another thread, so race for the open slot. */
-	while (unlikely(!queue_enqueue_per_peer(&peer->init_queue, ctx))) {
+	while (unlikely(!queue_enqueue(&peer->init_queue, &ctx->per_peer_head, MAX_QUEUED_OUTGOING_PACKETS))) {
 		if (spin_trylock(&peer->init_queue_lock)) {
 			struct crypt_ctx *tmp = queue_dequeue_per_peer(&peer->init_queue);
 			if (likely(tmp))
@@ -478,7 +491,7 @@ void packet_decrypt_worker(struct work_struct *work)
 	struct crypt_queue *queue = container_of(work, struct crypt_queue, work);
 	struct wireguard_peer *peer;
 
-	while ((ctx = queue_dequeue_per_device(queue)) != NULL) {
+	while ((ctx = queue_dequeue_per_device(queue, false)) != NULL) {
 		if (unlikely(socket_endpoint_from_skb(&ctx->endpoint, ctx->skb) < 0 || !skb_decrypt(ctx->skb, &ctx->keypair->receiving))) {
 			dev_kfree_skb(ctx->skb);
 			ctx->skb = NULL;
@@ -518,9 +531,7 @@ void packet_consume_data(struct sk_buff *skb, struct wireguard_device *wg)
 	/* index_hashtable_lookup() already gets a reference to peer. */
 	ctx->peer = ctx->keypair->entry.peer;
 
-	if (likely(queue_enqueue_per_peer(&ctx->peer->receive_queue, ctx)))
-		queue_enqueue_per_device(wg->receive_queue, ctx, wg->packet_crypt_wq, &wg->decrypt_cpu);
-	else {
+	if (unlikely(!queue_enqueue_per_device_and_peer(wg->receive_queue, &ctx->peer->receive_queue, ctx, wg->packet_crypt_wq, false))) {
 		/* TODO: replace this with a call to free_ctx when receiving uses skb_queues as well. */
 		noise_keypair_put(ctx->keypair);
 		peer_put(ctx->peer);

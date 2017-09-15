@@ -13,6 +13,7 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
+#include <linux/dynamic_queue_limits.h>
 
 struct wireguard_device;
 
@@ -24,6 +25,7 @@ struct handshake_worker {
 struct crypt_queue {
 	struct list_head list;
 	struct work_struct work;
+	struct dql dql;
 	atomic_t qlen;
 };
 
@@ -38,7 +40,7 @@ struct wireguard_device {
 	struct workqueue_struct *handshake_receive_wq, *handshake_send_wq, *packet_crypt_wq;
 	struct sk_buff_head incoming_handshakes;
 	struct crypt_queue __percpu *send_queue, *receive_queue;
-	int incoming_handshake_cpu, encrypt_cpu, decrypt_cpu;
+	int incoming_handshake_cpu;
 	struct handshake_worker __percpu *incoming_handshakes_worker;
 	struct cookie_checker cookie_checker;
 	struct pubkey_hashtable peer_hashtable;

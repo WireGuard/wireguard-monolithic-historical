@@ -315,6 +315,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	for_each_possible_cpu (cpu) {
 		INIT_LIST_HEAD(&per_cpu_ptr(wg->send_queue, cpu)->list);
 		INIT_WORK(&per_cpu_ptr(wg->send_queue, cpu)->work, packet_encrypt_worker);
+		dql_init(&per_cpu_ptr(wg->send_queue, cpu)->dql, HZ);
 	}
 
 	wg->receive_queue = alloc_percpu(struct crypt_queue);
@@ -323,6 +324,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	for_each_possible_cpu (cpu) {
 		INIT_LIST_HEAD(&per_cpu_ptr(wg->receive_queue, cpu)->list);
 		INIT_WORK(&per_cpu_ptr(wg->receive_queue, cpu)->work, packet_decrypt_worker);
+		dql_init(&per_cpu_ptr(wg->receive_queue, cpu)->dql, HZ);
 	}
 
 	ret = ratelimiter_init();
