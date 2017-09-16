@@ -157,7 +157,7 @@ void packet_process_queued_handshake_packets(struct work_struct *work)
 	}
 }
 
-static void keep_key_fresh(struct wireguard_peer *peer)
+static inline void keep_key_fresh(struct wireguard_peer *peer)
 {
 	struct noise_keypair *keypair;
 	bool send = false;

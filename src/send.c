@@ -55,9 +55,6 @@ void packet_queue_handshake_initiation(struct wireguard_peer *peer, bool is_retr
 		return;
 
 	peer = peer_rcu_get(peer);
-	if (unlikely(!peer))
-		return;
-
 	/* Queues up calling packet_send_queued_handshakes(peer), where we do a peer_put(peer) after: */
 	if (!queue_work(peer->device->peer_wq, &peer->transmit_handshake_work))
 		peer_put(peer); /* If the work was already queued, we want to drop the extra reference */
