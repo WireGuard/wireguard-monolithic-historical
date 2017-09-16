@@ -6,6 +6,7 @@
 
 #include "curve25519.h"
 
+#include <linux/version.h>
 #include <linux/string.h>
 #include <linux/random.h>
 #include <crypto/algapi.h>

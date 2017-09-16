@@ -3,6 +3,8 @@
 #ifndef WGCONFIG_H
 #define WGCONFIG_H
 
+#include <linux/compiler.h>
+
 struct wireguard_device;
 
 int config_get_device(struct wireguard_device *wg, void __user *udevice);
