@@ -93,7 +93,7 @@ static const struct ipv6_stub_type *ipv6_stub = &ipv6_stub_impl;
 #endif
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0) && IS_ENABLED(CONFIG_IPV6) && !defined(ISOPENSUSE42)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0) && IS_ENABLED(CONFIG_IPV6) && !defined(ISOPENSUSE42) && !defined(ISRHEL7)
 #include <net/addrconf.h>
 static inline bool ipv6_mod_enabled(void)
 {
