@@ -370,7 +370,7 @@ void packet_decrypt_worker(struct work_struct *work)
 		 * we take a reference here first. */
 		peer = peer_rcu_get(ctx->peer);
 		atomic_set(&ctx->is_finished, true);
-		queue_work_on(choose_cpu(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &peer->rx_queue.work);
+		queue_work_on(cpumask_choose_online(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &peer->rx_queue.work);
 		peer_put(peer);
 	}
 }

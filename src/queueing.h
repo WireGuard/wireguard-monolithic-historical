@@ -100,7 +100,7 @@ static inline void skb_reset(struct sk_buff *skb)
 	skb_reset_inner_headers(skb);
 }
 
-static inline int choose_cpu(int *stored_cpu, unsigned int id)
+static inline int cpumask_choose_online(int *stored_cpu, unsigned int id)
 {
 	unsigned int cpu = *stored_cpu, cpu_index, i;
 	if (unlikely(cpu == nr_cpumask_bits || !cpumask_test_cpu(cpu, cpu_online_mask))) {

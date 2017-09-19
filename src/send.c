@@ -218,7 +218,7 @@ void packet_encrypt_worker(struct work_struct *work)
 		 * we grab an additional reference to peer. */
 		peer = peer_rcu_get(ctx->peer);
 		atomic_set(&ctx->is_finished, true);
-		queue_work_on(choose_cpu(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &peer->tx_queue.work);
+		queue_work_on(cpumask_choose_online(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &peer->tx_queue.work);
 		peer_put(peer);
 	}
 	chacha20poly1305_deinit_simd(have_simd);
