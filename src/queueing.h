@@ -156,12 +156,6 @@ static inline bool queue_enqueue(struct crypt_queue *queue, struct list_head *no
 	return true;
 }
 
-static inline struct crypt_ctx *queue_dequeue_per_peer(struct crypt_queue *queue)
-{
-	struct list_head *node = queue_dequeue(queue);
-	return node ? list_entry(node, struct crypt_ctx, per_peer_node) : NULL;
-}
-
 static inline struct crypt_ctx *queue_dequeue_per_device(struct crypt_queue *queue)
 {
 	struct list_head *node = queue_dequeue(queue);
@@ -173,15 +167,10 @@ static inline struct crypt_ctx *queue_first_per_peer(struct crypt_queue *queue)
 	return list_first_entry_or_null(&queue->queue, struct crypt_ctx, per_peer_node);
 }
 
-static inline bool queue_enqueue_per_peer(struct crypt_queue *peer_queue, struct crypt_ctx *ctx)
-{
-	return queue_enqueue(peer_queue, &ctx->per_peer_node, MAX_QUEUED_PACKETS);
-}
-
 static inline bool queue_enqueue_per_device_and_peer(struct crypt_queue *device_queue, struct crypt_queue *peer_queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
 {
 	int cpu;
-	if (unlikely(!queue_enqueue_per_peer(peer_queue, ctx)))
+	if (unlikely(!queue_enqueue(peer_queue, &ctx->per_peer_node, MAX_QUEUED_PACKETS)))
 		return false;
 	cpu = cpumask_next_online(next_cpu);
 	queue_enqueue(device_queue, &ctx->per_device_node, 0);
