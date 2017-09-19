@@ -23,6 +23,7 @@ struct multicore_worker {
 
 struct crypt_queue {
 	spinlock_t lock;
+	int len;
 	struct list_head queue;
 	union {
 		struct {
@@ -31,28 +32,26 @@ struct crypt_queue {
 		};
 		struct work_struct work;
 	};
-	int len;
 };
 
 struct wireguard_device {
 	struct net_device *dev;
-	struct list_head device_list;
+	struct crypt_queue encrypt_queue, decrypt_queue;
 	struct sock __rcu *sock4, *sock6;
-	u16 incoming_port;
-	u32 fwmark;
 	struct net *creating_net;
 	struct noise_static_identity static_identity;
 	struct workqueue_struct *handshake_receive_wq, *handshake_send_wq, *packet_crypt_wq;
 	struct sk_buff_head incoming_handshakes;
-	struct crypt_queue encrypt_queue, decrypt_queue;
 	int incoming_handshake_cpu;
 	struct multicore_worker __percpu *incoming_handshakes_worker;
 	struct cookie_checker cookie_checker;
 	struct pubkey_hashtable peer_hashtable;
 	struct index_hashtable index_hashtable;
 	struct routing_table peer_routing_table;
-	struct list_head peer_list;
 	struct mutex device_update_lock, socket_update_lock;
+	struct list_head device_list, peer_list;
+	u32 fwmark;
+	u16 incoming_port;
 };
 
 int device_init(void);
