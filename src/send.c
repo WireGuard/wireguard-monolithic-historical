@@ -229,12 +229,13 @@ static void packet_create_data(struct wireguard_peer *peer, struct sk_buff_head 
 	struct crypt_ctx *ctx;
 	struct wireguard_device *wg = peer->device;
 
-	ctx = kmem_cache_zalloc(crypt_ctx_cache, GFP_ATOMIC);
+	ctx = kmem_cache_alloc(crypt_ctx_cache, GFP_ATOMIC);
 	if (unlikely(!ctx)) {
 		skb_queue_purge(packets);
 		goto err_drop_refs;
 	}
 	/* This function consumes the passed references to peer and keypair. */
+	atomic_set(&ctx->is_finished, false);
 	ctx->keypair = keypair;
 	ctx->peer = peer;
 	__skb_queue_head_init(&ctx->packets);

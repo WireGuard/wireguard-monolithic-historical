@@ -389,13 +389,14 @@ static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb
 		return;
 	}
 
-	ctx = kmem_cache_zalloc(crypt_ctx_cache, GFP_ATOMIC);
+	ctx = kmem_cache_alloc(crypt_ctx_cache, GFP_ATOMIC);
 	if (unlikely(!ctx)) {
 		dev_kfree_skb(skb);
 		peer_put(ctx->keypair->entry.peer);
 		noise_keypair_put(keypair);
 		return;
 	}
+	atomic_set(&ctx->is_finished, false);
 	ctx->keypair = keypair;
 	ctx->skb = skb;
 	/* We already have a reference to peer from index_hashtable_lookup. */
