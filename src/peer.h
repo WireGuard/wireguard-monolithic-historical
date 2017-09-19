@@ -32,12 +32,13 @@ struct endpoint {
 
 struct wireguard_peer {
 	struct wireguard_device *device;
+	struct crypt_queue tx_queue, rx_queue;
+	struct sk_buff_head staged_packet_queue;
+	int serial_work_cpu;
+	struct noise_keypairs keypairs;
 	struct endpoint endpoint;
 	struct dst_cache endpoint_cache;
 	rwlock_t endpoint_lock;
-	struct crypt_queue tx_queue, rx_queue;
-	int serial_work_cpu;
-	struct noise_keypairs keypairs;
 	struct noise_handshake handshake;
 	u64 last_sent_handshake;
 	struct work_struct transmit_handshake_work, clear_peer_work;
@@ -49,7 +50,6 @@ struct wireguard_peer {
 	unsigned long persistent_keepalive_interval;
 	bool timers_enabled, timer_need_another_keepalive, sent_lastminute_handshake;
 	struct timeval walltime_last_handshake;
-	struct sk_buff_head staged_packet_queue;
 	struct kref refcount;
 	struct rcu_head rcu;
 	struct list_head peer_list;
