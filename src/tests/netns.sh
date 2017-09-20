@@ -358,6 +358,10 @@ n1 wg set wg0 peer "$pub2" endpoint 10.0.0.2:2
 n1 ping -W 1 -c 1 192.168.241.2
 [[ $(n2 wg show wg0 endpoints) == "$pub1	10.0.0.1:1" ]]
 ip1 route add 10.0.0.0/24 dev veth3 src 10.0.0.3 metric 1
+n1 bash -c 'printf 0 > /proc/sys/net/ipv4/conf/veth1/rp_filter'
+n2 bash -c 'printf 0 > /proc/sys/net/ipv4/conf/veth4/rp_filter'
+n1 bash -c 'printf 0 > /proc/sys/net/ipv4/conf/all/rp_filter'
+n2 bash -c 'printf 0 > /proc/sys/net/ipv4/conf/all/rp_filter'
 n1 ping -W 1 -c 1 192.168.241.2
 [[ $(n2 wg show wg0 endpoints) == "$pub1	10.0.0.3:1" ]]
 
