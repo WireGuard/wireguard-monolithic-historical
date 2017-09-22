@@ -12,6 +12,8 @@
 static int set_device_port(struct wireguard_device *wg, u16 port)
 {
 	struct wireguard_peer *peer, *temp;
+	if (wg->incoming_port == port)
+		return 0;
 	socket_uninit(wg);
 	wg->incoming_port = port;
 	peer_for_each (wg, peer, temp, false)
