@@ -14,10 +14,10 @@ static int set_device_port(struct wireguard_device *wg, u16 port)
 	struct wireguard_peer *peer, *temp;
 	socket_uninit(wg);
 	wg->incoming_port = port;
-	if (!(wg->dev->flags & IFF_UP))
-		return 0;
 	peer_for_each (wg, peer, temp, false)
 		socket_clear_peer_endpoint_src(peer);
+	if (!netif_running(wg->dev))
+		return 0;
 	return socket_init(wg);
 }
 
@@ -72,8 +72,6 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 		peer = peer_rcu_get(peer_create(wg, in_peer.public_key, in_peer.preshared_key));
 		if (!peer)
 			return -ENOMEM;
-		if (wg->dev->flags & IFF_UP)
-			timers_init_peer(peer);
 	}
 
 	if (in_peer.flags & WGPEER_REMOVE_ME) {
@@ -107,13 +105,13 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 	}
 
 	if (in_peer.persistent_keepalive_interval != (u16)-1) {
-		const bool send_keepalive = !peer->persistent_keepalive_interval && in_peer.persistent_keepalive_interval && wg->dev->flags & IFF_UP;
+		const bool send_keepalive = !peer->persistent_keepalive_interval && in_peer.persistent_keepalive_interval && netif_running(wg->dev);
 		peer->persistent_keepalive_interval = (unsigned long)in_peer.persistent_keepalive_interval * HZ;
 		if (send_keepalive)
 			packet_send_keepalive(peer);
 	}
 
-	if (wg->dev->flags & IFF_UP)
+	if (netif_running(wg->dev))
 		packet_send_staged_packets(peer);
 
 	peer_put(peer);

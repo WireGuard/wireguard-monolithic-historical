@@ -25,6 +25,7 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	peer = kzalloc(sizeof(struct wireguard_peer), GFP_KERNEL);
 	if (!peer)
 		return NULL;
+	peer->device = wg;
 
 	if (dst_cache_init(&peer->endpoint_cache, GFP_KERNEL)) {
 		kfree(peer);
@@ -33,7 +34,6 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 
 	peer->internal_id = atomic64_inc_return(&peer_counter);
 	peer->serial_work_cpu = nr_cpumask_bits;
-	peer->device = wg;
 	cookie_init(&peer->latest_cookie);
 	if (!noise_handshake_init(&peer->handshake, &wg->static_identity, public_key, preshared_key, peer)) {
 		kfree(peer);
@@ -49,6 +49,7 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	packet_queue_init(&peer->tx_queue, packet_tx_worker, false);
 	packet_queue_init(&peer->rx_queue, packet_rx_worker, false);
 	skb_queue_head_init(&peer->staged_packet_queue);
+	timers_init(peer);
 	pr_debug("%s: Peer %Lu created\n", wg->dev->name, peer->internal_id);
 	return peer;
 }
@@ -80,7 +81,7 @@ void peer_remove(struct wireguard_peer *peer)
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
 	list_del(&peer->peer_list);
-	timers_uninit_peer(peer);
+	timers_stop(peer);
 	routing_table_remove_by_peer(&peer->device->peer_routing_table, peer);
 	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
 	skb_queue_purge(&peer->staged_packet_queue);

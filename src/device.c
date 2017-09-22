@@ -56,7 +56,6 @@ static int open(struct net_device *dev)
 	if (ret < 0)
 		return ret;
 	peer_for_each (wg, peer, temp, true) {
-		timers_init_peer(peer);
 		packet_send_staged_packets(peer);
 		if (peer->persistent_keepalive_interval)
 			packet_send_keepalive(peer);
@@ -96,7 +95,7 @@ static int stop(struct net_device *dev)
 	struct wireguard_peer *peer, *temp;
 	peer_for_each (wg, peer, temp, true) {
 		skb_queue_purge(&peer->staged_packet_queue);
-		timers_uninit_peer(peer);
+		timers_stop(peer);
 		noise_handshake_clear(&peer->handshake);
 		noise_keypairs_clear(&peer->keypairs);
 	}
