@@ -16,7 +16,6 @@
 
 int showconf_main(int argc, char *argv[])
 {
-	static const uint8_t zero[WG_KEY_LEN] = { 0 };
 	char base64[WG_KEY_LEN_BASE64];
 	char ip[INET6_ADDRSTRLEN];
 	struct wgdevice *device = NULL;
@@ -46,7 +45,7 @@ int showconf_main(int argc, char *argv[])
 		printf("ListenPort = %u\n", device->port);
 	if (device->fwmark)
 		printf("FwMark = 0x%x\n", device->fwmark);
-	if (memcmp(device->private_key, zero, WG_KEY_LEN)) {
+	if (!key_is_zero(device->private_key)) {
 		key_to_base64(base64, device->private_key);
 		printf("PrivateKey = %s\n", base64);
 	}
@@ -54,7 +53,7 @@ int showconf_main(int argc, char *argv[])
 	for_each_wgpeer(device, peer, i) {
 		key_to_base64(base64, peer->public_key);
 		printf("[Peer]\nPublicKey = %s\n", base64);
-		if (memcmp(peer->preshared_key, zero, WG_KEY_LEN)) {
+		if (!key_is_zero(peer->preshared_key)) {
 			key_to_base64(base64, peer->preshared_key);
 			printf("PresharedKey = %s\n", base64);
 		}

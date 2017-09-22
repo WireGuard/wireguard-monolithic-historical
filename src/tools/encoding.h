@@ -16,4 +16,6 @@ bool key_from_base64(uint8_t key[static WG_KEY_LEN], const char *base64);
 void key_to_hex(char hex[static WG_KEY_LEN_HEX], const uint8_t key[static WG_KEY_LEN]);
 bool key_from_hex(uint8_t key[static WG_KEY_LEN], const char *hex);
 
+bool key_is_zero(const uint8_t key[static WG_KEY_LEN]);
+
 #endif

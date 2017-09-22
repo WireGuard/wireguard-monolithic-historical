@@ -77,12 +77,12 @@ void key_to_hex(char hex[static WG_KEY_LEN_HEX], const uint8_t key[static WG_KEY
 
 bool key_from_hex(uint8_t key[static WG_KEY_LEN], const char *hex)
 {
-	uint8_t i, c, c_acc = 0, c_alpha0, c_alpha, c_num0, c_num, c_val, state = 0;
+	uint8_t c, c_acc = 0, c_alpha0, c_alpha, c_num0, c_num, c_val, state = 0;
 
 	if (strlen(hex) != WG_KEY_LEN_HEX - 1)
 		return false;
 
-	for (i = 0; i < WG_KEY_LEN_HEX - 1; ++i) {
+	for (unsigned int i = 0; i < WG_KEY_LEN_HEX - 1; ++i) {
 		c = (uint8_t)hex[i];
 		c_num = c ^ 48U;
 		c_num0 = (c_num - 10U) >> 8;
@@ -98,4 +98,14 @@ bool key_from_hex(uint8_t key[static WG_KEY_LEN], const char *hex)
 		state = ~state;
 	}
 	return true;
+}
+
+bool key_is_zero(const uint8_t key[static WG_KEY_LEN])
+{
+	uint8_t acc = 0;
+	for (unsigned int i = 0; i < WG_KEY_LEN; ++i) {
+		acc |= key[i];
+		__asm__ ("" : "=r" (acc) : "0" (acc));
+	}
+	return acc == 0;
 }

@@ -8,6 +8,7 @@
 #include "hashtables.h"
 #include "peer.h"
 #include "uapi.h"
+#include <crypto/algapi.h>
 
 static int set_device_port(struct wireguard_device *wg, u16 port)
 {
@@ -86,7 +87,7 @@ static int set_peer(struct wireguard_device *wg, void __user *user_peer, size_t 
 		down_write(&peer->handshake.lock);
 		memset(&peer->handshake.preshared_key, 0, NOISE_SYMMETRIC_KEY_LEN);
 		up_write(&peer->handshake.lock);
-	} else if (memcmp(zeros, in_peer.preshared_key, WG_KEY_LEN)) {
+	} else if (crypto_memneq(zeros, in_peer.preshared_key, WG_KEY_LEN)) {
 		down_write(&peer->handshake.lock);
 		memcpy(&peer->handshake.preshared_key, in_peer.preshared_key, NOISE_SYMMETRIC_KEY_LEN);
 		up_write(&peer->handshake.lock);
@@ -165,7 +166,7 @@ int config_set_device(struct wireguard_device *wg, void __user *user_device)
 	if (in_device.flags & WGDEVICE_REMOVE_PRIVATE_KEY) {
 		noise_set_static_identity_private_key(&wg->static_identity, NULL);
 		modified_static_identity = true;
-	} else if (memcmp(zeros, in_device.private_key, WG_KEY_LEN)) {
+	} else if (crypto_memneq(zeros, in_device.private_key, WG_KEY_LEN)) {
 		u8 public_key[NOISE_PUBLIC_KEY_LEN] = { 0 };
 		struct wireguard_peer *peer;
 		/* We remove before setting, to prevent race, which means doing two 25519-genpub ops. */

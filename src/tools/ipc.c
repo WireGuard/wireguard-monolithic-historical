@@ -170,7 +170,6 @@ out:
 
 static int userspace_set_device(struct wgdevice *dev)
 {
-	static const uint8_t zero[WG_KEY_LEN] = { 0 };
 	char hex[WG_KEY_LEN_HEX], ip[INET6_ADDRSTRLEN], host[4096 + 1], service[512 + 1];
 	struct wgpeer *peer;
 	struct wgipmask *ipmask;
@@ -186,7 +185,7 @@ static int userspace_set_device(struct wgdevice *dev)
 
 	if (dev->flags & WGDEVICE_REMOVE_PRIVATE_KEY)
 		fprintf(f, "private_key=\n");
-	else if (memcmp(dev->private_key, zero, WG_KEY_LEN)) {
+	else if (!key_is_zero(dev->private_key)) {
 		key_to_hex(hex, dev->private_key);
 		fprintf(f, "private_key=%s\n", hex);
 	}
@@ -208,7 +207,7 @@ static int userspace_set_device(struct wgdevice *dev)
 		}
 		if (peer->flags & WGPEER_REMOVE_PRESHARED_KEY)
 			fprintf(f, "preshared_key=\n");
-		else if (memcmp(peer->preshared_key, zero, WG_KEY_LEN)) {
+		else if (!key_is_zero(peer->preshared_key)) {
 			key_to_hex(hex, peer->preshared_key);
 			fprintf(f, "preshared_key=%s\n", hex);
 		}

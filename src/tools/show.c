@@ -75,12 +75,10 @@ static void sort_peers(struct wgdevice *device)
 	free(new_device);
 }
 
-static const uint8_t zero[WG_KEY_LEN] = { 0 };
-
 static char *key(const uint8_t key[static WG_KEY_LEN])
 {
 	static char base64[WG_KEY_LEN_BASE64];
-	if (!memcmp(key, zero, WG_KEY_LEN))
+	if (key_is_zero(key))
 		return "(none)";
 	key_to_base64(base64, key);
 	return base64;
@@ -212,9 +210,9 @@ static void pretty_print(struct wgdevice *device)
 
 	terminal_printf(TERMINAL_RESET);
 	terminal_printf(TERMINAL_FG_GREEN TERMINAL_BOLD "interface" TERMINAL_RESET ": " TERMINAL_FG_GREEN "%s" TERMINAL_RESET "\n", device->interface);
-	if (memcmp(device->public_key, zero, WG_KEY_LEN))
+	if (!key_is_zero(device->public_key))
 		terminal_printf("  " TERMINAL_BOLD "public key" TERMINAL_RESET ": %s\n", key(device->public_key));
-	if (memcmp(device->private_key, zero, WG_KEY_LEN))
+	if (!key_is_zero(device->private_key))
 		terminal_printf("  " TERMINAL_BOLD "private key" TERMINAL_RESET ": %s\n", masked_key(device->private_key));
 	if (device->port)
 		terminal_printf("  " TERMINAL_BOLD "listening port" TERMINAL_RESET ": %u\n", device->port);
@@ -226,7 +224,7 @@ static void pretty_print(struct wgdevice *device)
 	}
 	for_each_wgpeer(device, peer, i) {
 		terminal_printf(TERMINAL_FG_YELLOW TERMINAL_BOLD "peer" TERMINAL_RESET ": " TERMINAL_FG_YELLOW "%s" TERMINAL_RESET "\n", key(peer->public_key));
-		if (memcmp(peer->preshared_key, zero, WG_KEY_LEN))
+		if (!key_is_zero(peer->preshared_key))
 			terminal_printf("  " TERMINAL_BOLD "preshared key" TERMINAL_RESET ": %s\n", masked_key(peer->preshared_key));
 		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6)
 			terminal_printf("  " TERMINAL_BOLD "endpoint" TERMINAL_RESET ": %s\n", endpoint(&peer->endpoint.addr));

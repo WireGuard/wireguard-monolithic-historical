@@ -387,17 +387,11 @@ bool config_read_init(struct config_ctx *ctx, struct wgdevice **device, bool app
 	return true;
 }
 
-static inline bool key_is_valid(uint8_t key[WG_KEY_LEN])
-{
-	static const uint8_t zero[WG_KEY_LEN] = { 0 };
-	return !!memcmp(key, zero, WG_KEY_LEN);
-}
-
 bool config_read_finish(struct config_ctx *ctx)
 {
 	size_t i;
 	struct wgpeer *peer;
-	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && !key_is_valid(ctx->buf.dev->private_key)) {
+	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && key_is_zero(ctx->buf.dev->private_key)) {
 		fprintf(stderr, "No private key configured\n");
 		goto err;
 	}
@@ -405,7 +399,7 @@ bool config_read_finish(struct config_ctx *ctx)
 		ctx->buf.dev->flags |= WGDEVICE_REMOVE_FWMARK;
 
 	for_each_wgpeer(ctx->buf.dev, peer, i) {
-		if (!key_is_valid(peer->public_key)) {
+		if (key_is_zero(peer->public_key)) {
 			fprintf(stderr, "A peer is missing a public key\n");
 			goto err;
 		}
