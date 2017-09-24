@@ -17,8 +17,8 @@ struct sk_buff;
 
 /* queueing.c APIs: */
 extern struct kmem_cache *crypt_ctx_cache __read_mostly;
-int init_crypt_ctx_cache(void);
-void deinit_crypt_ctx_cache(void);
+int crypt_ctx_cache_init(void);
+void crypt_ctx_cache_uninit(void);
 int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool multicore);
 struct multicore_worker __percpu *packet_alloc_percpu_multicore_worker(work_func_t function, void *ptr);
 

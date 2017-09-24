@@ -32,7 +32,7 @@ int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool mult
 	return 0;
 }
 
-int __init init_crypt_ctx_cache(void)
+int __init crypt_ctx_cache_init(void)
 {
 	crypt_ctx_cache = KMEM_CACHE(crypt_ctx, 0);
 	if (!crypt_ctx_cache)
@@ -40,7 +40,7 @@ int __init init_crypt_ctx_cache(void)
 	return 0;
 }
 
-void deinit_crypt_ctx_cache(void)
+void crypt_ctx_cache_uninit(void)
 {
 	kmem_cache_destroy(crypt_ctx_cache);
 }
