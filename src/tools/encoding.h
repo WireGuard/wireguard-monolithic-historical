@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "../uapi.h"
+#include "containers.h"
 
 #define WG_KEY_LEN_BASE64 ((((WG_KEY_LEN) + 2) / 3) * 4 + 1)
 #define WG_KEY_LEN_HEX (WG_KEY_LEN * 2 + 1)

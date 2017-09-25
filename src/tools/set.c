@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "subcommands.h"
+
+#include "containers.h"
 #include "config.h"
 #include "ipc.h"
+#include "subcommands.h"
 
 int set_main(int argc, char *argv[])
 {
@@ -17,10 +19,11 @@ int set_main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (!config_read_cmd(&device, argv + 2, argc - 2))
+	device = config_read_cmd(argv + 2, argc - 2);
+	if (!device)
 		goto cleanup;
-	strncpy(device->interface, argv[1], IFNAMSIZ -  1);
-	device->interface[IFNAMSIZ - 1] = 0;
+	strncpy(device->name, argv[1], IFNAMSIZ -  1);
+	device->name[IFNAMSIZ - 1] = 0;
 
 	if (ipc_set_device(device) != 0) {
 		perror("Unable to set device");
@@ -30,6 +33,6 @@ int set_main(int argc, char *argv[])
 	ret = 0;
 
 cleanup:
-	free(device);
+	free_wgdevice(device);
 	return ret;
 }

@@ -4,10 +4,8 @@
 #include "socket.h"
 #include "timers.h"
 #include "device.h"
-#include "config.h"
 #include "ratelimiter.h"
 #include "peer.h"
-#include "uapi.h"
 #include "messages.h"
 
 #include <linux/module.h>
@@ -192,28 +190,11 @@ err:
 	return ret;
 }
 
-static int ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	struct wireguard_device *wg = netdev_priv(dev);
-
-	if (!ns_capable(dev_net(dev)->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
-
-	switch (cmd) {
-	case WG_GET_DEVICE:
-		return config_get_device(wg, ifr->ifr_ifru.ifru_data);
-	case WG_SET_DEVICE:
-		return config_set_device(wg, ifr->ifr_ifru.ifru_data);
-	}
-	return -EINVAL;
-}
-
 static const struct net_device_ops netdev_ops = {
 	.ndo_open		= open,
 	.ndo_stop		= stop,
 	.ndo_start_xmit		= xmit,
-	.ndo_get_stats64	= ip_tunnel_get_stats64,
-	.ndo_do_ioctl		= ioctl
+	.ndo_get_stats64	= ip_tunnel_get_stats64
 };
 
 static void destruct(struct net_device *dev)
@@ -290,6 +271,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	routing_table_init(&wg->peer_routing_table);
 	cookie_checker_init(&wg->cookie_checker, wg);
 	INIT_LIST_HEAD(&wg->peer_list);
+	wg->device_update_gen = 1;
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
@@ -372,7 +354,7 @@ int __init device_init(void)
 	return rtnl_link_register(&link_ops);
 }
 
-void __exit device_uninit(void)
+void device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
 #ifdef CONFIG_PM_SLEEP

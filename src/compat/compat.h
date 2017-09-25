@@ -401,6 +401,43 @@ static inline void kvfree_ours(const void *addr)
 #define newlink(a,b,c,d,e) newlink(a,b,c,d)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+#include <net/netlink.h>
+#include <net/genetlink.h>
+#define nlmsg_parse(a, b, c, d, e, f) nlmsg_parse(a, b, c, d, e)
+#define nla_parse_nested(a, b, c, d, e) nla_parse_nested(a, b, c, d)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+static inline struct nlattr **genl_family_attrbuf(const struct genl_family *family)
+{
+	return family->attrbuf;
+}
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
+#define PTR_ERR_OR_ZERO(p) PTR_RET(p)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0)
+#include <net/netlink.h>
+#define nla_put_u64_64bit(a, b, c, d) nla_put_u64(a, b, c)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+#define GENL_UNS_ADMIN_PERM GENL_ADMIN_PERM
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+#include <net/genetlink.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+#define genl_register_family(a) genl_register_family_with_ops(a, (struct genl_ops *)genl_ops, ARRAY_SIZE(genl_ops))
+#else
+#define genl_register_family(a) genl_register_family_with_ops(a, genl_ops)
+#endif
+#endif
+
+
 /* https://lkml.org/lkml/2017/6/23/790 */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>

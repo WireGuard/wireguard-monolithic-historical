@@ -192,7 +192,7 @@ exec 4< <(n1 ncat -l -u -p 1111)
 nmap_pid=$!
 waitncatudp $netns1
 n2 ncat -u 192.168.241.1 1111 <<<"X"
-! read -r -N 1 -t 1 out <&4
+! read -r -N 1 -t 1 out <&4 || false
 kill $nmap_pid
 n1 wg set wg0 peer "$more_specific_key" remove
 [[ $(n1 wg show wg0 endpoints) == "$pub2	[::1]:9997" ]]
@@ -369,3 +369,40 @@ ip1 link del veth1
 ip1 link del veth3
 ip1 link del wg0
 ip2 link del wg0
+
+# We test that Netlink/IPC is working properly by doing things that usually cause split responses
+ip0 link add dev wg0 type wireguard
+config=( "[Interface]" "PrivateKey=$(wg genkey)" "[Peer]" "PublicKey=$(wg genkey)" )
+for a in {1..255}; do
+	for b in {0..255}; do
+		config+=( "AllowedIPs=$a.$b.0.0/16" )
+	done
+done
+n0 wg setconf wg0 <(printf '%s\n' "${config[@]}")
+i=0
+for ip in $(n0 wg show wg0 allowed-ips); do
+	((++i))
+done
+((i == 65281))
+ip0 link del wg0
+ip0 link add dev wg0 type wireguard
+config=( "[Interface]" "PrivateKey=$(wg genkey)" )
+for a in {1..40}; do
+	config+=( "[Peer]" "PublicKey=$(wg genkey)" )
+	for b in {1..52}; do
+		config+=( "AllowedIPs=$a.$b.0.0/16" )
+	done
+done
+n0 wg setconf wg0 <(printf '%s\n' "${config[@]}")
+i=0
+while read -r line; do
+	j=0
+	for ip in $line; do
+		((++j))
+	done
+	((j == 53))
+	((++i))
+done < <(n0 wg show wg0 allowed-ips)
+((i == 40))
+ip0 link del wg0
+! n0 wg show doesnotexist || false

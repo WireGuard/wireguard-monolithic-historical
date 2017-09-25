@@ -5,13 +5,16 @@
 #include "noise.h"
 #include "queueing.h"
 #include "ratelimiter.h"
+#include "netlink.h"
 #include "crypto/chacha20poly1305.h"
 #include "crypto/blake2s.h"
 #include "crypto/curve25519.h"
+#include "uapi/wireguard.h"
 
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/genetlink.h>
 #include <net/rtnetlink.h>
 
 static int __init mod_init(void)
@@ -35,11 +38,17 @@ static int __init mod_init(void)
 	if (ret < 0)
 		goto err_device;
 
+	ret = netlink_init();
+	if (ret < 0)
+		goto err_netlink;
+
 	pr_info("WireGuard " WIREGUARD_VERSION " loaded. See www.wireguard.com for information.\n");
 	pr_info("Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.\n");
 
 	return 0;
 
+err_netlink:
+	device_uninit();
 err_device:
 	crypt_ctx_cache_uninit();
 err_packet:
@@ -48,6 +57,7 @@ err_packet:
 
 static void __exit mod_exit(void)
 {
+	netlink_uninit();
 	device_uninit();
 	crypt_ctx_cache_uninit();
 	pr_debug("WireGuard unloaded\n");
@@ -60,3 +70,4 @@ MODULE_DESCRIPTION("Fast, secure, and modern VPN tunnel");
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 MODULE_VERSION(WIREGUARD_VERSION);
 MODULE_ALIAS_RTNL_LINK(KBUILD_MODNAME);
+MODULE_ALIAS_GENL_FAMILY(WG_GENL_NAME);

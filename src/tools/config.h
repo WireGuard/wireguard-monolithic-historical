@@ -4,31 +4,21 @@
 #define CONFIG_H
 
 #include <stdbool.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include "../uapi.h"
 
-struct inflatable_device {
-	struct wgdevice *dev;
-	size_t len;
-	size_t pos;
-};
+struct wgdevice;
+struct wgpeer;
+struct wgallowedip;
 
 struct config_ctx {
-	struct inflatable_device buf;
-	size_t peer_offset;
-	struct wgdevice **device;
-	bool is_peer_section;
-	bool is_device_section;
+	struct wgdevice *device;
+	struct wgpeer *last_peer;
+	struct wgallowedip *last_allowedip;
+	bool is_peer_section, is_device_section;
 };
 
-bool config_read_cmd(struct wgdevice **dev, char *argv[], int argc);
-bool config_read_init(struct config_ctx *ctx, struct wgdevice **device, bool append);
+struct wgdevice *config_read_cmd(char *argv[], int argc);
+bool config_read_init(struct config_ctx *ctx, bool append);
 bool config_read_line(struct config_ctx *ctx, const char *line);
-bool config_read_finish(struct config_ctx *ctx);
+struct wgdevice *config_read_finish(struct config_ctx *ctx);
 
 #endif

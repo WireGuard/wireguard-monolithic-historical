@@ -1,6 +1,5 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-
 #include <arpa/inet.h>
 #include <limits.h>
 #include <ctype.h>
@@ -14,35 +13,11 @@
 #include <errno.h>
 
 #include "config.h"
+#include "containers.h"
 #include "ipc.h"
 #include "encoding.h"
 
 #define COMMENT_CHAR '#'
-
-#define max(a, b) (a > b ? a : b)
-
-static inline struct wgpeer *peer_from_offset(struct wgdevice *dev, size_t offset)
-{
-	return (struct wgpeer *)((uint8_t *)dev + sizeof(struct wgdevice) + offset);
-}
-
-static int use_space(struct inflatable_device *buf, size_t space)
-{
-	size_t expand_to;
-	uint8_t *new_dev;
-
-	if (buf->len - buf->pos < space) {
-		expand_to = max(buf->len * 2, buf->len + space);
-		new_dev = realloc(buf->dev, expand_to + sizeof(struct wgdevice));
-		if (!new_dev)
-			return -errno;
-		memset(&new_dev[buf->len + sizeof(struct wgdevice)], 0, expand_to - buf->len);
-		buf->dev = (struct wgdevice *)new_dev;
-		buf->len = expand_to;
-	}
-	buf->pos += space;
-	return 0;
-}
 
 static const char *get_value(const char *line, const char *key)
 {
@@ -58,10 +33,9 @@ static const char *get_value(const char *line, const char *key)
 	return line + keylen;
 }
 
-static inline uint16_t parse_port(const char *value)
+static inline bool parse_port(uint16_t *port, uint32_t *flags, const char *value)
 {
 	int ret;
-	uint16_t port = 0;
 	struct addrinfo *resolved;
 	struct addrinfo hints = {
 		.ai_family = AF_UNSPEC,
@@ -72,27 +46,32 @@ static inline uint16_t parse_port(const char *value)
 
 	if (!strlen(value)) {
 		fprintf(stderr, "Unable to parse empty port\n");
-		return 0;
+		return false;
 	}
 
 	ret = getaddrinfo(NULL, value, &hints, &resolved);
-	if (ret != 0) {
+	if (ret) {
 		fprintf(stderr, "%s: `%s`\n", gai_strerror(ret), value);
-		return 0;
+		return false;
 	}
 
-	if (resolved->ai_family == AF_INET && resolved->ai_addrlen == sizeof(struct sockaddr_in))
-		port = ntohs(((struct sockaddr_in *)resolved->ai_addr)->sin_port);
-	else if (resolved->ai_family == AF_INET6 && resolved->ai_addrlen == sizeof(struct sockaddr_in6))
-		port = ntohs(((struct sockaddr_in6 *)resolved->ai_addr)->sin6_port);
-	else
+	ret = -1;
+	if (resolved->ai_family == AF_INET && resolved->ai_addrlen == sizeof(struct sockaddr_in)) {
+		*port = ntohs(((struct sockaddr_in *)resolved->ai_addr)->sin_port);
+		ret = 0;
+	} else if (resolved->ai_family == AF_INET6 && resolved->ai_addrlen == sizeof(struct sockaddr_in6)) {
+		*port = ntohs(((struct sockaddr_in6 *)resolved->ai_addr)->sin6_port);
+		ret = 0;
+	} else
 		fprintf(stderr, "Neither IPv4 nor IPv6 address found: `%s`\n", value);
 
 	freeaddrinfo(resolved);
-	return port;
+	if (!ret)
+		*flags |= WGDEVICE_HAS_LISTEN_PORT;
+	return ret == 0;
 }
 
-static inline bool parse_fwmark(uint32_t *fwmark, unsigned int *flags, const char *value)
+static inline bool parse_fwmark(uint32_t *fwmark, uint32_t *flags, const char *value)
 {
 	unsigned long ret;
 	char *end;
@@ -100,7 +79,7 @@ static inline bool parse_fwmark(uint32_t *fwmark, unsigned int *flags, const cha
 
 	if (!strcasecmp(value, "off")) {
 		*fwmark = 0;
-		*flags |= WGDEVICE_REMOVE_FWMARK;
+		*flags |= WGDEVICE_HAS_FWMARK;
 		return true;
 	}
 
@@ -112,8 +91,7 @@ static inline bool parse_fwmark(uint32_t *fwmark, unsigned int *flags, const cha
 	if (!*value || *end || ret > UINT32_MAX)
 		return false;
 	*fwmark = ret;
-	if (!ret)
-		*flags |= WGDEVICE_REMOVE_FWMARK;
+	*flags |= WGDEVICE_HAS_FWMARK;
 	return true;
 }
 
@@ -126,17 +104,17 @@ static inline bool parse_key(uint8_t key[static WG_KEY_LEN], const char *value)
 	return true;
 }
 
-static inline bool parse_ip(struct wgipmask *ipmask, const char *value)
+static inline bool parse_ip(struct wgallowedip *allowedip, const char *value)
 {
-	ipmask->family = AF_UNSPEC;
+	allowedip->family = AF_UNSPEC;
 	if (strchr(value, ':')) {
-		if (inet_pton(AF_INET6, value, &ipmask->ip6) == 1)
-			ipmask->family = AF_INET6;
+		if (inet_pton(AF_INET6, value, &allowedip->ip6) == 1)
+			allowedip->family = AF_INET6;
 	} else {
-		if (inet_pton(AF_INET, value, &ipmask->ip4) == 1)
-			ipmask->family = AF_INET;
+		if (inet_pton(AF_INET, value, &allowedip->ip4) == 1)
+			allowedip->family = AF_INET;
 	}
-	if (ipmask->family == AF_UNSPEC) {
+	if (allowedip->family == AF_UNSPEC) {
 		fprintf(stderr, "Unable to parse IP address: `%s`\n", value);
 		return false;
 	}
@@ -215,13 +193,14 @@ static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 	return true;
 }
 
-static inline bool parse_persistent_keepalive(__u16 *interval, const char *value)
+static inline bool parse_persistent_keepalive(uint16_t *interval, uint32_t *flags, const char *value)
 {
 	unsigned long ret;
 	char *end;
 
 	if (!strcasecmp(value, "off")) {
 		*interval = 0;
+		*flags |= WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL;
 		return true;
 	}
 
@@ -231,22 +210,21 @@ static inline bool parse_persistent_keepalive(__u16 *interval, const char *value
 		return false;
 	}
 
-	*interval = (__u16)ret;
+	*interval = (uint16_t)ret;
+	*flags |= WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL;
 	return true;
 }
 
 
-static inline bool parse_ipmasks(struct inflatable_device *buf, size_t peer_offset, const char *value)
+static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **last_allowedip, const char *value)
 {
-	struct wgpeer *peer;
-	struct wgipmask *ipmask;
+	struct wgallowedip *allowedip = *last_allowedip, *new_allowedip;
 	char *mask, *mutable = strdup(value), *sep;
 	if (!mutable) {
 		perror("strdup");
 		return false;
 	};
-	peer = peer_from_offset(buf->dev, peer_offset);
-	peer->flags |= WGPEER_REPLACE_IPMASKS;
+	peer->flags |= WGPEER_REPLACE_ALLOWEDIPS;
 	if (!strlen(value)) {
 		free(mutable);
 		return true;
@@ -255,15 +233,19 @@ static inline bool parse_ipmasks(struct inflatable_device *buf, size_t peer_offs
 	while ((mask = strsep(&sep, ","))) {
 		unsigned long cidr = ULONG_MAX;
 		char *end, *ip = strsep(&mask, "/");
-		if (use_space(buf, sizeof(struct wgipmask)) < 0) {
-			perror("use_space");
+		new_allowedip = calloc(1, sizeof(struct wgallowedip));
+		if (!new_allowedip) {
+			perror("calloc");
 			free(mutable);
 			return false;
 		}
-		peer = peer_from_offset(buf->dev, peer_offset);
-		ipmask = (struct wgipmask *)((uint8_t *)peer + sizeof(struct wgpeer) + (sizeof(struct wgipmask) * peer->num_ipmasks));
+		if (allowedip)
+			allowedip->next_allowedip = new_allowedip;
+		else
+			peer->first_allowedip = new_allowedip;
+		allowedip = new_allowedip;
 
-		if (!parse_ip(ipmask, ip)) {
+		if (!parse_ip(allowedip, ip)) {
 			free(mutable);
 			return false;
 		}
@@ -272,16 +254,16 @@ static inline bool parse_ipmasks(struct inflatable_device *buf, size_t peer_offs
 			if (*end)
 				cidr = ULONG_MAX;
 		}
-		if (ipmask->family == AF_INET)
+		if (allowedip->family == AF_INET)
 			cidr = cidr > 32 ? 32 : cidr;
-		else if (ipmask->family == AF_INET6)
+		else if (allowedip->family == AF_INET6)
 			cidr = cidr > 128 ? 128 : cidr;
 		else
 			continue;
-		ipmask->cidr = cidr;
-		++peer->num_ipmasks;
+		allowedip->cidr = cidr;
 	}
 	free(mutable);
+	*last_allowedip = allowedip;
 	return true;
 }
 
@@ -296,16 +278,20 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 		return true;
 	}
 	if (!strcasecmp(line, "[Peer]")) {
-		ctx->peer_offset = ctx->buf.pos;
-		if (use_space(&ctx->buf, sizeof(struct wgpeer)) < 0) {
-			perror("use_space");
+		struct wgpeer *new_peer = calloc(1, sizeof(struct wgpeer));
+		if (!new_peer) {
+			perror("calloc");
 			return false;
 		}
-		++ctx->buf.dev->num_peers;
+		ctx->last_allowedip = NULL;
+		if (ctx->last_peer)
+			ctx->last_peer->next_peer = new_peer;
+		else
+			ctx->device->first_peer = new_peer;
+		ctx->last_peer = new_peer;
 		ctx->is_peer_section = true;
 		ctx->is_device_section = false;
-		peer_from_offset(ctx->buf.dev, ctx->peer_offset)->flags |= WGPEER_REPLACE_IPMASKS;
-		peer_from_offset(ctx->buf.dev, ctx->peer_offset)->persistent_keepalive_interval = (__u16)-1;
+		ctx->last_peer->flags |= WGPEER_REPLACE_ALLOWEDIPS;
 		return true;
 	}
 
@@ -313,28 +299,32 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 
 	if (ctx->is_device_section) {
 		if (key_match("ListenPort"))
-			ret = !!(ctx->buf.dev->port = parse_port(value));
+			ret = parse_port(&ctx->device->listen_port, &ctx->device->flags, value);
 		else if (key_match("FwMark"))
-			ret = parse_fwmark(&ctx->buf.dev->fwmark, &ctx->buf.dev->flags, value);
+			ret = parse_fwmark(&ctx->device->fwmark, &ctx->device->flags, value);
 		else if (key_match("PrivateKey")) {
-			ret = parse_key(ctx->buf.dev->private_key, value);
+			ret = parse_key(ctx->device->private_key, value);
 			if (!ret)
-				memset(ctx->buf.dev->private_key, 0, WG_KEY_LEN);
+				memset(ctx->device->private_key, 0, WG_KEY_LEN);
+			else
+				ctx->device->flags |= WGDEVICE_HAS_PRIVATE_KEY;
 		} else
 			goto error;
 	} else if (ctx->is_peer_section) {
 		if (key_match("Endpoint"))
-			ret = parse_endpoint(&peer_from_offset(ctx->buf.dev, ctx->peer_offset)->endpoint.addr, value);
+			ret = parse_endpoint(&ctx->last_peer->endpoint.addr, value);
 		else if (key_match("PublicKey"))
-			ret = parse_key(peer_from_offset(ctx->buf.dev, ctx->peer_offset)->public_key, value);
+			ret = parse_key(ctx->last_peer->public_key, value);
 		else if (key_match("AllowedIPs"))
-			ret = parse_ipmasks(&ctx->buf, ctx->peer_offset, value);
+			ret = parse_allowedips(ctx->last_peer, &ctx->last_allowedip, value);
 		else if (key_match("PersistentKeepalive"))
-			ret = parse_persistent_keepalive(&peer_from_offset(ctx->buf.dev, ctx->peer_offset)->persistent_keepalive_interval, value);
+			ret = parse_persistent_keepalive(&ctx->last_peer->persistent_keepalive_interval, &ctx->last_peer->flags, value);
 		else if (key_match("PresharedKey")) {
-			ret = parse_key(peer_from_offset(ctx->buf.dev, ctx->peer_offset)->preshared_key, value);
+			ret = parse_key(ctx->last_peer->preshared_key, value);
 			if (!ret)
-				memset(peer_from_offset(ctx->buf.dev, ctx->peer_offset)->preshared_key, 0, WG_KEY_LEN);
+				memset(ctx->last_peer->preshared_key, 0, WG_KEY_LEN);
+			else
+				ctx->last_peer->flags |= WGPEER_HAS_PRESHARED_KEY;
 		} else
 			goto error;
 	} else
@@ -355,7 +345,8 @@ bool config_read_line(struct config_ctx *ctx, const char *input)
 	bool ret = true;
 	if (!line) {
 		perror("calloc");
-		return false;
+		ret = false;
+		goto out;
 	}
 	if (!len)
 		goto out;
@@ -370,56 +361,54 @@ bool config_read_line(struct config_ctx *ctx, const char *input)
 	ret = process_line(ctx, line);
 out:
 	free(line);
+	if (!ret)
+		free_wgdevice(ctx->device);
 	return ret;
 }
 
-bool config_read_init(struct config_ctx *ctx, struct wgdevice **device, bool append)
+bool config_read_init(struct config_ctx *ctx, bool append)
 {
 	memset(ctx, 0, sizeof(struct config_ctx));
-	ctx->device = device;
-	ctx->buf.dev = calloc(1, sizeof(struct wgdevice));
-	if (!ctx->buf.dev) {
+	ctx->device = calloc(1, sizeof(struct wgdevice));
+	if (!ctx->device) {
 		perror("calloc");
 		return false;
 	}
 	if (!append)
-		ctx->buf.dev->flags |= WGDEVICE_REPLACE_PEERS;
+		ctx->device->flags |= WGDEVICE_REPLACE_PEERS | WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_FWMARK | WGDEVICE_HAS_LISTEN_PORT;
 	return true;
 }
 
-bool config_read_finish(struct config_ctx *ctx)
+struct wgdevice *config_read_finish(struct config_ctx *ctx)
 {
-	size_t i;
 	struct wgpeer *peer;
-	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && key_is_zero(ctx->buf.dev->private_key)) {
-		fprintf(stderr, "No private key configured\n");
+	if (ctx->device->flags & WGDEVICE_REPLACE_PEERS && key_is_zero(ctx->device->private_key)) {
+		fprintf(stderr, "No private key is configured\n");
 		goto err;
 	}
-	if (ctx->buf.dev->flags & WGDEVICE_REPLACE_PEERS && !ctx->buf.dev->fwmark)
-		ctx->buf.dev->flags |= WGDEVICE_REMOVE_FWMARK;
 
-	for_each_wgpeer(ctx->buf.dev, peer, i) {
+	for_each_wgpeer (ctx->device, peer) {
 		if (key_is_zero(peer->public_key)) {
 			fprintf(stderr, "A peer is missing a public key\n");
 			goto err;
 		}
 	}
-	*ctx->device = ctx->buf.dev;
-	return true;
+	return ctx->device;
 err:
-	free(ctx->buf.dev);
-	return false;
+	free_wgdevice(ctx->device);
+	return NULL;
 }
 
-static int read_keyfile(char dst[WG_KEY_LEN_BASE64], const char *path)
+static bool read_keyfile(char dst[WG_KEY_LEN_BASE64], const char *path)
 {
 	FILE *f;
-	int ret = -1, c;
+	int c;
+	bool ret = false;
 
 	f = fopen(path, "r");
 	if (!f) {
 		perror("fopen");
-		return -1;
+		return false;
 	}
 
 	if (fread(dst, WG_KEY_LEN_BASE64 - 1, 1, f) != 1) {
@@ -429,7 +418,9 @@ static int read_keyfile(char dst[WG_KEY_LEN_BASE64], const char *path)
 		}
 		/* If we're at the end and we didn't read anything, we're /dev/null. */
 		if (!ferror(f) && feof(f) && !ftell(f)) {
-			ret = 1;
+			static const uint8_t zeros[WG_KEY_LEN] = { 0 };
+			key_to_base64(dst, zeros);
+			ret = true;
 			goto out;
 		}
 
@@ -448,7 +439,7 @@ static int read_keyfile(char dst[WG_KEY_LEN_BASE64], const char *path)
 		perror("getc");
 		goto out;
 	}
-	ret = 0;
+	ret = true;
 
 out:
 	fclose(f);
@@ -473,85 +464,84 @@ static char *strip_spaces(const char *in)
 	return out;
 }
 
-bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
+struct wgdevice *config_read_cmd(char *argv[], int argc)
 {
-	struct inflatable_device buf = { 0 };
-	size_t peer_offset = 0;
-	buf.dev = calloc(1, sizeof(struct wgdevice));
-	if (!buf.dev) {
+	struct wgdevice *device = calloc(1, sizeof(struct wgdevice));
+	struct wgpeer *peer = NULL;
+	struct wgallowedip *allowedip = NULL;
+	if (!device) {
 		perror("calloc");
 		return false;
 	}
 	while (argc > 0) {
-		if (!strcmp(argv[0], "listen-port") && argc >= 2 && !buf.dev->num_peers) {
-			buf.dev->port = parse_port(argv[1]);
-			if (!buf.dev->port)
+		if (!strcmp(argv[0], "listen-port") && argc >= 2 && !peer) {
+			if (!parse_port(&device->listen_port, &device->flags, argv[1]))
 				goto error;
 			argv += 2;
 			argc -= 2;
-		} else if (!strcmp(argv[0], "fwmark") && argc >= 2 && !buf.dev->num_peers) {
-			if (!parse_fwmark(&buf.dev->fwmark, &buf.dev->flags, argv[1]))
+		} else if (!strcmp(argv[0], "fwmark") && argc >= 2 && !peer) {
+			if (!parse_fwmark(&device->fwmark, &device->flags, argv[1]))
 				goto error;
 			argv += 2;
 			argc -= 2;
-		} else if (!strcmp(argv[0], "private-key") && argc >= 2 && !buf.dev->num_peers) {
+		} else if (!strcmp(argv[0], "private-key") && argc >= 2 && !peer) {
 			char key_line[WG_KEY_LEN_BASE64];
-			int ret = read_keyfile(key_line, argv[1]);
-			if (ret == 0) {
-				if (!parse_key(buf.dev->private_key, key_line))
+			if (read_keyfile(key_line, argv[1])) {
+				if (!parse_key(device->private_key, key_line))
 					goto error;
-			} else if (ret == 1)
-				buf.dev->flags |= WGDEVICE_REMOVE_PRIVATE_KEY;
-			else
+				device->flags |= WGDEVICE_HAS_PRIVATE_KEY;
+			} else
 				goto error;
 			argv += 2;
 			argc -= 2;
 		} else if (!strcmp(argv[0], "peer") && argc >= 2) {
-			peer_offset = buf.pos;
-			if (use_space(&buf, sizeof(struct wgpeer)) < 0) {
-				perror("use_space");
+			struct wgpeer *new_peer = calloc(1, sizeof(struct wgpeer));
+			allowedip = NULL;
+			if (!new_peer) {
+				perror("calloc");
 				goto error;
 			}
-			peer_from_offset(buf.dev, peer_offset)->persistent_keepalive_interval = (__u16)-1;
-			++buf.dev->num_peers;
-			if (!parse_key(peer_from_offset(buf.dev, peer_offset)->public_key, argv[1]))
+			if (peer)
+				peer->next_peer = new_peer;
+			else
+				device->first_peer = new_peer;
+			peer = new_peer;
+			if (!parse_key(peer->public_key, argv[1]))
 				goto error;
 			argv += 2;
 			argc -= 2;
-		} else if (!strcmp(argv[0], "remove") && argc >= 1 && buf.dev->num_peers) {
-			peer_from_offset(buf.dev, peer_offset)->flags |= WGPEER_REMOVE_ME;
+		} else if (!strcmp(argv[0], "remove") && argc >= 1 && peer) {
+			peer->flags |= WGPEER_REMOVE_ME;
 			argv += 1;
 			argc -= 1;
-		} else if (!strcmp(argv[0], "endpoint") && argc >= 2 && buf.dev->num_peers) {
-			if (!parse_endpoint(&peer_from_offset(buf.dev, peer_offset)->endpoint.addr, argv[1]))
+		} else if (!strcmp(argv[0], "endpoint") && argc >= 2 && peer) {
+			if (!parse_endpoint(&peer->endpoint.addr, argv[1]))
 				goto error;
 			argv += 2;
 			argc -= 2;
-		} else if (!strcmp(argv[0], "allowed-ips") && argc >= 2 && buf.dev->num_peers) {
+		} else if (!strcmp(argv[0], "allowed-ips") && argc >= 2 && peer) {
 			char *line = strip_spaces(argv[1]);
 			if (!line)
 				goto error;
-			if (!parse_ipmasks(&buf, peer_offset, line)) {
+			if (!parse_allowedips(peer, &allowedip, line)) {
 				free(line);
 				goto error;
 			}
 			free(line);
 			argv += 2;
 			argc -= 2;
-		} else if (!strcmp(argv[0], "persistent-keepalive") && argc >= 2 && buf.dev->num_peers) {
-			if (!parse_persistent_keepalive(&peer_from_offset(buf.dev, peer_offset)->persistent_keepalive_interval, argv[1]))
+		} else if (!strcmp(argv[0], "persistent-keepalive") && argc >= 2 && peer) {
+			if (!parse_persistent_keepalive(&peer->persistent_keepalive_interval, &peer->flags, argv[1]))
 				goto error;
 			argv += 2;
 			argc -= 2;
-		} else if (!strcmp(argv[0], "preshared-key") && argc >= 2 && buf.dev->num_peers) {
+		} else if (!strcmp(argv[0], "preshared-key") && argc >= 2 && peer) {
 			char key_line[WG_KEY_LEN_BASE64];
-			int ret = read_keyfile(key_line, argv[1]);
-			if (ret == 0) {
-				if (!parse_key(peer_from_offset(buf.dev, peer_offset)->preshared_key, key_line))
+			if (read_keyfile(key_line, argv[1])) {
+				if (!parse_key(peer->preshared_key, key_line))
 					goto error;
-			} else if (ret == 1)
-				peer_from_offset(buf.dev, peer_offset)->flags |= WGPEER_REMOVE_PRESHARED_KEY;
-			else
+				peer->flags |= WGPEER_HAS_PRESHARED_KEY;
+			} else
 				goto error;
 			argv += 2;
 			argc -= 2;
@@ -560,9 +550,8 @@ bool config_read_cmd(struct wgdevice **device, char *argv[], int argc)
 			goto error;
 		}
 	}
-	*device = buf.dev;
-	return true;
+	return device;
 error:
-	free(buf.dev);
+	free_wgdevice(device);
 	return false;
 }

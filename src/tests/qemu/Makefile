@@ -1,7 +1,7 @@
 PWD := $(shell pwd)
 
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.11.9
+KERNEL_VERSION ?= 4.13.4
 BUILD_PATH ?= $(PWD)/../../../qemu-build
 DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
@@ -15,7 +15,7 @@ MIRROR := https://download.wireguard.com/qemu-test/distfiles/
 CHOST := $(shell gcc -dumpmachine)
 ARCH := $(shell uname -m)
 WIREGUARD_SOURCES := $(wildcard ../../*.c ../../*.h ../../selftest/*.h ../../crypto/*.c ../../crypto/*.h ../../crypto/*.S ../../compat/*.h)
-TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools*.h ../../uapi.h)
+TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools/*.h ../../uapi/*.h)
 
 default: qemu
 
@@ -73,7 +73,7 @@ qemu: $(KERNEL_BZIMAGE)
 		$(QEMU_MACHINE) \
 		-cpu host \
 		-smp $(NR_CPUS) \
-		-m 96M \
+		-m 192M \
 		-object rng-random,id=rng0,filename=/dev/urandom \
 		-device virtio-rng-pci,rng=rng0 \
 		-device virtio-serial,max_ports=2 \
@@ -164,7 +164,7 @@ $(LIBMNL_PATH)/src/.libs/libmnl.a: $(LIBMNL_PATH)/.installed $(MUSL_CC)
 	$(MAKE) -C $(LIBMNL_PATH)
 
 $(BUILD_PATH)/tools/wg: $(MUSL_CC) $(TOOLS_SOURCES) $(LIBMNL_PATH)/src/.libs/libmnl.a | $(BUILD_PATH)/include/linux/.installed
-	cp -pr ../../uapi.h ../../tools $(BUILD_PATH)/
+	cp -pr ../../uapi ../../tools $(BUILD_PATH)/
 	$(MAKE) -C $(BUILD_PATH)/tools clean
 	CC="$(MUSL_CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" $(MAKE) -C $(BUILD_PATH)/tools LIBMNL_CFLAGS="-I$(LIBMNL_PATH)/include" LIBMNL_LDLIBS="-lmnl" wg
 	strip -s $@

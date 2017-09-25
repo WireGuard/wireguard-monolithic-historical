@@ -80,7 +80,7 @@ void peer_remove(struct wireguard_peer *peer)
 	lockdep_assert_held(&peer->device->device_update_lock);
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
-	list_del(&peer->peer_list);
+	list_del_init(&peer->peer_list);
 	timers_stop(peer);
 	routing_table_remove_by_peer(&peer->device->peer_routing_table, peer);
 	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);

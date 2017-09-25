@@ -9,10 +9,10 @@
 #include <stdlib.h>
 #include <netdb.h>
 
-#include "subcommands.h"
+#include "containers.h"
 #include "encoding.h"
 #include "ipc.h"
-#include "../uapi.h"
+#include "subcommands.h"
 
 int showconf_main(int argc, char *argv[])
 {
@@ -20,17 +20,10 @@ int showconf_main(int argc, char *argv[])
 	char ip[INET6_ADDRSTRLEN];
 	struct wgdevice *device = NULL;
 	struct wgpeer *peer;
-	struct wgipmask *ipmask;
-	size_t i, j;
+	struct wgallowedip *allowedip;
 	int ret = 1;
 
 	if (argc != 2) {
-		fprintf(stderr, "Usage: %s %s <interface>\n", PROG_NAME, argv[0]);
-		return 1;
-	}
-
-	if (!ipc_has_device(argv[1])) {
-		fprintf(stderr, "`%s` is not a valid WireGuard interface\n", argv[1]);
 		fprintf(stderr, "Usage: %s %s <interface>\n", PROG_NAME, argv[0]);
 		return 1;
 	}
@@ -41,8 +34,8 @@ int showconf_main(int argc, char *argv[])
 	}
 
 	printf("[Interface]\n");
-	if (device->port)
-		printf("ListenPort = %u\n", device->port);
+	if (device->listen_port)
+		printf("ListenPort = %u\n", device->listen_port);
 	if (device->fwmark)
 		printf("FwMark = 0x%x\n", device->fwmark);
 	if (!key_is_zero(device->private_key)) {
@@ -50,29 +43,29 @@ int showconf_main(int argc, char *argv[])
 		printf("PrivateKey = %s\n", base64);
 	}
 	printf("\n");
-	for_each_wgpeer(device, peer, i) {
+	for_each_wgpeer (device, peer) {
 		key_to_base64(base64, peer->public_key);
 		printf("[Peer]\nPublicKey = %s\n", base64);
 		if (!key_is_zero(peer->preshared_key)) {
 			key_to_base64(base64, peer->preshared_key);
 			printf("PresharedKey = %s\n", base64);
 		}
-		if (peer->num_ipmasks)
+		if (peer->first_allowedip)
 			printf("AllowedIPs = ");
-		for_each_wgipmask(peer, ipmask, j) {
-			if (ipmask->family == AF_INET) {
-				if (!inet_ntop(AF_INET, &ipmask->ip4, ip, INET6_ADDRSTRLEN))
+		for_each_wgallowedip (peer, allowedip) {
+			if (allowedip->family == AF_INET) {
+				if (!inet_ntop(AF_INET, &allowedip->ip4, ip, INET6_ADDRSTRLEN))
 					continue;
-			} else if (ipmask->family == AF_INET6) {
-				if (!inet_ntop(AF_INET6, &ipmask->ip6, ip, INET6_ADDRSTRLEN))
+			} else if (allowedip->family == AF_INET6) {
+				if (!inet_ntop(AF_INET6, &allowedip->ip6, ip, INET6_ADDRSTRLEN))
 					continue;
 			} else
 				continue;
-			printf("%s/%d", ip, ipmask->cidr);
-			if (j + 1 < (size_t)peer->num_ipmasks)
+			printf("%s/%d", ip, allowedip->cidr);
+			if (allowedip->next_allowedip)
 				printf(", ");
 		}
-		if (peer->num_ipmasks)
+		if (peer->first_allowedip)
 			printf("\n");
 
 		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6) {
@@ -94,12 +87,12 @@ int showconf_main(int argc, char *argv[])
 		if (peer->persistent_keepalive_interval)
 			printf("PersistentKeepalive = %u\n", peer->persistent_keepalive_interval);
 
-		if (i + 1 < device->num_peers)
+		if (peer->next_peer)
 			printf("\n");
 	}
 	ret = 0;
 
 cleanup:
-	free(device);
+	free_wgdevice(device);
 	return ret;
 }

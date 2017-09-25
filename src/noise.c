@@ -53,7 +53,8 @@ bool noise_handshake_init(struct noise_handshake *handshake, struct noise_static
 	handshake->entry.type = INDEX_HASHTABLE_HANDSHAKE;
 	handshake->entry.peer = peer;
 	memcpy(handshake->remote_static, peer_public_key, NOISE_PUBLIC_KEY_LEN);
-	memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
+	if (peer_preshared_key)
+		memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
 	handshake->static_identity = static_identity;
 	handshake->state = HANDSHAKE_ZEROED;
 	return noise_precompute_static_static(peer);
@@ -203,14 +204,8 @@ bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_k
 void noise_set_static_identity_private_key(struct noise_static_identity *static_identity, const u8 private_key[NOISE_PUBLIC_KEY_LEN])
 {
 	down_write(&static_identity->lock);
-	if (private_key) {
-		memcpy(static_identity->static_private, private_key, NOISE_PUBLIC_KEY_LEN);
-		static_identity->has_identity = curve25519_generate_public(static_identity->static_public, private_key);
-	} else {
-		memset(static_identity->static_private, 0, NOISE_PUBLIC_KEY_LEN);
-		memset(static_identity->static_public, 0, NOISE_PUBLIC_KEY_LEN);
-		static_identity->has_identity = false;
-	}
+	memcpy(static_identity->static_private, private_key, NOISE_PUBLIC_KEY_LEN);
+	static_identity->has_identity = curve25519_generate_public(static_identity->static_public, private_key);
 	up_write(&static_identity->lock);
 }
 
