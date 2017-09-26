@@ -242,7 +242,7 @@ out:
 }
 #include "selftest/counter.h"
 
-void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, struct endpoint *endpoint, bool used_new_key)
+static void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, struct endpoint *endpoint, bool used_new_key)
 {
 	struct net_device *dev = peer->device->dev;
 	struct wireguard_peer *routed_peer;
