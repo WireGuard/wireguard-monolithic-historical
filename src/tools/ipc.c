@@ -129,11 +129,16 @@ out:
 
 static bool userspace_has_wireguard_interface(const char *interface)
 {
-	FILE *f = userspace_interface_file(interface);
-	if (!f)
+	struct stat sbuf;
+	char path[PATH_MAX] = { 0 };
+
+	if (strchr(interface, '/'))
 		return false;
-	fclose(f);
-	return true;
+	if (snprintf(path, sizeof(path) - 1, SOCK_PATH "%s" SOCK_SUFFIX, interface) < 0)
+		return false;
+	if (stat(path, &sbuf) < 0)
+		return false;
+	return S_ISSOCK(sbuf.st_mode);
 }
 
 static int userspace_get_wireguard_interfaces(struct inflatable_buffer *buffer)
