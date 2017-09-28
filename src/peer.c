@@ -78,13 +78,13 @@ void peer_remove(struct wireguard_peer *peer)
 	if (unlikely(!peer))
 		return;
 	lockdep_assert_held(&peer->device->device_update_lock);
+	routing_table_remove_by_peer(&peer->device->peer_routing_table, peer);
+	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
+	skb_queue_purge(&peer->staged_packet_queue);
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
 	list_del_init(&peer->peer_list);
 	timers_stop(peer);
-	routing_table_remove_by_peer(&peer->device->peer_routing_table, peer);
-	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
-	skb_queue_purge(&peer->staged_packet_queue);
 	flush_workqueue(peer->device->packet_crypt_wq); /* The first flush is for encrypt/decrypt step. */
 	flush_workqueue(peer->device->packet_crypt_wq); /* The second flush is for send/receive step. */
 	flush_workqueue(peer->device->handshake_send_wq);
@@ -95,7 +95,6 @@ static void rcu_release(struct rcu_head *rcu)
 {
 	struct wireguard_peer *peer = container_of(rcu, struct wireguard_peer, rcu);
 	pr_debug("%s: Peer %Lu (%pISpfsc) destroyed\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
-	skb_queue_purge(&peer->staged_packet_queue);
 	dst_cache_destroy(&peer->endpoint_cache);
 	kzfree(peer);
 }
@@ -103,6 +102,8 @@ static void rcu_release(struct rcu_head *rcu)
 static void kref_release(struct kref *refcount)
 {
 	struct wireguard_peer *peer = container_of(refcount, struct wireguard_peer, refcount);
+	index_hashtable_remove(&peer->device->index_hashtable, &peer->handshake.entry);
+	skb_queue_purge(&peer->staged_packet_queue);
 	call_rcu_bh(&peer->rcu, rcu_release);
 }
 
