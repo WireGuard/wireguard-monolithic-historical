@@ -39,17 +39,17 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 		kfree(peer);
 		return NULL;
 	}
+	timers_init(peer);
 	cookie_checker_precompute_peer_keys(peer);
 	mutex_init(&peer->keypairs.keypair_update_lock);
 	INIT_WORK(&peer->transmit_handshake_work, packet_handshake_send_worker);
 	rwlock_init(&peer->endpoint_lock);
 	kref_init(&peer->refcount);
-	pubkey_hashtable_add(&wg->peer_hashtable, peer);
-	list_add_tail(&peer->peer_list, &wg->peer_list);
 	packet_queue_init(&peer->tx_queue, packet_tx_worker, false);
 	packet_queue_init(&peer->rx_queue, packet_rx_worker, false);
 	skb_queue_head_init(&peer->staged_packet_queue);
-	timers_init(peer);
+	list_add_tail(&peer->peer_list, &wg->peer_list);
+	pubkey_hashtable_add(&wg->peer_hashtable, peer);
 	pr_debug("%s: Peer %Lu created\n", wg->dev->name, peer->internal_id);
 	return peer;
 }
