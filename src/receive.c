@@ -277,7 +277,6 @@ static void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer 
 			goto dishonest_packet_size;
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP_ECN_set_ce(ip_hdr(skb));
-
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		len = ntohs(ipv6_hdr(skb)->payload_len) + sizeof(struct ipv6hdr);
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
@@ -299,12 +298,11 @@ static void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer 
 		goto dishonest_packet_peer;
 
 	len = skb->len;
-	if (likely(netif_receive_skb(skb) == NET_RX_SUCCESS))
-		rx_stats(peer, len);
-	else {
+	if (unlikely(netif_receive_skb(skb) == NET_RX_DROP)) {
 		++dev->stats.rx_dropped;
 		net_dbg_ratelimited("%s: Failed to give packet to userspace from peer %Lu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
-	}
+	} else
+		rx_stats(peer, len);
 	goto continue_processing;
 
 dishonest_packet_peer:
