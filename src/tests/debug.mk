@@ -15,12 +15,12 @@ ifeq ($(D),0)
 MAYBE_DEBUG :=
 endif
 
-test: debug
-	-sudo modprobe ip6_udp_tunnel
-	-sudo modprobe udp_tunnel
-	-sudo modprobe ipv6
+insert: debug
+	-modinfo -F depends wireguard.ko | tr ',' '\n' | sudo xargs -n 1 modprobe
 	-sudo rmmod wireguard
 	-sudo insmod wireguard.ko
+
+test: insert
 	sudo PATH="$(shell pwd)/tools:$$PATH:/usr/sbin:/sbin:/usr/bin:/bin:/usr/local/sbin:/usr/local/bin" ./tests/netns.sh
 
 test-qemu:
