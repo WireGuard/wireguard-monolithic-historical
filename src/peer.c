@@ -41,7 +41,7 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	}
 	timers_init(peer);
 	cookie_checker_precompute_peer_keys(peer);
-	mutex_init(&peer->keypairs.keypair_update_lock);
+	spin_lock_init(&peer->keypairs.keypair_update_lock);
 	INIT_WORK(&peer->transmit_handshake_work, packet_handshake_send_worker);
 	rwlock_init(&peer->endpoint_lock);
 	kref_init(&peer->refcount);

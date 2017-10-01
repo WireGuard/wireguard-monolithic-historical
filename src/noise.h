@@ -49,7 +49,7 @@ struct noise_keypairs {
 	struct noise_keypair __rcu *current_keypair;
 	struct noise_keypair __rcu *previous_keypair;
 	struct noise_keypair __rcu *next_keypair;
-	struct mutex keypair_update_lock;
+	spinlock_t keypair_update_lock;
 };
 
 struct noise_static_identity {
