@@ -249,7 +249,7 @@ cmd_up() {
 }
 
 cmd_down() {
-	[[ -n $(ip link show dev "$INTERFACE" type wireguard 2>/dev/null) ]] || die "\`$INTERFACE' is not a WireGuard interface"
+	[[ " $(wg show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
 	execute_hook "$PRE_DOWN"
 	[[ $SAVE_CONFIG -eq 0 ]] || save_config
 	unset_dns
