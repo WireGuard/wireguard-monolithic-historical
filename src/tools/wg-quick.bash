@@ -163,7 +163,7 @@ add_default() {
 	local key value
 	while read -r key _ value; do
 		[[ $value -eq 1 ]] && sysctl -q "$key=2"
-	done < <(sysctl -a -r 'net\.ipv4.conf\..+\.rp_filter')
+	done < <(sysctl -a -r '^net\.ipv4.conf\.[^ .=]+\.rp_filter$')
 	return 0
 }
 
