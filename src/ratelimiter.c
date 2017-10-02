@@ -183,7 +183,7 @@ void ratelimiter_uninit(void)
 
 	cancel_delayed_work_sync(&gc_work);
 	gc_entries(NULL);
-	synchronize_rcu();
+	rcu_barrier();
 	kvfree(table_v4);
 #if IS_ENABLED(CONFIG_IPV6)
 	kvfree(table_v6);
