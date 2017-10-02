@@ -90,7 +90,7 @@ static FILE *userspace_interface_file(const char *interface)
 	struct stat sbuf;
 	struct sockaddr_un addr = { .sun_family = AF_UNIX };
 	int fd = -1, ret;
-	FILE *f;
+	FILE *f = NULL;
 
 	ret = -EINVAL;
 	if (strchr(interface, '/'))
