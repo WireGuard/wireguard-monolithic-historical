@@ -81,6 +81,7 @@ qemu: $(KERNEL_BZIMAGE)
 		-device virtconsole,chardev=stdio \
 		-chardev file,id=status,path=$(BUILD_PATH)/result \
 		-device virtserialport,chardev=status \
+		-watchdog ib700 -watchdog-action poweroff \
 		-monitor none \
 		-kernel $< \
 		-append "console=hvc0"

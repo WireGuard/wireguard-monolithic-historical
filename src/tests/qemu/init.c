@@ -20,7 +20,7 @@
 #include <linux/random.h>
 #include <linux/version.h>
 
- __attribute__((noreturn)) static void poweroff(void)
+__attribute__((noreturn)) static void poweroff(void)
 {
 	fflush(stdout);
 	fflush(stderr);
@@ -112,6 +112,26 @@ static void enable_logging(void)
 	close(fd);
 }
 
+static void watchdog(void)
+{
+	pretty_message("[+] Enabling watchdog timer...");
+
+	ioperm(0x443, 1, 1);
+	outb(14, 0x443);
+
+	if (fork())
+		return;
+
+	setpriority(PRIO_PROCESS, 0, -20);
+
+	for (;;) {
+		outb(14, 0x443);
+		sleep(1);
+	}
+
+	_exit(0);
+}
+
 static void kmod_selftests(void)
 {
 	FILE *file;
@@ -191,6 +211,7 @@ int main(int argc, char *argv[])
 	if (uname(&utsname) < 0)
 		panic("uname");
 	print_banner(&utsname);
+	watchdog();
 	mount_filesystems();
 	kmod_selftests();
 	if (!linux_4_8_or_higher(&utsname))
