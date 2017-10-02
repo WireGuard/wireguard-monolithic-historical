@@ -6,6 +6,7 @@
 #include <linux/linkage.h>
 
 	.text
+	.arm
 	.fpu		neon
 	.align		4
 
