@@ -63,7 +63,6 @@ enum {
 
 struct wgdevice {
 	char name[IFNAMSIZ];
-	uint32_t ifindex;
 
 	uint32_t flags;
 
