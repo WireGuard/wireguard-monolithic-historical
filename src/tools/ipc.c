@@ -38,6 +38,12 @@
 
 #define SOCK_PATH RUNSTATEDIR "/wireguard/"
 #define SOCK_SUFFIX ".sock"
+#ifdef __linux__
+#define SOCKET_BUFFER_SIZE MNL_SOCKET_BUFFER_SIZE
+#else
+#define SOCKET_BUFFER_SIZE 8192
+#endif
+
 
 struct inflatable_buffer {
 	char *buffer;
@@ -478,7 +484,7 @@ static int kernel_get_wireguard_interfaces(struct inflatable_buffer *buffer)
 	struct ifinfomsg *ifm;
 
 	ret = -ENOMEM;
-	rtnl_buffer = calloc(MNL_SOCKET_BUFFER_SIZE, 1);
+	rtnl_buffer = calloc(SOCKET_BUFFER_SIZE, 1);
 	if (!rtnl_buffer)
 		goto cleanup;
 
@@ -509,7 +515,7 @@ static int kernel_get_wireguard_interfaces(struct inflatable_buffer *buffer)
 	}
 
 another:
-	if ((len = mnl_socket_recvfrom(nl, rtnl_buffer, MNL_SOCKET_BUFFER_SIZE)) < 0) {
+	if ((len = mnl_socket_recvfrom(nl, rtnl_buffer, SOCKET_BUFFER_SIZE)) < 0) {
 		ret = -errno;
 		goto cleanup;
 	}
@@ -565,10 +571,10 @@ again:
 	peers_nest = mnl_attr_nest_start(nlh, WGDEVICE_A_PEERS);
 	for (i = 0, peer = peer ? peer : dev->first_peer; peer; peer = peer->next_peer) {
 		uint32_t flags = 0;
-		peer_nest = mnl_attr_nest_start_check(nlh, MNL_SOCKET_BUFFER_SIZE, i++);
+		peer_nest = mnl_attr_nest_start_check(nlh, SOCKET_BUFFER_SIZE, i++);
 		if (!peer_nest)
 			goto toobig_peers;
-		if (!mnl_attr_put_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGPEER_A_PUBLIC_KEY, sizeof(peer->public_key), peer->public_key))
+		if (!mnl_attr_put_check(nlh, SOCKET_BUFFER_SIZE, WGPEER_A_PUBLIC_KEY, sizeof(peer->public_key), peer->public_key))
 			goto toobig_peers;
 		if (peer->flags & WGPEER_REMOVE_ME)
 			flags |= WGPEER_F_REMOVE_ME;
@@ -576,45 +582,45 @@ again:
 			if (peer->flags & WGPEER_REPLACE_ALLOWEDIPS)
 				flags |= WGPEER_F_REPLACE_ALLOWEDIPS;
 			if (peer->flags & WGPEER_HAS_PRESHARED_KEY) {
-				if (!mnl_attr_put_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGPEER_A_PRESHARED_KEY, sizeof(peer->preshared_key), peer->preshared_key))
+				if (!mnl_attr_put_check(nlh, SOCKET_BUFFER_SIZE, WGPEER_A_PRESHARED_KEY, sizeof(peer->preshared_key), peer->preshared_key))
 					goto toobig_peers;
 			}
 			if (peer->endpoint.addr.sa_family == AF_INET) {
-				if (!mnl_attr_put_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGPEER_A_ENDPOINT, sizeof(peer->endpoint.addr4), &peer->endpoint.addr4))
+				if (!mnl_attr_put_check(nlh, SOCKET_BUFFER_SIZE, WGPEER_A_ENDPOINT, sizeof(peer->endpoint.addr4), &peer->endpoint.addr4))
 					goto toobig_peers;
 			} else if (peer->endpoint.addr.sa_family == AF_INET6) {
-				if (!mnl_attr_put_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGPEER_A_ENDPOINT, sizeof(peer->endpoint.addr6), &peer->endpoint.addr6))
+				if (!mnl_attr_put_check(nlh, SOCKET_BUFFER_SIZE, WGPEER_A_ENDPOINT, sizeof(peer->endpoint.addr6), &peer->endpoint.addr6))
 					goto toobig_peers;
 			}
 			if (peer->flags & WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL) {
-				if (!mnl_attr_put_u16_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL, peer->persistent_keepalive_interval))
+				if (!mnl_attr_put_u16_check(nlh, SOCKET_BUFFER_SIZE, WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL, peer->persistent_keepalive_interval))
 					goto toobig_peers;
 			}
 		}
 		if (flags) {
-			if (!mnl_attr_put_u32_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGPEER_A_FLAGS, flags))
+			if (!mnl_attr_put_u32_check(nlh, SOCKET_BUFFER_SIZE, WGPEER_A_FLAGS, flags))
 				goto toobig_peers;
 		}
 		if (peer->first_allowedip) {
 			if (!allowedip)
 				allowedip = peer->first_allowedip;
-			allowedips_nest = mnl_attr_nest_start_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGPEER_A_ALLOWEDIPS);
+			allowedips_nest = mnl_attr_nest_start_check(nlh, SOCKET_BUFFER_SIZE, WGPEER_A_ALLOWEDIPS);
 			if (!allowedips_nest)
 				goto toobig_allowedips;
 			for (j = 0; allowedip; allowedip = allowedip->next_allowedip) {
-				allowedip_nest = mnl_attr_nest_start_check(nlh, MNL_SOCKET_BUFFER_SIZE, j++);
+				allowedip_nest = mnl_attr_nest_start_check(nlh, SOCKET_BUFFER_SIZE, j++);
 				if (!allowedip_nest)
 					goto toobig_allowedips;
-				if (!mnl_attr_put_u16_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGALLOWEDIP_A_FAMILY, allowedip->family))
+				if (!mnl_attr_put_u16_check(nlh, SOCKET_BUFFER_SIZE, WGALLOWEDIP_A_FAMILY, allowedip->family))
 					goto toobig_allowedips;
 				if (allowedip->family == AF_INET) {
-					if (!mnl_attr_put_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGALLOWEDIP_A_IPADDR, sizeof(allowedip->ip4), &allowedip->ip4))
+					if (!mnl_attr_put_check(nlh, SOCKET_BUFFER_SIZE, WGALLOWEDIP_A_IPADDR, sizeof(allowedip->ip4), &allowedip->ip4))
 						goto toobig_allowedips;
 				} else if (allowedip->family == AF_INET6) {
-					if (!mnl_attr_put_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGALLOWEDIP_A_IPADDR, sizeof(allowedip->ip6), &allowedip->ip6))
+					if (!mnl_attr_put_check(nlh, SOCKET_BUFFER_SIZE, WGALLOWEDIP_A_IPADDR, sizeof(allowedip->ip6), &allowedip->ip6))
 						goto toobig_allowedips;
 				}
-				if (!mnl_attr_put_u8_check(nlh, MNL_SOCKET_BUFFER_SIZE, WGALLOWEDIP_A_CIDR_MASK, allowedip->cidr))
+				if (!mnl_attr_put_u8_check(nlh, SOCKET_BUFFER_SIZE, WGALLOWEDIP_A_CIDR_MASK, allowedip->cidr))
 					goto toobig_allowedips;
 				mnl_attr_nest_end(nlh, allowedip_nest);
 				allowedip_nest = NULL;
@@ -888,7 +894,7 @@ out:
 /* first\0second\0third\0forth\0last\0\0 */
 char *ipc_list_devices(void)
 {
-	struct inflatable_buffer buffer = { .len = MNL_SOCKET_BUFFER_SIZE };
+	struct inflatable_buffer buffer = { .len = SOCKET_BUFFER_SIZE };
 	int ret;
 
 	ret = -ENOMEM;
