@@ -30,8 +30,8 @@ struct index_hashtable {
 };
 
 enum index_hashtable_type {
-	INDEX_HASHTABLE_HANDSHAKE = (1 << 0),
-	INDEX_HASHTABLE_KEYPAIR = (1 << 1)
+	INDEX_HASHTABLE_HANDSHAKE = 1U << 0,
+	INDEX_HASHTABLE_KEYPAIR = 1U << 1
 };
 
 struct index_hashtable_entry {

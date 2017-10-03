@@ -459,7 +459,7 @@ static void poly1305_simd_mult(u32 *a, const u32 *b)
 	memset(m, 0, sizeof(m));
 	/* The poly1305 block function adds a hi-bit to the accumulator which
 	 * we don't need for key multiplication; compensate for it. */
-	a[4] -= 1 << 24;
+	a[4] -= 1U << 24;
 	poly1305_asm_block_sse2(a, m, b, 1);
 }
 
@@ -523,7 +523,7 @@ static void poly1305_update(struct poly1305_ctx *ctx, const u8 *src, unsigned in
 				poly1305_simd_blocks(ctx, ctx->buf, POLY1305_BLOCK_SIZE);
 			else
 #endif
-				poly1305_generic_blocks(ctx, ctx->buf, POLY1305_BLOCK_SIZE, 1 << 24);
+				poly1305_generic_blocks(ctx, ctx->buf, POLY1305_BLOCK_SIZE, 1U << 24);
 			ctx->buflen = 0;
 		}
 	}
@@ -534,7 +534,7 @@ static void poly1305_update(struct poly1305_ctx *ctx, const u8 *src, unsigned in
 			bytes = poly1305_simd_blocks(ctx, src, srclen);
 		else
 #endif
-			bytes = poly1305_generic_blocks(ctx, src, srclen, 1 << 24);
+			bytes = poly1305_generic_blocks(ctx, src, srclen, 1U << 24);
 		src += srclen - bytes;
 		srclen = bytes;
 	}
@@ -574,10 +574,10 @@ static void poly1305_finish(struct poly1305_ctx *ctx, u8 *dst)
 
 	/* compute h + -p */
 	g0 = h0 + 5;
-	g1 = h1 + (g0 >> 26);             g0 &= 0x3ffffff;
-	g2 = h2 + (g1 >> 26);             g1 &= 0x3ffffff;
-	g3 = h3 + (g2 >> 26);             g2 &= 0x3ffffff;
-	g4 = h4 + (g3 >> 26) - (1 << 26); g3 &= 0x3ffffff;
+	g1 = h1 + (g0 >> 26);              g0 &= 0x3ffffff;
+	g2 = h2 + (g1 >> 26);              g1 &= 0x3ffffff;
+	g3 = h3 + (g2 >> 26);              g2 &= 0x3ffffff;
+	g4 = h4 + (g3 >> 26) - (1U << 26); g3 &= 0x3ffffff;
 
 	/* select h if h < p, or h + -p if h >= p */
 	mask = (g4 >> ((sizeof(u32) * 8) - 1)) - 1;

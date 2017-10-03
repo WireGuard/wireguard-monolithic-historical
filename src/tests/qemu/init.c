@@ -26,7 +26,7 @@ __attribute__((noreturn)) static void poweroff(void)
 	fflush(stderr);
 #if defined(__x86_64__) || defined(__i386__)
 	ioperm(0x604, 2, 1);
-	outw(1 << 13, 0x604);
+	outw(1U << 13, 0x604);
 #else
 	reboot(RB_POWER_OFF);
 #endif

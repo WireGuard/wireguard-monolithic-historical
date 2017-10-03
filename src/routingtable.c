@@ -14,7 +14,7 @@ struct routing_table_node {
 static inline void copy_and_assign_cidr(struct routing_table_node *node, const u8 *src, u8 cidr)
 {
 	memcpy(node->bits, src, (cidr + 7) / 8);
-	node->bits[(cidr + 7) / 8 - 1] &= 0xff << ((8 - (cidr % 8)) % 8);
+	node->bits[(cidr + 7) / 8 - 1] &= 0xffU << ((8 - (cidr % 8)) % 8);
 	node->cidr = cidr;
 	node->bit_at_a = cidr / 8;
 	node->bit_at_b = 7 - (cidr % 8);
