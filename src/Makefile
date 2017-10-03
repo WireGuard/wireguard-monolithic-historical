@@ -7,7 +7,7 @@ DKMSDIR ?= $(SRCDIR)/wireguard
 PWD := $(shell pwd)
 
 all: module tools
-debug: module-debug tools
+debug: module-debug tools-debug
 
 version.h:
 	@export GIT_CEILING_DIRECTORIES="$$(readlink -f ../..)" && \
@@ -57,6 +57,9 @@ dkms-install: $(DKMS_TOP_LEVEL) $(DKMS_SELFTEST_LEVEL) $(DKMS_CRYPTO_LEVEL) $(DK
 
 tools:
 	$(MAKE) -C tools
+
+tools-debug:
+	$(MAKE) -C tools V=1 DEBUG_TOOLS=y
 
 check:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) C=2 CF="-D__CHECK_ENDIAN__" CONFIG_WIREGUARD_DEBUG=y

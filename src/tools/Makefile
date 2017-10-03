@@ -36,6 +36,9 @@ CFLAGS += -std=gnu11 -D_GNU_SOURCE
 CFLAGS += -Wall -Wextra
 CFLAGS += -MMD -MP
 CFLAGS += -DRUNSTATEDIR="\"$(RUNSTATEDIR)\""
+ifeq ($(DEBUG_TOOLS),y)
+CFLAGS += -g
+endif
 ifeq ($(shell uname -s),Linux)
 LIBMNL_CFLAGS := $(shell $(PKG_CONFIG) --cflags libmnl 2>/dev/null)
 LIBMNL_LDLIBS := $(shell $(PKG_CONFIG) --libs libmnl 2>/dev/null || echo -lmnl)
@@ -43,10 +46,25 @@ CFLAGS += $(LIBMNL_CFLAGS)
 LDLIBS += $(LIBMNL_LDLIBS)
 endif
 
+ifneq ($(V),1)
+BUILT_IN_LINK.o := $(LINK.o)
+LINK.o = @echo "  LD  $@";
+LINK.o += $(BUILT_IN_LINK.o)
+BUILT_IN_COMPILE.c := $(COMPILE.c)
+COMPILE.c = @echo "  CC  $@";
+COMPILE.c += $(BUILT_IN_COMPILE.c)
+endif
+
 wg: $(patsubst %.c,%.o,$(wildcard *.c))
 
+ifneq ($(V),1)
 clean:
-	rm -f wg *.o *.d
+	@echo "  RM  " 'wg *.o *.d'
+	@$(RM) wg *.o *.d
+else
+clean:
+	$(RM) wg *.o *.d
+endif
 
 install: wg
 	@install -v -d "$(DESTDIR)$(BINDIR)" && install -m 0755 -v wg "$(DESTDIR)$(BINDIR)/wg"
