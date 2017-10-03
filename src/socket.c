@@ -166,8 +166,10 @@ int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8
 int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer, size_t len, u8 ds)
 {
 	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
+
 	if (unlikely(!skb))
 		return -ENOMEM;
+
 	skb_reserve(skb, SKB_HEADER_LEN);
 	memcpy(skb_put(skb, len), buffer, len);
 	return socket_send_skb_to_peer(peer, skb, ds);
@@ -326,6 +328,7 @@ int socket_init(struct wireguard_device *wg)
 		.ipv6_v6only = true
 	};
 #endif
+
 	mutex_lock(&wg->socket_update_lock);
 #if IS_ENABLED(CONFIG_IPV6)
 retry:
@@ -373,6 +376,7 @@ out:
 void socket_uninit(struct wireguard_device *wg)
 {
 	struct sock *old4, *old6;
+
 	mutex_lock(&wg->socket_update_lock);
 	old4 = rcu_dereference_protected(wg->sock4, lockdep_is_held(&wg->socket_update_lock));
 	old6 = rcu_dereference_protected(wg->sock6, lockdep_is_held(&wg->socket_update_lock));

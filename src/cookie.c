@@ -27,6 +27,7 @@ static const u8 cookie_key_label[COOKIE_KEY_LABEL_LEN] = "cookie--";
 static void precompute_key(u8 key[NOISE_SYMMETRIC_KEY_LEN], const u8 pubkey[NOISE_PUBLIC_KEY_LEN], const u8 label[COOKIE_KEY_LABEL_LEN])
 {
 	struct blake2s_state blake;
+
 	blake2s_init(&blake, NOISE_SYMMETRIC_KEY_LEN);
 	blake2s_update(&blake, label, COOKIE_KEY_LABEL_LEN);
 	blake2s_update(&blake, pubkey, NOISE_PUBLIC_KEY_LEN);

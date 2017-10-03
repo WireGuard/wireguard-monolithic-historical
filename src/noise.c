@@ -31,6 +31,7 @@ static atomic64_t keypair_counter = ATOMIC64_INIT(0);
 void __init noise_init(void)
 {
 	struct blake2s_state blake;
+
 	blake2s(handshake_init_chaining_key, handshake_name, NULL, NOISE_HASH_LEN, sizeof(handshake_name), 0);
 	blake2s_init(&blake, NOISE_HASH_LEN);
 	blake2s_update(&blake, handshake_init_chaining_key, NOISE_HASH_LEN);
@@ -82,6 +83,7 @@ void noise_handshake_clear(struct noise_handshake *handshake)
 static struct noise_keypair *keypair_create(struct wireguard_peer *peer)
 {
 	struct noise_keypair *keypair = kzalloc(sizeof(struct noise_keypair), GFP_KERNEL);
+
 	if (unlikely(!keypair))
 		return NULL;
 	keypair->internal_id = atomic64_inc_return(&keypair_counter);
@@ -94,6 +96,7 @@ static struct noise_keypair *keypair_create(struct wireguard_peer *peer)
 static void keypair_free_rcu(struct rcu_head *rcu)
 {
 	struct noise_keypair *keypair = container_of(rcu, struct noise_keypair, rcu);
+
 	net_dbg_ratelimited("%s: Keypair %Lu destroyed for peer %Lu\n", keypair->entry.peer->device->dev->name, keypair->internal_id, keypair->entry.peer->internal_id);
 	kzfree(keypair);
 }
@@ -101,6 +104,7 @@ static void keypair_free_rcu(struct rcu_head *rcu)
 static void keypair_free_kref(struct kref *kref)
 {
 	struct noise_keypair *keypair = container_of(kref, struct noise_keypair, refcount);
+
 	index_hashtable_remove(&keypair->entry.peer->device->index_hashtable, &keypair->entry);
 	call_rcu_bh(&keypair->rcu, keypair_free_rcu);
 }
@@ -123,6 +127,7 @@ struct noise_keypair *noise_keypair_get(struct noise_keypair *keypair)
 void noise_keypairs_clear(struct noise_keypairs *keypairs)
 {
 	struct noise_keypair *old;
+
 	spin_lock_bh(&keypairs->keypair_update_lock);
 	old = rcu_dereference_protected(keypairs->previous_keypair, lockdep_is_held(&keypairs->keypair_update_lock));
 	rcu_assign_pointer(keypairs->previous_keypair, NULL);
@@ -225,6 +230,7 @@ static void kdf(u8 *first_dst, u8 *second_dst, u8 *third_dst, const u8 *data, si
 {
 	u8 secret[BLAKE2S_OUTBYTES];
 	u8 output[BLAKE2S_OUTBYTES + 1];
+
 	BUG_ON(first_len > BLAKE2S_OUTBYTES || second_len > BLAKE2S_OUTBYTES || third_len > BLAKE2S_OUTBYTES || ((second_len || second_dst || third_len || third_dst) && (!first_len || !first_dst)) || ((third_len || third_dst) && (!second_len || !second_dst)));
 
 	/* Extract entropy from data into secret */
@@ -279,6 +285,7 @@ static void derive_keys(struct noise_symmetric_key *first_dst, struct noise_symm
 static bool __must_check mix_dh(u8 chaining_key[NOISE_HASH_LEN], u8 key[NOISE_SYMMETRIC_KEY_LEN], const u8 private[NOISE_PUBLIC_KEY_LEN], const u8 public[NOISE_PUBLIC_KEY_LEN])
 {
 	u8 dh_calculation[NOISE_PUBLIC_KEY_LEN];
+
 	if (unlikely(!curve25519(dh_calculation, private, public)))
 		return false;
 	kdf(chaining_key, key, NULL, dh_calculation, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, chaining_key);
@@ -289,6 +296,7 @@ static bool __must_check mix_dh(u8 chaining_key[NOISE_HASH_LEN], u8 key[NOISE_SY
 static void mix_hash(u8 hash[NOISE_HASH_LEN], const u8 *src, size_t src_len)
 {
 	struct blake2s_state blake;
+
 	blake2s_init(&blake, NOISE_HASH_LEN);
 	blake2s_update(&blake, hash, NOISE_HASH_LEN);
 	blake2s_update(&blake, src, src_len);
@@ -298,6 +306,7 @@ static void mix_hash(u8 hash[NOISE_HASH_LEN], const u8 *src, size_t src_len)
 static void mix_psk(u8 chaining_key[NOISE_HASH_LEN], u8 hash[NOISE_HASH_LEN], u8 key[NOISE_SYMMETRIC_KEY_LEN], const u8 psk[NOISE_SYMMETRIC_KEY_LEN])
 {
 	u8 temp_hash[NOISE_HASH_LEN];
+
 	kdf(chaining_key, temp_hash, key, psk, NOISE_HASH_LEN, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, NOISE_SYMMETRIC_KEY_LEN, chaining_key);
 	mix_hash(hash, temp_hash, NOISE_HASH_LEN);
 	memzero_explicit(temp_hash, NOISE_HASH_LEN);
@@ -335,6 +344,7 @@ static void message_ephemeral(u8 ephemeral_dst[NOISE_PUBLIC_KEY_LEN], const u8 e
 static void tai64n_now(u8 output[NOISE_TIMESTAMP_LEN])
 {
 	struct timeval now;
+
 	do_gettimeofday(&now);
 	/* https://cr.yp.to/libtai/tai64.html */
 	*(__be64 *)output = cpu_to_be64(4611686018427387914ULL + now.tv_sec);
@@ -464,6 +474,7 @@ bool noise_handshake_create_response(struct message_handshake_response *dst, str
 {
 	bool ret = false;
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
+
 	down_read(&handshake->static_identity->lock);
 	down_write(&handshake->lock);
 

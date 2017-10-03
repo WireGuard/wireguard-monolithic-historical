@@ -17,6 +17,7 @@ static atomic64_t peer_counter = ATOMIC64_INIT(0);
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN], const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN])
 {
 	struct wireguard_peer *peer;
+
 	lockdep_assert_held(&wg->device_update_lock);
 
 	if (peer_total_count(wg) >= MAX_PEERS_PER_DEVICE)
@@ -102,6 +103,7 @@ static void rcu_release(struct rcu_head *rcu)
 static void kref_release(struct kref *refcount)
 {
 	struct wireguard_peer *peer = container_of(refcount, struct wireguard_peer, refcount);
+
 	index_hashtable_remove(&peer->device->index_hashtable, &peer->handshake.entry);
 	skb_queue_purge(&peer->staged_packet_queue);
 	call_rcu_bh(&peer->rcu, rcu_release);
@@ -117,6 +119,7 @@ void peer_put(struct wireguard_peer *peer)
 void peer_remove_all(struct wireguard_device *wg)
 {
 	struct wireguard_peer *peer, *temp;
+
 	lockdep_assert_held(&wg->device_update_lock);
 	list_for_each_entry_safe (peer, temp, &wg->peer_list, peer_list)
 		peer_remove(peer);
@@ -126,6 +129,7 @@ unsigned int peer_total_count(struct wireguard_device *wg)
 {
 	unsigned int i = 0;
 	struct wireguard_peer *peer;
+
 	lockdep_assert_held(&wg->device_update_lock);
 	list_for_each_entry (peer, &wg->peer_list, peer_list)
 		++i;

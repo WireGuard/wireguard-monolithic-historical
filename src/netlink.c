@@ -70,6 +70,7 @@ static int get_allowedips(void *ctx, union nf_inet_addr ip, u8 cidr, int family)
 {
 	struct nlattr *allowedip_nest;
 	struct allowedips_ctx *actx = ctx;
+
 	if (++actx->idx < actx->idx_cursor)
 		return 0;
 	allowedip_nest = nla_nest_start(actx->skb, actx->idx - 1);
@@ -91,6 +92,7 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index, unsigned in
 	struct allowedips_ctx ctx = { .skb = skb, .idx_cursor = *allowedips_idx_cursor };
 	struct nlattr *allowedips_nest, *peer_nest = nla_nest_start(skb, index);
 	bool fail;
+
 	if (!peer_nest)
 		return -EMSGSIZE;
 
@@ -144,6 +146,7 @@ static int get_start(struct netlink_callback *cb)
 	struct wireguard_device *wg;
 	struct nlattr **attrs = genl_family_attrbuf(&genl_family);
 	int ret = nlmsg_parse(cb->nlh, GENL_HDRLEN + genl_family.hdrsize, attrs, genl_family.maxattr, device_policy, NULL);
+
 	if (ret < 0)
 		return ret;
 	wg = lookup_interface(attrs, cb->skb);
@@ -246,6 +249,7 @@ static int get_done(struct netlink_callback *cb)
 {
 	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0];
 	struct wireguard_peer *peer = (struct wireguard_peer *)cb->args[1];
+
 	if (wg)
 		dev_put(wg->dev);
 	peer_put(peer);
@@ -255,6 +259,7 @@ static int get_done(struct netlink_callback *cb)
 static int set_device_port(struct wireguard_device *wg, u16 port)
 {
 	struct wireguard_peer *peer, *temp;
+
 	if (wg->incoming_port == port)
 		return 0;
 	socket_uninit(wg);
@@ -384,6 +389,7 @@ static int set(struct sk_buff *skb, struct genl_info *info)
 {
 	int ret;
 	struct wireguard_device *wg = lookup_interface(info->attrs, skb);
+
 	if (IS_ERR(wg)) {
 		ret = PTR_ERR(wg);
 		goto out_nodev;

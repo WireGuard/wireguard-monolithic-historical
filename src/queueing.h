@@ -75,6 +75,7 @@ static inline unsigned int skb_padding(struct sk_buff *skb)
 	 * shouldn't be a real problem, and this can likely be removed. But, caution! */
 	unsigned int last_unit = skb->len % skb->dev->mtu;
 	unsigned int padded_size = (last_unit + MESSAGE_PADDING_MULTIPLE - 1) & ~(MESSAGE_PADDING_MULTIPLE - 1);
+
 	if (padded_size > skb->dev->mtu)
 		padded_size = skb->dev->mtu;
 	return padded_size - last_unit;
@@ -103,6 +104,7 @@ static inline void skb_reset(struct sk_buff *skb)
 static inline int cpumask_choose_online(int *stored_cpu, unsigned int id)
 {
 	unsigned int cpu = *stored_cpu, cpu_index, i;
+
 	if (unlikely(cpu == nr_cpumask_bits || !cpumask_test_cpu(cpu, cpu_online_mask))) {
 		cpu_index = id % cpumask_weight(cpu_online_mask);
 		cpu = cpumask_first(cpu_online_mask);
@@ -122,6 +124,7 @@ static inline int cpumask_choose_online(int *stored_cpu, unsigned int id)
 static inline int cpumask_next_online(int *next)
 {
 	int cpu = *next;
+
 	while (unlikely(!cpumask_test_cpu(cpu, cpu_online_mask)))
 		cpu = cpumask_next(cpu, cpu_online_mask) % nr_cpumask_bits;
 	*next = cpumask_next(cpu, cpu_online_mask) % nr_cpumask_bits;
@@ -131,6 +134,7 @@ static inline int cpumask_next_online(int *next)
 static inline struct list_head *queue_dequeue(struct crypt_queue *queue)
 {
 	struct list_head *node;
+
 	spin_lock_bh(&queue->lock);
 	node = queue->queue.next;
 	if (&queue->queue == node) {
@@ -159,6 +163,7 @@ static inline bool queue_enqueue(struct crypt_queue *queue, struct list_head *no
 static inline struct crypt_ctx *queue_dequeue_per_device(struct crypt_queue *queue)
 {
 	struct list_head *node = queue_dequeue(queue);
+
 	return node ? list_entry(node, struct crypt_ctx, per_device_node) : NULL;
 }
 
@@ -170,6 +175,7 @@ static inline struct crypt_ctx *queue_first_per_peer(struct crypt_queue *queue)
 static inline bool queue_enqueue_per_device_and_peer(struct crypt_queue *device_queue, struct crypt_queue *peer_queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
 {
 	int cpu;
+
 	if (unlikely(!queue_enqueue(peer_queue, &ctx->per_peer_node, MAX_QUEUED_PACKETS)))
 		return false;
 	cpu = cpumask_next_online(next_cpu);

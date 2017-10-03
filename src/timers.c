@@ -33,6 +33,7 @@ static inline bool timers_active(struct wireguard_peer *peer)
 static void expired_retransmit_handshake(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
+
 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
 		pr_debug("%s: Handshake for peer %Lu (%pISpfsc) did not complete after %d attempts, giving up\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, MAX_TIMER_HANDSHAKES + 2);
 
@@ -61,6 +62,7 @@ static void expired_retransmit_handshake(unsigned long ptr)
 static void expired_send_keepalive(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
+
 	packet_send_keepalive(peer);
 	if (peer->timer_need_another_keepalive) {
 		peer->timer_need_another_keepalive = false;
@@ -73,6 +75,7 @@ static void expired_send_keepalive(unsigned long ptr)
 static void expired_new_handshake(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
+
 	pr_debug("%s: Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
 	/* We clear the endpoint address src address, in case this is the cause of trouble. */
 	socket_clear_peer_endpoint_src(peer);
@@ -83,12 +86,14 @@ static void expired_new_handshake(unsigned long ptr)
 static void expired_zero_key_material(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
+
 	if (!queue_work(peer->device->handshake_send_wq, &peer->clear_peer_work)) /* Takes our reference. */
 		peer_put(peer); /* If the work was already on the queue, we want to drop the extra reference */
 }
 static void queued_expired_zero_key_material(struct work_struct *work)
 {
 	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, clear_peer_work);
+
 	pr_debug("%s: Zeroing out all keys for peer %Lu (%pISpfsc), since we haven't received a new one in %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (REJECT_AFTER_TIME * 3) / HZ);
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
@@ -98,6 +103,7 @@ static void queued_expired_zero_key_material(struct work_struct *work)
 static void expired_send_persistent_keepalive(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
+
 	if (likely(peer->persistent_keepalive_interval)) {
 		if (likely(timers_active(peer)))
 			del_timer(&peer->timer_send_keepalive);

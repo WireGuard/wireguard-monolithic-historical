@@ -9,8 +9,10 @@ struct multicore_worker __percpu *packet_alloc_percpu_multicore_worker(work_func
 {
 	int cpu;
 	struct multicore_worker __percpu *worker = alloc_percpu(struct multicore_worker);
+
 	if (!worker)
 		return NULL;
+
 	for_each_possible_cpu (cpu) {
 		per_cpu_ptr(worker, cpu)->ptr = ptr;
 		INIT_WORK(&per_cpu_ptr(worker, cpu)->work, function);

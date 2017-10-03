@@ -81,7 +81,6 @@ static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long
 	}
 	rtnl_unlock();
 	rcu_barrier_bh();
-
 	return 0;
 }
 static struct notifier_block clear_peers_on_suspend = { .notifier_call = suspending_clear_noise_peers };
@@ -91,6 +90,7 @@ static int stop(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
 	struct wireguard_peer *peer, *temp;
+
 	peer_for_each (wg, peer, temp, true) {
 		skb_queue_purge(&peer->staged_packet_queue);
 		timers_stop(peer);
@@ -348,6 +348,7 @@ int __init device_init(void)
 {
 #ifdef CONFIG_PM_SLEEP
 	int ret = register_pm_notifier(&clear_peers_on_suspend);
+
 	if (ret)
 		return ret;
 #endif

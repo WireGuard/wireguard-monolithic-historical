@@ -41,6 +41,7 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 void packet_handshake_send_worker(struct work_struct *work)
 {
 	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, transmit_handshake_work);
+
 	packet_send_handshake_initiation(peer);
 	peer_put(peer);
 }

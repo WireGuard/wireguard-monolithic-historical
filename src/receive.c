@@ -16,6 +16,7 @@
 static inline void rx_stats(struct wireguard_peer *peer, size_t len)
 {
 	struct pcpu_sw_netstats *tstats = get_cpu_ptr(peer->device->dev->tstats);
+
 	u64_stats_update_begin(&tstats->syncp);
 	tstats->rx_bytes += len;
 	++tstats->rx_packets;
@@ -27,6 +28,7 @@ static inline void rx_stats(struct wireguard_peer *peer, size_t len)
 static inline void update_latest_addr(struct wireguard_peer *peer, struct sk_buff *skb)
 {
 	struct endpoint endpoint;
+
 	if (!socket_endpoint_from_skb(&endpoint, skb))
 		socket_set_peer_endpoint(peer, &endpoint);
 }
@@ -52,6 +54,7 @@ static inline int skb_prepare_header(struct sk_buff *skb, struct wireguard_devic
 {
 	struct udphdr *udp;
 	size_t data_offset, data_len, header_len;
+
 	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol || skb_transport_header(skb) < skb->head || (skb_transport_header(skb) + sizeof(struct udphdr)) > skb_tail_pointer(skb)))
 		return -EINVAL; /* Bogus IP header */
 	udp = udp_hdr(skb);
@@ -177,6 +180,7 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 {
 	struct noise_keypair *keypair;
 	bool send = false;
+
 	if (peer->sent_lastminute_handshake)
 		return;
 
@@ -228,6 +232,7 @@ static inline bool counter_validate(union noise_counter *counter, u64 their_coun
 {
 	bool ret = false;
 	unsigned long index, index_current, top, i;
+
 	spin_lock_bh(&counter->receive.lock);
 
 	if (unlikely(counter->receive.counter >= REJECT_AFTER_MESSAGES + 1 || their_counter >= REJECT_AFTER_MESSAGES))

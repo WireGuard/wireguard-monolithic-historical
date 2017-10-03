@@ -36,6 +36,7 @@ void pubkey_hashtable_remove(struct pubkey_hashtable *table, struct wireguard_pe
 struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
 {
 	struct wireguard_peer *iter_peer, *peer = NULL;
+
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu_bh (iter_peer, pubkey_bucket(table, pubkey), pubkey_hash) {
 		if (!memcmp(pubkey, iter_peer->handshake.remote_static, NOISE_PUBLIC_KEY_LEN)) {
@@ -142,6 +143,7 @@ void index_hashtable_remove(struct index_hashtable *table, struct index_hashtabl
 struct index_hashtable_entry *index_hashtable_lookup(struct index_hashtable *table, const enum index_hashtable_type type_mask, const __le32 index)
 {
 	struct index_hashtable_entry *iter_entry, *entry = NULL;
+
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu_bh (iter_entry, index_bucket(table, index), index_hash) {
 		if (iter_entry->index == index) {
