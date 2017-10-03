@@ -410,7 +410,7 @@ static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb
 	ctx = kmem_cache_alloc(crypt_ctx_cache, GFP_ATOMIC);
 	if (unlikely(!ctx)) {
 		dev_kfree_skb(skb);
-		peer_put(ctx->keypair->entry.peer);
+		peer_put(keypair->entry.peer);
 		noise_keypair_put(keypair);
 		return;
 	}
