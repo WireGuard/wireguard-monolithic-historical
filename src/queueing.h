@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef QUEUEING_H
-#define QUEUEING_H
+#ifndef _WG_QUEUEING_H
+#define _WG_QUEUEING_H
 
 #include "peer.h"
 #include <linux/types.h>
@@ -182,4 +182,4 @@ static inline bool queue_enqueue_per_device_and_peer(struct crypt_queue *device_
 bool packet_counter_selftest(void);
 #endif
 
-#endif
+#endif /* _WG_QUEUEING_H */

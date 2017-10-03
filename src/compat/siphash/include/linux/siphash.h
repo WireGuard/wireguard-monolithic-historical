@@ -10,8 +10,8 @@
  * hashtables.
  */
 
-#ifndef _LINUX_SIPHASH_H
-#define _LINUX_SIPHASH_H
+#ifndef _WG_LINUX_SIPHASH_H
+#define _WG_LINUX_SIPHASH_H
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -137,4 +137,4 @@ static inline u32 hsiphash(const void *data, size_t len,
 	return ___hsiphash_aligned(data, len, key);
 }
 
-#endif /* _LINUX_SIPHASH_H */
+#endif /* _WG_LINUX_SIPHASH_H */

@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef WGCOOKIE_H
-#define WGCOOKIE_H
+#ifndef _WG_COOKIE_H
+#define _WG_COOKIE_H
 
 #include "messages.h"
 #include <linux/rwsem.h>
@@ -48,4 +48,4 @@ void cookie_add_mac_to_packet(void *message, size_t len, struct wireguard_peer *
 void cookie_message_create(struct message_handshake_cookie *src, struct sk_buff *skb, __le32 index, struct cookie_checker *checker);
 void cookie_message_consume(struct message_handshake_cookie *src, struct wireguard_device *wg);
 
-#endif
+#endif /* _WG_COOKIE_H */

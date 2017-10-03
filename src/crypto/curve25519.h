@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef CURVE25519_H
-#define CURVE25519_H
+#ifndef _WG_CURVE25519_H
+#define _WG_CURVE25519_H
 
 #include <linux/types.h>
 
@@ -19,4 +19,4 @@ void curve25519_fpu_init(void);
 bool curve25519_selftest(void);
 #endif
 
-#endif
+#endif /* _WG_CURVE25519_H */

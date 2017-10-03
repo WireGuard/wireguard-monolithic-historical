@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef COMPAT_H
-#define COMPAT_H
+#ifndef _WG_COMPAT_H
+#define _WG_COMPAT_H
 
 #include <linux/kconfig.h>
 #include <linux/version.h>
@@ -477,4 +477,4 @@ static inline void new_icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 
 #define __read_mostly
 #endif
 
-#endif
+#endif /* _WG_COMPAT_H */

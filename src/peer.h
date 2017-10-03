@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef PEER_H
-#define PEER_H
+#ifndef _WG_PEER_H
+#define _WG_PEER_H
 
 #include "device.h"
 #include "noise.h"
@@ -97,4 +97,4 @@ unsigned int peer_total_count(struct wireguard_device *wg);
 	if (1) { goto pfe_label(6); pfe_label(7):; } else while (1) if (1) goto pfe_label(3); else while (1) if (1) goto pfe_label(7); else pfe_label(6): \
 	if (1) { goto pfe_label(8); pfe_label(9): peer_put(__peer); break; pfe_label(10): peer_put(__peer); } else while (1) if (1) goto pfe_label(9); else while (1) if (1) goto pfe_label(10); else pfe_label(8):
 
-#endif
+#endif /* _WG_PEER_H */

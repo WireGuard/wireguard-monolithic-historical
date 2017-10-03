@@ -136,8 +136,8 @@
  * If an error occurs, NLMSG_ERROR will reply containing an errno.
  */
 
-#ifndef UAPI_WIREGUARD_H
-#define UAPI_WIREGUARD_H
+#ifndef _WG_UAPI_WIREGUARD_H
+#define _WG_UAPI_WIREGUARD_H
 
 #define WG_GENL_NAME "wireguard"
 #define WG_GENL_VERSION 1
@@ -196,4 +196,4 @@ enum wgallowedip_attribute {
 };
 #define WGALLOWEDIP_A_MAX (__WGALLOWEDIP_A_LAST - 1)
 
-#endif
+#endif /* _WG_UAPI_WIREGUARD_H */

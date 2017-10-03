@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef WGSOCKET_H
-#define WGSOCKET_H
+#ifndef _WG_SOCKET_H
+#define _WG_SOCKET_H
 
 #include <linux/netdevice.h>
 #include <linux/udp.h>
@@ -31,4 +31,4 @@ void socket_clear_peer_endpoint_src(struct wireguard_peer *peer);
 #define net_dbg_skb_ratelimited(fmt, skb, ...)
 #endif
 
-#endif
+#endif /* _WG_SOCKET_H */

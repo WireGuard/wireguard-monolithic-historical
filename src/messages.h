@@ -4,8 +4,8 @@
  * See doc/protocol.md for more info
  */
 
-#ifndef MESSAGES_H
-#define MESSAGES_H
+#ifndef _WG_MESSAGES_H
+#define _WG_MESSAGES_H
 
 #include "crypto/curve25519.h"
 #include "crypto/chacha20poly1305.h"
@@ -125,4 +125,4 @@ enum {
 	HANDSHAKE_DSCP = 0b10001000 /* AF41, plus 00 ECN */
 };
 
-#endif
+#endif /* _WG_MESSAGES_H */

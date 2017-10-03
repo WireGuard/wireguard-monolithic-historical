@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef WGDEVICE_H
-#define WGDEVICE_H
+#ifndef _WG_DEVICE_H
+#define _WG_DEVICE_H
 
 #include "noise.h"
 #include "routingtable.h"
@@ -58,4 +58,4 @@ struct wireguard_device {
 int device_init(void);
 void device_uninit(void);
 
-#endif
+#endif /* _WG_DEVICE_H */

@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef CHACHA20POLY1305_H
-#define CHACHA20POLY1305_H
+#ifndef _WG_CHACHA20POLY1305_H
+#define _WG_CHACHA20POLY1305_H
 
 #include <linux/types.h>
 
@@ -85,4 +85,4 @@ static inline void chacha20poly1305_deinit_simd(bool was_on)
 bool chacha20poly1305_selftest(void);
 #endif
 
-#endif
+#endif /* _WG_CHACHA20POLY1305_H */

@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef ROUTINGTABLE_H
-#define ROUTINGTABLE_H
+#ifndef _WG_ROUTINGTABLE_H
+#define _WG_ROUTINGTABLE_H
 
 #include <linux/mutex.h>
 #include <linux/ip.h>
@@ -33,4 +33,4 @@ struct wireguard_peer *routing_table_lookup_src(struct routing_table *table, str
 bool routing_table_selftest(void);
 #endif
 
-#endif
+#endif /* _WG_ROUTINGTABLE_H */

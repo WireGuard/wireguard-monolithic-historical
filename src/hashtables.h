@@ -1,7 +1,7 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#ifndef HASHTABLES_H
-#define HASHTABLES_H
+#ifndef _WG_HASHTABLES_H
+#define _WG_HASHTABLES_H
 
 #include "messages.h"
 
@@ -46,4 +46,4 @@ bool index_hashtable_replace(struct index_hashtable *table, struct index_hashtab
 void index_hashtable_remove(struct index_hashtable *table, struct index_hashtable_entry *entry);
 struct index_hashtable_entry *index_hashtable_lookup(struct index_hashtable *table, const enum index_hashtable_type type_mask, const __le32 index);
 
-#endif
+#endif /* _WG_HASHTABLES_H */

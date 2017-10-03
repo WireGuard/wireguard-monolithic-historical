@@ -4,8 +4,8 @@
  * See doc/protocol.md and https://github.com/trevp/noise/blob/master/noise.md for more info
  */
 
-#ifndef NOISE_H
-#define NOISE_H
+#ifndef _WG_NOISE_H
+#define _WG_NOISE_H
 
 #include "messages.h"
 #include "hashtables.h"
@@ -119,4 +119,4 @@ struct wireguard_peer *noise_handshake_consume_response(struct message_handshake
 
 bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noise_keypairs *keypairs);
 
-#endif
+#endif /* _WG_NOISE_H */
