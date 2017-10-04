@@ -215,6 +215,7 @@ void packet_encrypt_worker(struct work_struct *work)
 				dev_kfree_skb(skb);
 			}
 		}
+		noise_keypair_put(ctx->keypair);
 		/* Dereferencing ctx is unsafe once ctx->is_finished == true, so
 		 * we grab an additional reference to peer. */
 		peer = peer_rcu_get(ctx->peer);

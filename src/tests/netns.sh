@@ -39,6 +39,7 @@ ip2() { pretty 2 "ip $*"; ip -n $netns2 "$@"; }
 sleep() { read -t "$1" -N 0 || true; }
 waitiperf() { pretty "${1//*-}" "wait for iperf:5201"; while [[ $(ss -N "$1" -tlp 'sport = 5201') != *iperf3* ]]; do sleep 0.1; done; }
 waitncatudp() { pretty "${1//*-}" "wait for udp:1111"; while [[ $(ss -N "$1" -ulp 'sport = 1111') != *ncat* ]]; do sleep 0.1; done; }
+waitncattcp() { pretty "${1//*-}" "wait for tcp:1111"; while [[ $(ss -N "$1" -tlp 'sport = 1111') != *ncat* ]]; do sleep 0.1; done; }
 waitiface() { pretty "${1//*-}" "wait for $2 to come up"; ip netns exec "$1" bash -c "while [[ \$(< \"/sys/class/net/$2/operstate\") != up ]]; do read -t .1 -N 0 || true; done;"; }
 
 cleanup() {
@@ -405,4 +406,22 @@ while read -r line; do
 done < <(n0 wg show wg0 allowed-ips)
 ((i == 40))
 ip0 link del wg0
+
 ! n0 wg show doesnotexist || false
+
+declare -A objects
+n0 ncat -i 1 -l -p 1111 < /dev/kmsg &
+waitncattcp $netns0
+while read -r line; do
+	[[ $line =~ .*(wg[0-9]+:\ [A-Z][a-z]+\ [0-9]+)\ .*(created|destroyed).* ]] || continue
+	objects["${BASH_REMATCH[1]}"]+="${BASH_REMATCH[2]}"
+done < <(n0 ncat -i 1 127.0.0.1 1111)
+alldeleted=1
+for object in "${!objects[@]}"; do
+	if [[ ${objects["$object"]} != *createddestroyed ]]; then
+		echo "Error: $object: merely ${objects["$object"]}" >&3
+		alldeleted=0
+	fi
+done
+[[ $alldeleted -eq 1 ]]
+pretty "" "Objects that were created were also destroyed."
