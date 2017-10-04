@@ -190,12 +190,15 @@ void packet_tx_worker(struct work_struct *work)
 	struct crypt_queue *queue = container_of(work, struct crypt_queue, work);
 	struct crypt_ctx *ctx;
 
-	while ((ctx = queue_first_per_peer(queue)) != NULL && atomic_read(&ctx->is_finished)) {
-		queue_dequeue(queue);
+	spin_lock_bh(&queue->ring.consumer_lock);
+	while ((ctx = __ptr_ring_peek(&queue->ring)) != NULL && atomic_read(&ctx->is_finished)) {
+		__ptr_ring_discard_one(&queue->ring);
 		packet_create_data_done(&ctx->packets, ctx->peer);
+		noise_keypair_put(ctx->keypair);
 		peer_put(ctx->peer);
 		kmem_cache_free(crypt_ctx_cache, ctx);
 	}
+	spin_unlock_bh(&queue->ring.consumer_lock);
 }
 
 void packet_encrypt_worker(struct work_struct *work)
@@ -206,7 +209,7 @@ void packet_encrypt_worker(struct work_struct *work)
 	struct wireguard_peer *peer;
 	bool have_simd = chacha20poly1305_init_simd();
 
-	while ((ctx = queue_dequeue_per_device(queue)) != NULL) {
+	while ((ctx = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		skb_queue_walk_safe(&ctx->packets, skb, tmp) {
 			if (likely(skb_encrypt(skb, ctx->keypair, have_simd))) {
 				skb_reset(skb);
@@ -215,7 +218,6 @@ void packet_encrypt_worker(struct work_struct *work)
 				dev_kfree_skb(skb);
 			}
 		}
-		noise_keypair_put(ctx->keypair);
 		/* Dereferencing ctx is unsafe once ctx->is_finished == true, so
 		 * we grab an additional reference to peer. */
 		peer = peer_rcu_get(ctx->peer);
@@ -230,6 +232,7 @@ static void packet_create_data(struct wireguard_peer *peer, struct sk_buff_head 
 {
 	struct crypt_ctx *ctx;
 	struct wireguard_device *wg = peer->device;
+	int ret;
 
 	ctx = kmem_cache_alloc(crypt_ctx_cache, GFP_ATOMIC);
 	if (unlikely(!ctx)) {
@@ -242,11 +245,17 @@ static void packet_create_data(struct wireguard_peer *peer, struct sk_buff_head 
 	ctx->peer = peer;
 	__skb_queue_head_init(&ctx->packets);
 	skb_queue_splice_tail(packets, &ctx->packets);
-	if (likely(queue_enqueue_per_device_and_peer(&wg->encrypt_queue, &peer->tx_queue, ctx, wg->packet_crypt_wq, &wg->encrypt_queue.last_cpu)))
+	ret = queue_enqueue_per_device_and_peer(&wg->encrypt_queue, &peer->tx_queue, ctx, wg->packet_crypt_wq, &wg->encrypt_queue.last_cpu);
+	if (likely(!ret))
 		return; /* Successful. No need to fall through to drop references below. */
 
 	__skb_queue_purge(&ctx->packets);
-	kmem_cache_free(crypt_ctx_cache, ctx);
+	if (ret == -EPIPE) {
+		atomic_set(&ctx->is_finished, true);
+		queue_work_on(cpumask_choose_online(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &peer->tx_queue.work);
+		return;
+	} else
+		kmem_cache_free(crypt_ctx_cache, ctx);
 
 err_drop_refs:
 	noise_keypair_put(keypair);

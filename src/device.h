@@ -13,6 +13,7 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
+#include <linux/ptr_ring.h>
 
 struct wireguard_device;
 
@@ -22,9 +23,7 @@ struct multicore_worker {
 };
 
 struct crypt_queue {
-	spinlock_t lock;
-	int len;
-	struct list_head queue;
+	struct ptr_ring ring;
 	union {
 		struct {
 			struct multicore_worker __percpu *worker;

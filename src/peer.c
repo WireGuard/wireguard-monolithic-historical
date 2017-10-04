@@ -46,8 +46,8 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	INIT_WORK(&peer->transmit_handshake_work, packet_handshake_send_worker);
 	rwlock_init(&peer->endpoint_lock);
 	kref_init(&peer->refcount);
-	packet_queue_init(&peer->tx_queue, packet_tx_worker, false);
-	packet_queue_init(&peer->rx_queue, packet_rx_worker, false);
+	packet_queue_init(&peer->tx_queue, packet_tx_worker, false, MAX_QUEUED_PACKETS);
+	packet_queue_init(&peer->rx_queue, packet_rx_worker, false, MAX_QUEUED_PACKETS);
 	skb_queue_head_init(&peer->staged_packet_queue);
 	list_add_tail(&peer->peer_list, &wg->peer_list);
 	pubkey_hashtable_add(&wg->peer_hashtable, peer);
@@ -97,6 +97,8 @@ static void rcu_release(struct rcu_head *rcu)
 	struct wireguard_peer *peer = container_of(rcu, struct wireguard_peer, rcu);
 	pr_debug("%s: Peer %Lu (%pISpfsc) destroyed\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	dst_cache_destroy(&peer->endpoint_cache);
+	packet_queue_free(&peer->rx_queue, false);
+	packet_queue_free(&peer->tx_queue, false);
 	kzfree(peer);
 }
 

@@ -209,8 +209,8 @@ static void destruct(struct net_device *dev)
 	wg->incoming_port = 0;
 	destroy_workqueue(wg->handshake_receive_wq);
 	destroy_workqueue(wg->handshake_send_wq);
-	free_percpu(wg->decrypt_queue.worker);
-	free_percpu(wg->encrypt_queue.worker);
+	packet_queue_free(&wg->decrypt_queue, true);
+	packet_queue_free(&wg->encrypt_queue, true);
 	destroy_workqueue(wg->packet_crypt_wq);
 	routing_table_free(&wg->peer_routing_table);
 	ratelimiter_uninit();
@@ -293,10 +293,10 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (!wg->packet_crypt_wq)
 		goto error_5;
 
-	if (packet_queue_init(&wg->encrypt_queue, packet_encrypt_worker, true) < 0)
+	if (packet_queue_init(&wg->encrypt_queue, packet_encrypt_worker, true, MAX_QUEUED_PACKETS) < 0)
 		goto error_6;
 
-	if (packet_queue_init(&wg->decrypt_queue, packet_decrypt_worker, true) < 0)
+	if (packet_queue_init(&wg->decrypt_queue, packet_decrypt_worker, true, MAX_QUEUED_PACKETS) < 0)
 		goto error_7;
 
 	ret = ratelimiter_init();
@@ -319,9 +319,9 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 error_9:
 	ratelimiter_uninit();
 error_8:
-	free_percpu(wg->decrypt_queue.worker);
+	packet_queue_free(&wg->decrypt_queue, true);
 error_7:
-	free_percpu(wg->encrypt_queue.worker);
+	packet_queue_free(&wg->encrypt_queue, true);
 error_6:
 	destroy_workqueue(wg->packet_crypt_wq);
 error_5:

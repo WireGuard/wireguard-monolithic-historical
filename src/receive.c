@@ -353,8 +353,9 @@ void packet_rx_worker(struct work_struct *work)
 	struct crypt_queue *queue = container_of(work, struct crypt_queue, work);
 
 	local_bh_disable();
-	while ((ctx = queue_first_per_peer(queue)) != NULL && atomic_read(&ctx->is_finished)) {
-		queue_dequeue(queue);
+	spin_lock_bh(&queue->ring.consumer_lock);
+	while ((ctx = __ptr_ring_peek(&queue->ring)) != NULL && atomic_read(&ctx->is_finished)) {
+		__ptr_ring_discard_one(&queue->ring);
 		if (likely(ctx->skb)) {
 			if (likely(counter_validate(&ctx->keypair->receiving.counter, PACKET_CB(ctx->skb)->nonce))) {
 				skb_reset(ctx->skb);
@@ -369,6 +370,7 @@ void packet_rx_worker(struct work_struct *work)
 		peer_put(ctx->peer);
 		kmem_cache_free(crypt_ctx_cache, ctx);
 	}
+	spin_unlock_bh(&queue->ring.consumer_lock);
 	local_bh_enable();
 }
 
@@ -378,7 +380,7 @@ void packet_decrypt_worker(struct work_struct *work)
 	struct crypt_queue *queue = container_of(work, struct multicore_worker, work)->ptr;
 	struct wireguard_peer *peer;
 
-	while ((ctx = queue_dequeue_per_device(queue)) != NULL) {
+	while ((ctx = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		if (unlikely(socket_endpoint_from_skb(&ctx->endpoint, ctx->skb) < 0 || !skb_decrypt(ctx->skb, &ctx->keypair->receiving))) {
 			dev_kfree_skb(ctx->skb);
 			ctx->skb = NULL;
@@ -397,6 +399,7 @@ static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb
 	struct crypt_ctx *ctx;
 	struct noise_keypair *keypair;
 	__le32 idx = ((struct message_data *)skb->data)->key_idx;
+	int ret;
 
 	rcu_read_lock_bh();
 	keypair = noise_keypair_get((struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx));
@@ -419,13 +422,20 @@ static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb
 	/* We already have a reference to peer from index_hashtable_lookup. */
 	ctx->peer = ctx->keypair->entry.peer;
 
-	if (likely(queue_enqueue_per_device_and_peer(&wg->decrypt_queue, &ctx->peer->rx_queue, ctx, wg->packet_crypt_wq, &wg->decrypt_queue.last_cpu)))
+	ret = queue_enqueue_per_device_and_peer(&wg->decrypt_queue, &ctx->peer->rx_queue, ctx, wg->packet_crypt_wq, &wg->decrypt_queue.last_cpu);
+	if (likely(!ret))
 		return; /* Successful. No need to drop references below. */
 
-	noise_keypair_put(ctx->keypair);
-	peer_put(ctx->peer);
 	dev_kfree_skb(ctx->skb);
-	kmem_cache_free(crypt_ctx_cache, ctx);
+	if (ret == -EPIPE) {
+		ctx->skb = NULL;
+		atomic_set(&ctx->is_finished, true);
+		queue_work_on(cpumask_choose_online(&ctx->peer->serial_work_cpu, ctx->peer->internal_id), ctx->peer->device->packet_crypt_wq, &ctx->peer->rx_queue.work);
+	} else {
+		noise_keypair_put(ctx->keypair);
+		peer_put(ctx->peer);
+		kmem_cache_free(crypt_ctx_cache, ctx);
+	}
 }
 
 void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)

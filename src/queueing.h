@@ -19,7 +19,8 @@ struct sk_buff;
 extern struct kmem_cache *crypt_ctx_cache __read_mostly;
 int crypt_ctx_cache_init(void);
 void crypt_ctx_cache_uninit(void);
-int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool multicore);
+int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool multicore, unsigned int len);
+void packet_queue_free(struct crypt_queue *queue, bool multicore);
 struct multicore_worker __percpu *packet_alloc_percpu_multicore_worker(work_func_t function, void *ptr);
 
 /* receive.c APIs: */
@@ -47,7 +48,6 @@ struct packet_cb {
 #define PACKET_CB(skb) ((struct packet_cb *)skb->cb)
 
 struct crypt_ctx {
-	struct list_head per_peer_node, per_device_node;
 	union {
 		struct sk_buff_head packets;
 		struct sk_buff *skb;
@@ -131,57 +131,17 @@ static inline int cpumask_next_online(int *next)
 	return cpu;
 }
 
-static inline struct list_head *queue_dequeue(struct crypt_queue *queue)
-{
-	struct list_head *node;
-
-	spin_lock_bh(&queue->lock);
-	node = queue->queue.next;
-	if (&queue->queue == node) {
-		spin_unlock_bh(&queue->lock);
-		return NULL;
-	}
-	list_del(node);
-	--queue->len;
-	spin_unlock_bh(&queue->lock);
-	return node;
-}
-
-static inline bool queue_enqueue(struct crypt_queue *queue, struct list_head *node, int limit)
-{
-	spin_lock_bh(&queue->lock);
-	if (limit && queue->len >= limit) {
-		spin_unlock_bh(&queue->lock);
-		return false;
-	}
-	list_add_tail(node, &queue->queue);
-	++queue->len;
-	spin_unlock_bh(&queue->lock);
-	return true;
-}
-
-static inline struct crypt_ctx *queue_dequeue_per_device(struct crypt_queue *queue)
-{
-	struct list_head *node = queue_dequeue(queue);
-
-	return node ? list_entry(node, struct crypt_ctx, per_device_node) : NULL;
-}
-
-static inline struct crypt_ctx *queue_first_per_peer(struct crypt_queue *queue)
-{
-	return list_first_entry_or_null(&queue->queue, struct crypt_ctx, per_peer_node);
-}
-
-static inline bool queue_enqueue_per_device_and_peer(struct crypt_queue *device_queue, struct crypt_queue *peer_queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
+static inline int queue_enqueue_per_device_and_peer(struct crypt_queue *device_queue, struct crypt_queue *peer_queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
 {
 	int cpu;
 
-	if (unlikely(!queue_enqueue(peer_queue, &ctx->per_peer_node, MAX_QUEUED_PACKETS)))
-		return false;
+	if (unlikely(ptr_ring_produce_bh(&peer_queue->ring, ctx)))
+		return -ENOSPC;
 	cpu = cpumask_next_online(next_cpu);
-	queue_enqueue(device_queue, &ctx->per_device_node, 0);
+	if (unlikely(ptr_ring_produce_bh(&device_queue->ring, ctx)))
+		return -EPIPE;
 	queue_work_on(cpu, wq, &per_cpu_ptr(device_queue->worker, cpu)->work);
-	return true;
+	return 0;
 }
 
 #ifdef DEBUG

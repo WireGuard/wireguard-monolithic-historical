@@ -20,11 +20,14 @@ struct multicore_worker __percpu *packet_alloc_percpu_multicore_worker(work_func
 	return worker;
 }
 
-int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool multicore)
+int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool multicore, unsigned int len)
 {
-	INIT_LIST_HEAD(&queue->queue);
-	queue->len = 0;
-	spin_lock_init(&queue->lock);
+	int ret;
+
+	memset(queue, 0, sizeof(*queue));
+	ret = ptr_ring_init(&queue->ring, len, GFP_KERNEL);
+	if (ret)
+		return ret;
 	if (multicore) {
 		queue->worker = packet_alloc_percpu_multicore_worker(function, queue);
 		if (!queue->worker)
@@ -32,6 +35,14 @@ int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool mult
 	} else
 		INIT_WORK(&queue->work, function);
 	return 0;
+}
+
+void packet_queue_free(struct crypt_queue *queue, bool multicore)
+{
+	if (multicore)
+		free_percpu(queue->worker);
+	WARN_ON(!ptr_ring_empty_bh(&queue->ring));
+	ptr_ring_cleanup(&queue->ring, NULL);
 }
 
 int __init crypt_ctx_cache_init(void)
