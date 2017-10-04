@@ -425,7 +425,10 @@ static inline struct nlattr **genl_family_attrbuf(const struct genl_family *fami
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+#include <net/genetlink.h>
+#ifndef GENL_UNS_ADMIN_PERM
 #define GENL_UNS_ADMIN_PERM GENL_ADMIN_PERM
+#endif
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
