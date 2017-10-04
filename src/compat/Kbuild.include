@@ -4,6 +4,10 @@ else
 ccflags-y += -include $(src)/compat/compat.h
 endif
 
+ifeq ($(wildcard $(srctree)/include/linux/ptr_ring.h),)
+ccflags-y += -I$(src)/compat/ptr_ring/include
+endif
+
 ifeq ($(wildcard $(srctree)/include/linux/siphash.h),)
 ccflags-y += -I$(src)/compat/siphash/include
 wireguard-y += compat/siphash/siphash.o
