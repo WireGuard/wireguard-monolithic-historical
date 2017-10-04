@@ -351,19 +351,18 @@ void packet_rx_worker(struct work_struct *work)
 {
 	struct crypt_ctx *ctx;
 	struct crypt_queue *queue = container_of(work, struct crypt_queue, work);
-	struct sk_buff *skb;
 
 	local_bh_disable();
 	while ((ctx = queue_first_per_peer(queue)) != NULL && atomic_read(&ctx->is_finished)) {
 		queue_dequeue(queue);
-		if (likely((skb = ctx->skb) != NULL)) {
-			if (likely(counter_validate(&ctx->keypair->receiving.counter, PACKET_CB(skb)->nonce))) {
-				skb_reset(skb);
-				packet_consume_data_done(skb, ctx->peer, &ctx->endpoint, noise_received_with_keypair(&ctx->peer->keypairs, ctx->keypair));
+		if (likely(ctx->skb)) {
+			if (likely(counter_validate(&ctx->keypair->receiving.counter, PACKET_CB(ctx->skb)->nonce))) {
+				skb_reset(ctx->skb);
+				packet_consume_data_done(ctx->skb, ctx->peer, &ctx->endpoint, noise_received_with_keypair(&ctx->peer->keypairs, ctx->keypair));
 			}
 			else {
 				net_dbg_ratelimited("%s: Packet has invalid nonce %Lu (max %Lu)\n", ctx->peer->device->dev->name, PACKET_CB(ctx->skb)->nonce, ctx->keypair->receiving.counter.receive.counter);
-				dev_kfree_skb(skb);
+				dev_kfree_skb(ctx->skb);
 			}
 		}
 		noise_keypair_put(ctx->keypair);
