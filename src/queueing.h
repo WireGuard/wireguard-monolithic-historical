@@ -55,7 +55,6 @@ struct crypt_ctx {
 	atomic_t is_finished;
 	struct wireguard_peer *peer;
 	struct noise_keypair *keypair;
-	struct endpoint endpoint;
 };
 
 /* Returns either the correct skb->protocol value, or 0 if invalid. */
