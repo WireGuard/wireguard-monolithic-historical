@@ -16,9 +16,6 @@ struct crypt_queue;
 struct sk_buff;
 
 /* queueing.c APIs: */
-extern struct kmem_cache *crypt_ctx_cache __read_mostly;
-int crypt_ctx_cache_init(void);
-void crypt_ctx_cache_uninit(void);
 int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool multicore, unsigned int len);
 void packet_queue_free(struct crypt_queue *queue, bool multicore);
 struct multicore_worker __percpu *packet_alloc_percpu_multicore_worker(work_func_t function, void *ptr);
@@ -41,21 +38,15 @@ void packet_handshake_send_worker(struct work_struct *work);
 void packet_tx_worker(struct work_struct *work);
 void packet_encrypt_worker(struct work_struct *work);
 
+enum packet_state { PACKET_STATE_UNCRYPTED, PACKET_STATE_CRYPTED, PACKET_STATE_DEAD };
 struct packet_cb {
 	u64 nonce;
+	struct noise_keypair *keypair;
+	atomic_t state;
 	u8 ds;
 };
+#define PACKET_PEER(skb) ((struct packet_cb *)skb->cb)->keypair->entry.peer
 #define PACKET_CB(skb) ((struct packet_cb *)skb->cb)
-
-struct crypt_ctx {
-	union {
-		struct sk_buff_head packets;
-		struct sk_buff *skb;
-	};
-	atomic_t is_finished;
-	struct wireguard_peer *peer;
-	struct noise_keypair *keypair;
-};
 
 /* Returns either the correct skb->protocol value, or 0 if invalid. */
 static inline __be16 skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
@@ -130,17 +121,28 @@ static inline int cpumask_next_online(int *next)
 	return cpu;
 }
 
-static inline int queue_enqueue_per_device_and_peer(struct crypt_queue *device_queue, struct crypt_queue *peer_queue, struct crypt_ctx *ctx, struct workqueue_struct *wq, int *next_cpu)
+static inline int queue_enqueue_per_device_and_peer(struct crypt_queue *device_queue, struct crypt_queue *peer_queue, struct sk_buff *skb, struct workqueue_struct *wq, int *next_cpu)
 {
 	int cpu;
 
-	if (unlikely(ptr_ring_produce_bh(&peer_queue->ring, ctx)))
+	atomic_set(&PACKET_CB(skb)->state, PACKET_STATE_UNCRYPTED);
+	if (unlikely(ptr_ring_produce_bh(&peer_queue->ring, skb)))
 		return -ENOSPC;
 	cpu = cpumask_next_online(next_cpu);
-	if (unlikely(ptr_ring_produce_bh(&device_queue->ring, ctx)))
+	if (unlikely(ptr_ring_produce_bh(&device_queue->ring, skb)))
 		return -EPIPE;
 	queue_work_on(cpu, wq, &per_cpu_ptr(device_queue->worker, cpu)->work);
 	return 0;
+}
+
+static inline void queue_enqueue_per_peer(struct crypt_queue *queue, struct sk_buff *skb, enum packet_state state)
+{
+	struct wireguard_peer *peer = peer_rcu_get(PACKET_PEER(skb));
+
+	atomic_set(&PACKET_CB(skb)->state, state);
+	queue_work_on(cpumask_choose_online(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &queue->work);
+	peer_put(peer);
+
 }
 
 #ifdef DEBUG

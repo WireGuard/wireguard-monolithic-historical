@@ -1,9 +1,6 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
 #include "queueing.h"
-#include <linux/slab.h>
-
-struct kmem_cache *crypt_ctx_cache __read_mostly;
 
 struct multicore_worker __percpu *packet_alloc_percpu_multicore_worker(work_func_t function, void *ptr)
 {
@@ -43,17 +40,4 @@ void packet_queue_free(struct crypt_queue *queue, bool multicore)
 		free_percpu(queue->worker);
 	WARN_ON(!ptr_ring_empty_bh(&queue->ring));
 	ptr_ring_cleanup(&queue->ring, NULL);
-}
-
-int __init crypt_ctx_cache_init(void)
-{
-	crypt_ctx_cache = KMEM_CACHE(crypt_ctx, 0);
-	if (!crypt_ctx_cache)
-		return -ENOMEM;
-	return 0;
-}
-
-void crypt_ctx_cache_uninit(void)
-{
-	kmem_cache_destroy(crypt_ctx_cache);
 }

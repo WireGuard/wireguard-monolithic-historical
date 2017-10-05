@@ -277,15 +277,15 @@ out:
 }
 #include "selftest/counter.h"
 
-static void packet_consume_data_done(struct sk_buff *skb, struct wireguard_peer *peer, struct endpoint *endpoint, bool used_new_key)
+static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpoint)
 {
+	struct wireguard_peer *peer = PACKET_PEER(skb), *routed_peer;
 	struct net_device *dev = peer->device->dev;
-	struct wireguard_peer *routed_peer;
 	unsigned int len;
 
 	socket_set_peer_endpoint(peer, endpoint);
 
-	if (unlikely(used_new_key)) {
+	if (unlikely(noise_received_with_keypair(&peer->keypairs, PACKET_CB(skb)->keypair))) {
 		timers_handshake_complete(peer);
 		packet_send_staged_packets(peer);
 	}
@@ -364,27 +364,42 @@ continue_processing:
 
 void packet_rx_worker(struct work_struct *work)
 {
-	struct endpoint endpoint;
-	struct crypt_ctx *ctx;
 	struct crypt_queue *queue = container_of(work, struct crypt_queue, work);
+	struct wireguard_peer *peer;
+	struct noise_keypair *keypair;
+	struct sk_buff *skb;
+	struct endpoint endpoint;
+	enum packet_state state;
+	bool free;
 
 	local_bh_disable();
 	spin_lock_bh(&queue->ring.consumer_lock);
-	while ((ctx = __ptr_ring_peek(&queue->ring)) != NULL && atomic_read(&ctx->is_finished)) {
+	while ((skb = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(skb)->state)) != PACKET_STATE_UNCRYPTED) {
 		__ptr_ring_discard_one(&queue->ring);
-		if (likely(ctx->skb)) {
-			if (likely(counter_validate(&ctx->keypair->receiving.counter, PACKET_CB(ctx->skb)->nonce) && !socket_endpoint_from_skb(&endpoint, ctx->skb))) {
-				skb_reset(ctx->skb);
-				packet_consume_data_done(ctx->skb, ctx->peer, &endpoint, noise_received_with_keypair(&ctx->peer->keypairs, ctx->keypair));
-			}
-			else {
-				net_dbg_ratelimited("%s: Packet has invalid nonce %Lu (max %Lu)\n", ctx->peer->device->dev->name, PACKET_CB(ctx->skb)->nonce, ctx->keypair->receiving.counter.receive.counter);
-				dev_kfree_skb(ctx->skb);
-			}
+		peer = PACKET_PEER(skb);
+		keypair = PACKET_CB(skb)->keypair;
+		free = true;
+
+		if (unlikely(state != PACKET_STATE_CRYPTED))
+			goto next;
+
+		if (unlikely(!counter_validate(&keypair->receiving.counter, PACKET_CB(skb)->nonce))) {
+			net_dbg_ratelimited("%s: Packet has invalid nonce %Lu (max %Lu)\n", peer->device->dev->name, PACKET_CB(skb)->nonce, keypair->receiving.counter.receive.counter);
+			goto next;
 		}
-		noise_keypair_put(ctx->keypair);
-		peer_put(ctx->peer);
-		kmem_cache_free(crypt_ctx_cache, ctx);
+
+		if (unlikely(socket_endpoint_from_skb(&endpoint, skb)))
+			goto next;
+
+		skb_reset(skb);
+		packet_consume_data_done(skb, &endpoint);
+		free = false;
+
+next:
+		noise_keypair_put(keypair);
+		peer_put(peer);
+		if (unlikely(free))
+			dev_kfree_skb(skb);
 	}
 	spin_unlock_bh(&queue->ring.consumer_lock);
 	local_bh_enable();
@@ -392,65 +407,44 @@ void packet_rx_worker(struct work_struct *work)
 
 void packet_decrypt_worker(struct work_struct *work)
 {
-	struct crypt_ctx *ctx;
 	struct crypt_queue *queue = container_of(work, struct multicore_worker, work)->ptr;
-	struct wireguard_peer *peer;
+	struct sk_buff *skb;
 
-	while ((ctx = ptr_ring_consume_bh(&queue->ring)) != NULL) {
-		if (unlikely(!skb_decrypt(ctx->skb, &ctx->keypair->receiving))) {
-			dev_kfree_skb(ctx->skb);
-			ctx->skb = NULL;
-		}
-		/* Dereferencing ctx is unsafe once ctx->is_finished == true, so
-		 * we take a reference here first. */
-		peer = peer_rcu_get(ctx->peer);
-		atomic_set(&ctx->is_finished, true);
-		queue_work_on(cpumask_choose_online(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &peer->rx_queue.work);
-		peer_put(peer);
+	while ((skb = ptr_ring_consume_bh(&queue->ring)) != NULL) {
+		if (likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving)))
+			queue_enqueue_per_peer(&PACKET_PEER(skb)->rx_queue, skb, PACKET_STATE_CRYPTED);
+		else
+			queue_enqueue_per_peer(&PACKET_PEER(skb)->rx_queue, skb, PACKET_STATE_DEAD);
 	}
 }
 
 static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb)
 {
-	struct crypt_ctx *ctx;
-	struct noise_keypair *keypair;
+	struct wireguard_peer *peer;
 	__le32 idx = ((struct message_data *)skb->data)->key_idx;
 	int ret;
 
 	rcu_read_lock_bh();
-	keypair = noise_keypair_get((struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx));
+	PACKET_CB(skb)->keypair = noise_keypair_get((struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx));
 	rcu_read_unlock_bh();
-	if (unlikely(!keypair)) {
+	if (unlikely(!PACKET_CB(skb)->keypair)) {
 		dev_kfree_skb(skb);
 		return;
 	}
 
-	ctx = kmem_cache_alloc(crypt_ctx_cache, GFP_ATOMIC);
-	if (unlikely(!ctx)) {
-		dev_kfree_skb(skb);
-		peer_put(keypair->entry.peer);
-		noise_keypair_put(keypair);
-		return;
-	}
-	atomic_set(&ctx->is_finished, false);
-	ctx->keypair = keypair;
-	ctx->skb = skb;
-	/* We already have a reference to peer from index_hashtable_lookup. */
-	ctx->peer = ctx->keypair->entry.peer;
+	/* The call to index_hashtable_lookup gives us a reference to its underlying peer, so we don't need to call peer_rcu_get(). */
+	peer = PACKET_PEER(skb);
 
-	ret = queue_enqueue_per_device_and_peer(&wg->decrypt_queue, &ctx->peer->rx_queue, ctx, wg->packet_crypt_wq, &wg->decrypt_queue.last_cpu);
+	ret = queue_enqueue_per_device_and_peer(&wg->decrypt_queue, &peer->rx_queue, skb, wg->packet_crypt_wq, &wg->decrypt_queue.last_cpu);
 	if (likely(!ret))
 		return; /* Successful. No need to drop references below. */
 
-	dev_kfree_skb(ctx->skb);
-	if (ret == -EPIPE) {
-		ctx->skb = NULL;
-		atomic_set(&ctx->is_finished, true);
-		queue_work_on(cpumask_choose_online(&ctx->peer->serial_work_cpu, ctx->peer->internal_id), ctx->peer->device->packet_crypt_wq, &ctx->peer->rx_queue.work);
-	} else {
-		noise_keypair_put(ctx->keypair);
-		peer_put(ctx->peer);
-		kmem_cache_free(crypt_ctx_cache, ctx);
+	if (ret == -EPIPE)
+		queue_enqueue_per_peer(&peer->rx_queue, skb, PACKET_STATE_DEAD);
+	else {
+		peer_put(peer);
+		noise_keypair_put(PACKET_CB(skb)->keypair);
+		dev_kfree_skb(skb);
 	}
 }
 

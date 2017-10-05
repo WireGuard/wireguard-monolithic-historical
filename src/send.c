@@ -165,20 +165,26 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 	packet_send_staged_packets(peer);
 }
 
-static void packet_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *peer)
+#define skb_walk_null_queue_safe(first, skb, next) for (skb = first, next = skb->next; skb; skb = next, next = skb ? skb->next : NULL)
+static inline void skb_free_null_queue(struct sk_buff *first)
 {
-	struct sk_buff *skb, *tmp;
+	struct sk_buff *skb, *next;
+	skb_walk_null_queue_safe (first, skb, next)
+		dev_kfree_skb(skb);
+}
+
+static void packet_create_data_done(struct sk_buff *first, struct wireguard_peer *peer)
+{
+	struct sk_buff *skb, *next;
 	bool is_keepalive, data_sent = false;
 
-	if (unlikely(skb_queue_empty(queue)))
-		return;
-
 	timers_any_authenticated_packet_traversal(peer);
-	skb_queue_walk_safe (queue, skb, tmp) {
+	skb_walk_null_queue_safe (first, skb, next) {
 		is_keepalive = skb->len == message_data_len(0);
 		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
 			data_sent = true;
 	}
+
 	if (likely(data_sent))
 		timers_data_sent(peer);
 
@@ -188,78 +194,65 @@ static void packet_create_data_done(struct sk_buff_head *queue, struct wireguard
 void packet_tx_worker(struct work_struct *work)
 {
 	struct crypt_queue *queue = container_of(work, struct crypt_queue, work);
-	struct crypt_ctx *ctx;
+	struct wireguard_peer *peer;
+	struct noise_keypair *keypair;
+	struct sk_buff *first;
+	enum packet_state state;
 
 	spin_lock_bh(&queue->ring.consumer_lock);
-	while ((ctx = __ptr_ring_peek(&queue->ring)) != NULL && atomic_read(&ctx->is_finished)) {
+	while ((first = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(first)->state)) != PACKET_STATE_UNCRYPTED) {
 		__ptr_ring_discard_one(&queue->ring);
-		packet_create_data_done(&ctx->packets, ctx->peer);
-		noise_keypair_put(ctx->keypair);
-		peer_put(ctx->peer);
-		kmem_cache_free(crypt_ctx_cache, ctx);
+		peer = PACKET_PEER(first);
+		keypair = PACKET_CB(first)->keypair;
+
+		if (likely(state == PACKET_STATE_CRYPTED))
+			packet_create_data_done(first, peer);
+		else
+			skb_free_null_queue(first);
+
+		noise_keypair_put(keypair);
+		peer_put(peer);
 	}
 	spin_unlock_bh(&queue->ring.consumer_lock);
 }
 
 void packet_encrypt_worker(struct work_struct *work)
 {
-	struct crypt_ctx *ctx;
 	struct crypt_queue *queue = container_of(work, struct multicore_worker, work)->ptr;
-	struct sk_buff *skb, *tmp;
-	struct wireguard_peer *peer;
+	struct sk_buff *first, *skb, *next;
 	bool have_simd = chacha20poly1305_init_simd();
 
-	while ((ctx = ptr_ring_consume_bh(&queue->ring)) != NULL) {
-		skb_queue_walk_safe(&ctx->packets, skb, tmp) {
-			if (likely(skb_encrypt(skb, ctx->keypair, have_simd))) {
+	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
+		skb_walk_null_queue_safe (first, skb, next) {
+			if (likely(skb_encrypt(skb, PACKET_CB(first)->keypair, have_simd)))
 				skb_reset(skb);
-			} else {
-				__skb_unlink(skb, &ctx->packets);
-				dev_kfree_skb(skb);
+			else {
+				queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first, PACKET_STATE_DEAD);
+				continue;
 			}
 		}
-		/* Dereferencing ctx is unsafe once ctx->is_finished == true, so
-		 * we grab an additional reference to peer. */
-		peer = peer_rcu_get(ctx->peer);
-		atomic_set(&ctx->is_finished, true);
-		queue_work_on(cpumask_choose_online(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &peer->tx_queue.work);
-		peer_put(peer);
+		queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first, PACKET_STATE_CRYPTED);
 	}
 	chacha20poly1305_deinit_simd(have_simd);
 }
 
-static void packet_create_data(struct wireguard_peer *peer, struct sk_buff_head *packets, struct noise_keypair *keypair)
+static void packet_create_data(struct sk_buff *first)
 {
-	struct crypt_ctx *ctx;
+	struct wireguard_peer *peer = PACKET_PEER(first);
 	struct wireguard_device *wg = peer->device;
 	int ret;
 
-	ctx = kmem_cache_alloc(crypt_ctx_cache, GFP_ATOMIC);
-	if (unlikely(!ctx)) {
-		__skb_queue_purge(packets);
-		goto err_drop_refs;
-	}
-	/* This function consumes the passed references to peer and keypair. */
-	atomic_set(&ctx->is_finished, false);
-	ctx->keypair = keypair;
-	ctx->peer = peer;
-	__skb_queue_head_init(&ctx->packets);
-	skb_queue_splice_tail(packets, &ctx->packets);
-	ret = queue_enqueue_per_device_and_peer(&wg->encrypt_queue, &peer->tx_queue, ctx, wg->packet_crypt_wq, &wg->encrypt_queue.last_cpu);
+	ret = queue_enqueue_per_device_and_peer(&wg->encrypt_queue, &peer->tx_queue, first, wg->packet_crypt_wq, &wg->encrypt_queue.last_cpu);
 	if (likely(!ret))
 		return; /* Successful. No need to fall through to drop references below. */
 
-	__skb_queue_purge(&ctx->packets);
-	if (ret == -EPIPE) {
-		atomic_set(&ctx->is_finished, true);
-		queue_work_on(cpumask_choose_online(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &peer->tx_queue.work);
-		return;
-	} else
-		kmem_cache_free(crypt_ctx_cache, ctx);
-
-err_drop_refs:
-	noise_keypair_put(keypair);
-	peer_put(peer);
+	if (ret == -EPIPE)
+		queue_enqueue_per_peer(&peer->tx_queue, first, PACKET_STATE_DEAD);
+	else {
+		peer_put(peer);
+		noise_keypair_put(PACKET_CB(first)->keypair);
+		skb_free_null_queue(first);
+	}
 }
 
 void packet_send_staged_packets(struct wireguard_peer *peer)
@@ -299,8 +292,10 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 			goto out_invalid;
 	}
 
-	/* We pass off our peer and keypair references to the data subsystem and return. */
-	packet_create_data(peer_rcu_get(peer), &packets, keypair);
+	packets.prev->next = NULL;
+	peer_rcu_get(keypair->entry.peer);
+	PACKET_CB(packets.next)->keypair = keypair;
+	packet_create_data(packets.next);
 	return;
 
 out_invalid:

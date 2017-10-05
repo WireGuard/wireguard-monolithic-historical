@@ -30,13 +30,9 @@ static int __init mod_init(void)
 #endif
 	noise_init();
 
-	ret = crypt_ctx_cache_init();
-	if (ret < 0)
-		goto err_packet;
-
 	ret = device_init();
 	if (ret < 0)
-		goto err_device;
+		goto err_packet;
 
 	ret = netlink_init();
 	if (ret < 0)
@@ -49,8 +45,6 @@ static int __init mod_init(void)
 
 err_netlink:
 	device_uninit();
-err_device:
-	crypt_ctx_cache_uninit();
 err_packet:
 	return ret;
 }
@@ -59,7 +53,6 @@ static void __exit mod_exit(void)
 {
 	netlink_uninit();
 	device_uninit();
-	crypt_ctx_cache_uninit();
 	pr_debug("WireGuard unloaded\n");
 }
 
