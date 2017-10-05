@@ -61,9 +61,11 @@ tools:
 tools-debug:
 	$(MAKE) -C tools V=1 DEBUG_TOOLS=y
 
-check:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) C=2 CF="-D__CHECK_ENDIAN__" CONFIG_WIREGUARD_DEBUG=y
-	$(MAKE) -C tools check
+check: clean
+	scan-build --view --keep-going $(MAKE) module tools CONFIG_WIREGUARD_DEBUG=y C=2 CF="-D__CHECK_ENDIAN__"
+
+coccicheck: clean
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) CONFIG_WIREGUARD_DEBUG=y coccicheck MODE=report
 
 cloc: clean
 	cloc $(wildcard *.c) $(wildcard *.h)

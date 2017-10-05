@@ -68,7 +68,7 @@ static __init void horrible_routing_table_free(struct horrible_routing_table *ta
 	hlist_for_each_entry_safe (node, h, &table->head, table) {
 		hlist_del(&node->table);
 		kfree(node);
-	};
+	}
 }
 static __init inline union nf_inet_addr horrible_cidr_to_mask(uint8_t cidr)
 {
@@ -168,7 +168,7 @@ static __init void *horrible_routing_table_lookup_v4(struct horrible_routing_tab
 			ret = node->value;
 			break;
 		}
-	};
+	}
 	return ret;
 }
 static __init void *horrible_routing_table_lookup_v6(struct horrible_routing_table *table, struct in6_addr *ip)
@@ -182,7 +182,7 @@ static __init void *horrible_routing_table_lookup_v6(struct horrible_routing_tab
 			ret = node->value;
 			break;
 		}
-	};
+	}
 	return ret;
 }
 

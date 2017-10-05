@@ -223,7 +223,7 @@ static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **la
 	if (!mutable) {
 		perror("strdup");
 		return false;
-	};
+	}
 	peer->flags |= WGPEER_REPLACE_ALLOWEDIPS;
 	if (!strlen(value)) {
 		free(mutable);

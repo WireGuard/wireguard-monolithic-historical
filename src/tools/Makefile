@@ -80,9 +80,6 @@ install: wg
 	@[ "$(WITH_WGQUICK)" = "yes" -a "$(WITH_SYSTEMDUNITS)" = "yes" ] || exit 0; \
 	install -v -d "$(DESTDIR)$(SYSTEMDUNITDIR)" && install -m 0644 -v wg-quick@.service "$(DESTDIR)$(SYSTEMDUNITDIR)/wg-quick@.service"
 
-check: clean
-	CFLAGS=-g scan-build --view --keep-going $(MAKE) wg
-
 help:
 	@cat INSTALL
 
