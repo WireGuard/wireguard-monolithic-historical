@@ -433,7 +433,7 @@ static inline struct nlattr **genl_family_attrbuf(const struct genl_family *fami
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 #include <net/genetlink.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0) && !defined(ISRHEL7)
 #define genl_register_family(a) genl_register_family_with_ops(a, (struct genl_ops *)genl_ops, ARRAY_SIZE(genl_ops))
 #else
 #define genl_register_family(a) genl_register_family_with_ops(a, genl_ops)
