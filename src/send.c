@@ -105,6 +105,20 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 		packet_send_queued_handshake_initiation(peer, false);
 }
 
+static inline unsigned int skb_padding(struct sk_buff *skb)
+{
+	/* We do this modulo business with the MTU, just in case the networking layer
+	 * gives us a packet that's bigger than the MTU. Since we support GSO, this
+	 * isn't strictly neccessary, but it's better to be cautious here, especially
+	 * if that code ever changes. */
+	unsigned int last_unit = skb->len % skb->dev->mtu;
+	unsigned int padded_size = (last_unit + MESSAGE_PADDING_MULTIPLE - 1) & ~(MESSAGE_PADDING_MULTIPLE - 1);
+
+	if (padded_size > skb->dev->mtu)
+		padded_size = skb->dev->mtu;
+	return padded_size - last_unit;
+}
+
 static inline bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypair, bool have_simd)
 {
 	struct scatterlist sg[MAX_SKB_FRAGS * 2 + 1];

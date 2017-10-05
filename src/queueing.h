@@ -58,19 +58,6 @@ static inline __be16 skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
 	return 0;
 }
 
-static inline unsigned int skb_padding(struct sk_buff *skb)
-{
-	/* We do this modulo business with the MTU, just in case the networking layer
-	 * gives us a packet that's bigger than the MTU. Now that we support GSO, this
-	 * shouldn't be a real problem, and this can likely be removed. But, caution! */
-	unsigned int last_unit = skb->len % skb->dev->mtu;
-	unsigned int padded_size = (last_unit + MESSAGE_PADDING_MULTIPLE - 1) & ~(MESSAGE_PADDING_MULTIPLE - 1);
-
-	if (padded_size > skb->dev->mtu)
-		padded_size = skb->dev->mtu;
-	return padded_size - last_unit;
-}
-
 static inline void skb_reset(struct sk_buff *skb)
 {
 	skb_scrub_packet(skb, false);
@@ -142,7 +129,6 @@ static inline void queue_enqueue_per_peer(struct crypt_queue *queue, struct sk_b
 	atomic_set(&PACKET_CB(skb)->state, state);
 	queue_work_on(cpumask_choose_online(&peer->serial_work_cpu, peer->internal_id), peer->device->packet_crypt_wq, &queue->work);
 	peer_put(peer);
-
 }
 
 #ifdef DEBUG
