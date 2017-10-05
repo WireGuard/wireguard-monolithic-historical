@@ -440,6 +440,19 @@ static inline struct nlattr **genl_family_attrbuf(const struct genl_family *fami
 #endif
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+#define get_device_dump(a, b) get_device_dump_real(a, b); \
+static int get_device_dump(a, b) { \
+	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0]; \
+	if (!wg) { \
+		int ret = get_device_start(cb); \
+		if (ret) \
+			return ret; \
+	} \
+	return get_device_dump_real(skb, cb); \
+} \
+static int get_device_dump_real(a, b)
+#endif
 
 /* https://lkml.org/lkml/2017/6/23/790 */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
