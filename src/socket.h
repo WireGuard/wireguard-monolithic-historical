@@ -17,8 +17,8 @@ int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *data, size_t l
 int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8 ds);
 int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg, struct sk_buff *in_skb, void *out_buffer, size_t len);
 
-int socket_endpoint_from_skb(struct endpoint *endpoint, struct sk_buff *skb);
-void socket_set_peer_endpoint(struct wireguard_peer *peer, struct endpoint *endpoint);
+int socket_endpoint_from_skb(struct endpoint *endpoint, const struct sk_buff *skb);
+void socket_set_peer_endpoint(struct wireguard_peer *peer, const struct endpoint *endpoint);
 void socket_clear_peer_endpoint_src(struct wireguard_peer *peer);
 
 #if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)

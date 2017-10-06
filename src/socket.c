@@ -203,7 +203,7 @@ int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg, struct sk_bu
 	return ret;
 }
 
-int socket_endpoint_from_skb(struct endpoint *endpoint, struct sk_buff *skb)
+int socket_endpoint_from_skb(struct endpoint *endpoint, const struct sk_buff *skb)
 {
 	memset(endpoint, 0, sizeof(struct endpoint));
 	if (skb->protocol == htons(ETH_P_IP)) {
@@ -224,41 +224,40 @@ int socket_endpoint_from_skb(struct endpoint *endpoint, struct sk_buff *skb)
 	return 0;
 }
 
-void socket_set_peer_endpoint(struct wireguard_peer *peer, struct endpoint *endpoint)
+static inline bool endpoint_eq(const struct endpoint *a, const struct endpoint *b)
 {
+	return (a->addr.sa_family == AF_INET && b->addr.sa_family == AF_INET &&
+		a->addr4.sin_port == b->addr4.sin_port && a->addr4.sin_addr.s_addr == b->addr4.sin_addr.s_addr &&
+		a->src4.s_addr == b->src4.s_addr && a->src_if4 == b->src_if4) ||
+	       (a->addr.sa_family == AF_INET6 && b->addr.sa_family == AF_INET6 &&
+		a->addr6.sin6_port == b->addr6.sin6_port && ipv6_addr_equal(&a->addr6.sin6_addr, &b->addr6.sin6_addr) &&
+		a->addr6.sin6_scope_id == b->addr6.sin6_scope_id && ipv6_addr_equal(&a->src6, &b->src6)) ||
+	       unlikely(!a->addr.sa_family && !b->addr.sa_family);
+}
+
+void socket_set_peer_endpoint(struct wireguard_peer *peer, const struct endpoint *endpoint)
+{
+	const struct endpoint previous_endpoint = peer->endpoint;
+	/* First we check unlocked, in order to optimize, since it's pretty rare
+	 * that an endpoint will change. */
+	if (endpoint_eq(endpoint, &previous_endpoint))
+		return;
+	write_lock_bh(&peer->endpoint_lock);
+	/* Now we double check while locked, in case a different CPU got here first. */
+	if (!endpoint_eq(&peer->endpoint, &previous_endpoint))
+		goto out;
 	if (endpoint->addr.sa_family == AF_INET) {
-		read_lock_bh(&peer->endpoint_lock);
-		if (likely(peer->endpoint.addr4.sin_family == AF_INET &&
-			   peer->endpoint.addr4.sin_port == endpoint->addr4.sin_port &&
-			   peer->endpoint.addr4.sin_addr.s_addr == endpoint->addr4.sin_addr.s_addr &&
-			   peer->endpoint.src4.s_addr == endpoint->src4.s_addr &&
-			   peer->endpoint.src_if4 == endpoint->src_if4))
-			goto out;
-		read_unlock_bh(&peer->endpoint_lock);
-		write_lock_bh(&peer->endpoint_lock);
 		peer->endpoint.addr4 = endpoint->addr4;
 		peer->endpoint.src4 = endpoint->src4;
 		peer->endpoint.src_if4 = endpoint->src_if4;
 	} else if (endpoint->addr.sa_family == AF_INET6) {
-		read_lock_bh(&peer->endpoint_lock);
-		if (likely(peer->endpoint.addr6.sin6_family == AF_INET6 &&
-			   peer->endpoint.addr6.sin6_port == endpoint->addr6.sin6_port &&
-			   /* TODO: peer->endpoint.addr6.sin6_flowinfo == endpoint->addr6.sin6_flowinfo && */
-			   ipv6_addr_equal(&peer->endpoint.addr6.sin6_addr, &endpoint->addr6.sin6_addr) &&
-			   peer->endpoint.addr6.sin6_scope_id == endpoint->addr6.sin6_scope_id &&
-			   ipv6_addr_equal(&peer->endpoint.src6, &endpoint->src6)))
-			goto out;
-		read_unlock_bh(&peer->endpoint_lock);
-		write_lock_bh(&peer->endpoint_lock);
 		peer->endpoint.addr6 = endpoint->addr6;
 		peer->endpoint.src6 = endpoint->src6;
 	} else
-		return;
+		goto out;
 	dst_cache_reset(&peer->endpoint_cache);
-	write_unlock_bh(&peer->endpoint_lock);
-	return;
 out:
-	read_unlock_bh(&peer->endpoint_lock);
+	write_unlock_bh(&peer->endpoint_lock);
 }
 
 void socket_clear_peer_endpoint_src(struct wireguard_peer *peer)
