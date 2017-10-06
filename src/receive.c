@@ -25,14 +25,6 @@ static inline void rx_stats(struct wireguard_peer *peer, size_t len)
 	peer->rx_bytes += len;
 }
 
-static inline void update_latest_addr(struct wireguard_peer *peer, struct sk_buff *skb)
-{
-	struct endpoint endpoint;
-
-	if (!socket_endpoint_from_skb(&endpoint, skb))
-		socket_set_peer_endpoint(peer, &endpoint);
-}
-
 #define SKB_TYPE_LE32(skb) ((struct message_header *)(skb)->data)->type
 
 static inline size_t validate_header_len(struct sk_buff *skb)
@@ -122,7 +114,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 			net_dbg_skb_ratelimited("%s: Invalid handshake initiation from %pISpfsc\n", wg->dev->name, skb);
 			return;
 		}
-		update_latest_addr(peer, skb);
+		socket_set_peer_endpoint_from_skb(peer, skb);
 		net_dbg_ratelimited("%s: Receiving handshake initiation from peer %Lu (%pISpfsc)\n", wg->dev->name, peer->internal_id, &peer->endpoint.addr);
 		packet_send_handshake_response(peer);
 		break;
@@ -138,7 +130,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 			net_dbg_skb_ratelimited("%s: Invalid handshake response from %pISpfsc\n", wg->dev->name, skb);
 			return;
 		}
-		update_latest_addr(peer, skb);
+		socket_set_peer_endpoint_from_skb(peer, skb);
 		net_dbg_ratelimited("%s: Receiving handshake response from peer %Lu (%pISpfsc)\n", wg->dev->name, peer->internal_id, &peer->endpoint.addr);
 		if (noise_handshake_begin_session(&peer->handshake, &peer->keypairs)) {
 			timers_session_derived(peer);

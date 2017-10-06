@@ -19,6 +19,7 @@ int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg, struct sk_bu
 
 int socket_endpoint_from_skb(struct endpoint *endpoint, const struct sk_buff *skb);
 void socket_set_peer_endpoint(struct wireguard_peer *peer, const struct endpoint *endpoint);
+void socket_set_peer_endpoint_from_skb(struct wireguard_peer *peer, const struct sk_buff *skb);
 void socket_clear_peer_endpoint_src(struct wireguard_peer *peer);
 
 #if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)

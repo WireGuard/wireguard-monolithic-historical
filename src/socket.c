@@ -217,7 +217,6 @@ int socket_endpoint_from_skb(struct endpoint *endpoint, const struct sk_buff *sk
 		endpoint->addr6.sin6_port = udp_hdr(skb)->source;
 		endpoint->addr6.sin6_addr = ipv6_hdr(skb)->saddr;
 		endpoint->addr6.sin6_scope_id = ipv6_iface_scope_id(&ipv6_hdr(skb)->saddr, skb->skb_iif);
-		/* TODO: endpoint->addr6.sin6_flowinfo */
 		endpoint->src6 = ipv6_hdr(skb)->daddr;
 	} else
 		return -EINVAL;
@@ -256,6 +255,13 @@ void socket_set_peer_endpoint(struct wireguard_peer *peer, const struct endpoint
 	dst_cache_reset(&peer->endpoint_cache);
 out:
 	write_unlock_bh(&peer->endpoint_lock);
+}
+
+void socket_set_peer_endpoint_from_skb(struct wireguard_peer *peer, const struct sk_buff *skb)
+{
+	struct endpoint endpoint;
+	if (!socket_endpoint_from_skb(&endpoint, skb))
+		socket_set_peer_endpoint(peer, &endpoint);
 }
 
 void socket_clear_peer_endpoint_src(struct wireguard_peer *peer)
