@@ -237,15 +237,13 @@ static inline bool endpoint_eq(const struct endpoint *a, const struct endpoint *
 
 void socket_set_peer_endpoint(struct wireguard_peer *peer, const struct endpoint *endpoint)
 {
-	const struct endpoint previous_endpoint = peer->endpoint;
 	/* First we check unlocked, in order to optimize, since it's pretty rare
-	 * that an endpoint will change. */
-	if (endpoint_eq(endpoint, &previous_endpoint))
+	 * that an endpoint will change. If we happen to be mid-write, and two
+	 * CPUs wind up writing the same thing or something slightly different,
+	 * it doesn't really matter much either. */
+	if (endpoint_eq(endpoint, &peer->endpoint))
 		return;
 	write_lock_bh(&peer->endpoint_lock);
-	/* Now we double check while locked, in case a different CPU got here first. */
-	if (!endpoint_eq(&peer->endpoint, &previous_endpoint))
-		goto out;
 	if (endpoint->addr.sa_family == AF_INET) {
 		peer->endpoint.addr4 = endpoint->addr4;
 		peer->endpoint.src4 = endpoint->src4;
