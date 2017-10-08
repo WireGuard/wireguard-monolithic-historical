@@ -855,11 +855,12 @@ static int kernel_get_device(struct wgdevice **dev, const char *interface)
 	struct mnlg_socket *nlg;
 	struct get_device_ctx ctx = { 0 };
 
+try_again:
 	*dev = ctx.device = calloc(1, sizeof(struct wgdevice));
 	if (!*dev)
 		return -errno;
 
-	nlg= mnlg_socket_open(WG_GENL_NAME, WG_GENL_VERSION);
+	nlg = mnlg_socket_open(WG_GENL_NAME, WG_GENL_VERSION);
 	if (!nlg) {
 		free_wgdevice(*dev);
 		*dev = NULL;
@@ -884,6 +885,8 @@ out:
 		mnlg_socket_close(nlg);
 	if (ret) {
 		free_wgdevice(*dev);
+		if (ret == -EINTR)
+			goto try_again;
 		*dev = NULL;
 	}
 	errno = -ret;
