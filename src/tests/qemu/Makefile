@@ -1,7 +1,7 @@
 PWD := $(shell pwd)
 
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.13.4
+KERNEL_VERSION ?= 4.13.5
 BUILD_PATH ?= $(PWD)/../../../qemu-build
 DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
