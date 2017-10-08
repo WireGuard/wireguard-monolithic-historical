@@ -25,23 +25,23 @@ dkms.conf:
 	git update-index --assume-unchanged dkms.conf || true
 
 module: version.h
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
+	@$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
 module-debug: version.h
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) V=1 CONFIG_WIREGUARD_DEBUG=y modules
+	@$(MAKE) -C $(KERNELDIR) M=$(PWD) V=1 CONFIG_WIREGUARD_DEBUG=y modules
 
 clean:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) clean
-	$(MAKE) -C tools clean
+	@$(MAKE) -C $(KERNELDIR) M=$(PWD) clean
+	@$(MAKE) -C tools clean
 
 module-install:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
+	@$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
 	depmod -a
 
 install:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
+	@$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
 	depmod -a
-	$(MAKE) -C tools install
+	@$(MAKE) -C tools install
 
 DKMS_TOP_LEVEL := Makefile Kbuild Kconfig $(filter-out wireguard.mod.c, $(wildcard *.c)) $(filter-out version.h, $(wildcard *.h)) version.h dkms.conf
 DKMS_SELFTEST_LEVEL := $(wildcard selftest/*.c) $(wildcard selftest/*.h)
@@ -56,16 +56,16 @@ dkms-install: $(DKMS_TOP_LEVEL) $(DKMS_SELFTEST_LEVEL) $(DKMS_CRYPTO_LEVEL) $(DK
 	@for file in $(DKMS_COMPAT_LEVEL); do install -v -m0644 -D $$file $(DESTDIR)$(DKMSDIR)/$$file; done
 
 tools:
-	$(MAKE) -C tools
+	@$(MAKE) -C tools
 
 tools-debug:
-	$(MAKE) -C tools V=1 DEBUG_TOOLS=y
+	@$(MAKE) -C tools V=1 DEBUG_TOOLS=y
 
 check: clean
 	scan-build --view --keep-going $(MAKE) module tools CONFIG_WIREGUARD_DEBUG=y C=2 CF="-D__CHECK_ENDIAN__"
 
 coccicheck: clean
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) CONFIG_WIREGUARD_DEBUG=y coccicheck MODE=report
+	@$(MAKE) -C $(KERNELDIR) M=$(PWD) CONFIG_WIREGUARD_DEBUG=y coccicheck MODE=report
 
 cloc: clean
 	cloc $(wildcard *.c) $(wildcard *.h)
