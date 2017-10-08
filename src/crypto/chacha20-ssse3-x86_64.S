@@ -164,7 +164,7 @@ ENTRY(chacha20_asm_4block_xor_ssse3)
 	# done with the slightly better performing SSSE3 byte shuffling,
 	# 7/12-bit word rotation uses traditional shift+OR.
 
-	mov		%rsp,%r11
+	lea		8(%rsp),%r10
 	sub		$0x80,%rsp
 	and		$~63,%rsp
 
@@ -629,7 +629,7 @@ ENTRY(chacha20_asm_4block_xor_ssse3)
 	pxor		%xmm1,%xmm15
 	movdqu		%xmm15,0xf0(%rsi)
 
-	mov		%r11,%rsp
+	lea		-8(%r10),%rsp
 	ret
 ENDPROC(chacha20_asm_4block_xor_ssse3)
 

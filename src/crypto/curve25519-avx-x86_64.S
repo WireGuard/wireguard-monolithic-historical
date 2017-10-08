@@ -25,10 +25,10 @@ curve25519_sandy2x_REDMASK51: .quad 0x0007FFFFFFFFFFFF
 .text
 .align 32
 ENTRY(curve25519_sandy2x_fe51_mul)
-	mov %rsp,%r11
-	and $31,%r11
-	add $96,%r11
-	sub %r11,%rsp
+	push %rbp
+	mov %rsp,%rbp
+	sub $96,%rsp
+	and $-32,%rsp
 	movq %r11,0(%rsp)
 	movq %r12,8(%rsp)
 	movq %r13,16(%rsp)
@@ -195,18 +195,16 @@ ENTRY(curve25519_sandy2x_fe51_mul)
 	movq 32(%rsp),%r15
 	movq 40(%rsp),%rbx
 	movq 48(%rsp),%rbp
-	add %r11,%rsp
-	mov %rdi,%rax
-	mov %rsi,%rdx
+	leave
 	ret
 ENDPROC(curve25519_sandy2x_fe51_mul)
 
 .align 32
 ENTRY(curve25519_sandy2x_fe51_nsquare)
-	mov %rsp,%r11
-	and $31,%r11
-	add $64,%r11
-	sub %r11,%rsp
+	push %rbp
+	mov %rsp,%rbp
+	sub $64,%rsp
+	and $-32,%rsp
 	movq %r11,0(%rsp)
 	movq %r12,8(%rsp)
 	movq %r13,16(%rsp)
@@ -348,16 +346,16 @@ ENTRY(curve25519_sandy2x_fe51_nsquare)
 	movq 32(%rsp),%r15
 	movq 40(%rsp),%rbx
 	movq 48(%rsp),%rbp
-	add %r11,%rsp
+	leave
 	ret
 ENDPROC(curve25519_sandy2x_fe51_nsquare)
 
 .align 32
 ENTRY(curve25519_sandy2x_fe51_pack)
-	mov %rsp,%r11
-	and $31,%r11
-	add $32,%r11
-	sub %r11,%rsp
+	push %rbp
+	mov %rsp,%rbp
+	sub $32,%rsp
+	and $-32,%rsp
 	movq %r11,0(%rsp)
 	movq %r12,8(%rsp)
 	movq 0(%rsi),%rdx
@@ -553,16 +551,16 @@ ENTRY(curve25519_sandy2x_fe51_pack)
 	movb %sil,31(%rdi)
 	movq 0(%rsp),%r11
 	movq 8(%rsp),%r12
-	add %r11,%rsp
+	leave
 	ret
 ENDPROC(curve25519_sandy2x_fe51_pack)
 
 .align 32
 ENTRY(curve25519_sandy2x_ladder)
-	mov %rsp,%r11
-	and $31,%r11
-	add $1856,%r11
-	sub %r11,%rsp
+	push %rbp
+	mov %rsp,%rbp
+	sub $1856,%rsp
+	and $-32,%rsp
 	movq %r11,1824(%rsp)
 	movq %r12,1832(%rsp)
 	movq %r13,1840(%rsp)
@@ -1976,16 +1974,16 @@ ENTRY(curve25519_sandy2x_ladder)
 	movq 1832(%rsp),%r12
 	movq 1840(%rsp),%r13
 	movq 1848(%rsp),%r14
-	add %r11,%rsp
+	leave
 	ret
 ENDPROC(curve25519_sandy2x_ladder)
 
 .align 32
 ENTRY(curve25519_sandy2x_ladder_base)
-	mov %rsp,%r11
-	and $31,%r11
-	add $1568,%r11
-	sub %r11,%rsp
+	push %rbp
+	mov %rsp,%rbp
+	sub $1568,%rsp
+	and $-32,%rsp
 	movq %r11,1536(%rsp)
 	movq %r12,1544(%rsp)
 	movq %r13,1552(%rsp)
@@ -3254,6 +3252,6 @@ ENTRY(curve25519_sandy2x_ladder_base)
 	movq 1536(%rsp),%r11
 	movq 1544(%rsp),%r12
 	movq 1552(%rsp),%r13
-	add %r11,%rsp
+	leave
 	ret
 ENDPROC(curve25519_sandy2x_ladder_base)
