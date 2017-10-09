@@ -13,15 +13,22 @@ struct routing_table_node;
 struct routing_table {
 	struct routing_table_node __rcu *root4;
 	struct routing_table_node __rcu *root6;
+	u64 seq;
+};
+
+struct routing_table_cursor {
+	u64 seq;
+	struct routing_table_node *stack[128];
+	unsigned int len;
+	bool second_half;
 };
 
 void routing_table_init(struct routing_table *table);
 void routing_table_free(struct routing_table *table, struct mutex *mutex);
-int routing_table_insert_v4(struct routing_table *table, const struct in_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *mutex);
-int routing_table_insert_v6(struct routing_table *table, const struct in6_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *mutex);
-void routing_table_remove_by_peer(struct routing_table *table, struct wireguard_peer *peer, struct mutex *mutex);
-
-int routing_table_walk_ips_by_peer(struct routing_table *table, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, u8 cidr, int family), struct mutex *mutex);
+int routing_table_insert_v4(struct routing_table *table, const struct in_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *lock);
+int routing_table_insert_v6(struct routing_table *table, const struct in6_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *lock);
+void routing_table_remove_by_peer(struct routing_table *table, struct wireguard_peer *peer, struct mutex *lock);
+int routing_table_walk_by_peer(struct routing_table *table, struct routing_table_cursor *cursor, struct wireguard_peer *peer, int (*func)(void *ctx, const u8 *ip, u8 cidr, int family), void *ctx, struct mutex *lock);
 
 /* These return a strong reference to a peer: */
 struct wireguard_peer *routing_table_lookup_dst(struct routing_table *table, struct sk_buff *skb);

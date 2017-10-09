@@ -376,7 +376,7 @@ ip0 link add dev wg0 type wireguard
 config=( "[Interface]" "PrivateKey=$(wg genkey)" "[Peer]" "PublicKey=$(wg genkey)" )
 for a in {1..255}; do
 	for b in {0..255}; do
-		config+=( "AllowedIPs=$a.$b.0.0/16" )
+		config+=( "AllowedIPs=$a.$b.0.0/16,$a::$b/128" )
 	done
 done
 n0 wg setconf wg0 <(printf '%s\n' "${config[@]}")
@@ -384,7 +384,7 @@ i=0
 for ip in $(n0 wg show wg0 allowed-ips); do
 	((++i))
 done
-((i == 65281))
+((i == 255*256*2+1))
 ip0 link del wg0
 ip0 link add dev wg0 type wireguard
 config=( "[Interface]" "PrivateKey=$(wg genkey)" )
