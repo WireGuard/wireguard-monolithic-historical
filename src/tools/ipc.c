@@ -91,6 +91,15 @@ static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 	return 0;
 }
 
+static void warn_unrecognized(const char *which)
+{
+	static bool once = false;
+	if (once)
+		return;
+	once = true;
+	fprintf(stderr, "Warning: one or more unrecognized %s attributes", which);
+}
+
 static FILE *userspace_interface_file(const char *interface)
 {
 	struct stat sbuf;
@@ -421,6 +430,8 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 			peer->tx_bytes = NUM(0xffffffffffffffffULL);
 		else if (!strcmp(key, "errno"))
 			ret = -NUM(0x7fffffffU);
+		else
+			warn_unrecognized("daemon");
 	}
 	ret = -EPROTO;
 err:
@@ -692,6 +703,8 @@ static int parse_allowedip(const struct nlattr *attr, void *data)
 		if (!mnl_attr_validate(attr, MNL_TYPE_U8))
 			ctx->allowedip->cidr = mnl_attr_get_u8(attr);
 		break;
+	default:
+		warn_unrecognized("netlink");
 	}
 
 	return MNL_CB_OK;
@@ -761,6 +774,8 @@ static int parse_peer(const struct nlattr *attr, void *data)
 		break;
 	case WGPEER_A_ALLOWEDIPS:
 		return mnl_attr_parse_nested(attr, parse_allowedips, ctx);
+	default:
+		warn_unrecognized("netlink");
 	}
 
 	return MNL_CB_OK;
@@ -794,6 +809,10 @@ static int parse_device(const struct nlattr *attr, void *data)
 	struct get_device_ctx *ctx = data;
 
 	switch (mnl_attr_get_type(attr)) {
+	case WGDEVICE_A_IFINDEX:
+		if (!mnl_attr_validate(attr, MNL_TYPE_U32))
+			ctx->device->ifindex = mnl_attr_get_u32(attr);
+		break;
 	case WGDEVICE_A_IFNAME:
 		if (!mnl_attr_validate(attr, MNL_TYPE_STRING))
 			strncpy(ctx->device->name, mnl_attr_get_str(attr), sizeof(ctx->device->name) - 1);
@@ -816,6 +835,8 @@ static int parse_device(const struct nlattr *attr, void *data)
 		break;
 	case WGDEVICE_A_PEERS:
 		return mnl_attr_parse_nested(attr, parse_peers, ctx);
+	default:
+		warn_unrecognized("netlink");
 	}
 
 	return MNL_CB_OK;
