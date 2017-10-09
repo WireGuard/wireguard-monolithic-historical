@@ -349,7 +349,7 @@ static __init inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 } while (0)
 
 #define insert(version, mem, ipa, ipb, ipc, ipd, cidr) \
-	routing_table_insert_v##version(&t, ip##version(ipa, ipb, ipc, ipd), cidr, mem)
+	routing_table_insert_v##version(&t, ip##version(ipa, ipb, ipc, ipd), cidr, mem, &mutex)
 
 #define maybe_fail \
 	++i; \
@@ -370,12 +370,15 @@ static __init inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 
 bool __init routing_table_selftest(void)
 {
+	DEFINE_MUTEX(mutex);
 	struct routing_table t;
 	struct wireguard_peer *a = NULL, *b = NULL, *c = NULL, *d = NULL, *e = NULL, *f = NULL, *g = NULL, *h = NULL;
 	size_t i = 0;
 	bool success = false;
 	struct in6_addr ip;
 	__be64 part;
+
+	mutex_lock(&mutex);
 
 	routing_table_init(&t);
 	init_peer(a);
@@ -452,18 +455,18 @@ bool __init routing_table_selftest(void)
 	insert(4, a, 128, 0, 0, 0, 32);
 	insert(4, a, 192, 0, 0, 0, 32);
 	insert(4, a, 255, 0, 0, 0, 32);
-	routing_table_remove_by_peer(&t, a);
+	routing_table_remove_by_peer(&t, a, &mutex);
 	test_negative(4, a, 1, 0, 0, 0);
 	test_negative(4, a, 64, 0, 0, 0);
 	test_negative(4, a, 128, 0, 0, 0);
 	test_negative(4, a, 192, 0, 0, 0);
 	test_negative(4, a, 255, 0, 0, 0);
 
-	routing_table_free(&t);
+	routing_table_free(&t, &mutex);
 	routing_table_init(&t);
 	insert(4, a, 192, 168, 0, 0, 16);
 	insert(4, a, 192, 168, 0, 0, 24);
-	routing_table_remove_by_peer(&t, a);
+	routing_table_remove_by_peer(&t, a, &mutex);
 	test_negative(4, a, 192, 168, 0, 1);
 
 	/* These will hit the BUG_ON(len >= 128) in free_node if something goes wrong. */
@@ -471,7 +474,7 @@ bool __init routing_table_selftest(void)
 		part = cpu_to_be64(~(1LLU << (i % 64)));
 		memset(&ip, 0xff, 16);
 		memcpy((u8 *)&ip + (i < 64) * 8, &part, 8);
-		routing_table_insert_v6(&t, &ip, 128, a);
+		routing_table_insert_v6(&t, &ip, 128, a, &mutex);
 	}
 
 #ifdef DEBUG_RANDOM_TRIE
@@ -483,7 +486,7 @@ bool __init routing_table_selftest(void)
 		pr_info("routing table self-tests: pass\n");
 
 free:
-	routing_table_free(&t);
+	routing_table_free(&t, &mutex);
 	kfree(a);
 	kfree(b);
 	kfree(c);
@@ -492,6 +495,7 @@ free:
 	kfree(f);
 	kfree(g);
 	kfree(h);
+	mutex_unlock(&mutex);
 
 	return success;
 }

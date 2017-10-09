@@ -126,7 +126,7 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index, unsigned in
 	allowedips_nest = nla_nest_start(skb, WGPEER_A_ALLOWEDIPS);
 	if (!allowedips_nest)
 		goto err;
-	if (routing_table_walk_ips_by_peer_sleepable(&peer->device->peer_routing_table, &ctx, peer, get_allowedips)) {
+	if (routing_table_walk_ips_by_peer(&peer->device->peer_routing_table, &ctx, peer, get_allowedips, &peer->device->device_update_lock)) {
 		*allowedips_idx_cursor = ctx.idx;
 		nla_nest_end(skb, allowedips_nest);
 		nla_nest_end(skb, peer_nest);
@@ -274,9 +274,9 @@ static int set_allowedip(struct wireguard_peer *peer, struct nlattr **attrs)
 	cidr = nla_get_u8(attrs[WGALLOWEDIP_A_CIDR_MASK]);
 
 	if (family == AF_INET && cidr <= 32 && nla_len(attrs[WGALLOWEDIP_A_IPADDR]) == sizeof(struct in_addr))
-		ret = routing_table_insert_v4(&peer->device->peer_routing_table, nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer);
+		ret = routing_table_insert_v4(&peer->device->peer_routing_table, nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer, &peer->device->device_update_lock);
 	else if (family == AF_INET6 && cidr <= 128 && nla_len(attrs[WGALLOWEDIP_A_IPADDR]) == sizeof(struct in6_addr))
-		ret = routing_table_insert_v6(&peer->device->peer_routing_table, nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer);
+		ret = routing_table_insert_v6(&peer->device->peer_routing_table, nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer, &peer->device->device_update_lock);
 
 	return ret;
 }
@@ -343,7 +343,7 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 	}
 
 	if (flags & WGPEER_F_REPLACE_ALLOWEDIPS)
-		routing_table_remove_by_peer(&wg->peer_routing_table, peer);
+		routing_table_remove_by_peer(&wg->peer_routing_table, peer, &wg->device_update_lock);
 
 	if (attrs[WGPEER_A_ALLOWEDIPS]) {
 		int rem;
