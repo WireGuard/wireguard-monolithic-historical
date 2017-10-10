@@ -438,6 +438,7 @@ static inline struct nlattr **genl_family_attrbuf(const struct genl_family *fami
 #else
 #define genl_register_family(a) genl_register_family_with_ops(a, genl_ops)
 #endif
+#define COMPAT_CANNOT_USE_GENL_NOPS
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
@@ -452,6 +453,19 @@ static int get_device_dump(a, b) { \
 	return get_device_dump_real(skb, cb); \
 } \
 static int get_device_dump_real(a, b)
+#define COMPAT_CANNOT_USE_NETLINK_START
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+#define COMPAT_CANNOT_USE_IN6_DEV_GET
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+#define COMPAT_CANNOT_USE_DEV_CNF
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
+#define COMPAT_CANNOT_USE_IFF_NO_QUEUE
 #endif
 
 /* https://lkml.org/lkml/2017/6/23/790 */

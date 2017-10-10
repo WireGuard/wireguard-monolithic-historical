@@ -28,7 +28,7 @@ static int open(struct net_device *dev)
 	int ret;
 	struct wireguard_peer *peer, *temp;
 	struct wireguard_device *wg = netdev_priv(dev);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+#ifndef COMPAT_CANNOT_USE_IN6_DEV_GET
 	struct inet6_dev *dev_v6 = __in6_dev_get(dev);
 #endif
 	struct in_device *dev_v4 = __in_dev_get_rtnl(dev);
@@ -41,12 +41,12 @@ static int open(struct net_device *dev)
 		IN_DEV_CONF_SET(dev_v4, SEND_REDIRECTS, false);
 		IPV4_DEVCONF_ALL(dev_net(dev), SEND_REDIRECTS) = false;
 	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+#ifndef COMPAT_CANNOT_USE_IN6_DEV_GET
 	if (dev_v6)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-		dev_v6->addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
-#else
+#ifndef COMPAT_CANNOT_USE_DEV_CNF
 		dev_v6->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
+#else
+		dev_v6->addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
 #endif
 #endif
 
@@ -238,7 +238,7 @@ static void setup(struct net_device *dev)
 	dev->needed_tailroom = noise_encrypted_len(MESSAGE_PADDING_MULTIPLE);
 	dev->type = ARPHRD_NONE;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#ifndef COMPAT_CANNOT_USE_IFF_NO_QUEUE
 	dev->priv_flags |= IFF_NO_QUEUE;
 #else
 	dev->tx_queue_len = 0;

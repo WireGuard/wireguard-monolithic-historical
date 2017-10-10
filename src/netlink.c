@@ -456,7 +456,7 @@ out_nodev:
 static const struct genl_ops genl_ops[] = {
 	{
 		.cmd = WG_CMD_GET_DEVICE,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+#ifndef COMPAT_CANNOT_USE_NETLINK_START
 		.start = get_device_start,
 #endif
 		.dumpit = get_device_dump,
@@ -471,7 +471,7 @@ static const struct genl_ops genl_ops[] = {
 	}
 };
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+#ifndef COMPAT_CANNOT_USE_GENL_NOPS
 static struct genl_family genl_family __ro_after_init = {
 	.ops = genl_ops,
 	.n_ops = ARRAY_SIZE(genl_ops),
