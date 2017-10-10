@@ -46,7 +46,7 @@ struct wgpeer {
 	uint64_t rx_bytes, tx_bytes;
 	uint16_t persistent_keepalive_interval;
 
-	struct wgallowedip *first_allowedip;
+	struct wgallowedip *first_allowedip, *last_allowedip;
 	struct wgpeer *next_peer;
 };
 
@@ -73,7 +73,7 @@ struct wgdevice {
 	uint32_t fwmark;
 	uint16_t listen_port;
 
-	struct wgpeer *first_peer;
+	struct wgpeer *first_peer, *last_peer;
 };
 
 #define for_each_wgpeer(__dev, __peer) for ((__peer) = (__dev)->first_peer; (__peer); (__peer) = (__peer)->next_peer)
