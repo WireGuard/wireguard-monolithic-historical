@@ -237,14 +237,19 @@ void packet_encrypt_worker(struct work_struct *work)
 	bool have_simd = chacha20poly1305_init_simd();
 
 	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
+		bool dead = false;
+
 		skb_walk_null_queue_safe (first, skb, next) {
 			if (likely(skb_encrypt(skb, PACKET_CB(first)->keypair, have_simd)))
 				skb_reset(skb);
 			else {
 				queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first, PACKET_STATE_DEAD);
-				continue;
+				dead = true;
+				break;
 			}
 		}
+		if (unlikely(dead))
+			continue;
 		queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first, PACKET_STATE_CRYPTED);
 	}
 	chacha20poly1305_deinit_simd(have_simd);
