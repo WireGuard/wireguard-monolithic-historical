@@ -30,6 +30,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 
 	skb->next = skb->prev = NULL;
 	skb->dev = wg->dev;
+	skb->mark = wg->fwmark;
 
 	rcu_read_lock_bh();
 	sock = rcu_dereference_bh(wg->sock4);
@@ -100,6 +101,7 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 
 	skb->next = skb->prev = NULL;
 	skb->dev = wg->dev;
+	skb->mark = wg->fwmark;
 
 	rcu_read_lock_bh();
 	sock = rcu_dereference_bh(wg->sock6);
