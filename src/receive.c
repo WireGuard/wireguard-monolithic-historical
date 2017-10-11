@@ -13,6 +13,7 @@
 #include <linux/udp.h>
 #include <net/ip_tunnels.h>
 
+/* Must be called with bh disabled. */
 static inline void rx_stats(struct wireguard_peer *peer, size_t len)
 {
 	struct pcpu_sw_netstats *tstats = get_cpu_ptr(peer->device->dev->tstats);
@@ -150,7 +151,10 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 
 	BUG_ON(!peer);
 
+	local_bh_disable();
 	rx_stats(peer, skb->len);
+	local_bh_enable();
+
 	timers_any_authenticated_packet_received(peer);
 	timers_any_authenticated_packet_traversal(peer);
 	peer_put(peer);
