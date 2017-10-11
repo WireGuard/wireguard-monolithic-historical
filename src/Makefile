@@ -68,7 +68,7 @@ coccicheck: clean
 	@$(MAKE) -C $(KERNELDIR) M=$(PWD) CONFIG_WIREGUARD_DEBUG=y coccicheck MODE=report
 
 cloc: clean
-	cloc $(wildcard *.c) $(wildcard *.h)
+	@cloc --skip-uniqueness --by-file --extract-with="$$(readlink -f ../contrib/kernel-tree/filter-compat-defines.sh) >FILE< > \$$(basename >FILE<)" $(wildcard *.c) $(wildcard *.h)
 
 -include tests/debug.mk
 
