@@ -65,6 +65,7 @@ CPPFLAGS := -I$(BUILD_PATH)/include
 
 MUSL_CC := $(BUILD_PATH)/musl-gcc
 
+build: $(KERNEL_BZIMAGE)
 qemu: $(KERNEL_BZIMAGE)
 	rm -f $(BUILD_PATH)/result
 	qemu-system-$(ARCH) \
@@ -234,3 +235,5 @@ clean:
 
 distclean: clean
 	rm -rf $(DISTFILES_PATH)
+
+.PHONY: qemu build
