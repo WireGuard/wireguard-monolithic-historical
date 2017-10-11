@@ -449,7 +449,7 @@ static inline struct nlattr **genl_family_attrbuf(const struct genl_family *fami
 #define COMPAT_CANNOT_USE_GENL_NOPS
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 10) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 59)
 #define get_device_dump(a, b) get_device_dump_real(a, b); \
 static int get_device_dump(a, b) { \
 	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0]; \
