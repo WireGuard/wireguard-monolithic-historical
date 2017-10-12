@@ -37,6 +37,10 @@
 #define headers_end data
 #endif
 
+#ifndef __ro_after_init
+#define __ro_after_init __read_mostly
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 #include "udp_tunnel/udp_tunnel_partial_compat.h"
 #endif
