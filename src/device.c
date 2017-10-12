@@ -110,12 +110,6 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sk_buff_head packets;
 	int ret;
 
-	if (unlikely(dev_recursion_level() > 4)) {
-		ret = -ELOOP;
-		net_dbg_ratelimited("%s: Routing loop detected\n", dev->name);
-		goto err;
-	}
-
 	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol)) {
 		ret = -EPROTONOSUPPORT;
 		net_dbg_ratelimited("%s: Invalid IP packet\n", dev->name);
