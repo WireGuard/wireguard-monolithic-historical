@@ -187,10 +187,8 @@ bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_k
 	bool key_is_new;
 	struct noise_keypair *old_keypair;
 
-	/* We first check without taking the spinlock but just RCU. */
-	rcu_read_lock_bh();
-	key_is_new = received_keypair == rcu_dereference_bh(keypairs->next_keypair);
-	rcu_read_unlock_bh();
+	/* We first check without taking the spinlock. */
+	key_is_new = received_keypair == rcu_access_pointer(keypairs->next_keypair);
 	if (likely(!key_is_new))
 		return false;
 
