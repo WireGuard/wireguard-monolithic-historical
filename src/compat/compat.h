@@ -41,6 +41,10 @@
 #define __ro_after_init __read_mostly
 #endif
 
+#ifndef READ_ONCE
+#define READ_ONCE ACCESS_ONCE
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 #include "udp_tunnel/udp_tunnel_partial_compat.h"
 #endif
