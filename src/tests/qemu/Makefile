@@ -141,7 +141,7 @@ $(MUSL_PATH)/lib/libc.so: $(MUSL_TAR) | $(BUILD_PATH)/include/linux/.installed
 $(MUSL_CC): $(MUSL_PATH)/lib/libc.so
 	$(MAKE) -C $(MUSL_PATH) DESTDIR=$(BUILD_PATH) install-headers
 	sh $(MUSL_PATH)/tools/musl-gcc.specs.sh $(BUILD_PATH)/include $(MUSL_PATH)/lib /lib/ld-linux.so.1 > $(BUILD_PATH)/musl-gcc.specs
-	printf '#!/bin/sh\nexec "$(CC)" "$$@" -specs "$(BUILD_PATH)/musl-gcc.specs"\n' > $(BUILD_PATH)/musl-gcc
+	printf '#!/bin/sh\nexec "$(CC)" "$$@" -specs "$(BUILD_PATH)/musl-gcc.specs" -no-pie\n' > $(BUILD_PATH)/musl-gcc
 	chmod +x $(BUILD_PATH)/musl-gcc
 
 $(IPERF_PATH)/.installed: $(IPERF_TAR)
