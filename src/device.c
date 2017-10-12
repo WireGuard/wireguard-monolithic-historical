@@ -108,6 +108,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	struct wireguard_peer *peer;
 	struct sk_buff *next;
 	struct sk_buff_head packets;
+	sa_family_t family;
 	int ret;
 
 	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol)) {
@@ -123,10 +124,8 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err;
 	}
 
-	read_lock_bh(&peer->endpoint_lock);
-	ret = peer->endpoint.addr.sa_family != AF_INET && peer->endpoint.addr.sa_family != AF_INET6;
-	read_unlock_bh(&peer->endpoint_lock);
-	if (unlikely(ret)) {
+	family = READ_ONCE(peer->endpoint.addr.sa_family);
+	if (unlikely(family != AF_INET && family != AF_INET6)) {
 		ret = -EDESTADDRREQ;
 		net_dbg_ratelimited("%s: No valid endpoint has been configured or discovered for peer %Lu\n", dev->name, peer->internal_id);
 		goto err_peer;
