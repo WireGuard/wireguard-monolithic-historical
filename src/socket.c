@@ -199,8 +199,7 @@ int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg, struct sk_bu
 		ret = send4(wg, skb, &endpoint, 0, NULL);
 	else if (endpoint.addr.sa_family == AF_INET6)
 		ret = send6(wg, skb, &endpoint, 0, NULL);
-	else
-		ret = -EAFNOSUPPORT;
+	/* No other possibilities if the endpoint is valid, which it is, as we checked above. */
 
 	return ret;
 }
