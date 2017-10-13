@@ -17,7 +17,8 @@ typedef struct {
 	u8 fanout;
 	u8 depth;
 	u32 leaf_length;
-	u8 node_offset[6];
+	u32 node_offset;
+	u16 xof_length;
 	u8 node_depth;
 	u8 inner_length;
 	u8 salt[8];
@@ -73,7 +74,7 @@ static inline void blake2s_init_param(struct blake2s_state *state, const blake2s
 		state->h[i] ^= le32_to_cpu(p[i]);
 }
 
-void blake2s_init(struct blake2s_state *state, const u8 outlen)
+void blake2s_init(struct blake2s_state *state, const size_t outlen)
 {
 	blake2s_param param __aligned(__alignof__(u32)) = {
 		.digest_length = outlen,
@@ -87,7 +88,7 @@ void blake2s_init(struct blake2s_state *state, const u8 outlen)
 	blake2s_init_param(state, &param);
 }
 
-void blake2s_init_key(struct blake2s_state *state, const u8 outlen, const void *key, const u8 keylen)
+void blake2s_init_key(struct blake2s_state *state, const size_t outlen, const void *key, const size_t keylen)
 {
 	blake2s_param param = {
 		.digest_length = outlen,
@@ -202,7 +203,7 @@ static inline void blake2s_compress(struct blake2s_state *state, const u8 *block
 	}
 }
 
-void blake2s_update(struct blake2s_state *state, const u8 *in, u64 inlen)
+void blake2s_update(struct blake2s_state *state, const u8 *in, size_t inlen)
 {
 	const size_t fill = BLAKE2S_BLOCKBYTES - state->buflen;
 	if (unlikely(!inlen))
@@ -225,52 +226,19 @@ void blake2s_update(struct blake2s_state *state, const u8 *in, u64 inlen)
 	state->buflen += inlen;
 }
 
-void blake2s_final(struct blake2s_state *state, u8 *out, u8 outlen)
+void __blake2s_final(struct blake2s_state *state)
 {
-	u8 buffer[BLAKE2S_OUTBYTES] __aligned(__alignof__(u32)) = { 0 };
-	int i;
-
-#ifdef DEBUG
-	BUG_ON(!out || !outlen || outlen > BLAKE2S_OUTBYTES);
-#endif
-
 	blake2s_set_lastblock(state);
 	memset(state->buf + state->buflen, 0, BLAKE2S_BLOCKBYTES - state->buflen); /* Padding */
 	blake2s_compress(state, state->buf, 1, state->buflen);
-
-	for (i = 0; i < 8; ++i) /* output full hash to temp buffer */
-		*(__le32 *)(buffer + sizeof(state->h[i]) * i) = cpu_to_le32(state->h[i]);
-
-	memcpy(out, buffer, outlen);
-
-	/* Burn state from stack */
-	memzero_explicit(buffer, BLAKE2S_OUTBYTES);
-	memzero_explicit(state, sizeof(struct blake2s_state));
 }
 
-void blake2s(u8 *out, const u8 *in, const u8 *key, const u8 outlen, u64 inlen, const u8 keylen)
+void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const size_t outlen, const size_t inlen, const size_t keylen)
 {
 	struct blake2s_state state;
-
-#ifdef DEBUG
-	BUG_ON((!in && inlen > 0) || !out || !outlen || outlen > BLAKE2S_OUTBYTES || keylen > BLAKE2S_KEYBYTES);
-#endif
-
-	if (keylen > 0 && key)
-		blake2s_init_key(&state, outlen, key, keylen);
-	else
-		blake2s_init(&state, outlen);
-
-	blake2s_update(&state, in, inlen);
-	blake2s_final(&state, out, outlen);
-}
-
-void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const u8 outlen, const u64 inlen, const u64 keylen)
-{
-	struct blake2s_state state;
-	u8 o_key[BLAKE2S_BLOCKBYTES] = { 0 };
-	u8 i_key[BLAKE2S_BLOCKBYTES] = { 0 };
-	u8 i_hash[BLAKE2S_OUTBYTES];
+	u8 o_key[BLAKE2S_BLOCKBYTES] __aligned(__alignof__(u32)) = { 0 };
+	u8 i_key[BLAKE2S_BLOCKBYTES] __aligned(__alignof__(u32)) = { 0 };
+	u8 i_hash[BLAKE2S_OUTBYTES] __aligned(__alignof__(u32));
 	int i;
 
 	if (keylen > BLAKE2S_BLOCKBYTES) {
