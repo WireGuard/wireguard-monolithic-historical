@@ -24,12 +24,9 @@ __attribute__((noreturn)) static void poweroff(void)
 {
 	fflush(stdout);
 	fflush(stderr);
-#if defined(__x86_64__) || defined(__i386__)
-	ioperm(0x604, 2, 1);
-	outw(1U << 13, 0x604);
-#endif
-	kill(-1, SIGKILL);
-	reboot(RB_POWER_OFF);
+	reboot(RB_AUTOBOOT);
+	sleep(30);
+	fprintf(stderr, "\x1b[37m\x1b[41m\x1b[1mFailed to power off!!!\x1b[0m\n");
 	exit(1);
 }
 
@@ -108,26 +105,6 @@ static void enable_logging(void)
 	if (write(fd, "9\n", 2) != 2)
 		panic("write(printk)");
 	close(fd);
-}
-
-static void watchdog(void)
-{
-	pretty_message("[+] Enabling watchdog timer...");
-
-	ioperm(0x443, 1, 1);
-	outb(14, 0x443);
-
-	if (fork())
-		return;
-
-	setpriority(PRIO_PROCESS, 0, -20);
-
-	for (;;) {
-		outb(14, 0x443);
-		sleep(1);
-	}
-
-	_exit(0);
 }
 
 static void kmod_selftests(void)
@@ -225,7 +202,6 @@ int main(int argc, char *argv[])
 	if (uname(&utsname) < 0)
 		panic("uname");
 	print_banner(&utsname);
-	watchdog();
 	mount_filesystems();
 	kmod_selftests();
 	if (!linux_4_8_or_higher(&utsname))
