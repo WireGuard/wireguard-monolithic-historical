@@ -32,22 +32,25 @@ bool __init ratelimiter_selftest(void)
 	struct sk_buff *skb6;
 	struct ipv6hdr *hdr6;
 #endif
-	int i = -1, tries = 0, ret = false;
+	int i, test = 0, tries = 0, ret = false;
 	unsigned long loop_start_time;
 
 	BUILD_BUG_ON(MSEC_PER_SEC % PACKETS_PER_SECOND != 0);
 
 	if (ratelimiter_init())
 		goto out;
+	++test;
 	if (ratelimiter_init()) {
 		ratelimiter_uninit();
 		goto out;
 	}
+	++test;
 	if (ratelimiter_init()) {
 		ratelimiter_uninit();
 		ratelimiter_uninit();
 		goto out;
 	}
+	++test;
 
 	skb4 = alloc_skb(sizeof(struct iphdr), GFP_KERNEL);
 	if (!skb4)
@@ -56,6 +59,7 @@ bool __init ratelimiter_selftest(void)
 	hdr4 = (struct iphdr *)skb_put(skb4, sizeof(struct iphdr));
 	hdr4->saddr = htonl(8182);
 	skb_reset_network_header(skb4);
+	++test;
 
 #if IS_ENABLED(CONFIG_IPV6)
 	skb6 = alloc_skb(sizeof(struct ipv6hdr), GFP_KERNEL);
@@ -68,6 +72,7 @@ bool __init ratelimiter_selftest(void)
 	hdr6->saddr.in6_u.u6_addr32[0] = htonl(1212);
 	hdr6->saddr.in6_u.u6_addr32[1] = htonl(289188);
 	skb_reset_network_header(skb6);
+	++test;
 #endif
 
 restart:
@@ -89,10 +94,12 @@ restart:
 		ensure_time;
 		if (ratelimiter_allow(skb4, &init_net) != expected_results[i].result)
 			goto err;
+		++test;
 		hdr4->saddr = htonl(ntohl(hdr4->saddr) + i + 1);
 		ensure_time;
 		if (!ratelimiter_allow(skb4, &init_net))
 			goto err;
+		++test;
 		hdr4->saddr = htonl(ntohl(hdr4->saddr) - i - 1);
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -100,10 +107,12 @@ restart:
 		ensure_time;
 		if (ratelimiter_allow(skb6, &init_net) != expected_results[i].result)
 			goto err;
+		++test;
 		hdr6->saddr.in6_u.u6_addr32[0] = htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) + i + 1);
 		ensure_time;
 		if (!ratelimiter_allow(skb6, &init_net))
 			goto err;
+		++test;
 		hdr6->saddr.in6_u.u6_addr32[0] = htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) - i - 1);
 		ensure_time;
 #endif
@@ -114,11 +123,13 @@ restart:
 
 	if (atomic_read(&total_entries))
 		goto err;
+	++test;
 
 	for (i = 0; i <= max_entries; ++i) {
 		hdr4->saddr = htonl(i);
 		if (ratelimiter_allow(skb4, &init_net) != (i != max_entries))
 			goto err;
+		++test;
 	}
 
 	ret = true;
@@ -136,7 +147,7 @@ out:
 	if (ret)
 		pr_info("ratelimiter self-tests: pass\n");
 	else
-		pr_info("ratelimiter self-test %d: fail\n", i);
+		pr_info("ratelimiter self-test %d: fail\n", test);
 
 	return ret;
 }
