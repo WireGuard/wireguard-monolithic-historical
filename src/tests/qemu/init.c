@@ -27,11 +27,9 @@ __attribute__((noreturn)) static void poweroff(void)
 #if defined(__x86_64__) || defined(__i386__)
 	ioperm(0x604, 2, 1);
 	outw(1U << 13, 0x604);
-#else
-	reboot(RB_POWER_OFF);
 #endif
-	sleep(30);
-	fprintf(stderr, "\x1b[37m\x1b[41m\x1b[1mFailed to power off!!!\x1b[0m\n");
+	kill(-1, SIGKILL);
+	reboot(RB_POWER_OFF);
 	exit(1);
 }
 
