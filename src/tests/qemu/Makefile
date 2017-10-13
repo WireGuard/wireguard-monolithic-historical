@@ -7,7 +7,6 @@ DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
 NR_CPUS ?= 2
 
-
 DOWNLOAD := wget -O
 # DOWNLOAD := curl -f -o
 MIRROR := https://download.wireguard.com/qemu-test/distfiles/
@@ -132,6 +131,7 @@ $(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.installed $(KERNEL_PAT
 	touch $@
 
 $(MUSL_PATH)/lib/libc.so: $(MUSL_TAR) | $(BUILD_PATH)/include/linux/.installed
+	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
 	cd $(MUSL_PATH) && ./configure --prefix=/ --disable-static CFLAGS="$(CFLAGS)"
@@ -145,6 +145,7 @@ $(MUSL_CC): $(MUSL_PATH)/lib/libc.so
 	chmod +x $(BUILD_PATH)/musl-gcc
 
 $(IPERF_PATH)/.installed: $(IPERF_TAR)
+	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
 	sed -i '1s/^/#include <stdint.h>/' $(IPERF_PATH)/src/cjson.h $(IPERF_PATH)/src/timer.h
@@ -166,16 +167,19 @@ $(LIBMNL_PATH)/src/.libs/libmnl.a: $(LIBMNL_PATH)/.installed $(MUSL_CC)
 	$(MAKE) -C $(LIBMNL_PATH)
 
 $(BUILD_PATH)/tools/wg: $(MUSL_CC) $(TOOLS_SOURCES) $(LIBMNL_PATH)/src/.libs/libmnl.a | $(BUILD_PATH)/include/linux/.installed
+	mkdir -p $(BUILD_PATH)
 	cp -pr ../../uapi ../../tools $(BUILD_PATH)/
 	$(MAKE) -C $(BUILD_PATH)/tools clean
 	CC="$(MUSL_CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" $(MAKE) -C $(BUILD_PATH)/tools LIBMNL_CFLAGS="-I$(LIBMNL_PATH)/include" LIBMNL_LDLIBS="-lmnl" wg
 	strip -s $@
 
 $(BUILD_PATH)/init: init.c $(MUSL_CC)
+	mkdir -p $(BUILD_PATH)
 	$(MUSL_CC) -o $@ -O3 -std=gnu11 $<
 	strip -s $@
 
 $(IPUTILS_PATH)/.installed: $(IPUTILS_TAR)
+	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
 	touch $@
@@ -185,6 +189,7 @@ $(IPUTILS_PATH)/ping: $(IPUTILS_PATH)/.installed $(MUSL_CC) | $(BUILD_PATH)/incl
 	strip -s $@
 
 $(BASH_PATH)/.installed: $(BASH_TAR)
+	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
 	touch $@
@@ -195,6 +200,7 @@ $(BASH_PATH)/bash: $(BASH_PATH)/.installed $(MUSL_CC) | $(BUILD_PATH)/include/li
 	strip -s $@
 
 $(IPROUTE2_PATH)/.installed: $(IPROUTE2_TAR)
+	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
 	sed -i '/ARPD/d' $(IPROUTE2_PATH)/Makefile
@@ -209,6 +215,7 @@ $(IPROUTE2_PATH)/ip/ip: $(IPROUTE2_PATH)/.installed $(MUSL_CC) | $(BUILD_PATH)/i
 	strip -s $(IPROUTE2_PATH)/ip/ip $(IPROUTE2_PATH)/misc/ss
 
 $(IPTABLES_PATH)/.installed: $(IPTABLES_TAR)
+	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
 	rm -f $(IPTABLES_PATH)/include/linux/{kernel,types}.h
@@ -221,6 +228,7 @@ $(IPTABLES_PATH)/iptables/xtables-multi: $(IPTABLES_PATH)/.installed $(MUSL_CC) 
 	strip -s $@
 
 $(NMAP_PATH)/.installed: $(NMAP_TAR)
+	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
 	touch $@
