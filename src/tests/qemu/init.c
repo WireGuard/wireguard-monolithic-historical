@@ -199,13 +199,29 @@ static bool linux_4_8_or_higher(const struct utsname *utsname)
 	return KERNEL_VERSION(maj, min, rel) >= KERNEL_VERSION(4, 8, 0);
 }
 
+static void ensure_console(void)
+{
+	for (unsigned int i = 0; i < 1000; ++i) {
+		int fd = open("/dev/console", O_RDWR);
+		if (fd < 0) {
+			usleep(50000);
+			continue;
+		}
+		dup2(fd, 0);
+		dup2(fd, 1);
+		dup2(fd, 2);
+		close(fd);
+		if (write(1, "\0\0\0\0\n", 5) == 5)
+			return;
+	}
+	panic("Unable to open console device");
+}
+
 int main(int argc, char *argv[])
 {
 	struct utsname utsname;
 
-	if (write(1, "\0\0\0\0\n", 5) < 0)
-		reboot(RB_AUTOBOOT);
-
+	ensure_console();
 	if (uname(&utsname) < 0)
 		panic("uname");
 	print_banner(&utsname);
