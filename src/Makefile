@@ -9,6 +9,10 @@ PWD := $(shell pwd)
 all: module tools
 debug: module-debug tools-debug
 
+ifneq ($(V),1)
+MAKEFLAGS += --no-print-directory
+endif
+
 version.h:
 	@export GIT_CEILING_DIRECTORIES="$$(readlink -f ../..)" && \
 	ver="#define WIREGUARD_VERSION \"$$(git describe --dirty 2>/dev/null)\"" && \
