@@ -43,10 +43,10 @@ $(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.gz,$(KERNEL_URL_D
 $(eval $(call tar_download,MUSL,musl,1.1.16,.tar.gz,https://www.musl-libc.org/releases/))
 $(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,http://ftp.netfilter.org/pub/libmnl/))
 $(eval $(call tar_download,IPERF,iperf,3.1.7,.tar.gz,http://downloads.es.net/pub/iperf/))
-$(eval $(call tar_download,BASH,bash,bc007799f0e1362100375bb95d952d28de4c62fb,.tar.gz,http://git.savannah.gnu.org/cgit/bash.git/snapshot/))
-$(eval $(call tar_download,IPROUTE2,iproute2,4.5.0,.tar.gz,http://www.kernel.org/pub/linux/utils/net/iproute2/))
+$(eval $(call tar_download,BASH,bash,4.4.12,.tar.gz,https://ftp.gnu.org/gnu/bash/))
+$(eval $(call tar_download,IPROUTE2,iproute2,4.13.0,.tar.gz,https://www.kernel.org/pub/linux/utils/net/iproute2/))
 $(eval $(call tar_download,IPTABLES,iptables,1.6.1,.tar.bz2,http://ftp.netfilter.org/pub/iptables/))
-$(eval $(call tar_download,NMAP,nmap,7.40,.tar.bz2,http://nmap.org/dist/))
+$(eval $(call tar_download,NMAP,nmap,7.60,.tar.bz2,https://nmap.org/dist/))
 $(eval $(call tar_download,IPUTILS,iputils,s20161105,.tar.gz,https://github.com/iputils/iputils/archive/s20161105.tar.gz/#))
 
 ifeq ($(ARCH),aarch64)
@@ -59,10 +59,13 @@ KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
 QEMU_MACHINE := -machine q35,accel=kvm
 endif
 
-CFLAGS ?= -O3 -march=native -pipe
-CPPFLAGS := -I$(BUILD_PATH)/include
+export CFLAGS ?= -O3 -march=native -pipe
+export CPPFLAGS := -I$(BUILD_PATH)/include
 
+REAL_CC := $(CC)
 MUSL_CC := $(BUILD_PATH)/musl-gcc
+export CC := $(MUSL_CC)
+USERSPACE_DEPS := $(MUSL_CC) $(BUILD_PATH)/include/.installed $(BUILD_PATH)/include/linux/.installed
 
 build: $(KERNEL_BZIMAGE)
 qemu: $(KERNEL_BZIMAGE)
@@ -123,25 +126,28 @@ $(KERNEL_PATH)/.config: kernel.config | $(KERNEL_PATH)/.installed
 	cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config minimal.config
 	-[ "$(DEBUG_KERNEL)" = "yes" ] && ( cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config )
 
-$(KERNEL_BZIMAGE): $(KERNEL_PATH)/.installed $(KERNEL_PATH)/.config $(BUILD_PATH)/init-cpio-spec.txt $(MUSL_PATH)/lib/libc.so $(IPERF_PATH)/src/iperf3 $(BUILD_PATH)/tools/wg $(IPUTILS_PATH)/ping $(BASH_PATH)/bash $(IPROUTE2_PATH)/ip/ip $(IPTABLES_PATH)/iptables/xtables-multi $(NMAP_PATH)/ncat/ncat $(BUILD_PATH)/init ../netns.sh $(WIREGUARD_SOURCES) $(TOOLS_SOURCES)
+$(KERNEL_BZIMAGE): $(KERNEL_PATH)/.config $(BUILD_PATH)/init-cpio-spec.txt $(MUSL_PATH)/lib/libc.so $(IPERF_PATH)/src/iperf3 $(BUILD_PATH)/tools/wg $(IPUTILS_PATH)/ping $(BASH_PATH)/bash $(IPROUTE2_PATH)/misc/ss $(IPROUTE2_PATH)/ip/ip $(IPTABLES_PATH)/iptables/xtables-multi $(NMAP_PATH)/ncat/ncat $(BUILD_PATH)/init ../netns.sh $(WIREGUARD_SOURCES) $(TOOLS_SOURCES)
 	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH)
 
-$(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.installed $(KERNEL_PATH)/.config
+$(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.config
 	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH) INSTALL_HDR_PATH=$(BUILD_PATH) headers_install
 	touch $@
 
-$(MUSL_PATH)/lib/libc.so: $(MUSL_TAR) | $(BUILD_PATH)/include/linux/.installed
+$(MUSL_PATH)/lib/libc.so: $(MUSL_TAR)
 	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
-	cd $(MUSL_PATH) && ./configure --prefix=/ --disable-static CFLAGS="$(CFLAGS)"
+	cd $(MUSL_PATH) && CC=$(REAL_CC) ./configure --prefix=/ --disable-static
 	$(MAKE) -C $(MUSL_PATH)
 	strip -s $@
 
-$(MUSL_CC): $(MUSL_PATH)/lib/libc.so
+$(BUILD_PATH)/include/.installed: $(MUSL_PATH)/lib/libc.so
 	$(MAKE) -C $(MUSL_PATH) DESTDIR=$(BUILD_PATH) install-headers
+	touch $@
+
+$(MUSL_CC): $(MUSL_PATH)/lib/libc.so
 	sh $(MUSL_PATH)/tools/musl-gcc.specs.sh $(BUILD_PATH)/include $(MUSL_PATH)/lib /lib/ld-linux.so.1 > $(BUILD_PATH)/musl-gcc.specs
-	printf '#!/bin/sh\nexec "$(CC)" "$$@" -specs "$(BUILD_PATH)/musl-gcc.specs" -no-pie\n' > $(BUILD_PATH)/musl-gcc
+	printf '#!/bin/sh\nexec "$(REAL_CC)" "$$@" -specs "$(BUILD_PATH)/musl-gcc.specs" -no-pie\n' > $(BUILD_PATH)/musl-gcc
 	chmod +x $(BUILD_PATH)/musl-gcc
 
 $(IPERF_PATH)/.installed: $(IPERF_TAR)
@@ -152,8 +158,8 @@ $(IPERF_PATH)/.installed: $(IPERF_TAR)
 	sed -i -r 's/-p?g//g' $(IPERF_PATH)/src/Makefile*
 	touch $@
 
-$(IPERF_PATH)/src/iperf3: $(IPERF_PATH)/.installed $(MUSL_CC)
-	cd $(IPERF_PATH) && CC="$(MUSL_CC)" CFLAGS="$(CFLAGS) -D_GNU_SOURCE" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared
+$(IPERF_PATH)/src/iperf3: | $(IPERF_PATH)/.installed $(USERSPACE_DEPS)
+	cd $(IPERF_PATH) && CFLAGS="$(CFLAGS) -D_GNU_SOURCE" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared
 	$(MAKE) -C $(IPERF_PATH)
 	strip -s $@
 
@@ -162,18 +168,19 @@ $(LIBMNL_PATH)/.installed: $(LIBMNL_TAR)
 	tar -C $(BUILD_PATH) -xf $<
 	touch $@
 
-$(LIBMNL_PATH)/src/.libs/libmnl.a: $(LIBMNL_PATH)/.installed $(MUSL_CC)
-	cd $(LIBMNL_PATH) && CC="$(MUSL_CC)" CFLAGS="$(CFLAGS)" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared
+$(LIBMNL_PATH)/src/.libs/libmnl.a: | $(LIBMNL_PATH)/.installed $(USERSPACE_DEPS)
+	cd $(LIBMNL_PATH) && ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared
 	$(MAKE) -C $(LIBMNL_PATH)
+	sed -i 's:prefix=.*:prefix=$(LIBMNL_PATH):' $(LIBMNL_PATH)/libmnl.pc
 
-$(BUILD_PATH)/tools/wg: $(MUSL_CC) $(TOOLS_SOURCES) $(LIBMNL_PATH)/src/.libs/libmnl.a | $(BUILD_PATH)/include/linux/.installed
+$(BUILD_PATH)/tools/wg: $(TOOLS_SOURCES) | $(LIBMNL_PATH)/src/.libs/libmnl.a $(USERSPACE_DEPS)
 	mkdir -p $(BUILD_PATH)
 	cp -pr ../../uapi ../../tools $(BUILD_PATH)/
 	$(MAKE) -C $(BUILD_PATH)/tools clean
-	CC="$(MUSL_CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" $(MAKE) -C $(BUILD_PATH)/tools LIBMNL_CFLAGS="-I$(LIBMNL_PATH)/include" LIBMNL_LDLIBS="-lmnl" wg
+	LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" $(MAKE) -C $(BUILD_PATH)/tools LIBMNL_CFLAGS="-I$(LIBMNL_PATH)/include" LIBMNL_LDLIBS="-lmnl" wg
 	strip -s $@
 
-$(BUILD_PATH)/init: init.c $(MUSL_CC)
+$(BUILD_PATH)/init: init.c | $(USERSPACE_DEPS)
 	mkdir -p $(BUILD_PATH)
 	$(MUSL_CC) -o $@ -O3 -std=gnu11 $<
 	strip -s $@
@@ -184,8 +191,8 @@ $(IPUTILS_PATH)/.installed: $(IPUTILS_TAR)
 	tar -C $(BUILD_PATH) -xf $<
 	touch $@
 
-$(IPUTILS_PATH)/ping: $(IPUTILS_PATH)/.installed $(MUSL_CC) | $(BUILD_PATH)/include/linux/.installed
-	$(MAKE) -C $(IPUTILS_PATH) CC="$(MUSL_CC)" USE_CAP=no USE_IDN=no USE_NETTLE=no USE_CRYPTO=no ping
+$(IPUTILS_PATH)/ping: | $(IPUTILS_PATH)/.installed $(USERSPACE_DEPS)
+	$(MAKE) -C $(IPUTILS_PATH) USE_CAP=no USE_IDN=no USE_NETTLE=no USE_CRYPTO=no ping
 	strip -s $@
 
 $(BASH_PATH)/.installed: $(BASH_TAR)
@@ -194,36 +201,41 @@ $(BASH_PATH)/.installed: $(BASH_TAR)
 	tar -C $(BUILD_PATH) -xf $<
 	touch $@
 
-$(BASH_PATH)/bash: $(BASH_PATH)/.installed $(MUSL_CC) | $(BUILD_PATH)/include/linux/.installed
-	cd $(BASH_PATH) && CC="$(MUSL_CC)" CFLAGS="$(CFLAGS)" ./configure --prefix=/ --host=$(CHOST) --without-bash-malloc --disable-debugger --disable-help-builtin --disable-history --disable-multibyte --disable-progcomp --disable-readline --disable-mem-scramble
+$(BASH_PATH)/bash: | $(BASH_PATH)/.installed $(USERSPACE_DEPS)
+	cd $(BASH_PATH) && ./configure --prefix=/ --host=$(CHOST) --without-bash-malloc --disable-debugger --disable-help-builtin --disable-history --disable-multibyte --disable-progcomp --disable-readline --disable-mem-scramble
 	$(MAKE) -C $(BASH_PATH)
 	strip -s $@
 
-$(IPROUTE2_PATH)/.installed: $(IPROUTE2_TAR)
+$(eval $(call file_download,271-uapi-libc-compat.h-do-not-rely-on-__GLIBC__.patch,https://raw.githubusercontent.com/lede-project/source/master/package/network/utils/iproute2/patches/))
+$(eval $(call file_download,272-uapi-if_ether.h-prevent-redefinition-of-struct-ethhd.patch,https://raw.githubusercontent.com/lede-project/source/master/package/network/utils/iproute2/patches/))
+
+$(IPROUTE2_PATH)/.installed: $(IPROUTE2_TAR) | $(DISTFILES_PATH)/271-uapi-libc-compat.h-do-not-rely-on-__GLIBC__.patch $(DISTFILES_PATH)/272-uapi-if_ether.h-prevent-redefinition-of-struct-ethhd.patch
 	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
-	sed -i '/ARPD/d' $(IPROUTE2_PATH)/Makefile
-	sed -i 's/arpd.8//' $(IPROUTE2_PATH)/man/man8/Makefile
-	sed -i 's/m_ipt.o//;s/[^ ]*_bpf.o//' $(IPROUTE2_PATH)/tc/Makefile
-	sed -i '/#include <linux\/in\.h>/d;/#include <linux\/in6\.h>/d' $(IPROUTE2_PATH)/include/libiptc/ipt_kernel_headers.h $(IPROUTE2_PATH)/include/linux/if_bridge.h $(IPROUTE2_PATH)/include/linux/netfilter.h $(IPROUTE2_PATH)/include/linux/xfrm.h
-	printf 'TC_CONFIG_XT=n\nTC_CONFIG_ATM=n\nTC_CONFIG_IPSET=n\nIP_CONFIG_SETNS=y\n' > $(IPROUTE2_PATH)/Config
+	patch -d $(IPROUTE2_PATH) -p 1 < $(DISTFILES_PATH)/271-uapi-libc-compat.h-do-not-rely-on-__GLIBC__.patch
+	patch -d $(IPROUTE2_PATH) -p 1 < $(DISTFILES_PATH)/272-uapi-if_ether.h-prevent-redefinition-of-struct-ethhd.patch
+	printf 'CC=$(CC)\nPKG_CONFIG=pkg-config\nTC_CONFIG_XT=n\nTC_CONFIG_ATM=n\nTC_CONFIG_IPSET=n\nIP_CONFIG_SETNS=y\nHAVE_ELF=n\nHAVE_MNL=y\nHAVE_BERKELEY_DB=n\nHAVE_LATEX=n\nHAVE_PDFLATEX=n\n' > $(IPROUTE2_PATH)/Config
+	printf 'lib: snapshot\n\t$$(MAKE) -C lib\nip/ip: lib\n\t$$(MAKE) -C ip ip\nmisc/ss: lib\n\t$$(MAKE) -C misc ss\n' >> $(IPROUTE2_PATH)/Makefile
 	touch $@
 
-$(IPROUTE2_PATH)/ip/ip: $(IPROUTE2_PATH)/.installed $(MUSL_CC) | $(BUILD_PATH)/include/linux/.installed
-	CFLAGS="$(CFLAGS)" $(MAKE) -C $(IPROUTE2_PATH) PREFIX=/ CC="$(MUSL_CC)"
-	strip -s $(IPROUTE2_PATH)/ip/ip $(IPROUTE2_PATH)/misc/ss
+$(IPROUTE2_PATH)/ip/ip: | $(IPROUTE2_PATH)/.installed $(LIBMNL_PATH)/src/.libs/libmnl.a $(USERSPACE_DEPS)
+	LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" PKG_CONFIG_LIBDIR="$(LIBMNL_PATH)" $(MAKE) -C $(IPROUTE2_PATH) PREFIX=/ ip/ip
+	strip -s $(IPROUTE2_PATH)/ip/ip
+
+$(IPROUTE2_PATH)/misc/ss: | $(IPROUTE2_PATH)/.installed $(LIBMNL_PATH)/src/.libs/libmnl.a $(USERSPACE_DEPS)
+	LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" PKG_CONFIG_LIBDIR="$(LIBMNL_PATH)" $(MAKE) -C $(IPROUTE2_PATH) PREFIX=/ misc/ss
+	strip -s $(IPROUTE2_PATH)/misc/ss
 
 $(IPTABLES_PATH)/.installed: $(IPTABLES_TAR)
 	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
-	rm -f $(IPTABLES_PATH)/include/linux/{kernel,types}.h
 	sed -i -e "/nfnetlink=[01]/s:=[01]:=0:" -e "/nfconntrack=[01]/s:=[01]:=0:" $(IPTABLES_PATH)/configure
 	touch $@
 
-$(IPTABLES_PATH)/iptables/xtables-multi: $(IPTABLES_PATH)/.installed $(MUSL_CC) $(LIBMNL_PATH)/src/.libs/libmnl.a | $(KERNEL_PATH)/.installed
-	cd $(IPTABLES_PATH) && PKG_CONFIG_LIBDIR="$(LIBMNL_PATH)" CC="$(MUSL_CC)" CFLAGS="$(CFLAGS)" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared --disable-nftables --disable-bpf-compiler --disable-nfsynproxy --disable-libipq --with-kernel=$(KERNEL_PATH)
+$(IPTABLES_PATH)/iptables/xtables-multi: | $(IPTABLES_PATH)/.installed $(LIBMNL_PATH)/src/.libs/libmnl.a $(USERSPACE_DEPS)
+	cd $(IPTABLES_PATH) && PKG_CONFIG_LIBDIR="$(LIBMNL_PATH)" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared --disable-nftables --disable-bpf-compiler --disable-nfsynproxy --disable-libipq --with-kernel=$(BUILD_PATH)/include
 	$(MAKE) -C $(IPTABLES_PATH)
 	strip -s $@
 
@@ -233,8 +245,8 @@ $(NMAP_PATH)/.installed: $(NMAP_TAR)
 	tar -C $(BUILD_PATH) -xf $<
 	touch $@
 
-$(NMAP_PATH)/ncat/ncat: $(NMAP_PATH)/.installed $(MUSL_CC) | $(KERNEL_PATH)/.installed
-	cd $(NMAP_PATH) && CC="$(MUSL_CC)" CFLAGS="$(CFLAGS)" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared --without-ndiff --without-zenmap --without-nping --with-libpcap=included --with-libpcre=included --with-libdnet=included --without-liblua --with-liblinear=included --without-nmap-update --without-openssl --with-pcap=linux
+$(NMAP_PATH)/ncat/ncat: | $(NMAP_PATH)/.installed $(USERSPACE_DEPS)
+	cd $(NMAP_PATH) && ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared --without-ndiff --without-zenmap --without-nping --with-libpcap=included --with-libpcre=included --with-libdnet=included --without-liblua --with-liblinear=included --without-nmap-update --without-openssl --with-pcap=linux
 	$(MAKE) -C $(NMAP_PATH) build-ncat
 	strip -s $@
 
@@ -244,4 +256,5 @@ clean:
 distclean: clean
 	rm -rf $(DISTFILES_PATH)
 
-.PHONY: qemu build
+.PHONY: qemu build clean distclean
+.DELETE_ON_ERROR:
