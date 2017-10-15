@@ -102,10 +102,10 @@ bool key_from_hex(uint8_t key[static WG_KEY_LEN], const char *hex)
 
 bool key_is_zero(const uint8_t key[static WG_KEY_LEN])
 {
-	uint8_t acc = 0;
+	volatile uint8_t acc = 0;
 	for (unsigned int i = 0; i < WG_KEY_LEN; ++i) {
 		acc |= key[i];
 		__asm__ ("" : "=r" (acc) : "0" (acc));
 	}
-	return acc == 0;
+	return 1 & ((acc - 1) >> 8);
 }
