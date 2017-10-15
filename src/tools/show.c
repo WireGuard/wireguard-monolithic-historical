@@ -352,7 +352,7 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 	} else if (!strcmp(param, "dump"))
 		dump_print(device, with_interface);
 	else {
-		fprintf(stderr, "Invalid parameter: `%s`\n", param);
+		fprintf(stderr, "Invalid parameter: `%s'\n", param);
 		show_usage();
 		return false;
 	}

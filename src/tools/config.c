@@ -51,7 +51,7 @@ static inline bool parse_port(uint16_t *port, uint32_t *flags, const char *value
 
 	ret = getaddrinfo(NULL, value, &hints, &resolved);
 	if (ret) {
-		fprintf(stderr, "%s: `%s`\n", gai_strerror(ret), value);
+		fprintf(stderr, "%s: `%s'\n", ret == EAI_SYSTEM ? strerror(errno) : gai_strerror(ret), value);
 		return false;
 	}
 
@@ -63,7 +63,7 @@ static inline bool parse_port(uint16_t *port, uint32_t *flags, const char *value
 		*port = ntohs(((struct sockaddr_in6 *)resolved->ai_addr)->sin6_port);
 		ret = 0;
 	} else
-		fprintf(stderr, "Neither IPv4 nor IPv6 address found: `%s`\n", value);
+		fprintf(stderr, "Neither IPv4 nor IPv6 address found: `%s'\n", value);
 
 	freeaddrinfo(resolved);
 	if (!ret)
@@ -98,7 +98,7 @@ static inline bool parse_fwmark(uint32_t *fwmark, uint32_t *flags, const char *v
 static inline bool parse_key(uint8_t key[static WG_KEY_LEN], const char *value)
 {
 	if (!key_from_base64(key, value)) {
-		fprintf(stderr, "Key is not the correct length or format: `%s`\n", value);
+		fprintf(stderr, "Key is not the correct length or format: `%s'\n", value);
 		return false;
 	}
 	return true;
@@ -115,7 +115,7 @@ static inline bool parse_ip(struct wgallowedip *allowedip, const char *value)
 			allowedip->family = AF_INET;
 	}
 	if (allowedip->family == AF_UNSPEC) {
-		fprintf(stderr, "Unable to parse IP address: `%s`\n", value);
+		fprintf(stderr, "Unable to parse IP address: `%s'\n", value);
 		return false;
 	}
 	return true;
@@ -146,13 +146,13 @@ static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 		end = strchr(mutable, ']');
 		if (!end) {
 			free(mutable);
-			fprintf(stderr, "Unable to find matching brace of endpoint: `%s`\n", value);
+			fprintf(stderr, "Unable to find matching brace of endpoint: `%s'\n", value);
 			return false;
 		}
 		*end++ = '\0';
 		if (*end++ != ':' || !*end) {
 			free(mutable);
-			fprintf(stderr, "Unable to find port of endpoint: `%s`\n", value);
+			fprintf(stderr, "Unable to find port of endpoint: `%s'\n", value);
 			return false;
 		}
 	} else {
@@ -160,32 +160,34 @@ static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 		end = strrchr(mutable, ':');
 		if (!end || !*(end + 1)) {
 			free(mutable);
-			fprintf(stderr, "Unable to find port of endpoint: `%s`\n", value);
+			fprintf(stderr, "Unable to find port of endpoint: `%s'\n", value);
 			return false;
 		}
 		*end++ = '\0';
 	}
 
-	for (unsigned int timeout = 1000000; timeout < 90000000; timeout = timeout * 3 / 2) {
+	for (unsigned int timeout = 1000000;;) {
 		ret = getaddrinfo(begin, end, &hints, &resolved);
-		if (ret != EAI_AGAIN)
+		if (!ret)
 			break;
-		fprintf(stderr, "%s: `%s`. Trying again in %.2f seconds...\n", gai_strerror(ret), value, timeout / 1000000.0);
+		timeout = timeout * 3 / 2;
+		/* The set of return codes that are "permanent failures". All other possibilities are potentially transient. */
+		if (ret == EAI_NONAME || ret == EAI_FAIL || ret == EAI_NODATA || timeout >= 90000000) {
+			free(mutable);
+			fprintf(stderr, "%s: `%s'\n", ret == EAI_SYSTEM ? strerror(errno) : gai_strerror(ret), value);
+			return false;
+		}
+		fprintf(stderr, "%s: `%s'. Trying again in %.2f seconds...\n", ret == EAI_SYSTEM ? strerror(errno) : gai_strerror(ret), value, timeout / 1000000.0);
 		usleep(timeout);
 	}
 
-	if (ret != 0) {
-		free(mutable);
-		fprintf(stderr, "%s: `%s`\n", gai_strerror(ret), value);
-		return false;
-	}
 	if ((resolved->ai_family == AF_INET && resolved->ai_addrlen == sizeof(struct sockaddr_in)) ||
 	    (resolved->ai_family == AF_INET6 && resolved->ai_addrlen == sizeof(struct sockaddr_in6)))
 		memcpy(endpoint, resolved->ai_addr, resolved->ai_addrlen);
 	else {
 		freeaddrinfo(resolved);
 		free(mutable);
-		fprintf(stderr, "Neither IPv4 nor IPv6 address found: `%s`\n", value);
+		fprintf(stderr, "Neither IPv4 nor IPv6 address found: `%s'\n", value);
 		return false;
 	}
 	freeaddrinfo(resolved);
@@ -206,7 +208,7 @@ static inline bool parse_persistent_keepalive(uint16_t *interval, uint32_t *flag
 
 	ret = strtoul(value, &end, 10);
 	if (!*value || *value == '-' || *end || ret > 65535) {
-		fprintf(stderr, "The persistent keepalive interval must be 0/off or 1-65535. Found: `%s`\n", value);
+		fprintf(stderr, "The persistent keepalive interval must be 0/off or 1-65535. Found: `%s'\n", value);
 		return false;
 	}
 
@@ -431,7 +433,7 @@ static bool read_keyfile(char dst[WG_KEY_LEN_BASE64], const char *path)
 
 	while ((c = getc(f)) != EOF) {
 		if (!isspace(c)) {
-			fprintf(stderr, "Found trailing character in key file: `%c`\n", c);
+			fprintf(stderr, "Found trailing character in key file: `%c'\n", c);
 			goto out;
 		}
 	}

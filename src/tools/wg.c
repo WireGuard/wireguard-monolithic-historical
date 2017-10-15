@@ -14,7 +14,7 @@ static const struct {
 	const char *description;
 } subcommands[] = {
 	{ "show", show_main, "Shows the current configuration and device information" },
-	{ "showconf", showconf_main, "Shows the current configuration of a given WireGuard interface, for use with `setconf`" },
+	{ "showconf", showconf_main, "Shows the current configuration of a given WireGuard interface, for use with `setconf'" },
 	{ "set", set_main, "Change the current configuration, add peers, remove peers, or change peers" },
 	{ "setconf", setconf_main, "Applies a configuration file to a WireGuard interface" },
 	{ "addconf", setconf_main, "Appends a configuration file to a WireGuard interface" },
@@ -61,7 +61,7 @@ findsubcommand:
 		goto findsubcommand;
 	}
 
-	fprintf(stderr, "Invalid subcommand: `%s`\n", argv[1]);
+	fprintf(stderr, "Invalid subcommand: `%s'\n", argv[1]);
 	show_usage(stderr);
 	return 1;
 }
