@@ -555,7 +555,7 @@ static int kernel_set_device(struct wgdevice *dev)
 	struct nlmsghdr *nlh;
 	struct mnlg_socket *nlg;
 
-	nlg= mnlg_socket_open(WG_GENL_NAME, WG_GENL_VERSION);
+	nlg = mnlg_socket_open(WG_GENL_NAME, WG_GENL_VERSION);
 	if (!nlg)
 		return -errno;
 
