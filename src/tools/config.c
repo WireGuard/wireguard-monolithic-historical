@@ -384,11 +384,6 @@ bool config_read_init(struct config_ctx *ctx, bool append)
 struct wgdevice *config_read_finish(struct config_ctx *ctx)
 {
 	struct wgpeer *peer;
-	if (ctx->device->flags & WGDEVICE_REPLACE_PEERS && key_is_zero(ctx->device->private_key)) {
-		fprintf(stderr, "No private key is configured\n");
-		goto err;
-	}
-
 	for_each_wgpeer (ctx->device, peer) {
 		if (key_is_zero(peer->public_key)) {
 			fprintf(stderr, "A peer is missing a public key\n");
