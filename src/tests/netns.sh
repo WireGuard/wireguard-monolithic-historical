@@ -271,6 +271,8 @@ ip2 link add dev wg0 type wireguard
 configure_peers
 ip1 link add veth1 type veth peer name veth2
 ip1 link set veth2 netns $netns2
+n1 bash -c 'printf 0 > /proc/sys/net/ipv6/conf/all/accept_dad'
+n2 bash -c 'printf 0 > /proc/sys/net/ipv6/conf/all/accept_dad'
 n1 bash -c 'printf 0 > /proc/sys/net/ipv6/conf/veth1/accept_dad'
 n2 bash -c 'printf 0 > /proc/sys/net/ipv6/conf/veth2/accept_dad'
 n1 bash -c 'printf 1 > /proc/sys/net/ipv4/conf/veth1/promote_secondaries'
