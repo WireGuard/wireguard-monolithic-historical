@@ -86,8 +86,7 @@ qemu: $(KERNEL_BZIMAGE)
 		-device virtserialport,chardev=status \
 		-no-reboot \
 		-monitor none \
-		-kernel $< \
-		-append "console=hvc0"
+		-kernel $<
 	grep -Fq success $(BUILD_PATH)/result
 
 $(BUILD_PATH)/init-cpio-spec.txt:
