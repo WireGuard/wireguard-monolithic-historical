@@ -683,6 +683,8 @@ static int parse_allowedip(const struct nlattr *attr, void *data)
 	struct wgallowedip *allowedip = data;
 
 	switch (mnl_attr_get_type(attr)) {
+	case WGALLOWEDIP_A_UNSPEC:
+		break;
 	case WGALLOWEDIP_A_FAMILY:
 		if (!mnl_attr_validate(attr, MNL_TYPE_U16))
 			allowedip->family = mnl_attr_get_u16(attr);
@@ -733,6 +735,8 @@ static int parse_peer(const struct nlattr *attr, void *data)
 	struct wgpeer *peer = data;
 
 	switch (mnl_attr_get_type(attr)) {
+	case WGPEER_A_UNSPEC:
+		break;
 	case WGPEER_A_PUBLIC_KEY:
 		if (mnl_attr_get_payload_len(attr) == sizeof(peer->public_key))
 			memcpy(peer->public_key, mnl_attr_get_payload(attr), sizeof(peer->public_key));
@@ -806,6 +810,8 @@ static int parse_device(const struct nlattr *attr, void *data)
 	struct wgdevice *device = data;
 
 	switch (mnl_attr_get_type(attr)) {
+	case WGDEVICE_A_UNSPEC:
+		break;
 	case WGDEVICE_A_IFINDEX:
 		if (!mnl_attr_validate(attr, MNL_TYPE_U32))
 			device->ifindex = mnl_attr_get_u32(attr);
