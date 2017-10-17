@@ -97,7 +97,7 @@ static void warn_unrecognized(const char *which)
 	if (once)
 		return;
 	once = true;
-	fprintf(stderr, "Warning: one or more unrecognized %s attributes", which);
+	fprintf(stderr, "Warning: one or more unrecognized %s attributes\n", which);
 }
 
 static FILE *userspace_interface_file(const char *interface)
