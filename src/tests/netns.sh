@@ -412,12 +412,10 @@ ip0 link del wg0
 ! n0 wg show doesnotexist || false
 
 declare -A objects
-n0 ncat -i 1 -l -p 1111 < /dev/kmsg &
-waitncattcp $netns0
-while read -r line; do
+while read -t 0.1 -r line 2>/dev/null || [[ $? -ne 142 ]]; do
 	[[ $line =~ .*(wg[0-9]+:\ [A-Z][a-z]+\ [0-9]+)\ .*(created|destroyed).* ]] || continue
 	objects["${BASH_REMATCH[1]}"]+="${BASH_REMATCH[2]}"
-done < <(n0 ncat -i 1 127.0.0.1 1111)
+done < /dev/kmsg
 alldeleted=1
 for object in "${!objects[@]}"; do
 	if [[ ${objects["$object"]} != *createddestroyed ]]; then
