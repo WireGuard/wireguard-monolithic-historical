@@ -1,8 +1,17 @@
 PWD := $(shell pwd)
 
+CHOST := $(shell gcc -dumpmachine)
+ifneq (,$(ARCH))
+CBUILD := $(subst -gcc,,$(lastword $(subst /, ,$(firstword $(filter-out android,$(wildcard /usr/bin/$(ARCH)-*-gcc))))))
+endif
+ifeq (,$(CBUILD))
+CBUILD := $(CHOST)
+endif
+ARCH := $(firstword $(subst -, ,$(CBUILD)))
+
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.13.5
-BUILD_PATH ?= $(PWD)/../../../qemu-build
+KERNEL_VERSION ?= 4.13.9
+BUILD_PATH ?= $(PWD)/../../../qemu-build/$(ARCH)
 DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
 NR_CPUS ?= 2
@@ -11,8 +20,6 @@ DOWNLOAD := wget -O
 # DOWNLOAD := curl -f -o
 MIRROR := https://download.wireguard.com/qemu-test/distfiles/
 
-CHOST := $(shell gcc -dumpmachine)
-ARCH := $(shell uname -m)
 WIREGUARD_SOURCES := $(wildcard ../../*.c ../../*.h ../../selftest/*.h ../../crypto/*.c ../../crypto/*.h ../../crypto/*.S ../../compat/*.h)
 TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools/*.h ../../uapi/*.h)
 
@@ -49,20 +56,107 @@ $(eval $(call tar_download,IPTABLES,iptables,1.6.1,.tar.bz2,http://ftp.netfilter
 $(eval $(call tar_download,NMAP,nmap,7.60,.tar.bz2,https://nmap.org/dist/))
 $(eval $(call tar_download,IPUTILS,iputils,s20161105,.tar.gz,https://github.com/iputils/iputils/archive/s20161105.tar.gz/#))
 
-ifeq ($(ARCH),aarch64)
-KERNEL_ARCH := arm64
-KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm64/boot/Image
-QEMU_MACHINE := -machine virt,accel=kvm,gic_version=host
-else
-KERNEL_ARCH := $(ARCH)
-KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
-QEMU_MACHINE := -machine q35,accel=kvm
-endif
-
-export CFLAGS ?= -O3 -march=native -pipe
+export CFLAGS ?= -O3 -pipe
 export CPPFLAGS := -I$(BUILD_PATH)/include
 
-REAL_CC := $(CC)
+ifeq ($(CHOST),$(CBUILD))
+CROSS_COMPILE_FLAG := --host=$(CHOST)
+CFLAGS += -march=native
+else
+$(info Cross compilation: building for $(CBUILD) using $(CHOST))
+CROSS_COMPILE_FLAG := --build=$(CBUILD) --host=$(CHOST)
+export CROSS_COMPILE=$(CBUILD)-
+endif
+ifeq ($(ARCH),aarch64)
+QEMU_ARCH := aarch64
+KERNEL_ARCH := arm64
+KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm64/boot/Image
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
+else
+QEMU_MACHINE := -cpu cortex-a53 -machine virt
+CFLAGS += -march=armv8-a -mtune=cortex-a53
+endif
+else ifeq ($(ARCH),arm)
+QEMU_ARCH := arm
+KERNEL_ARCH := arm
+KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm/boot/zImage
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
+else
+QEMU_MACHINE := -cpu cortex-a15 -machine virt
+CFLAGS += -march=armv7-a -mtune=cortex-a15 -mabi=aapcs-linux
+endif
+else ifeq ($(ARCH),x86_64)
+QEMU_ARCH := x86_64
+KERNEL_ARCH := x86_64
+KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host -machine q35,accel=kvm
+else
+QEMU_MACHINE := -cpu Skylake-Server -machine q35
+CFLAGS += -march=skylake-avx512
+endif
+else ifeq ($(ARCH),i686)
+QEMU_ARCH := i386
+KERNEL_ARCH := x86
+KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
+ifeq ($(subst i686,x86_64,$(CBUILD)),$(CHOST))
+QEMU_MACHINE := -cpu host -machine q35,accel=kvm
+else
+QEMU_MACHINE := -cpu coreduo -machine q35
+CFLAGS += -march=prescott
+endif
+else ifeq ($(ARCH),mips64)
+QEMU_ARCH := mips64
+KERNEL_ARCH := mips
+KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host -machine malta,accel=kvm
+CFLAGS += -EB
+else
+QEMU_MACHINE := -cpu 20Kc -machine malta -smp 1
+CFLAGS += -march=mips64r2 -EB
+endif
+else ifeq ($(ARCH),mips64el)
+QEMU_ARCH := mips64el
+KERNEL_ARCH := mips
+KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host -machine malta,accel=kvm
+CFLAGS += -EL
+else
+QEMU_MACHINE := -cpu 20Kc -machine malta -smp 1
+CFLAGS += -march=mips64r2 -EL
+endif
+else ifeq ($(ARCH),mips)
+QEMU_ARCH := mips
+KERNEL_ARCH := mips
+KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host -machine malta,accel=kvm
+CFLAGS += -EB
+else
+QEMU_MACHINE := -cpu 24Kf -machine malta -smp 1
+CFLAGS += -march=mips32r2 -EB
+endif
+else ifeq ($(ARCH),mipsel)
+QEMU_ARCH := mipsel
+KERNEL_ARCH := mips
+KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host -machine malta,accel=kvm
+CFLAGS += -EL
+else
+QEMU_MACHINE := -cpu 24Kf -machine malta -smp 1
+CFLAGS += -march=mips32r2 -EL
+endif
+else
+$(error I only build: x86_64, i686, arm, aarch64, mips, mipsel, mips64, mips64el)
+endif
+
+STRIP := $(CBUILD)-strip
+REAL_CC := $(CBUILD)-gcc
 MUSL_CC := $(BUILD_PATH)/musl-gcc
 export CC := $(MUSL_CC)
 USERSPACE_DEPS := $(MUSL_CC) $(BUILD_PATH)/include/.installed $(BUILD_PATH)/include/linux/.installed
@@ -70,20 +164,14 @@ USERSPACE_DEPS := $(MUSL_CC) $(BUILD_PATH)/include/.installed $(BUILD_PATH)/incl
 build: $(KERNEL_BZIMAGE)
 qemu: $(KERNEL_BZIMAGE)
 	rm -f $(BUILD_PATH)/result
-	qemu-system-$(ARCH) \
+	qemu-system-$(QEMU_ARCH) \
 		-nodefaults \
 		-nographic \
-		$(QEMU_MACHINE) \
-		-cpu host \
 		-smp $(NR_CPUS) \
+		$(QEMU_MACHINE) \
 		-m 192M \
-		-object rng-random,id=rng0,filename=/dev/urandom \
-		-device virtio-rng-pci,rng=rng0 \
-		-device virtio-serial,max_ports=2 \
-		-chardev stdio,id=stdio \
-		-device virtconsole,chardev=stdio \
-		-chardev file,id=status,path=$(BUILD_PATH)/result \
-		-device virtserialport,chardev=status \
+		-serial stdio \
+		-serial file:$(BUILD_PATH)/result \
 		-no-reboot \
 		-monitor none \
 		-kernel $<
@@ -118,27 +206,28 @@ $(KERNEL_PATH)/.installed: $(KERNEL_TAR)
 	ln -sfT $(shell readlink -f ../..) $(KERNEL_PATH)/net/wireguard
 	touch $@
 
-$(KERNEL_PATH)/.config: kernel.config | $(KERNEL_PATH)/.installed
+$(KERNEL_PATH)/.config: kernel.config arch/$(QEMU_ARCH).config | $(KERNEL_PATH)/.installed
 	cp kernel.config $(KERNEL_PATH)/minimal.config
 	printf 'CONFIG_NR_CPUS=$(NR_CPUS)\nCONFIG_INITRAMFS_SOURCE="$(BUILD_PATH)/init-cpio-spec.txt"\n' >> $(KERNEL_PATH)/minimal.config
+	cat arch/$(QEMU_ARCH).config >> $(KERNEL_PATH)/minimal.config
 	$(MAKE) -C $(KERNEL_PATH) ARCH=$(KERNEL_ARCH) allnoconfig
-	cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config minimal.config
-	-[ "$(DEBUG_KERNEL)" = "yes" ] && ( cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config )
+	export ARCH=$(KERNEL_ARCH); cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config minimal.config
+	[ "$(DEBUG_KERNEL)" != "yes" ] || ( export ARCH=$(KERNEL_ARCH); cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config )
 
 $(KERNEL_BZIMAGE): $(KERNEL_PATH)/.config $(BUILD_PATH)/init-cpio-spec.txt $(MUSL_PATH)/lib/libc.so $(IPERF_PATH)/src/iperf3 $(BUILD_PATH)/tools/wg $(IPUTILS_PATH)/ping $(BASH_PATH)/bash $(IPROUTE2_PATH)/misc/ss $(IPROUTE2_PATH)/ip/ip $(IPTABLES_PATH)/iptables/xtables-multi $(NMAP_PATH)/ncat/ncat $(BUILD_PATH)/init ../netns.sh $(WIREGUARD_SOURCES) $(TOOLS_SOURCES)
-	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH)
+	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
 
 $(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.config
-	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH) INSTALL_HDR_PATH=$(BUILD_PATH) headers_install
+	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH) INSTALL_HDR_PATH=$(BUILD_PATH) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(CROSS_COMPILE) headers_install
 	touch $@
 
 $(MUSL_PATH)/lib/libc.so: $(MUSL_TAR)
 	mkdir -p $(BUILD_PATH)
 	flock -x $<.lock true
 	tar -C $(BUILD_PATH) -xf $<
-	cd $(MUSL_PATH) && CC=$(REAL_CC) ./configure --prefix=/ --disable-static
+	cd $(MUSL_PATH) && CC=$(REAL_CC) ./configure --prefix=/ --disable-static --build=$(CBUILD)
 	$(MAKE) -C $(MUSL_PATH)
-	strip -s $@
+	$(STRIP) -s $@
 
 $(BUILD_PATH)/include/.installed: $(MUSL_PATH)/lib/libc.so
 	$(MAKE) -C $(MUSL_PATH) DESTDIR=$(BUILD_PATH) install-headers
@@ -146,7 +235,7 @@ $(BUILD_PATH)/include/.installed: $(MUSL_PATH)/lib/libc.so
 
 $(MUSL_CC): $(MUSL_PATH)/lib/libc.so
 	sh $(MUSL_PATH)/tools/musl-gcc.specs.sh $(BUILD_PATH)/include $(MUSL_PATH)/lib /lib/ld-linux.so.1 > $(BUILD_PATH)/musl-gcc.specs
-	printf '#!/bin/sh\nexec "$(REAL_CC)" "$$@" -specs "$(BUILD_PATH)/musl-gcc.specs" -no-pie\n' > $(BUILD_PATH)/musl-gcc
+	printf '#!/bin/sh\nexec "$(REAL_CC)" "$$@" -specs "$(BUILD_PATH)/musl-gcc.specs" -fno-stack-protector -no-pie\n' > $(BUILD_PATH)/musl-gcc
 	chmod +x $(BUILD_PATH)/musl-gcc
 
 $(IPERF_PATH)/.installed: $(IPERF_TAR)
@@ -158,9 +247,9 @@ $(IPERF_PATH)/.installed: $(IPERF_TAR)
 	touch $@
 
 $(IPERF_PATH)/src/iperf3: | $(IPERF_PATH)/.installed $(USERSPACE_DEPS)
-	cd $(IPERF_PATH) && CFLAGS="$(CFLAGS) -D_GNU_SOURCE" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared
+	cd $(IPERF_PATH) && CFLAGS="$(CFLAGS) -D_GNU_SOURCE" ./configure --prefix=/ $(CROSS_COMPILE_FLAG) --enable-static --disable-shared
 	$(MAKE) -C $(IPERF_PATH)
-	strip -s $@
+	$(STRIP) -s $@
 
 $(LIBMNL_PATH)/.installed: $(LIBMNL_TAR)
 	flock -x $<.lock true
@@ -168,7 +257,7 @@ $(LIBMNL_PATH)/.installed: $(LIBMNL_TAR)
 	touch $@
 
 $(LIBMNL_PATH)/src/.libs/libmnl.a: | $(LIBMNL_PATH)/.installed $(USERSPACE_DEPS)
-	cd $(LIBMNL_PATH) && ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared
+	cd $(LIBMNL_PATH) && ./configure --prefix=/ $(CROSS_COMPILE_FLAG) --enable-static --disable-shared
 	$(MAKE) -C $(LIBMNL_PATH)
 	sed -i 's:prefix=.*:prefix=$(LIBMNL_PATH):' $(LIBMNL_PATH)/libmnl.pc
 
@@ -177,12 +266,12 @@ $(BUILD_PATH)/tools/wg: $(TOOLS_SOURCES) | $(LIBMNL_PATH)/src/.libs/libmnl.a $(U
 	cp -pr ../../uapi ../../tools $(BUILD_PATH)/
 	$(MAKE) -C $(BUILD_PATH)/tools clean
 	LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" $(MAKE) -C $(BUILD_PATH)/tools LIBMNL_CFLAGS="-I$(LIBMNL_PATH)/include" LIBMNL_LDLIBS="-lmnl" wg
-	strip -s $@
+	$(STRIP) -s $@
 
 $(BUILD_PATH)/init: init.c | $(USERSPACE_DEPS)
 	mkdir -p $(BUILD_PATH)
-	$(MUSL_CC) -o $@ -O3 -std=gnu11 $<
-	strip -s $@
+	$(MUSL_CC) -o $@ $(CFLAGS) -std=gnu11 $<
+	$(STRIP) -s $@
 
 $(IPUTILS_PATH)/.installed: $(IPUTILS_TAR)
 	mkdir -p $(BUILD_PATH)
@@ -192,7 +281,7 @@ $(IPUTILS_PATH)/.installed: $(IPUTILS_TAR)
 
 $(IPUTILS_PATH)/ping: | $(IPUTILS_PATH)/.installed $(USERSPACE_DEPS)
 	$(MAKE) -C $(IPUTILS_PATH) USE_CAP=no USE_IDN=no USE_NETTLE=no USE_CRYPTO=no ping
-	strip -s $@
+	$(STRIP) -s $@
 
 $(BASH_PATH)/.installed: $(BASH_TAR)
 	mkdir -p $(BUILD_PATH)
@@ -201,9 +290,9 @@ $(BASH_PATH)/.installed: $(BASH_TAR)
 	touch $@
 
 $(BASH_PATH)/bash: | $(BASH_PATH)/.installed $(USERSPACE_DEPS)
-	cd $(BASH_PATH) && ./configure --prefix=/ --host=$(CHOST) --without-bash-malloc --disable-debugger --disable-help-builtin --disable-history --disable-multibyte --disable-progcomp --disable-readline --disable-mem-scramble
+	cd $(BASH_PATH) && ./configure --prefix=/ $(CROSS_COMPILE_FLAG) --without-bash-malloc --disable-debugger --disable-help-builtin --disable-history --disable-multibyte --disable-progcomp --disable-readline --disable-mem-scramble
 	$(MAKE) -C $(BASH_PATH)
-	strip -s $@
+	$(STRIP) -s $@
 
 $(eval $(call file_download,271-uapi-libc-compat.h-do-not-rely-on-__GLIBC__.patch,https://raw.githubusercontent.com/lede-project/source/master/package/network/utils/iproute2/patches/))
 $(eval $(call file_download,272-uapi-if_ether.h-prevent-redefinition-of-struct-ethhd.patch,https://raw.githubusercontent.com/lede-project/source/master/package/network/utils/iproute2/patches/))
@@ -220,11 +309,11 @@ $(IPROUTE2_PATH)/.installed: $(IPROUTE2_TAR) | $(DISTFILES_PATH)/271-uapi-libc-c
 
 $(IPROUTE2_PATH)/ip/ip: | $(IPROUTE2_PATH)/.installed $(LIBMNL_PATH)/src/.libs/libmnl.a $(USERSPACE_DEPS)
 	LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" PKG_CONFIG_LIBDIR="$(LIBMNL_PATH)" $(MAKE) -C $(IPROUTE2_PATH) PREFIX=/ ip/ip
-	strip -s $(IPROUTE2_PATH)/ip/ip
+	$(STRIP) -s $(IPROUTE2_PATH)/ip/ip
 
 $(IPROUTE2_PATH)/misc/ss: | $(IPROUTE2_PATH)/.installed $(LIBMNL_PATH)/src/.libs/libmnl.a $(USERSPACE_DEPS)
 	LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" PKG_CONFIG_LIBDIR="$(LIBMNL_PATH)" $(MAKE) -C $(IPROUTE2_PATH) PREFIX=/ misc/ss
-	strip -s $(IPROUTE2_PATH)/misc/ss
+	$(STRIP) -s $(IPROUTE2_PATH)/misc/ss
 
 $(IPTABLES_PATH)/.installed: $(IPTABLES_TAR)
 	mkdir -p $(BUILD_PATH)
@@ -234,9 +323,9 @@ $(IPTABLES_PATH)/.installed: $(IPTABLES_TAR)
 	touch $@
 
 $(IPTABLES_PATH)/iptables/xtables-multi: | $(IPTABLES_PATH)/.installed $(LIBMNL_PATH)/src/.libs/libmnl.a $(USERSPACE_DEPS)
-	cd $(IPTABLES_PATH) && PKG_CONFIG_LIBDIR="$(LIBMNL_PATH)" ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared --disable-nftables --disable-bpf-compiler --disable-nfsynproxy --disable-libipq --with-kernel=$(BUILD_PATH)/include
+	cd $(IPTABLES_PATH) && PKG_CONFIG_LIBDIR="$(LIBMNL_PATH)" ./configure --prefix=/ $(CROSS_COMPILE_FLAG) --enable-static --disable-shared --disable-nftables --disable-bpf-compiler --disable-nfsynproxy --disable-libipq --with-kernel=$(BUILD_PATH)/include
 	$(MAKE) -C $(IPTABLES_PATH)
-	strip -s $@
+	$(STRIP) -s $@
 
 $(NMAP_PATH)/.installed: $(NMAP_TAR)
 	mkdir -p $(BUILD_PATH)
@@ -245,9 +334,9 @@ $(NMAP_PATH)/.installed: $(NMAP_TAR)
 	touch $@
 
 $(NMAP_PATH)/ncat/ncat: | $(NMAP_PATH)/.installed $(USERSPACE_DEPS)
-	cd $(NMAP_PATH) && ./configure --prefix=/ --host=$(CHOST) --enable-static --disable-shared --without-ndiff --without-zenmap --without-nping --with-libpcap=included --with-libpcre=included --with-libdnet=included --without-liblua --with-liblinear=included --without-nmap-update --without-openssl --with-pcap=linux
+	cd $(NMAP_PATH) && ./configure --prefix=/ $(CROSS_COMPILE_FLAG) --enable-static --disable-shared --without-ndiff --without-zenmap --without-nping --with-libpcap=included --with-libpcre=included --with-libdnet=included --without-liblua --with-liblinear=included --without-nmap-update --without-openssl --with-pcap=linux
 	$(MAKE) -C $(NMAP_PATH) build-ncat
-	strip -s $@
+	$(STRIP) -s $@
 
 clean:
 	rm -rf $(BUILD_PATH)

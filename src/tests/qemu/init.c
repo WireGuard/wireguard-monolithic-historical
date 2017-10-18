@@ -38,36 +38,41 @@ static void panic(const char *what)
 
 #define pretty_message(msg) puts("\x1b[32m\x1b[1m" msg "\x1b[0m")
 
-static void print_banner(const struct utsname *utsname)
+static void print_banner(void)
 {
-	int len = strlen("    WireGuard Test Suite on      ") + strlen(utsname->sysname) + strlen(utsname->release);
-	printf("\x1b[45m\x1b[33m\x1b[1m%*.s\x1b[0m\n\x1b[45m\x1b[33m\x1b[1m    WireGuard Test Suite on %s %s    \x1b[0m\n\x1b[45m\x1b[33m\x1b[1m%*.s\x1b[0m\n\n", len, "", utsname->sysname, utsname->release, len, "");
+	struct utsname utsname;
+	int len;
+
+	if (uname(&utsname) < 0)
+		panic("uname");
+
+	len = strlen("    WireGuard Test Suite on       ") + strlen(utsname.sysname) + strlen(utsname.release) + strlen(utsname.machine);
+	printf("\x1b[45m\x1b[33m\x1b[1m%*.s\x1b[0m\n\x1b[45m\x1b[33m\x1b[1m    WireGuard Test Suite on %s %s %s    \x1b[0m\n\x1b[45m\x1b[33m\x1b[1m%*.s\x1b[0m\n\n", len, "", utsname.sysname, utsname.release, utsname.machine, len, "");
 }
 
 static void seed_rng(void)
 {
-	int fd1, fd2, i;
+	int fd;
 	struct {
 		int entropy_count;
 		int buffer_size;
-		unsigned char buffer[128];
+		unsigned char buffer[256];
 	} entropy = {
-		.entropy_count = 128,
-		.buffer_size = 128
+		.entropy_count = sizeof(entropy.buffer) * 8,
+		.buffer_size = sizeof(entropy.buffer),
+		.buffer = "Adding real entropy is not actually important for these tests. Don't try this at home, kids!"
 	};
-	pretty_message("[+] Ensuring RNG entropy...");
-	fd1 = open("/dev/hwrng", O_RDONLY);
-	fd2 = open("/dev/urandom", O_WRONLY);
-	if (fd1 < 0 || fd2 < 0)
-		panic("open(hwrng,urandom)");
-	for (i = 0; i < 4096; ++i) {
-		if (read(fd1, entropy.buffer, 128) != 128)
-			panic("read(hwrng)");
-		if (ioctl(fd2, RNDADDENTROPY, &entropy) < 0)
+
+	if (mknod("/dev/urandom", S_IFCHR | 0644, makedev(1, 9)))
+		panic("mknod(/dev/urandom)");
+	fd = open("/dev/urandom", O_WRONLY);
+	if (fd < 0)
+		panic("open(urandom)");
+	for (int i = 0; i < 256; ++i) {
+		if (ioctl(fd, RNDADDENTROPY, &entropy) < 0)
 			panic("ioctl(urandom)");
 	}
-	close(fd1);
-	close(fd2);
+	close(fd);
 }
 
 static void mount_filesystems(void)
@@ -142,8 +147,10 @@ static void kmod_selftests(void)
 
 static void launch_tests(void)
 {
+	char cmdline[4096], *success_dev;
 	int status, fd;
 	pid_t pid;
+
 	pretty_message("[+] Launching tests...");
 	pid = fork();
 	if (pid == -1)
@@ -156,24 +163,30 @@ static void launch_tests(void)
 		panic("waitpid");
 	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
 		pretty_message("[+] Tests successful! :-)");
-		fd = open("/dev/vport1p1", O_WRONLY);
+		fd = open("/proc/cmdline", O_RDONLY);
 		if (fd < 0)
-			panic("open(vport1p1)");
+			panic("open(/proc/cmdline)");
+		if (read(fd, cmdline, sizeof(cmdline) - 1) <= 0)
+			panic("read(/proc/cmdline)");
+		cmdline[sizeof(cmdline) - 1] = '\0';
+		for (success_dev = strtok(cmdline, " \n"); success_dev; success_dev = strtok(NULL, " \n")) {
+			if (strncmp(success_dev, "wg.success=", 11))
+				continue;
+			memcpy(success_dev + 11 - 5, "/dev/", 5);
+			success_dev += 11 - 5;
+			break;
+		}
+		if (!success_dev || !strlen(success_dev))
+			panic("Unable to find success device");
+
+		fd = open(success_dev, O_WRONLY);
+		if (fd < 0)
+			panic("open(success_dev)");
 		if (write(fd, "success\n", 8) != 8)
-			panic("write(success)");
+			panic("write(success_dev)");
 		close(fd);
 	} else
 		puts("\x1b[31m\x1b[1m[-] Tests failed! :-(\x1b[0m");
-}
-
-static bool linux_4_8_or_higher(const struct utsname *utsname)
-{
-	unsigned int maj, min, rel;
-	if (strcmp(utsname->sysname, "Linux"))
-		return false;
-	if (sscanf(utsname->release, "%u.%u.%u", &maj, &min, &rel) != 3)
-		return false;
-	return KERNEL_VERSION(maj, min, rel) >= KERNEL_VERSION(4, 8, 0);
 }
 
 static void ensure_console(void)
@@ -196,16 +209,11 @@ static void ensure_console(void)
 
 int main(int argc, char *argv[])
 {
-	struct utsname utsname;
-
+	seed_rng();
 	ensure_console();
-	if (uname(&utsname) < 0)
-		panic("uname");
-	print_banner(&utsname);
+	print_banner();
 	mount_filesystems();
 	kmod_selftests();
-	if (!linux_4_8_or_higher(&utsname))
-		seed_rng();
 	enable_logging();
 	launch_tests();
 	poweroff();
