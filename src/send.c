@@ -149,6 +149,7 @@ static inline bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypai
 		skb_checksum_help(skb);
 
 	/* Only after checksumming can we safely add on the padding at the end and the header. */
+	skb_set_inner_network_header(skb, 0);
 	header = (struct message_data *)skb_push(skb, sizeof(struct message_data));
 	header->header.type = cpu_to_le32(MESSAGE_DATA);
 	header->key_idx = keypair->remote_index;

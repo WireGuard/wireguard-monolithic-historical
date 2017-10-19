@@ -19,11 +19,11 @@ static inline void rx_stats(struct wireguard_peer *peer, size_t len)
 	struct pcpu_sw_netstats *tstats = get_cpu_ptr(peer->device->dev->tstats);
 
 	u64_stats_update_begin(&tstats->syncp);
-	tstats->rx_bytes += len;
 	++tstats->rx_packets;
+	tstats->rx_bytes += len;
+	peer->rx_bytes += len;
 	u64_stats_update_end(&tstats->syncp);
 	put_cpu_ptr(tstats);
-	peer->rx_bytes += len;
 }
 
 #define SKB_TYPE_LE32(skb) ((struct message_header *)(skb)->data)->type
@@ -277,7 +277,7 @@ static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpo
 {
 	struct wireguard_peer *peer = PACKET_PEER(skb), *routed_peer;
 	struct net_device *dev = peer->device->dev;
-	unsigned int len;
+	unsigned int len, len_before_trim;
 
 	socket_set_peer_endpoint(peer, endpoint);
 
@@ -290,6 +290,7 @@ static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpo
 
 	/* A packet with length 0 is a keepalive packet */
 	if (unlikely(!skb->len)) {
+		rx_stats(peer, message_data_len(0));
 		net_dbg_ratelimited("%s: Receiving keepalive packet from peer %Lu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
 		goto packet_processed;
 	}
@@ -317,6 +318,7 @@ static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpo
 
 	if (unlikely(len > skb->len))
 		goto dishonest_packet_size;
+	len_before_trim = skb->len;
 	if (unlikely(pskb_trim(skb, len)))
 		goto packet_processed;
 
@@ -328,12 +330,11 @@ static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpo
 	if (unlikely(routed_peer != peer))
 		goto dishonest_packet_peer;
 
-	len = skb->len;
 	if (unlikely(netif_receive_skb(skb) == NET_RX_DROP)) {
 		++dev->stats.rx_dropped;
 		net_dbg_ratelimited("%s: Failed to give packet to userspace from peer %Lu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
 	} else
-		rx_stats(peer, len);
+		rx_stats(peer, message_data_len(len_before_trim));
 	goto continue_processing;
 
 dishonest_packet_peer:
@@ -451,6 +452,7 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 	case cpu_to_le32(MESSAGE_HANDSHAKE_RESPONSE):
 	case cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE): {
 		int cpu;
+
 		if (skb_queue_len(&wg->incoming_handshakes) > MAX_QUEUED_INCOMING_HANDSHAKES) {
 			net_dbg_skb_ratelimited("%s: Too many handshakes queued, dropping packet from %pISpfsc\n", wg->dev->name, skb);
 			goto err;
