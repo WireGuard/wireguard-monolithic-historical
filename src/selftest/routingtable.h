@@ -378,6 +378,8 @@ bool __init routing_table_selftest(void)
 	struct in6_addr ip;
 	__be64 part;
 
+	mutex_init(&mutex);
+
 	mutex_lock(&mutex);
 
 	routing_table_init(&t);
