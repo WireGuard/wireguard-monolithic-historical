@@ -139,6 +139,7 @@ static void our_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 		  __u8 tos, __u8 ttl, __be16 df, bool xnet)
 {
 	struct iphdr *iph;
+	struct pcpu_tstats *tstats = this_cpu_ptr(skb->dev->tstats);
 
 	skb_scrub_packet(skb, xnet);
 
@@ -167,6 +168,9 @@ static void our_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 #endif
 
 	iptunnel_xmit(skb, skb->dev);
+	u64_stats_update_begin(&tstats->syncp);
+	tstats->tx_bytes -= 8;
+	u64_stats_update_end(&tstats->syncp);
 }
 #define iptunnel_xmit our_iptunnel_xmit
 #endif
@@ -207,7 +211,8 @@ void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb
 #endif
 			   rt, skb, src, dst, IPPROTO_UDP, tos, ttl, df, xnet);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
-	iptunnel_xmit_stats(ret, &dev->stats, dev->tstats);
+	if (ret)
+		iptunnel_xmit_stats(ret - 8, &dev->stats, dev->tstats);
 #endif
 }
 

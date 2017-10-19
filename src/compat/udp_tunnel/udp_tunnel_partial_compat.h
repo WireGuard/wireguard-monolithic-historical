@@ -109,7 +109,7 @@ static inline int udp_tunnel6_xmit_skb(struct socket *sock, struct dst_entry *ds
 #include <linux/skbuff.h>
 #include <linux/if.h>
 #include <net/udp_tunnel.h>
-#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; ret__ = udp_tunnel_xmit_skb((b)->sk_socket, a, c, d, e, f, g, h, i, j, k); iptunnel_xmit_stats(ret__, &dev__->stats, dev__->tstats); } while (0)
+#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; ret__ = udp_tunnel_xmit_skb((b)->sk_socket, a, c, d, e, f, g, h, i, j, k); if (ret__) iptunnel_xmit_stats(ret__ - 8, &dev__->stats, dev__->tstats); } while (0)
 #if IS_ENABLED(CONFIG_IPV6)
 #define udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) udp_tunnel6_xmit_skb((b)->sk_socket, a, c, d, e, f, g, h, j, k);
 #endif
@@ -121,16 +121,22 @@ static inline void fake_destructor(struct sk_buff *skb)
 {
 }
 #endif
-#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; if (!(c)->destructor) (c)->destructor = fake_destructor; if (!(c)->sk) (c)->sk = (b); ret__ = udp_tunnel_xmit_skb(a, c, d, e, f, g, h, i, j, k, l); iptunnel_xmit_stats(ret__, &dev__->stats, dev__->tstats); } while (0)
+#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; if (!(c)->destructor) (c)->destructor = fake_destructor; if (!(c)->sk) (c)->sk = (b); ret__ = udp_tunnel_xmit_skb(a, c, d, e, f, g, h, i, j, k, l); if (ret__) iptunnel_xmit_stats(ret__ - 8, &dev__->stats, dev__->tstats); } while (0)
 #if IS_ENABLED(CONFIG_IPV6)
 #define udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { if (!(c)->destructor) (c)->destructor = fake_destructor; if (!(c)->sk) (c)->sk = (b); udp_tunnel6_xmit_skb(a, c, d, e, f, g, h, j, k, l); } while(0)
 #endif
 #else
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 #include <linux/if.h>
 #include <net/udp_tunnel.h>
-#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__ = udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l);  iptunnel_xmit_stats(ret__, &dev__->stats, dev__->tstats); } while (0)
+#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__ = udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l); if (ret__) iptunnel_xmit_stats(ret__ - 8, &dev__->stats, dev__->tstats); } while (0)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#include <linux/if.h>
+#include <net/udp_tunnel.h>
+#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__ = udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l); iptunnel_xmit_stats(ret__, &dev__->stats, dev__->tstats); } while (0)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0) && IS_ENABLED(CONFIG_IPV6) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
