@@ -144,7 +144,14 @@ n2 wg set wg0 peer "$pub1" endpoint 127.0.0.1:1
 # Before calling tests, we first make sure that the stats counters are working
 n2 ping -c 10 -f -W 1 192.168.241.1
 { read _; read _; read _; read rx_bytes _; read _; read tx_bytes _; } < <(ip2 -stats link show dev wg0)
-[[ $rx_bytes -ge 932 && $tx_bytes -ge 1516 && $rx_bytes -lt 2500 && $rx_bytes -lt 2500 ]]
+(( rx_bytes == 1372 && (tx_bytes == 1428 || tx_bytes == 1460) ))
+{ read _; read _; read _; read rx_bytes _; read _; read tx_bytes _; } < <(ip1 -stats link show dev wg0)
+(( tx_bytes == 1372 && (rx_bytes == 1428 || rx_bytes == 1460) ))
+read _ rx_bytes tx_bytes < <(n2 wg show wg0 transfer)
+(( rx_bytes == 1372 && (tx_bytes == 1428 || tx_bytes == 1460) ))
+read _ rx_bytes tx_bytes < <(n1 wg show wg0 transfer)
+(( tx_bytes == 1372 && (rx_bytes == 1428 || rx_bytes == 1460) ))
+
 tests
 ip1 link set wg0 mtu $big_mtu
 ip2 link set wg0 mtu $big_mtu

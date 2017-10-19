@@ -173,6 +173,7 @@ int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer, size_t
 		return -ENOMEM;
 
 	skb_reserve(skb, SKB_HEADER_LEN);
+	skb_set_inner_network_header(skb, 0);
 	memcpy(skb_put(skb, len), buffer, len);
 	return socket_send_skb_to_peer(peer, skb, ds);
 }
@@ -193,6 +194,7 @@ int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg, struct sk_bu
 	if (unlikely(!skb))
 		return -ENOMEM;
 	skb_reserve(skb, SKB_HEADER_LEN);
+	skb_set_inner_network_header(skb, 0);
 	memcpy(skb_put(skb, len), out_buffer, len);
 
 	if (endpoint.addr.sa_family == AF_INET)
