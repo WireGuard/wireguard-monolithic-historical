@@ -51,13 +51,13 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	skb_queue_head_init(&peer->staged_packet_queue);
 	list_add_tail(&peer->peer_list, &wg->peer_list);
 	pubkey_hashtable_add(&wg->peer_hashtable, peer);
-	pr_debug("%s: Peer %Lu created\n", wg->dev->name, peer->internal_id);
+	pr_debug("%s: Peer %llu created\n", wg->dev->name, peer->internal_id);
 	return peer;
 }
 
 struct wireguard_peer *peer_get(struct wireguard_peer *peer)
 {
-	RCU_LOCKDEP_WARN(!rcu_read_lock_bh_held(), "Calling peer_get without holding the RCU read lock");
+	RCU_LOCKDEP_WARN(!rcu_read_lock_bh_held(), "Calling " __func__ " without holding the RCU read lock");
 	if (unlikely(!peer || !kref_get_unless_zero(&peer->refcount)))
 		return NULL;
 	return peer;
@@ -95,7 +95,8 @@ void peer_remove(struct wireguard_peer *peer)
 static void rcu_release(struct rcu_head *rcu)
 {
 	struct wireguard_peer *peer = container_of(rcu, struct wireguard_peer, rcu);
-	pr_debug("%s: Peer %Lu (%pISpfsc) destroyed\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+
+	pr_debug("%s: Peer %llu (%pISpfsc) destroyed\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	dst_cache_destroy(&peer->endpoint_cache);
 	packet_queue_free(&peer->rx_queue, false);
 	packet_queue_free(&peer->tx_queue, false);

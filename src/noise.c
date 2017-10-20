@@ -97,7 +97,7 @@ static void keypair_free_rcu(struct rcu_head *rcu)
 {
 	struct noise_keypair *keypair = container_of(rcu, struct noise_keypair, rcu);
 
-	net_dbg_ratelimited("%s: Keypair %Lu destroyed for peer %Lu\n", keypair->entry.peer->device->dev->name, keypair->internal_id, keypair->entry.peer->internal_id);
+	net_dbg_ratelimited("%s: Keypair %llu destroyed for peer %llu\n", keypair->entry.peer->device->dev->name, keypair->internal_id, keypair->entry.peer->internal_id);
 	kzfree(keypair);
 }
 
@@ -118,7 +118,7 @@ void noise_keypair_put(struct noise_keypair *keypair)
 
 struct noise_keypair *noise_keypair_get(struct noise_keypair *keypair)
 {
-	RCU_LOCKDEP_WARN(!rcu_read_lock_bh_held(), "Calling noise_keypair_get without holding the RCU BH read lock");
+	RCU_LOCKDEP_WARN(!rcu_read_lock_bh_held(), "Calling " __func__ " without holding the RCU BH read lock");
 	if (unlikely(!keypair || !kref_get_unless_zero(&keypair->refcount)))
 		return NULL;
 	return keypair;
@@ -612,7 +612,7 @@ bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noi
 
 	handshake_zero(handshake);
 	add_new_keypair(keypairs, new_keypair);
-	net_dbg_ratelimited("%s: Keypair %Lu created for peer %Lu\n", new_keypair->entry.peer->device->dev->name, new_keypair->internal_id, new_keypair->entry.peer->internal_id);
+	net_dbg_ratelimited("%s: Keypair %llu created for peer %llu\n", new_keypair->entry.peer->device->dev->name, new_keypair->internal_id, new_keypair->entry.peer->internal_id);
 	WARN_ON(!index_hashtable_replace(&handshake->entry.peer->device->index_hashtable, &handshake->entry, &new_keypair->entry));
 	up_write(&handshake->lock);
 

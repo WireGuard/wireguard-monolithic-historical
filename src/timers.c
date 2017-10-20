@@ -35,7 +35,7 @@ static void expired_retransmit_handshake(unsigned long ptr)
 	peer_get_from_ptr(ptr);
 
 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
-		pr_debug("%s: Handshake for peer %Lu (%pISpfsc) did not complete after %d attempts, giving up\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, MAX_TIMER_HANDSHAKES + 2);
+		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d attempts, giving up\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, MAX_TIMER_HANDSHAKES + 2);
 
 		if (likely(timers_active(peer)))
 			del_timer(&peer->timer_send_keepalive);
@@ -49,7 +49,7 @@ static void expired_retransmit_handshake(unsigned long ptr)
 			mod_timer(&peer->timer_zero_key_material, jiffies + (REJECT_AFTER_TIME * 3));
 	} else {
 		++peer->timer_handshake_attempts;
-		pr_debug("%s: Handshake for peer %Lu (%pISpfsc) did not complete after %d seconds, retrying (try %d)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, REKEY_TIMEOUT / HZ, peer->timer_handshake_attempts + 1);
+		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d seconds, retrying (try %d)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, REKEY_TIMEOUT / HZ, peer->timer_handshake_attempts + 1);
 
 		/* We clear the endpoint address src address, in case this is the cause of trouble. */
 		socket_clear_peer_endpoint_src(peer);
@@ -76,7 +76,7 @@ static void expired_new_handshake(unsigned long ptr)
 {
 	peer_get_from_ptr(ptr);
 
-	pr_debug("%s: Retrying handshake with peer %Lu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
+	pr_debug("%s: Retrying handshake with peer %llu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
 	/* We clear the endpoint address src address, in case this is the cause of trouble. */
 	socket_clear_peer_endpoint_src(peer);
 	packet_send_queued_handshake_initiation(peer, false);
@@ -94,7 +94,7 @@ static void queued_expired_zero_key_material(struct work_struct *work)
 {
 	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, clear_peer_work);
 
-	pr_debug("%s: Zeroing out all keys for peer %Lu (%pISpfsc), since we haven't received a new one in %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (REJECT_AFTER_TIME * 3) / HZ);
+	pr_debug("%s: Zeroing out all keys for peer %llu (%pISpfsc), since we haven't received a new one in %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (REJECT_AFTER_TIME * 3) / HZ);
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
 	peer_put(peer);
