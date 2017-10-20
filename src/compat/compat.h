@@ -476,6 +476,26 @@ static int get_device_dump_real(a, b)
 #define COMPAT_CANNOT_USE_IFF_NO_QUEUE
 #endif
 
+#if defined(CONFIG_X86_64)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
+#include <asm/user.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
+#include <asm/xsave.h>
+#include <asm/xcr.h>
+static inline int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
+{
+	return xgetbv(XCR_XFEATURE_ENABLED_MASK) & xfeatures_needed;
+}
+#endif
+#ifndef XFEATURE_MASK_YMM
+#define XFEATURE_MASK_YMM XSTATE_YMM
+#endif
+#ifndef XFEATURE_MASK_SSE
+#define XFEATURE_MASK_SSE XSTATE_SSE
+#endif
+#endif
+#endif
+
 /* https://lkml.org/lkml/2017/6/23/790 */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>

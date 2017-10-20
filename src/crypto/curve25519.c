@@ -33,7 +33,7 @@ static const u8 null_point[CURVE25519_POINT_SIZE] = { 0 };
 static bool curve25519_use_avx __read_mostly = false;
 void curve25519_fpu_init(void)
 {
-	curve25519_use_avx = boot_cpu_has(X86_FEATURE_AVX);
+	curve25519_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 }
 
 typedef u64 fe[10];
