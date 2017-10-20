@@ -115,7 +115,7 @@ void blake2s_init_key(struct blake2s_state *state, const size_t outlen, const vo
 static bool blake2s_use_avx __read_mostly = false;
 void __init blake2s_fpu_init(void)
 {
-	blake2s_use_avx = boot_cpu_has(X86_FEATURE_AVX);
+	blake2s_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 }
 asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 * block, size_t nblocks, u32 inc);
 #else

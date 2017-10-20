@@ -35,7 +35,7 @@ void chacha20poly1305_fpu_init(void)
 {
 	chacha20poly1305_use_sse2 = boot_cpu_has(X86_FEATURE_XMM2);
 	chacha20poly1305_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
-	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2);
+	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 }
 #elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
 #include <asm/hwcap.h>
