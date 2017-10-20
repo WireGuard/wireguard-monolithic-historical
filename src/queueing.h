@@ -45,7 +45,7 @@ struct packet_cb {
 	atomic_t state;
 	u8 ds;
 };
-#define PACKET_PEER(skb) ((struct packet_cb *)skb->cb)->keypair->entry.peer
+#define PACKET_PEER(skb) (((struct packet_cb *)skb->cb)->keypair->entry.peer)
 #define PACKET_CB(skb) ((struct packet_cb *)skb->cb)
 
 /* Returns either the correct skb->protocol value, or 0 if invalid. */

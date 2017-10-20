@@ -69,7 +69,9 @@ struct wireguard_peer *peer_lookup_by_index(struct wireguard_device *wg, u32 ind
 
 unsigned int peer_total_count(struct wireguard_device *wg);
 
-/* This is a macro iterator of essentially this:
+/* This is a macro iterator of essentially as follows, with the
+ * exception that typing `break` in the ITERATOR_BODY will still
+ * actually put the peer reference:
  *
  * if (__should_lock)
  *	mutex_lock(&(__wg)->device_update_lock);

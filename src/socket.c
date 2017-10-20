@@ -263,6 +263,7 @@ out:
 void socket_set_peer_endpoint_from_skb(struct wireguard_peer *peer, const struct sk_buff *skb)
 {
 	struct endpoint endpoint;
+
 	if (!socket_endpoint_from_skb(&endpoint, skb))
 		socket_set_peer_endpoint(peer, &endpoint);
 }

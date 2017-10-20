@@ -40,8 +40,7 @@ void cookie_checker_precompute_device_keys(struct cookie_checker *checker)
 	if (likely(checker->device->static_identity.has_identity)) {
 		precompute_key(checker->cookie_encryption_key, checker->device->static_identity.static_public, cookie_key_label);
 		precompute_key(checker->message_mac1_key, checker->device->static_identity.static_public, mac1_key_label);
-	}
-	else {
+	} else {
 		memset(checker->cookie_encryption_key, 0, NOISE_SYMMETRIC_KEY_LEN);
 		memset(checker->message_mac1_key, 0, NOISE_SYMMETRIC_KEY_LEN);
 	}

@@ -127,7 +127,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	family = READ_ONCE(peer->endpoint.addr.sa_family);
 	if (unlikely(family != AF_INET && family != AF_INET6)) {
 		ret = -EDESTADDRREQ;
-		net_dbg_ratelimited("%s: No valid endpoint has been configured or discovered for peer %Lu\n", dev->name, peer->internal_id);
+		net_dbg_ratelimited("%s: No valid endpoint has been configured or discovered for peer %llu\n", dev->name, peer->internal_id);
 		goto err_peer;
 	}
 
@@ -136,6 +136,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		skb->next = NULL;
 	else {
 		struct sk_buff *segs = skb_gso_segment(skb, 0);
+
 		if (unlikely(IS_ERR(segs))) {
 			ret = PTR_ERR(segs);
 			goto err_peer;

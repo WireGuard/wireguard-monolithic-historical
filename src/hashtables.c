@@ -68,7 +68,7 @@ void index_hashtable_init(struct index_hashtable *table)
  *
  * >>> def calculation(tries, size):
  * ...     return (size / 2**32)**(tries - 1) *  (1 - (size / 2**32))
- * ... 
+ * ...
  * >>> calculation(1, 2**20 * 3)
  * 0.999267578125
  * >>> calculation(2, 2**20 * 3)

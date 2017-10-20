@@ -340,8 +340,10 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 	if (attrs[WGPEER_A_ENDPOINT]) {
 		struct sockaddr *addr = nla_data(attrs[WGPEER_A_ENDPOINT]);
 		size_t len = nla_len(attrs[WGPEER_A_ENDPOINT]);
+
 		if ((len == sizeof(struct sockaddr_in) && addr->sa_family == AF_INET) || (len == sizeof(struct sockaddr_in6) && addr->sa_family == AF_INET6)) {
 			struct endpoint endpoint = { { { 0 } } };
+
 			memcpy(&endpoint.addr, addr, len);
 			socket_set_peer_endpoint(peer, &endpoint);
 		}
@@ -353,6 +355,7 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 	if (attrs[WGPEER_A_ALLOWEDIPS]) {
 		int rem;
 		struct nlattr *attr, *allowedip[WGALLOWEDIP_A_MAX + 1];
+
 		nla_for_each_nested (attr, attrs[WGPEER_A_ALLOWEDIPS], rem) {
 			ret = nla_parse_nested(allowedip, WGALLOWEDIP_A_MAX, attr, allowedip_policy, NULL);
 			if (ret < 0)
@@ -366,6 +369,7 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 	if (attrs[WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL]) {
 		const u16 persistent_keepalive_interval = nla_get_u16(attrs[WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL]);
 		const bool send_keepalive = !peer->persistent_keepalive_interval && persistent_keepalive_interval && netif_running(wg->dev);
+
 		peer->persistent_keepalive_interval = (unsigned long)persistent_keepalive_interval * HZ;
 		if (send_keepalive)
 			packet_send_keepalive(peer);
@@ -397,6 +401,7 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[WGDEVICE_A_FWMARK]) {
 		struct wireguard_peer *peer, *temp;
+
 		wg->fwmark = nla_get_u32(info->attrs[WGDEVICE_A_FWMARK]);
 		peer_for_each (wg, peer, temp, false)
 			socket_clear_peer_endpoint_src(peer);
@@ -416,6 +421,7 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 		u8 public_key[NOISE_PUBLIC_KEY_LEN] = { 0 }, *private_key = nla_data(info->attrs[WGDEVICE_A_PRIVATE_KEY]);
 		/* We remove before setting, to prevent race, which means doing two 25519-genpub ops. */
 		bool unused __attribute((unused)) = curve25519_generate_public(public_key, private_key);
+
 		peer = pubkey_hashtable_lookup(&wg->peer_hashtable, public_key);
 		if (peer) {
 			peer_put(peer);
@@ -432,6 +438,7 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[WGDEVICE_A_PEERS]) {
 		int rem;
 		struct nlattr *attr, *peer[WGPEER_A_MAX + 1];
+
 		nla_for_each_nested (attr, info->attrs[WGDEVICE_A_PEERS], rem) {
 			ret = nla_parse_nested(peer, WGPEER_A_MAX, attr, peer_policy, NULL);
 			if (ret < 0)

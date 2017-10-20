@@ -28,7 +28,7 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 	peer->last_sent_handshake = get_jiffies_64();
 	up_write(&peer->handshake.lock);
 
-	net_dbg_ratelimited("%s: Sending handshake initiation to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_ratelimited("%s: Sending handshake initiation to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 
 	if (noise_handshake_create_initiation(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
@@ -66,7 +66,7 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 {
 	struct message_handshake_response packet;
 
-	net_dbg_ratelimited("%s: Sending handshake response to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_ratelimited("%s: Sending handshake response to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	peer->last_sent_handshake = get_jiffies_64();
 
 	if (noise_handshake_create_response(&packet, &peer->handshake)) {
@@ -174,7 +174,7 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 		skb_reserve(skb, DATA_PACKET_HEAD_ROOM);
 		skb->dev = peer->device->dev;
 		skb_queue_tail(&peer->staged_packet_queue, skb);
-		net_dbg_ratelimited("%s: Sending keepalive packet to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+		net_dbg_ratelimited("%s: Sending keepalive packet to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	}
 
 	packet_send_staged_packets(peer);
@@ -184,6 +184,7 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 static inline void skb_free_null_queue(struct sk_buff *first)
 {
 	struct sk_buff *skb, *next;
+
 	skb_walk_null_queue_safe (first, skb, next)
 		dev_kfree_skb(skb);
 }

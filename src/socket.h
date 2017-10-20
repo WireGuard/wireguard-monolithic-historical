@@ -27,7 +27,7 @@ void socket_clear_peer_endpoint_src(struct wireguard_peer *peer);
 	struct endpoint __endpoint; \
 	socket_endpoint_from_skb(&__endpoint, skb); \
 	net_dbg_ratelimited(fmt, dev, &__endpoint.addr, ##__VA_ARGS__); \
-} while(0)
+} while (0)
 #else
 #define net_dbg_skb_ratelimited(fmt, skb, ...)
 #endif
