@@ -4,6 +4,8 @@
 #define _WG_BLAKE2S_H
 
 #include <linux/types.h>
+#include <linux/kernel.h>
+#include <crypto/algapi.h>
 
 enum blake2s_lengths {
 	BLAKE2S_BLOCKBYTES = 64,
