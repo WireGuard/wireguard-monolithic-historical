@@ -59,6 +59,8 @@ $(eval $(call tar_download,IPUTILS,iputils,s20161105,.tar.gz,https://github.com/
 export CFLAGS ?= -O3 -pipe
 export CPPFLAGS := -I$(BUILD_PATH)/include
 
+QEMU_SERIAL_PORTS := -serial stdio -serial file:$(BUILD_PATH)/result
+
 ifeq ($(CHOST),$(CBUILD))
 CROSS_COMPILE_FLAG := --host=$(CHOST)
 CFLAGS += -march=native
@@ -77,6 +79,7 @@ else
 QEMU_MACHINE := -cpu cortex-a53 -machine virt
 CFLAGS += -march=armv8-a -mtune=cortex-a53
 endif
+QEMU_SERIAL_PORTS := -device pci-serial-2x,chardev1=stdio,chardev2=result -chardev stdio,id=stdio -chardev file,path=$(BUILD_PATH)/result,id=result
 else ifeq ($(ARCH),arm)
 QEMU_ARCH := arm
 KERNEL_ARCH := arm
@@ -87,6 +90,7 @@ else
 QEMU_MACHINE := -cpu cortex-a15 -machine virt
 CFLAGS += -march=armv7-a -mtune=cortex-a15 -mabi=aapcs-linux
 endif
+QEMU_SERIAL_PORTS := -device pci-serial-2x,chardev1=stdio,chardev2=result -chardev stdio,id=stdio -chardev file,path=$(BUILD_PATH)/result,id=result
 else ifeq ($(ARCH),x86_64)
 QEMU_ARCH := x86_64
 KERNEL_ARCH := x86_64
@@ -169,9 +173,8 @@ qemu: $(KERNEL_BZIMAGE)
 		-nographic \
 		-smp $(NR_CPUS) \
 		$(QEMU_MACHINE) \
+		$(QEMU_SERIAL_PORTS) \
 		-m 192M \
-		-serial stdio \
-		-serial file:$(BUILD_PATH)/result \
 		-no-reboot \
 		-monitor none \
 		-kernel $<
