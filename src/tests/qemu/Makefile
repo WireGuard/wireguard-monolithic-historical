@@ -235,7 +235,7 @@ $(BUILD_PATH)/include/.installed: $(MUSL_PATH)/lib/libc.so
 
 $(MUSL_CC): $(MUSL_PATH)/lib/libc.so
 	sh $(MUSL_PATH)/tools/musl-gcc.specs.sh $(BUILD_PATH)/include $(MUSL_PATH)/lib /lib/ld-linux.so.1 > $(BUILD_PATH)/musl-gcc.specs
-	printf '#!/bin/sh\nexec "$(REAL_CC)" "$$@" -specs "$(BUILD_PATH)/musl-gcc.specs" -fno-stack-protector -no-pie\n' > $(BUILD_PATH)/musl-gcc
+	printf '#!/bin/sh\nexec "$(REAL_CC)" --specs="$(BUILD_PATH)/musl-gcc.specs" -fno-stack-protector -no-pie "$$@"\n' > $(BUILD_PATH)/musl-gcc
 	chmod +x $(BUILD_PATH)/musl-gcc
 
 $(IPERF_PATH)/.installed: $(IPERF_TAR)
