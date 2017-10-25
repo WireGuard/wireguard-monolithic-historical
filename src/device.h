@@ -49,7 +49,7 @@ struct wireguard_device {
 	struct routing_table peer_routing_table;
 	struct mutex device_update_lock, socket_update_lock;
 	struct list_head device_list, peer_list;
-	unsigned int device_update_gen;
+	unsigned int num_peers, device_update_gen;
 	u32 fwmark;
 	u16 incoming_port;
 };

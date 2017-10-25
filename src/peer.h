@@ -67,6 +67,4 @@ void peer_remove_all(struct wireguard_device *wg);
 
 struct wireguard_peer *peer_lookup_by_index(struct wireguard_device *wg, u32 index);
 
-unsigned int peer_total_count(struct wireguard_device *wg);
-
 #endif /* _WG_PEER_H */

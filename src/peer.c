@@ -20,8 +20,9 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 
 	lockdep_assert_held(&wg->device_update_lock);
 
-	if (peer_total_count(wg) >= MAX_PEERS_PER_DEVICE)
+	if (wg->num_peers >= MAX_PEERS_PER_DEVICE)
 		return NULL;
+	++wg->num_peers;
 
 	peer = kzalloc(sizeof(struct wireguard_peer), GFP_KERNEL);
 	if (!peer)
@@ -89,6 +90,7 @@ void peer_remove(struct wireguard_peer *peer)
 	flush_workqueue(peer->device->packet_crypt_wq); /* The first flush is for encrypt/decrypt step. */
 	flush_workqueue(peer->device->packet_crypt_wq); /* The second flush is for send/receive step. */
 	flush_workqueue(peer->device->handshake_send_wq);
+	--peer->device->num_peers;
 	peer_put(peer);
 }
 
@@ -126,15 +128,4 @@ void peer_remove_all(struct wireguard_device *wg)
 	lockdep_assert_held(&wg->device_update_lock);
 	list_for_each_entry_safe (peer, temp, &wg->peer_list, peer_list)
 		peer_remove(peer);
-}
-
-unsigned int peer_total_count(struct wireguard_device *wg)
-{
-	unsigned int i = 0;
-	struct wireguard_peer *peer;
-
-	lockdep_assert_held(&wg->device_update_lock);
-	list_for_each_entry (peer, &wg->peer_list, peer_list)
-		++i;
-	return i;
 }
