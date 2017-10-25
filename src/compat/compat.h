@@ -37,6 +37,7 @@
 #define headers_end data
 #endif
 
+#include <linux/cache.h>
 #ifndef __ro_after_init
 #define __ro_after_init __read_mostly
 #endif
