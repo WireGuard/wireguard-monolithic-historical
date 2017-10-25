@@ -14,7 +14,7 @@ KERNEL_VERSION ?= 4.13.9
 BUILD_PATH ?= $(PWD)/../../../qemu-build/$(ARCH)
 DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
-NR_CPUS ?= 2
+NR_CPUS ?= 4
 
 DOWNLOAD := wget -O
 # DOWNLOAD := curl -f -o
