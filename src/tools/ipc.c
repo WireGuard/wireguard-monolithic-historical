@@ -227,7 +227,7 @@ static int userspace_set_device(struct wgdevice *dev)
 	if (dev->flags & WGDEVICE_REPLACE_PEERS)
 		fprintf(f, "replace_peers=true\n");
 
-	for_each_wgpeer (dev, peer) {
+	for_each_wgpeer(dev, peer) {
 		key_to_hex(hex, peer->public_key);
 		fprintf(f, "public_key=%s\n", hex);
 		if (peer->flags & WGPEER_REMOVE_ME) {
@@ -255,7 +255,7 @@ static int userspace_set_device(struct wgdevice *dev)
 			fprintf(f, "persistent_keepalive_interval=%u\n", peer->persistent_keepalive_interval);
 		if (peer->flags & WGPEER_REPLACE_ALLOWEDIPS)
 			fprintf(f, "replace_allowed_ips=true\n");
-		for_each_wgallowedip (peer, allowedip) {
+		for_each_wgallowedip(peer, allowedip) {
 			if (allowedip->family == AF_INET) {
 				if (!inet_ntop(AF_INET, &allowedip->ip4, ip, INET6_ADDRSTRLEN))
 					continue;

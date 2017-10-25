@@ -126,6 +126,6 @@ void peer_remove_all(struct wireguard_device *wg)
 	struct wireguard_peer *peer, *temp;
 
 	lockdep_assert_held(&wg->device_update_lock);
-	list_for_each_entry_safe (peer, temp, &wg->peer_list, peer_list)
+	list_for_each_entry_safe(peer, temp, &wg->peer_list, peer_list)
 		peer_remove(peer);
 }

@@ -57,12 +57,12 @@ static void gc_entries(struct work_struct *work)
 
 	for (i = 0; i < table_size; ++i) {
 		spin_lock(&table_lock);
-		hlist_for_each_entry_safe (entry, temp, &table_v4[i], hash) {
+		hlist_for_each_entry_safe(entry, temp, &table_v4[i], hash) {
 			if (unlikely(!work) || now - entry->last_time_ns > NSEC_PER_SEC)
 				entry_uninit(entry);
 		}
 #if IS_ENABLED(CONFIG_IPV6)
-		hlist_for_each_entry_safe (entry, temp, &table_v6[i], hash) {
+		hlist_for_each_entry_safe(entry, temp, &table_v6[i], hash) {
 			if (unlikely(!work) || now - entry->last_time_ns > NSEC_PER_SEC)
 				entry_uninit(entry);
 		}
@@ -94,7 +94,7 @@ bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 	else
 		return false;
 	rcu_read_lock();
-	hlist_for_each_entry_rcu (entry, bucket, hash) {
+	hlist_for_each_entry_rcu(entry, bucket, hash) {
 		if (entry->net == net && entry->ip == data.ip) {
 			u64 now, tokens;
 			bool ret;

@@ -43,7 +43,7 @@ int showconf_main(int argc, char *argv[])
 		printf("PrivateKey = %s\n", base64);
 	}
 	printf("\n");
-	for_each_wgpeer (device, peer) {
+	for_each_wgpeer(device, peer) {
 		key_to_base64(base64, peer->public_key);
 		printf("[Peer]\nPublicKey = %s\n", base64);
 		if (!key_is_zero(peer->preshared_key)) {
@@ -52,7 +52,7 @@ int showconf_main(int argc, char *argv[])
 		}
 		if (peer->first_allowedip)
 			printf("AllowedIPs = ");
-		for_each_wgallowedip (peer, allowedip) {
+		for_each_wgallowedip(peer, allowedip) {
 			if (allowedip->family == AF_INET) {
 				if (!inet_ntop(AF_INET, &allowedip->ip4, ip, INET6_ADDRSTRLEN))
 					continue;

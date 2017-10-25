@@ -185,7 +185,7 @@ static inline void skb_free_null_queue(struct sk_buff *first)
 {
 	struct sk_buff *skb, *next;
 
-	skb_walk_null_queue_safe (first, skb, next)
+	skb_walk_null_queue_safe(first, skb, next)
 		dev_kfree_skb(skb);
 }
 
@@ -195,7 +195,7 @@ static void packet_create_data_done(struct sk_buff *first, struct wireguard_peer
 	bool is_keepalive, data_sent = false;
 
 	timers_any_authenticated_packet_traversal(peer);
-	skb_walk_null_queue_safe (first, skb, next) {
+	skb_walk_null_queue_safe(first, skb, next) {
 		is_keepalive = skb->len == message_data_len(0);
 		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
 			data_sent = true;
@@ -241,7 +241,7 @@ void packet_encrypt_worker(struct work_struct *work)
 	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
-		skb_walk_null_queue_safe (first, skb, next) {
+		skb_walk_null_queue_safe(first, skb, next) {
 			if (likely(skb_encrypt(skb, PACKET_CB(first)->keypair, have_simd)))
 				skb_reset(skb);
 			else {
@@ -303,7 +303,7 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 	/* After we know we have a somewhat valid key, we now try to assign nonces to
 	 * all of the packets in the queue. If we can't assign nonces for all of them,
 	 * we just consider it a failure and wait for the next handshake. */
-	skb_queue_walk (&packets, skb) {
+	skb_queue_walk(&packets, skb) {
 		PACKET_CB(skb)->ds = ip_tunnel_ecn_encap(0 /* No outer TOS: no leak. TODO: should we use flowi->tos as outer? */, ip_hdr(skb), skb);
 		PACKET_CB(skb)->nonce = atomic64_inc_return(&key->counter.counter) - 1;
 		if (unlikely(PACKET_CB(skb)->nonce >= REJECT_AFTER_MESSAGES))
@@ -323,7 +323,7 @@ out_nokey:
 
 	/* We orphan the packets if we're waiting on a handshake, so that they
 	 * don't block a socket's pool. */
-	skb_queue_walk (&packets, skb)
+	skb_queue_walk(&packets, skb)
 		skb_orphan(skb);
 	/* Then we put them back on the top of the queue. We're not too concerned about
 	 * accidently getting things a little out of order if packets are being added
