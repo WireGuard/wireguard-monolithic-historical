@@ -254,13 +254,13 @@ static int get_device_done(struct netlink_callback *cb)
 
 static int set_port(struct wireguard_device *wg, u16 port)
 {
-	struct wireguard_peer *peer, *temp;
+	struct wireguard_peer *peer;
 
 	if (wg->incoming_port == port)
 		return 0;
 	socket_uninit(wg);
 	wg->incoming_port = port;
-	peer_for_each (wg, peer, temp, false)
+	list_for_each_entry (peer, &wg->peer_list, peer_list)
 		socket_clear_peer_endpoint_src(peer);
 	if (!netif_running(wg->dev))
 		return 0;
@@ -400,10 +400,10 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 	++wg->device_update_gen;
 
 	if (info->attrs[WGDEVICE_A_FWMARK]) {
-		struct wireguard_peer *peer, *temp;
+		struct wireguard_peer *peer;
 
 		wg->fwmark = nla_get_u32(info->attrs[WGDEVICE_A_FWMARK]);
-		peer_for_each (wg, peer, temp, false)
+		list_for_each_entry (peer, &wg->peer_list, peer_list)
 			socket_clear_peer_endpoint_src(peer);
 	}
 
@@ -428,7 +428,7 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 			peer_remove(peer);
 		}
 		noise_set_static_identity_private_key(&wg->static_identity, private_key);
-		peer_for_each (wg, peer, temp, false) {
+		list_for_each_entry_safe (peer, temp, &wg->peer_list, peer_list) {
 			if (!noise_precompute_static_static(peer))
 				peer_remove(peer);
 		}

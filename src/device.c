@@ -26,7 +26,7 @@ static LIST_HEAD(device_list);
 static int open(struct net_device *dev)
 {
 	int ret;
-	struct wireguard_peer *peer, *temp;
+	struct wireguard_peer *peer;
 	struct wireguard_device *wg = netdev_priv(dev);
 #ifndef COMPAT_CANNOT_USE_IN6_DEV_GET
 	struct inet6_dev *dev_v6 = __in6_dev_get(dev);
@@ -53,11 +53,13 @@ static int open(struct net_device *dev)
 	ret = socket_init(wg);
 	if (ret < 0)
 		return ret;
-	peer_for_each (wg, peer, temp, true) {
+	mutex_lock(&wg->device_update_lock);
+	list_for_each_entry (peer, &wg->peer_list, peer_list) {
 		packet_send_staged_packets(peer);
 		if (peer->persistent_keepalive_interval)
 			packet_send_keepalive(peer);
 	}
+	mutex_unlock(&wg->device_update_lock);
 	return 0;
 }
 
@@ -65,19 +67,21 @@ static int open(struct net_device *dev)
 static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct wireguard_device *wg;
-	struct wireguard_peer *peer, *temp;
+	struct wireguard_peer *peer;
 
 	if (action != PM_HIBERNATION_PREPARE && action != PM_SUSPEND_PREPARE)
 		return 0;
 
 	rtnl_lock();
 	list_for_each_entry (wg, &device_list, device_list) {
-		peer_for_each (wg, peer, temp, true) {
+		mutex_lock(&wg->device_update_lock);
+		list_for_each_entry (peer, &wg->peer_list, peer_list) {
 			noise_handshake_clear(&peer->handshake);
 			noise_keypairs_clear(&peer->keypairs);
 			if (peer->timers_enabled)
 				del_timer(&peer->timer_zero_key_material);
 		}
+		mutex_unlock(&wg->device_update_lock);
 	}
 	rtnl_unlock();
 	rcu_barrier_bh();
@@ -89,14 +93,16 @@ static struct notifier_block clear_peers_on_suspend = { .notifier_call = suspend
 static int stop(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
-	struct wireguard_peer *peer, *temp;
+	struct wireguard_peer *peer;
 
-	peer_for_each (wg, peer, temp, true) {
+	mutex_lock(&wg->device_update_lock);
+	list_for_each_entry (peer, &wg->peer_list, peer_list) {
 		skb_queue_purge(&peer->staged_packet_queue);
 		timers_stop(peer);
 		noise_handshake_clear(&peer->handshake);
 		noise_keypairs_clear(&peer->keypairs);
 	}
+	mutex_unlock(&wg->device_update_lock);
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);
 	return 0;

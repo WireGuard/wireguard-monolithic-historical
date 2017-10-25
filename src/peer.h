@@ -69,34 +69,4 @@ struct wireguard_peer *peer_lookup_by_index(struct wireguard_device *wg, u32 ind
 
 unsigned int peer_total_count(struct wireguard_device *wg);
 
-/* This is a macro iterator of essentially as follows, with the
- * exception that typing `break` in the ITERATOR_BODY will still
- * actually put the peer reference:
- *
- * if (__should_lock)
- *	mutex_lock(&(__wg)->device_update_lock);
- * else
- *	lockdep_assert_held(&(__wg)->device_update_lock)
- * list_for_each_entry_safe (__peer, __temp, &(__wg)->peer_list, peer_list) {
- *	__peer = peer_rcu_get(__peer);
- *	if (!__peer)
- *		continue;
- *	ITERATOR_BODY
- *	peer_put(__peer);
- * }
- * if (__should_lock)
- *	mutex_unlock(&(__wg)->device_update_lock);
- *
- * While it's really ugly to look at, the code gcc produces from it is actually perfect.
- */
-#define pfe_label(n) __PASTE(__PASTE(pfe_label_, n ## _), __LINE__)
-#define peer_for_each(__wg, __peer, __temp, __should_lock) \
-	if (1) { if (__should_lock) mutex_lock(&(__wg)->device_update_lock); else lockdep_assert_held(&(__wg)->device_update_lock); goto pfe_label(1); } else pfe_label(1): \
-	if (1) goto pfe_label(2); else while (1) if (1) { if (__should_lock) mutex_unlock(&(__wg)->device_update_lock); break; } else pfe_label(2): \
-	list_for_each_entry_safe (__peer, __temp, &(__wg)->peer_list, peer_list) \
-	if (0) pfe_label(3): break; else \
-	if (0); else for (__peer = peer_rcu_get(peer); __peer;) if (1) { goto pfe_label(4); pfe_label(5): break; } else while (1) if (1) goto pfe_label(5); else pfe_label(4): \
-	if (1) { goto pfe_label(6); pfe_label(7):; } else while (1) if (1) goto pfe_label(3); else while (1) if (1) goto pfe_label(7); else pfe_label(6): \
-	if (1) { goto pfe_label(8); pfe_label(9): peer_put(__peer); break; pfe_label(10): peer_put(__peer); } else while (1) if (1) goto pfe_label(9); else while (1) if (1) goto pfe_label(10); else pfe_label(8):
-
 #endif /* _WG_PEER_H */
