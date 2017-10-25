@@ -15,10 +15,10 @@ INTERFACE=""
 ADDRESSES=( )
 MTU=""
 DNS=( )
-PRE_UP=""
-POST_UP=""
-PRE_DOWN=""
-POST_DOWN=""
+PRE_UP=( )
+POST_UP=( )
+PRE_DOWN=( )
+POST_DOWN=( )
 SAVE_CONFIG=0
 CONFIG_FILE=""
 PROGRAM="${0##*/}"
@@ -43,10 +43,10 @@ parse_options() {
 			Address) ADDRESSES+=( ${value//,/ } ); continue ;;
 			MTU) MTU="$value"; continue ;;
 			DNS) DNS+=( ${value//,/ } ); continue ;;
-			PreUp) PRE_UP="$value"; continue ;;
-			PreDown) PRE_DOWN="$value"; continue ;;
-			PostUp) POST_UP="$value"; continue ;;
-			PostDown) POST_DOWN="$value"; continue ;;
+			PreUp) PRE_UP+=( "$value" ); continue ;;
+			PreDown) PRE_DOWN+=( "$value" ); continue ;;
+			PostUp) POST_UP+=( "$value" ); continue ;;
+			PostDown) POST_DOWN+=( "$value" ); continue ;;
 			SaveConfig) read_bool SAVE_CONFIG "$value"; continue ;;
 			esac
 		fi
@@ -197,11 +197,13 @@ save_config() {
 	umask "$old_umask"
 }
 
-execute_hook() {
-	[[ -n $1 ]] || return 0
-	local hook="${1//%i/$INTERFACE}"
-	echo "[#] $hook" >&2
-	(eval "$hook")
+execute_hooks() {
+	local hook
+	for hook in "$@"; do
+		hook="${hook//%i/$INTERFACE}"
+		echo "[#] $hook" >&2
+		(eval "$hook")
+	done
 }
 
 cmd_usage() {
@@ -232,7 +234,7 @@ cmd_up() {
 	local i
 	[[ -z $(ip link show dev "$INTERFACE" 2>/dev/null) ]] || die "\`$INTERFACE' already exists"
 	trap 'del_if; exit' INT TERM EXIT
-	execute_hook "$PRE_UP"
+	execute_hooks "${PRE_UP[@]}"
 	add_if
 	set_config
 	for i in "${ADDRESSES[@]}"; do
@@ -244,17 +246,17 @@ cmd_up() {
 	for i in $(while read -r _ i; do for i in $i; do [[ $i =~ ^[0-9a-z:.]+/[0-9]+$ ]] && echo "$i"; done; done < <(wg show "$INTERFACE" allowed-ips) | sort -nr -k 2 -t /); do
 		[[ $(ip route get "$i" 2>/dev/null) == *dev\ $INTERFACE\ * ]] || add_route "$i"
 	done
-	execute_hook "$POST_UP"
+	execute_hooks "${POST_UP[@]}"
 	trap - INT TERM EXIT
 }
 
 cmd_down() {
 	[[ " $(wg show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
-	execute_hook "$PRE_DOWN"
+	execute_hooks "${PRE_DOWN[@]}"
 	[[ $SAVE_CONFIG -eq 0 ]] || save_config
 	unset_dns
 	del_if
-	execute_hook "$POST_DOWN"
+	execute_hooks "${POST_DOWN[@]}"
 }
 
 if [[ $# -eq 1 && ( $1 == --help || $1 == -h || $1 == help ) ]]; then

@@ -80,7 +80,8 @@ PreUp, PostUp, PreDown, PostDown \(em script snippets which will be executed by
 .BR bash (1)
 before/after setting up/tearing down the interface, most commonly used
 to configure custom DNS options or firewall rules. The special string `%i'
-is expanded to \fIINTERFACE\fP.
+is expanded to \fIINTERFACE\fP. Each one may be specified multiple times, in which case
+the commands are executed in order.
 .IP \(bu
 SaveConfig \(em if set to `true', the configuration is saved from the current state of the
 interface upon shutdown.
