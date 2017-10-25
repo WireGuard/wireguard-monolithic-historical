@@ -52,6 +52,7 @@ struct wireguard_device {
 	unsigned int num_peers, device_update_gen;
 	u32 fwmark;
 	u16 incoming_port;
+	bool have_creating_net_ref;
 };
 
 int device_init(void);

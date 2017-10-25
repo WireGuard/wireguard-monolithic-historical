@@ -65,7 +65,7 @@ static int open(struct net_device *dev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long action, void *data)
+static int pm_notification(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct wireguard_device *wg;
 	struct wireguard_peer *peer;
@@ -88,7 +88,7 @@ static int suspending_clear_noise_peers(struct notifier_block *nb, unsigned long
 	rcu_barrier_bh();
 	return 0;
 }
-static struct notifier_block clear_peers_on_suspend = { .notifier_call = suspending_clear_noise_peers };
+static struct notifier_block pm_notifier = { .notifier_call = pm_notification };
 #endif
 
 static int stop(struct net_device *dev)
@@ -223,7 +223,8 @@ static void destruct(struct net_device *dev)
 	mutex_unlock(&wg->device_update_lock);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
-	put_net(wg->creating_net);
+	if (wg->have_creating_net_ref)
+		put_net(wg->creating_net);
 
 	pr_debug("%s: Interface deleted\n", dev->name);
 	free_netdev(dev);
@@ -264,7 +265,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	int ret = -ENOMEM;
 	struct wireguard_device *wg = netdev_priv(dev);
 
-	wg->creating_net = get_net(src_net);
+	wg->creating_net = src_net;
 	init_rwsem(&wg->static_identity.lock);
 	mutex_init(&wg->socket_update_lock);
 	mutex_init(&wg->device_update_lock);
@@ -337,7 +338,6 @@ error_3:
 error_2:
 	free_percpu(dev->tstats);
 error_1:
-	put_net(src_net);
 	return ret;
 }
 
@@ -348,22 +348,63 @@ static struct rtnl_link_ops link_ops __read_mostly = {
 	.newlink		= newlink,
 };
 
+static int netdevice_notification(struct notifier_block *nb, unsigned long action, void *data)
+{
+	struct net_device *dev = ((struct netdev_notifier_info *)data)->dev;
+	struct wireguard_device *wg = netdev_priv(dev);
+
+	ASSERT_RTNL();
+
+	if (action != NETDEV_REGISTER || dev->netdev_ops != &netdev_ops)
+		return 0;
+
+	if (dev_net(dev) == wg->creating_net && wg->have_creating_net_ref) {
+		put_net(wg->creating_net);
+		wg->have_creating_net_ref = false;
+	} else if (dev_net(dev) != wg->creating_net && !wg->have_creating_net_ref) {
+		wg->have_creating_net_ref = true;
+		get_net(wg->creating_net);
+	}
+	return 0;
+}
+
+static struct notifier_block netdevice_notifier = { .notifier_call = netdevice_notification };
+
 int __init device_init(void)
 {
-#ifdef CONFIG_PM_SLEEP
-	int ret = register_pm_notifier(&clear_peers_on_suspend);
+	int ret;
 
+#ifdef CONFIG_PM_SLEEP
+	ret = register_pm_notifier(&pm_notifier);
 	if (ret)
 		return ret;
 #endif
-	return rtnl_link_register(&link_ops);
+
+	ret = register_netdevice_notifier(&netdevice_notifier);
+	if (ret)
+		goto error_pm;
+
+	ret = rtnl_link_register(&link_ops);
+	if (ret)
+		goto error_netdevice;
+
+	return 0;
+
+error_netdevice:
+	unregister_netdevice_notifier(&netdevice_notifier);
+error_pm:
+#ifdef CONFIG_PM_SLEEP
+	unregister_pm_notifier(&pm_notifier);
+#endif
+	return ret;
 }
 
 void device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
+	unregister_netdevice_notifier(&netdevice_notifier);
 #ifdef CONFIG_PM_SLEEP
-	unregister_pm_notifier(&clear_peers_on_suspend);
+	unregister_pm_notifier(&pm_notifier);
 #endif
 	rcu_barrier_bh();
 }
