@@ -65,6 +65,7 @@ static inline void blake2s_init_param(struct blake2s_state *state, const blake2s
 {
 	const __le32 *p;
 	int i;
+
 	memset(state, 0, sizeof(struct blake2s_state));
 	for (i = 0; i < 8; ++i)
 		state->h[i] = blake2s_iv[i];
@@ -112,12 +113,12 @@ void blake2s_init_key(struct blake2s_state *state, const size_t outlen, const vo
 #include <asm/processor.h>
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
-static bool blake2s_use_avx __read_mostly = false;
+static bool blake2s_use_avx __read_mostly;
 void __init blake2s_fpu_init(void)
 {
 	blake2s_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 }
-asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 * block, size_t nblocks, u32 inc);
+asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 *block, size_t nblocks, u32 inc);
 #else
 void __init blake2s_fpu_init(void) { }
 #endif
@@ -160,7 +161,7 @@ static inline void blake2s_compress(struct blake2s_state *state, const u8 *block
 		v[14] = blake2s_iv[6] ^ state->f[0];
 		v[15] = blake2s_iv[7] ^ state->f[1];
 
-#define G(r,i,a,b,c,d) do { \
+#define G(r, i, a, b, c, d) do { \
 	a += b + m[blake2s_sigma[r][2 * i + 0]]; \
 	d = ror32(d ^ a, 16); \
 	c += d; \
@@ -169,18 +170,18 @@ static inline void blake2s_compress(struct blake2s_state *state, const u8 *block
 	d = ror32(d ^ a, 8); \
 	c += d; \
 	b = ror32(b ^ c, 7); \
-} while(0)
+} while (0)
 
 #define ROUND(r) do { \
-	G(r,0,v[ 0],v[ 4],v[ 8],v[12]); \
-	G(r,1,v[ 1],v[ 5],v[ 9],v[13]); \
-	G(r,2,v[ 2],v[ 6],v[10],v[14]); \
-	G(r,3,v[ 3],v[ 7],v[11],v[15]); \
-	G(r,4,v[ 0],v[ 5],v[10],v[15]); \
-	G(r,5,v[ 1],v[ 6],v[11],v[12]); \
-	G(r,6,v[ 2],v[ 7],v[ 8],v[13]); \
-	G(r,7,v[ 3],v[ 4],v[ 9],v[14]); \
-} while(0)
+	G(r, 0, v[0], v[ 4], v[ 8], v[12]); \
+	G(r, 1, v[1], v[ 5], v[ 9], v[13]); \
+	G(r, 2, v[2], v[ 6], v[10], v[14]); \
+	G(r, 3, v[3], v[ 7], v[11], v[15]); \
+	G(r, 4, v[0], v[ 5], v[10], v[15]); \
+	G(r, 5, v[1], v[ 6], v[11], v[12]); \
+	G(r, 6, v[2], v[ 7], v[ 8], v[13]); \
+	G(r, 7, v[3], v[ 4], v[ 9], v[14]); \
+} while (0)
 		ROUND(0);
 		ROUND(1);
 		ROUND(2);
@@ -206,6 +207,7 @@ static inline void blake2s_compress(struct blake2s_state *state, const u8 *block
 void blake2s_update(struct blake2s_state *state, const u8 *in, size_t inlen)
 {
 	const size_t fill = BLAKE2S_BLOCKBYTES - state->buflen;
+
 	if (unlikely(!inlen))
 		return;
 	if (inlen > fill) {

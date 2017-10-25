@@ -242,7 +242,8 @@ void socket_set_peer_endpoint(struct wireguard_peer *peer, const struct endpoint
 	/* First we check unlocked, in order to optimize, since it's pretty rare
 	 * that an endpoint will change. If we happen to be mid-write, and two
 	 * CPUs wind up writing the same thing or something slightly different,
-	 * it doesn't really matter much either. */
+	 * it doesn't really matter much either.
+	 */
 	if (endpoint_eq(endpoint, &peer->endpoint))
 		return;
 	write_lock_bh(&peer->endpoint_lock);

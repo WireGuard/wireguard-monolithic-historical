@@ -30,7 +30,7 @@ static const u8 null_point[CURVE25519_POINT_SIZE] = { 0 };
 #include <asm/processor.h>
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
-static bool curve25519_use_avx __read_mostly = false;
+static bool curve25519_use_avx __read_mostly;
 void curve25519_fpu_init(void)
 {
 	curve25519_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
@@ -129,6 +129,7 @@ static void curve25519_sandy2x(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secr
 	u8 e[32];
 	fe var[3];
 	fe51 x_51, z_51;
+
 	memcpy(e, secret, 32);
 	normalize_secret(e);
 #define x1 var[0]
@@ -164,6 +165,7 @@ static void curve25519_sandy2x_base(u8 pub[CURVE25519_POINT_SIZE], const u8 secr
 	u8 e[32];
 	fe var[3];
 	fe51 x_51, z_51;
+
 	memcpy(e, secret, 32);
 	normalize_secret(e);
 	curve25519_sandy2x_ladder_base(var, e);
@@ -195,7 +197,7 @@ static void curve25519_sandy2x_base(u8 pub[CURVE25519_POINT_SIZE], const u8 secr
 #include <asm/neon.h>
 #include <asm/simd.h>
 asmlinkage void curve25519_asm_neon(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE]);
-static bool curve25519_use_neon __read_mostly = false;
+static bool curve25519_use_neon __read_mostly;
 void __init curve25519_fpu_init(void)
 {
 	curve25519_use_neon = elf_hwcap & HWCAP_NEON;
@@ -272,7 +274,7 @@ static __always_inline void fscalar_product(felem output, const felem in, const 
 static __always_inline void fmul(felem output, const felem in2, const felem in)
 {
 	u128 t[5];
-	limb r0,r1,r2,r3,r4,s0,s1,s2,s3,s4,c;
+	limb r0, r1, r2, r3, r4, s0, s1, s2, s3, s4, c;
 
 	r0 = in[0];
 	r1 = in[1];
@@ -321,8 +323,8 @@ static __always_inline void fmul(felem output, const felem in2, const felem in)
 static __always_inline void fsquare_times(felem output, const felem in, limb count)
 {
 	u128 t[5];
-	limb r0,r1,r2,r3,r4,c;
-	limb d0,d1,d2,d4,d419;
+	limb r0, r1, r2, r3, r4, c;
+	limb d0, d1, d2, d4, d419;
 
 	r0 = in[0];
 	r1 = in[1];
@@ -351,7 +353,7 @@ static __always_inline void fsquare_times(felem output, const felem in, limb cou
 		r0 +=   c * 19; c = r0 >> 51; r0 = r0 & 0x7ffffffffffffUL;
 		r1 +=   c;      c = r1 >> 51; r1 = r1 & 0x7ffffffffffffUL;
 		r2 +=   c;
-	} while(--count);
+	} while (--count);
 
 	output[0] = r0;
 	output[1] = r1;
@@ -452,6 +454,7 @@ static void fmonty(limb *x2, limb *z2, /* output 2Q */
 			 limb *x3, limb *z3, /* output Q + Q' */
 			 limb *x, limb *z,   /* input Q */
 			 limb *xprime, limb *zprime, /* input Q' */
+
 			 const limb *qmqp /* input Q - Q' */)
 {
 	limb origx[5], origxprime[5], zzz[5], xx[5], zz[5], xxprime[5], zzprime[5], zzzprime[5];
@@ -489,11 +492,12 @@ static void fmonty(limb *x2, limb *z2, /* output 2Q */
  */
 static void swap_conditional(limb a[5], limb b[5], limb iswap)
 {
-	unsigned i;
+	unsigned int i;
 	const limb swap = -iswap;
 
 	for (i = 0; i < 5; ++i) {
 		const limb x = swap & (a[i] ^ b[i]);
+
 		a[i] ^= x;
 		b[i] ^= x;
 	}
@@ -512,12 +516,13 @@ static void cmult(limb *resultx, limb *resultz, const u8 *n, const limb *q)
 	limb e[5] = {0}, f[5] = {1}, g[5] = {0}, h[5] = {1};
 	limb *nqpqx2 = e, *nqpqz2 = f, *nqx2 = g, *nqz2 = h;
 
-	unsigned i, j;
+	unsigned int i, j;
 
 	memcpy(nqpqx, q, sizeof(limb) * 5);
 
 	for (i = 0; i < 32; ++i) {
 		u8 byte = n[31 - i];
+
 		for (j = 0; j < 8; ++j) {
 			const limb bit = byte >> 7;
 
@@ -554,7 +559,7 @@ static void cmult(limb *resultx, limb *resultz, const u8 *n, const limb *q)
 
 static void crecip(felem out, const felem z)
 {
-	felem a,t0,b,c;
+	felem a, t0, b, c;
 
 	/* 2 */ fsquare_times(a, z, 1); // a = 2
 	/* 8 */ fsquare_times(t0, a, 2);
@@ -633,12 +638,14 @@ typedef s64 limb;
  * significant first. The value of the field element is:
  *   x[0] + 2^26·x[1] + x^51·x[2] + 2^102·x[3] + ...
  *
- * i.e. the limbs are 26, 25, 26, 25, ... bits wide. */
+ * i.e. the limbs are 26, 25, 26, 25, ... bits wide.
+ */
 
 /* Sum two numbers: output += in */
 static void fsum(limb *output, const limb *in)
 {
-	unsigned i;
+	unsigned int i;
+
 	for (i = 0; i < 10; i += 2) {
 		output[0 + i] = output[0 + i] + in[0 + i];
 		output[1 + i] = output[1 + i] + in[1 + i];
@@ -646,10 +653,12 @@ static void fsum(limb *output, const limb *in)
 }
 
 /* Find the difference of two numbers: output = in - output
- * (note the order of the arguments!). */
+ * (note the order of the arguments!).
+ */
 static void fdifference(limb *output, const limb *in)
 {
-	unsigned i;
+	unsigned int i;
+
 	for (i = 0; i < 10; ++i)
 		output[i] = in[i] - output[i];
 }
@@ -657,7 +666,8 @@ static void fdifference(limb *output, const limb *in)
 /* Multiply a number by a scalar: output = in * scalar */
 static void fscalar_product(limb *output, const limb *in, const limb scalar)
 {
-	unsigned i;
+	unsigned int i;
+
 	for (i = 0; i < 10; ++i)
 		output[i] = in[i] * scalar;
 }
@@ -667,7 +677,8 @@ static void fscalar_product(limb *output, const limb *in, const limb scalar)
  * output must be distinct to both inputs. The inputs are reduced coefficient
  * form, the output is not.
  *
- * output[x] <= 14 * the largest product of the input limbs. */
+ * output[x] <= 14 * the largest product of the input limbs.
+ */
 static void fproduct(limb *output, const limb *in2, const limb *in)
 {
 	output[0] =       ((limb) ((s32) in2[0])) * ((s32) in[0]);
@@ -775,13 +786,15 @@ static void fproduct(limb *output, const limb *in2, const limb *in)
 /* Reduce a long form to a short form by taking the input mod 2^255 - 19.
  *
  * On entry: |output[i]| < 14*2^54
- * On exit: |output[0..8]| < 280*2^54 */
+ * On exit: |output[0..8]| < 280*2^54
+ */
 static void freduce_degree(limb *output)
 {
 	/* Each of these shifts and adds ends up multiplying the value by 19.
 	 *
 	 * For output[0..8], the absolute entry value is < 14*2^54 and we add, at
-	 * most, 19*14*2^54 thus, on exit, |output[0..8]| < 280*2^54. */
+	 * most, 19*14*2^54 thus, on exit, |output[0..8]| < 280*2^54.
+	 */
 	output[8] += output[18] << 4;
 	output[8] += output[18] << 1;
 	output[8] += output[18];
@@ -817,7 +830,8 @@ static void freduce_degree(limb *output)
 
 /* return v / 2^26, using only shifts and adds.
  *
- * On entry: v can take any value. */
+ * On entry: v can take any value.
+ */
 static inline limb div_by_2_26(const limb v)
 {
 	/* High word of v; no shift needed. */
@@ -832,7 +846,8 @@ static inline limb div_by_2_26(const limb v)
 
 /* return v / (2^25), using only shifts and adds.
  *
- * On entry: v can take any value. */
+ * On entry: v can take any value.
+ */
 static inline limb div_by_2_25(const limb v)
 {
 	/* High word of v; no shift needed*/
@@ -847,10 +862,11 @@ static inline limb div_by_2_25(const limb v)
 
 /* Reduce all coefficients of the short form input so that |x| < 2^26.
  *
- * On entry: |output[i]| < 280*2^54 */
+ * On entry: |output[i]| < 280*2^54
+ */
 static void freduce_coefficients(limb *output)
 {
-	unsigned i;
+	unsigned int i;
 
 	output[10] = 0;
 
@@ -859,7 +875,8 @@ static void freduce_coefficients(limb *output)
 		/* The entry condition (that |output[i]| < 280*2^54) means that over is, at
 		 * most, 280*2^28 in the first iteration of this loop. This is added to the
 		 * next limb and we can approximate the resulting bound of that limb by
-		 * 281*2^54. */
+		 * 281*2^54.
+		 */
 		output[i] -= over << 26;
 		output[i+1] += over;
 
@@ -868,7 +885,8 @@ static void freduce_coefficients(limb *output)
 		 * be approximated as 281*2^54.
 		 *
 		 * For subsequent iterations of the loop, 281*2^54 remains a conservative
-		 * bound and no overflow occurs. */
+		 * bound and no overflow occurs.
+		 */
 		over = div_by_2_25(output[i+1]);
 		output[i+1] -= over << 25;
 		output[i+2] += over;
@@ -881,15 +899,18 @@ static void freduce_coefficients(limb *output)
 	output[10] = 0;
 
 	/* Now output[1..9] are reduced, and |output[0]| < 2^26 + 19*281*2^29
-	 * So |over| will be no more than 2^16. */
+	 * So |over| will be no more than 2^16.
+	 */
 	{
 		limb over = div_by_2_26(output[0]);
+
 		output[0] -= over << 26;
 		output[1] += over;
 	}
 
 	/* Now output[0,2..9] are reduced, and |output[1]| < 2^25 + 2^16 < 2^26. The
-	 * bound on |output[1]| is sufficient to meet our needs. */
+	 * bound on |output[1]| is sufficient to meet our needs.
+	 */
 }
 
 /* A helpful wrapper around fproduct: output = in * in2.
@@ -897,10 +918,12 @@ static void freduce_coefficients(limb *output)
  * On entry: |in[i]| < 2^27 and |in2[i]| < 2^27.
  *
  * output must be distinct to both inputs. The output is reduced degree
- * (indeed, one need only provide storage for 10 limbs) and |output[i]| < 2^26. */
+ * (indeed, one need only provide storage for 10 limbs) and |output[i]| < 2^26.
+ */
 static void fmul(limb *output, const limb *in, const limb *in2)
 {
 	limb t[19];
+
 	fproduct(t, in, in2);
 	/* |t[i]| < 14*2^54 */
 	freduce_degree(t);
@@ -914,7 +937,8 @@ static void fmul(limb *output, const limb *in, const limb *in2)
  * output must be distinct from the input. The inputs are reduced coefficient
  * form, the output is not.
  *
- * output[x] <= 14 * the largest product of the input limbs. */
+ * output[x] <= 14 * the largest product of the input limbs.
+ */
 static void fsquare_inner(limb *output, const limb *in)
 {
 	output[0] =       ((limb) ((s32) in[0])) * ((s32) in[0]);
@@ -980,14 +1004,17 @@ static void fsquare_inner(limb *output, const limb *in)
  * 2^27.
  *
  * On exit: The |output| argument is in reduced coefficients form (indeed, one
- * need only provide storage for 10 limbs) and |out[i]| < 2^26. */
+ * need only provide storage for 10 limbs) and |out[i]| < 2^26.
+ */
 static void fsquare(limb *output, const limb *in)
 {
 	limb t[19];
+
 	fsquare_inner(t, in);
 	/* |t[i]| < 14*2^54 because the largest product of two limbs will be <
 	 * 2^(27+27) and fsquare_inner adds together, at most, 14 of those
-	 * products. */
+	 * products.
+	 */
 	freduce_degree(t);
 	freduce_coefficients(t);
 	/* |t[i]| < 2^26 */
@@ -997,7 +1024,7 @@ static void fsquare(limb *output, const limb *in)
 /* Take a little-endian, 32-byte number and expand it into polynomial form */
 static inline void fexpand(limb *output, const u8 *input)
 {
-#define F(n,start,shift,mask) \
+#define F(n, start, shift, mask) \
 	output[n] = ((((limb) input[start + 0]) | \
 		      ((limb) input[start + 1]) << 8 | \
 		      ((limb) input[start + 2]) << 16 | \
@@ -1032,7 +1059,8 @@ static s32 s32_eq(s32 a, s32 b)
 }
 
 /* s32_gte returns 0xffffffff if a >= b and zero otherwise, where a and b are
- * both non-negative. */
+ * both non-negative.
+ */
 static s32 s32_gte(s32 a, s32 b)
 {
 	a -= b;
@@ -1043,7 +1071,8 @@ static s32 s32_gte(s32 a, s32 b)
 /* Take a fully reduced polynomial form number and contract it into a
  * little-endian, 32-byte array.
  *
- * On entry: |input_limbs[i]| < 2^26 */
+ * On entry: |input_limbs[i]| < 2^26
+ */
 static void fcontract(u8 *output, limb *input_limbs)
 {
 	int i;
@@ -1060,31 +1089,37 @@ static void fcontract(u8 *output, limb *input_limbs)
 		for (i = 0; i < 9; ++i) {
 			if ((i & 1) == 1) {
 				/* This calculation is a time-invariant way to make input[i]
-				 * non-negative by borrowing from the next-larger limb. */
+				 * non-negative by borrowing from the next-larger limb.
+				 */
 				const s32 mask = input[i] >> 31;
 				const s32 carry = -((input[i] & mask) >> 25);
+
 				input[i] = input[i] + (carry << 25);
 				input[i+1] = input[i+1] - carry;
 			} else {
 				const s32 mask = input[i] >> 31;
 				const s32 carry = -((input[i] & mask) >> 26);
+
 				input[i] = input[i] + (carry << 26);
 				input[i+1] = input[i+1] - carry;
 			}
 		}
 
 		/* There's no greater limb for input[9] to borrow from, but we can multiply
-		 * by 19 and borrow from input[0], which is valid mod 2^255-19. */
+		 * by 19 and borrow from input[0], which is valid mod 2^255-19.
+		 */
 		{
 			const s32 mask = input[9] >> 31;
 			const s32 carry = -((input[9] & mask) >> 25);
+
 			input[9] = input[9] + (carry << 25);
 			input[0] = input[0] - (carry * 19);
 		}
 
 		/* After the first iteration, input[1..9] are non-negative and fit within
 		 * 25 or 26 bits, depending on position. However, input[0] may be
-		 * negative. */
+		 * negative.
+		 */
 	}
 
 	/* The first borrow-propagation pass above ended with every limb
@@ -1100,20 +1135,24 @@ static void fcontract(u8 *output, limb *input_limbs)
 	{
 		const s32 mask = input[0] >> 31;
 		const s32 carry = -((input[0] & mask) >> 26);
+
 		input[0] = input[0] + (carry << 26);
 		input[1] = input[1] - carry;
 	}
 
 	/* All input[i] are now non-negative. However, there might be values between
-	 * 2^25 and 2^26 in a limb which is, nominally, 25 bits wide. */
+	 * 2^25 and 2^26 in a limb which is, nominally, 25 bits wide.
+	 */
 	for (j = 0; j < 2; j++) {
 		for (i = 0; i < 9; i++) {
 			if ((i & 1) == 1) {
 				const s32 carry = input[i] >> 25;
+
 				input[i] &= 0x1ffffff;
 				input[i+1] += carry;
 			} else {
 				const s32 carry = input[i] >> 26;
+
 				input[i] &= 0x3ffffff;
 				input[i+1] += carry;
 			}
@@ -1121,6 +1160,7 @@ static void fcontract(u8 *output, limb *input_limbs)
 
 		{
 			const s32 carry = input[9] >> 25;
+
 			input[9] &= 0x1ffffff;
 			input[0] += 19*carry;
 		}
@@ -1131,11 +1171,13 @@ static void fcontract(u8 *output, limb *input_limbs)
 	 * < 2^26 + 2*19, because the carry was, at most, two.
 	 *
 	 * If the second pass carried from input[9] again then input[0] is < 2*19 and
-	 * the input[9] -> input[0] carry didn't push input[0] out of bounds. */
+	 * the input[9] -> input[0] carry didn't push input[0] out of bounds.
+	 */
 
 	/* It still remains the case that input might be between 2^255-19 and 2^255.
 	 * In this case, input[1..9] must take their maximum value and input[0] must
-	 * be >= (2^255-19) & 0x3ffffff, which is 0x3ffffed. */
+	 * be >= (2^255-19) & 0x3ffffff, which is 0x3ffffed.
+	 */
 	mask = s32_gte(input[0], 0x3ffffed);
 	for (i = 1; i < 10; i++) {
 		if ((i & 1) == 1) {
@@ -1146,7 +1188,8 @@ static void fcontract(u8 *output, limb *input_limbs)
 	}
 
 	/* mask is either 0xffffffff (if input >= 2^255-19) and zero otherwise. Thus
-	 * this conditionally subtracts 2^255-19. */
+	 * this conditionally subtracts 2^255-19.
+	 */
 	input[0] -= mask & 0x3ffffed;
 
 	for (i = 1; i < 10; i++) {
@@ -1172,16 +1215,16 @@ static void fcontract(u8 *output, limb *input_limbs)
 	output[s+3]  = (input[i] >> 24) & 0xff;
 	output[0] = 0;
 	output[16] = 0;
-	F(0,0);
-	F(1,3);
-	F(2,6);
-	F(3,9);
-	F(4,12);
-	F(5,16);
-	F(6,19);
-	F(7,22);
-	F(8,25);
-	F(9,28);
+	F(0, 0);
+	F(1, 3);
+	F(2, 6);
+	F(3, 9);
+	F(4, 12);
+	F(5, 16);
+	F(6, 19);
+	F(7, 22);
+	F(8, 25);
+	F(9, 28);
 #undef F
 }
 
@@ -1193,14 +1236,16 @@ static void fcontract(u8 *output, limb *input_limbs)
  * wrong results.  Also, the two limb arrays must be in reduced-coefficient,
  * reduced-degree form: the values in a[10..19] or b[10..19] aren't swapped,
  * and all all values in a[0..9],b[0..9] must have magnitude less than
- * INT32_MAX. */
+ * INT32_MAX.
+ */
 static void swap_conditional(limb a[19], limb b[19], limb iswap)
 {
-	unsigned i;
+	unsigned int i;
 	const s32 swap = (s32) -iswap;
 
 	for (i = 0; i < 10; ++i) {
-		const s32 x = swap & ( ((s32)a[i]) ^ ((s32)b[i]) );
+		const s32 x = swap & (((s32)a[i]) ^ ((s32)b[i]));
+
 		a[i] = ((s32)a[i]) ^ x;
 		b[i] = ((s32)b[i]) ^ x;
 	}
@@ -1220,57 +1265,57 @@ static void crecip(limb *out, const limb *z)
 	limb t1[10];
 	int i;
 
-	/* 2 */ fsquare(z2,z);
-	/* 4 */ fsquare(t1,z2);
-	/* 8 */ fsquare(t0,t1);
-	/* 9 */ fmul(z9,t0,z);
-	/* 11 */ fmul(z11,z9,z2);
-	/* 22 */ fsquare(t0,z11);
-	/* 2^5 - 2^0 = 31 */ fmul(z2_5_0,t0,z9);
+	/* 2 */ fsquare(z2, z);
+	/* 4 */ fsquare(t1, z2);
+	/* 8 */ fsquare(t0, t1);
+	/* 9 */ fmul(z9, t0, z);
+	/* 11 */ fmul(z11, z9, z2);
+	/* 22 */ fsquare(t0, z11);
+	/* 2^5 - 2^0 = 31 */ fmul(z2_5_0, t0, z9);
 
-	/* 2^6 - 2^1 */ fsquare(t0,z2_5_0);
-	/* 2^7 - 2^2 */ fsquare(t1,t0);
-	/* 2^8 - 2^3 */ fsquare(t0,t1);
-	/* 2^9 - 2^4 */ fsquare(t1,t0);
-	/* 2^10 - 2^5 */ fsquare(t0,t1);
-	/* 2^10 - 2^0 */ fmul(z2_10_0,t0,z2_5_0);
+	/* 2^6 - 2^1 */ fsquare(t0, z2_5_0);
+	/* 2^7 - 2^2 */ fsquare(t1, t0);
+	/* 2^8 - 2^3 */ fsquare(t0, t1);
+	/* 2^9 - 2^4 */ fsquare(t1, t0);
+	/* 2^10 - 2^5 */ fsquare(t0, t1);
+	/* 2^10 - 2^0 */ fmul(z2_10_0, t0, z2_5_0);
 
-	/* 2^11 - 2^1 */ fsquare(t0,z2_10_0);
-	/* 2^12 - 2^2 */ fsquare(t1,t0);
-	/* 2^20 - 2^10 */ for (i = 2; i < 10; i += 2) { fsquare(t0,t1); fsquare(t1,t0); }
-	/* 2^20 - 2^0 */ fmul(z2_20_0,t1,z2_10_0);
+	/* 2^11 - 2^1 */ fsquare(t0, z2_10_0);
+	/* 2^12 - 2^2 */ fsquare(t1, t0);
+	/* 2^20 - 2^10 */ for (i = 2; i < 10; i += 2) { fsquare(t0, t1); fsquare(t1, t0); }
+	/* 2^20 - 2^0 */ fmul(z2_20_0, t1, z2_10_0);
 
-	/* 2^21 - 2^1 */ fsquare(t0,z2_20_0);
-	/* 2^22 - 2^2 */ fsquare(t1,t0);
-	/* 2^40 - 2^20 */ for (i = 2; i < 20; i += 2) { fsquare(t0,t1); fsquare(t1,t0); }
-	/* 2^40 - 2^0 */ fmul(t0,t1,z2_20_0);
+	/* 2^21 - 2^1 */ fsquare(t0, z2_20_0);
+	/* 2^22 - 2^2 */ fsquare(t1, t0);
+	/* 2^40 - 2^20 */ for (i = 2; i < 20; i += 2) { fsquare(t0, t1); fsquare(t1, t0); }
+	/* 2^40 - 2^0 */ fmul(t0, t1, z2_20_0);
 
-	/* 2^41 - 2^1 */ fsquare(t1,t0);
-	/* 2^42 - 2^2 */ fsquare(t0,t1);
-	/* 2^50 - 2^10 */ for (i = 2; i < 10; i += 2) { fsquare(t1,t0); fsquare(t0,t1); }
-	/* 2^50 - 2^0 */ fmul(z2_50_0,t0,z2_10_0);
+	/* 2^41 - 2^1 */ fsquare(t1, t0);
+	/* 2^42 - 2^2 */ fsquare(t0, t1);
+	/* 2^50 - 2^10 */ for (i = 2; i < 10; i += 2) { fsquare(t1, t0); fsquare(t0, t1); }
+	/* 2^50 - 2^0 */ fmul(z2_50_0, t0, z2_10_0);
 
-	/* 2^51 - 2^1 */ fsquare(t0,z2_50_0);
-	/* 2^52 - 2^2 */ fsquare(t1,t0);
-	/* 2^100 - 2^50 */ for (i = 2; i < 50; i += 2) { fsquare(t0,t1); fsquare(t1,t0); }
-	/* 2^100 - 2^0 */ fmul(z2_100_0,t1,z2_50_0);
+	/* 2^51 - 2^1 */ fsquare(t0, z2_50_0);
+	/* 2^52 - 2^2 */ fsquare(t1, t0);
+	/* 2^100 - 2^50 */ for (i = 2; i < 50; i += 2) { fsquare(t0, t1); fsquare(t1, t0); }
+	/* 2^100 - 2^0 */ fmul(z2_100_0, t1, z2_50_0);
 
-	/* 2^101 - 2^1 */ fsquare(t1,z2_100_0);
-	/* 2^102 - 2^2 */ fsquare(t0,t1);
-	/* 2^200 - 2^100 */ for (i = 2; i < 100; i += 2) { fsquare(t1,t0); fsquare(t0,t1); }
-	/* 2^200 - 2^0 */ fmul(t1,t0,z2_100_0);
+	/* 2^101 - 2^1 */ fsquare(t1, z2_100_0);
+	/* 2^102 - 2^2 */ fsquare(t0, t1);
+	/* 2^200 - 2^100 */ for (i = 2; i < 100; i += 2) { fsquare(t1, t0); fsquare(t0, t1); }
+	/* 2^200 - 2^0 */ fmul(t1, t0, z2_100_0);
 
-	/* 2^201 - 2^1 */ fsquare(t0,t1);
-	/* 2^202 - 2^2 */ fsquare(t1,t0);
-	/* 2^250 - 2^50 */ for (i = 2; i < 50; i += 2) { fsquare(t0,t1); fsquare(t1,t0); }
-	/* 2^250 - 2^0 */ fmul(t0,t1,z2_50_0);
+	/* 2^201 - 2^1 */ fsquare(t0, t1);
+	/* 2^202 - 2^2 */ fsquare(t1, t0);
+	/* 2^250 - 2^50 */ for (i = 2; i < 50; i += 2) { fsquare(t0, t1); fsquare(t1, t0); }
+	/* 2^250 - 2^0 */ fmul(t0, t1, z2_50_0);
 
-	/* 2^251 - 2^1 */ fsquare(t1,t0);
-	/* 2^252 - 2^2 */ fsquare(t0,t1);
-	/* 2^253 - 2^3 */ fsquare(t1,t0);
-	/* 2^254 - 2^4 */ fsquare(t0,t1);
-	/* 2^255 - 2^5 */ fsquare(t1,t0);
-	/* 2^255 - 21 */ fmul(out,t1,z11);
+	/* 2^251 - 2^1 */ fsquare(t1, t0);
+	/* 2^252 - 2^2 */ fsquare(t0, t1);
+	/* 2^253 - 2^3 */ fsquare(t1, t0);
+	/* 2^254 - 2^4 */ fsquare(t0, t1);
+	/* 2^255 - 2^5 */ fsquare(t1, t0);
+	/* 2^255 - 21 */ fmul(out, t1, z11);
 }
 
 
@@ -1285,11 +1330,13 @@ static void crecip(limb *out, const limb *z)
  *   qmqp: short form, preserved
  *
  * On entry and exit, the absolute value of the limbs of all inputs and outputs
- * are < 2^26. */
+ * are < 2^26.
+ */
 static void fmonty(limb *x2, limb *z2,  /* output 2Q */
 		   limb *x3, limb *z3,  /* output Q + Q' */
 		   limb *x, limb *z,    /* input Q */
 		   limb *xprime, limb *zprime,  /* input Q' */
+
 		   const limb *qmqp /* input Q - Q' */)
 {
 	limb origx[10], origxprime[10], zzz[19], xx[19], zz[19], xxprime[19],
@@ -1309,7 +1356,8 @@ static void fmonty(limb *x2, limb *z2,  /* output 2Q */
 	fproduct(xxprime, xprime, z);
 	/* |xxprime[i]| < 14*2^54: the largest product of two limbs will be <
 	 * 2^(27+27) and fproduct adds together, at most, 14 of those products.
-	 * (Approximating that to 2^58 doesn't work out.) */
+	 * (Approximating that to 2^58 doesn't work out.)
+	 */
 	fproduct(zzprime, x, zprime);
 	/* |zzprime[i]| < 14*2^54 */
 	freduce_degree(xxprime);
@@ -1366,7 +1414,8 @@ static void fmonty(limb *x2, limb *z2,  /* output 2Q */
  *
  *   resultx/resultz: the x coordinate of the resulting curve point (short form)
  *   n: a little endian, 32-byte number
- *   q: a point of the curve (short form) */
+ *   q: a point of the curve (short form)
+ */
 static void cmult(limb *resultx, limb *resultz, const u8 *n, const limb *q)
 {
 	limb a[19] = {0}, b[19] = {1}, c[19] = {1}, d[19] = {0};
@@ -1374,12 +1423,13 @@ static void cmult(limb *resultx, limb *resultz, const u8 *n, const limb *q)
 	limb e[19] = {0}, f[19] = {1}, g[19] = {0}, h[19] = {1};
 	limb *nqpqx2 = e, *nqpqz2 = f, *nqx2 = g, *nqz2 = h;
 
-	unsigned i, j;
+	unsigned int i, j;
 
 	memcpy(nqpqx, q, sizeof(limb) * 10);
 
 	for (i = 0; i < 32; ++i) {
 		u8 byte = n[31 - i];
+
 		for (j = 0; j < 8; ++j) {
 			const limb bit = byte >> 7;
 
@@ -1462,12 +1512,14 @@ struct other_stack {
  *   qmqp: short form, preserved
  *
  * On entry and exit, the absolute value of the limbs of all inputs and outputs
- * are < 2^26. */
+ * are < 2^26.
+ */
 static void fmonty(struct other_stack *s,
 		   limb *x2, limb *z2,  /* output 2Q */
 		   limb *x3, limb *z3,  /* output Q + Q' */
 		   limb *x, limb *z,    /* input Q */
 		   limb *xprime, limb *zprime,  /* input Q' */
+
 		   const limb *qmqp /* input Q - Q' */)
 {
 	memcpy(s->origx, x, 10 * sizeof(limb));
@@ -1484,7 +1536,8 @@ static void fmonty(struct other_stack *s,
 	fproduct(s->xxprime, xprime, z);
 	/* |s->xxprime[i]| < 14*2^54: the largest product of two limbs will be <
 	 * 2^(27+27) and fproduct adds together, at most, 14 of those products.
-	 * (Approximating that to 2^58 doesn't work out.) */
+	 * (Approximating that to 2^58 doesn't work out.)
+	 */
 	fproduct(s->zzprime, x, zprime);
 	/* |s->zzprime[i]| < 14*2^54 */
 	freduce_degree(s->xxprime);
@@ -1541,10 +1594,11 @@ static void fmonty(struct other_stack *s,
  *
  *   resultx/resultz: the x coordinate of the resulting curve point (short form)
  *   n: a little endian, 32-byte number
- *   q: a point of the curve (short form) */
+ *   q: a point of the curve (short form)
+ */
 static void cmult(struct other_stack *s, limb *resultx, limb *resultz, const u8 *n, const limb *q)
 {
-	unsigned i, j;
+	unsigned int i, j;
 	limb *nqpqx = s->a, *nqpqz = s->b, *nqx = s->c, *nqz = s->d, *t;
 	limb *nqpqx2 = s->e, *nqpqz2 = s->f, *nqx2 = s->g, *nqz2 = s->h;
 
@@ -1553,6 +1607,7 @@ static void cmult(struct other_stack *s, limb *resultx, limb *resultz, const u8 
 
 	for (i = 0; i < 32; ++i) {
 		u8 byte = n[31 - i];
+
 		for (j = 0; j < 8; ++j) {
 			const limb bit = byte >> 7;
 
@@ -1599,6 +1654,7 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 #endif
 	{
 		struct other_stack *s = kzalloc(sizeof(struct other_stack), GFP_KERNEL);
+
 		if (unlikely(!s))
 			return false;
 
@@ -1619,6 +1675,7 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
 	static const u8 basepoint[CURVE25519_POINT_SIZE] __aligned(32) = { 9 };
+
 	return curve25519(pub, secret, basepoint);
 }
 #endif

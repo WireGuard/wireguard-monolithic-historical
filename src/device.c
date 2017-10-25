@@ -37,7 +37,8 @@ static int open(struct net_device *dev)
 		/* TODO: when we merge to mainline, put this check near the ip_rt_send_redirect
 		 * call of ip_forward in net/ipv4/ip_forward.c, similar to the current secpath
 		 * check, rather than turning it off like this. This is just a stop gap solution
-		 * while we're an out of tree module. */
+		 * while we're an out of tree module.
+		 */
 		IN_DEV_CONF_SET(dev_v4, SEND_REDIRECTS, false);
 		IPV4_DEVCONF_ALL(dev_net(dev), SEND_REDIRECTS) = false;
 	}
@@ -159,7 +160,8 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 			continue;
 
 		/* We only need to keep the original dst around for icmp,
-		 * so at this point we're in a position to drop it. */
+		 * so at this point we're in a position to drop it.
+		 */
 		skb_dst_drop(skb);
 
 		__skb_queue_tail(&packets, skb);
@@ -167,7 +169,8 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_bh(&peer->staged_packet_queue.lock);
 	/* If the queue is getting too big, we start removing the oldest packets until it's small again.
-	 * We do this before adding the new packet, so we don't remove GSO segments that are in excess. */
+	 * We do this before adding the new packet, so we don't remove GSO segments that are in excess.
+	 */
 	while (skb_queue_len(&peer->staged_packet_queue) > MAX_STAGED_PACKETS)
 		dev_kfree_skb(__skb_dequeue(&peer->staged_packet_queue));
 	skb_queue_splice_tail(&packets, &peer->staged_packet_queue);
@@ -310,7 +313,8 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	list_add(&wg->device_list, &device_list);
 
 	/* We wait until the end to assign priv_destructor, so that register_netdevice doesn't
-	 * call it for us if it fails. */
+	 * call it for us if it fails.
+	 */
 	dev->priv_destructor = destruct;
 
 	pr_debug("%s: Interface created\n", dev->name);

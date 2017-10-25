@@ -97,7 +97,8 @@ static inline int cpumask_choose_online(int *stored_cpu, unsigned int id)
  * atomic sequence number, do an increment-and-return, and then iterate through
  * every possible CPU until we get to that index -- choose_cpu. However that's
  * a bit slower, and it doesn't seem like this potential race actually introduces
- * any performance loss, so we live with it. */
+ * any performance loss, so we live with it.
+ */
 static inline int cpumask_next_online(int *next)
 {
 	int cpu = *next;

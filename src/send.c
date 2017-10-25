@@ -52,7 +52,8 @@ void packet_send_queued_handshake_initiation(struct wireguard_peer *peer, bool i
 		peer->timer_handshake_attempts = 0;
 
 	/* First checking the timestamp here is just an optimization; it will
-	 * be caught while properly locked inside the actual work queue. */
+	 * be caught while properly locked inside the actual work queue.
+	 */
 	if (!time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT))
 		return;
 
@@ -110,7 +111,8 @@ static inline unsigned int skb_padding(struct sk_buff *skb)
 	/* We do this modulo business with the MTU, just in case the networking layer
 	 * gives us a packet that's bigger than the MTU. Since we support GSO, this
 	 * isn't strictly neccessary, but it's better to be cautious here, especially
-	 * if that code ever changes. */
+	 * if that code ever changes.
+	 */
 	unsigned int last_unit = skb->len % skb->dev->mtu;
 	unsigned int padded_size = (last_unit + MESSAGE_PADDING_MULTIPLE - 1) & ~(MESSAGE_PADDING_MULTIPLE - 1);
 
@@ -302,7 +304,8 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 
 	/* After we know we have a somewhat valid key, we now try to assign nonces to
 	 * all of the packets in the queue. If we can't assign nonces for all of them,
-	 * we just consider it a failure and wait for the next handshake. */
+	 * we just consider it a failure and wait for the next handshake.
+	 */
 	skb_queue_walk(&packets, skb) {
 		PACKET_CB(skb)->ds = ip_tunnel_ecn_encap(0 /* No outer TOS: no leak. TODO: should we use flowi->tos as outer? */, ip_hdr(skb), skb);
 		PACKET_CB(skb)->nonce = atomic64_inc_return(&key->counter.counter) - 1;
@@ -322,18 +325,21 @@ out_nokey:
 	noise_keypair_put(keypair);
 
 	/* We orphan the packets if we're waiting on a handshake, so that they
-	 * don't block a socket's pool. */
+	 * don't block a socket's pool.
+	 */
 	skb_queue_walk(&packets, skb)
 		skb_orphan(skb);
 	/* Then we put them back on the top of the queue. We're not too concerned about
 	 * accidently getting things a little out of order if packets are being added
 	 * really fast, because this queue is for before packets can even be sent and
-	 * it's small anyway. */
+	 * it's small anyway.
+	 */
 	spin_lock_bh(&peer->staged_packet_queue.lock);
 	skb_queue_splice(&packets, &peer->staged_packet_queue);
 	spin_unlock_bh(&peer->staged_packet_queue.lock);
 
 	/* If we're exiting because there's something wrong with the key, it means
-	 * we should initiate a new handshake. */
+	 * we should initiate a new handshake.
+	 */
 	packet_send_queued_handshake_initiation(peer, false);
 }

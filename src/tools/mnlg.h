@@ -1,6 +1,7 @@
 /* Copyright (C) 2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  *
- * Original author: Jiri Pirko <jiri@mellanox.com> */
+ * Original author: Jiri Pirko <jiri@mellanox.com>
+ */
 
 #ifndef MNLG_H
 #define MNLG_H

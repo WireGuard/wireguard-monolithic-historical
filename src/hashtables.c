@@ -7,7 +7,8 @@
 static inline struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table, const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
 {
 	/* siphash gives us a secure 64bit number based on a random key. Since the bits are
-	 * uniformly distributed, we can then mask off to get the bits we need. */
+	 * uniformly distributed, we can then mask off to get the bits we need.
+	 */
 	return &table->hashtable[siphash(pubkey, NOISE_PUBLIC_KEY_LEN, &table->key) & (HASH_SIZE(table->hashtable) - 1)];
 }
 
@@ -52,7 +53,8 @@ struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, c
 static inline struct hlist_head *index_bucket(struct index_hashtable *table, const __le32 index)
 {
 	/* Since the indices are random and thus all bits are uniformly distributed,
-	 * we can find its bucket simply by masking. */
+	 * we can find its bucket simply by masking.
+	 */
 	return &table->hashtable[(__force u32)index & (HASH_SIZE(table->hashtable) - 1)];
 }
 
@@ -103,7 +105,8 @@ search_unused_slot:
 	}
 
 	/* Once we've found an unused slot, we lock it, and then double-check
-	 * that nobody else stole it from us. */
+	 * that nobody else stole it from us.
+	 */
 	spin_lock_bh(&table->lock);
 	hlist_for_each_entry_rcu_bh(existing_entry, index_bucket(table, entry->index), index_hash) {
 		if (existing_entry->index == entry->index) {

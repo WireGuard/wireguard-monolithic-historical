@@ -35,6 +35,7 @@ static void show_usage(FILE *file)
 int main(int argc, char *argv[])
 {
 	char *tmp = NULL;
+
 	PROG_NAME = argv[0];
 
 	if (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "help"))) {

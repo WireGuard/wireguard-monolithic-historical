@@ -72,6 +72,7 @@ int showconf_main(int argc, char *argv[])
 			char host[4096 + 1];
 			char service[512 + 1];
 			socklen_t addr_len = 0;
+
 			if (peer->endpoint.addr.sa_family == AF_INET)
 				addr_len = sizeof(struct sockaddr_in);
 			else if (peer->endpoint.addr.sa_family == AF_INET6)

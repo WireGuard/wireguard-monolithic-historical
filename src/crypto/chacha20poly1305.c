@@ -28,9 +28,9 @@ asmlinkage void poly1305_asm_2block_sse2(u32 *h, const u8 *src, const u32 *r, un
 #ifdef CONFIG_AS_AVX2
 asmlinkage void poly1305_asm_4block_avx2(u32 *h, const u8 *src, const u32 *r, unsigned int blocks, const u32 *u);
 #endif
-static bool chacha20poly1305_use_avx2 __read_mostly = false;
-static bool chacha20poly1305_use_ssse3 __read_mostly = false;
-static bool chacha20poly1305_use_sse2 __read_mostly = false;
+static bool chacha20poly1305_use_avx2 __read_mostly;
+static bool chacha20poly1305_use_ssse3 __read_mostly;
+static bool chacha20poly1305_use_sse2 __read_mostly;
 void chacha20poly1305_fpu_init(void)
 {
 	chacha20poly1305_use_sse2 = boot_cpu_has(X86_FEATURE_XMM2);
@@ -42,7 +42,7 @@ void chacha20poly1305_fpu_init(void)
 #include <asm/neon.h>
 asmlinkage void chacha20_asm_block_xor_neon(u32 *state, u8 *dst, const u8 *src);
 asmlinkage void chacha20_asm_4block_xor_neon(u32 *state, u8 *dst, const u8 *src);
-static bool chacha20poly1305_use_neon __read_mostly = false;
+static bool chacha20poly1305_use_neon __read_mostly;
 void __init chacha20poly1305_fpu_init(void)
 {
 #if defined(CONFIG_ARM64)
@@ -458,7 +458,8 @@ static void poly1305_simd_mult(u32 *a, const u32 *b)
 
 	memset(m, 0, sizeof(m));
 	/* The poly1305 block function adds a hi-bit to the accumulator which
-	 * we don't need for key multiplication; compensate for it. */
+	 * we don't need for key multiplication; compensate for it.
+	 */
 	a[4] -= 1U << 24;
 	poly1305_asm_block_sse2(a, m, b, 1);
 }
@@ -663,6 +664,7 @@ void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	bool have_simd;
+
 	have_simd = chacha20poly1305_init_simd();
 	__chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, nonce, key, have_simd);
 	chacha20poly1305_deinit_simd(have_simd);
@@ -696,6 +698,7 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 		ret = blkcipher_walk_virt_block(&chacha20_desc, &walk, CHACHA20_BLOCK_SIZE);
 		while (walk.nbytes >= CHACHA20_BLOCK_SIZE) {
 			size_t chunk_len = rounddown(walk.nbytes, CHACHA20_BLOCK_SIZE);
+
 			chacha20_crypt(&chacha20_state, walk.dst.virt.addr, walk.src.virt.addr, chunk_len, have_simd);
 			poly1305_update(&poly1305_state, walk.dst.virt.addr, chunk_len, have_simd);
 			ret = blkcipher_walk_done(&chacha20_desc, &walk, walk.nbytes % CHACHA20_BLOCK_SIZE);
@@ -780,6 +783,7 @@ bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	bool have_simd, ret;
+
 	have_simd = chacha20poly1305_init_simd();
 	ret = __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len, nonce, key, have_simd);
 	chacha20poly1305_deinit_simd(have_simd);
@@ -821,6 +825,7 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 		ret = blkcipher_walk_virt_block(&chacha20_desc, &walk, CHACHA20_BLOCK_SIZE);
 		while (walk.nbytes >= CHACHA20_BLOCK_SIZE) {
 			size_t chunk_len = rounddown(walk.nbytes, CHACHA20_BLOCK_SIZE);
+
 			poly1305_update(&poly1305_state, walk.src.virt.addr, chunk_len, have_simd);
 			chacha20_crypt(&chacha20_state, walk.dst.virt.addr, walk.src.virt.addr, chunk_len, have_simd);
 			ret = blkcipher_walk_done(&chacha20_desc, &walk, walk.nbytes % CHACHA20_BLOCK_SIZE);
@@ -863,6 +868,7 @@ void xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 {
 	bool have_simd = chacha20poly1305_init_simd();
 	u8 derived_key[CHACHA20POLY1305_KEYLEN] __aligned(16);
+
 	hchacha20(derived_key, nonce, key, have_simd);
 	__chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key, have_simd);
 	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
@@ -876,6 +882,7 @@ bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 {
 	bool ret, have_simd = chacha20poly1305_init_simd();
 	u8 derived_key[CHACHA20POLY1305_KEYLEN] __aligned(16);
+
 	hchacha20(derived_key, nonce, key, have_simd);
 	ret = __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len, le64_to_cpuvp(nonce + 16), derived_key, have_simd);
 	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);

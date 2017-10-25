@@ -65,6 +65,9 @@ tools:
 tools-debug:
 	@$(MAKE) -C tools V=1 DEBUG_TOOLS=y
 
+style:
+	$(KERNELDIR)/scripts/checkpatch.pl -f --max-line-length=4000 --codespell --color=always $(filter-out wireguard.mod.c,$(wildcard *.c)) $(wildcard *.h)
+
 check: clean
 	scan-build --view --keep-going $(MAKE) module tools CONFIG_WIREGUARD_DEBUG=y C=2 CF="-D__CHECK_ENDIAN__"
 
@@ -76,4 +79,4 @@ cloc:
 
 -include tests/debug.mk
 
-.PHONY: all module module-debug module-install tools install dkms-install clean core-cloc check version.h dkms.conf
+.PHONY: all module module-debug module-install tools install dkms-install clean core-cloc check style version.h dkms.conf

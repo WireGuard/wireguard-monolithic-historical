@@ -337,6 +337,7 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 			dev->flags |= WGDEVICE_HAS_FWMARK;
 		} else if (!strcmp(key, "public_key")) {
 			struct wgpeer *new_peer = calloc(1, sizeof(struct wgpeer));
+
 			if (!new_peer) {
 				ret = -ENOMEM;
 				goto err;
@@ -396,6 +397,7 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 		} else if (peer && !strcmp(key, "allowed_ip")) {
 			struct wgallowedip *new_allowedip;
 			char *end, *cidr = strchr(value, '/');
+
 			if (!cidr || strlen(cidr) <= 1)
 				break;
 			*cidr++ = '\0';
@@ -450,6 +452,7 @@ err:
 static int parse_linkinfo(const struct nlattr *attr, void *data)
 {
 	struct inflatable_buffer *buffer = data;
+
 	if (mnl_attr_get_type(attr) == IFLA_INFO_KIND && !strcmp("wireguard", mnl_attr_get_str(attr)))
 		buffer->good = true;
 	return MNL_CB_OK;
@@ -458,6 +461,7 @@ static int parse_linkinfo(const struct nlattr *attr, void *data)
 static int parse_infomsg(const struct nlattr *attr, void *data)
 {
 	struct inflatable_buffer *buffer = data;
+
 	if (mnl_attr_get_type(attr) == IFLA_LINKINFO)
 		return mnl_attr_parse_nested(attr, parse_linkinfo, data);
 	else if (mnl_attr_get_type(attr) == IFLA_IFNAME)
@@ -565,6 +569,7 @@ again:
 
 	if (!peer) {
 		uint32_t flags = 0;
+
 		if (dev->flags & WGDEVICE_HAS_PRIVATE_KEY)
 			mnl_attr_put(nlh, WGDEVICE_A_PRIVATE_KEY, sizeof(dev->private_key), dev->private_key);
 		if (dev->flags & WGDEVICE_HAS_LISTEN_PORT)
@@ -582,6 +587,7 @@ again:
 	peers_nest = mnl_attr_nest_start(nlh, WGDEVICE_A_PEERS);
 	for (i = 0, peer = peer ? peer : dev->first_peer; peer; peer = peer->next_peer) {
 		uint32_t flags = 0;
+
 		peer_nest = mnl_attr_nest_start_check(nlh, SOCKET_BUFFER_SIZE, i++);
 		if (!peer_nest)
 			goto toobig_peers;
@@ -747,6 +753,7 @@ static int parse_peer(const struct nlattr *attr, void *data)
 		break;
 	case WGPEER_A_ENDPOINT: {
 		struct sockaddr *addr;
+
 		if (mnl_attr_get_payload_len(attr) < sizeof(*addr))
 			break;
 		addr = mnl_attr_get_payload(attr);

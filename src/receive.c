@@ -141,7 +141,8 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 			/* Calling this function will either send any existing packets in the queue
 			 * and not send a keepalive, which is the best case, Or, if there's nothing
 			 * in the queue, it will send a keepalive, in order to give immediate
-			 * confirmation of the session. */
+			 * confirmation of the session.
+			 */
 			packet_send_keepalive(peer);
 		}
 		break;
@@ -214,7 +215,8 @@ static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *
 
 	/* We ensure that the network header is part of the packet before we
 	 * call skb_cow_data, so that there's no chance that data is removed
-	 * from the skb, so that later we can extract the original endpoint. */
+	 * from the skb, so that later we can extract the original endpoint.
+	 */
 	offset = skb->data - skb_network_header(skb);
 	skb_push(skb, offset);
 	num_frags = skb_cow_data(skb, 0, &trailer);
@@ -231,7 +233,8 @@ static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *
 		return false;
 
 	/* Another ugly situation of pushing and pulling the header so as to
-	 * keep endpoint information intact. */
+	 * keep endpoint information intact.
+	 */
 	skb_push(skb, offset);
 	if (pskb_trim(skb, skb->len - noise_encrypted_len(0)))
 		return false;
@@ -411,6 +414,7 @@ void packet_decrypt_worker(struct work_struct *work)
 
 	while ((skb = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving)) ? PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
+
 		queue_enqueue_per_peer(&PACKET_PEER(skb)->rx_queue, skb, state);
 	}
 }

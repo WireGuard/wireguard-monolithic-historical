@@ -38,10 +38,12 @@ static inline void blake2s_final(struct blake2s_state *state, u8 *out, size_t ou
 	if (__builtin_constant_p(outlen) && !(outlen % sizeof(u32))) {
 		if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) || IS_ALIGNED((unsigned long)out, __alignof__(u32))) {
 			__le32 *outwords = (__le32 *)out;
+
 			for (i = 0; i < outlen / sizeof(u32); ++i)
 				outwords[i] = cpu_to_le32(state->h[i]);
 		} else {
 			__le32 buffer[BLAKE2S_OUTBYTES];
+
 			for (i = 0; i < outlen / sizeof(u32); ++i)
 				buffer[i] = cpu_to_le32(state->h[i]);
 			memcpy(out, buffer, outlen);
@@ -50,6 +52,7 @@ static inline void blake2s_final(struct blake2s_state *state, u8 *out, size_t ou
 	} else {
 		u8 buffer[BLAKE2S_OUTBYTES] __aligned(__alignof__(u32));
 		__le32 *outwords = (__le32 *)buffer;
+
 		for (i = 0; i < 8; ++i)
 			outwords[i] = cpu_to_le32(state->h[i]);
 		memcpy(out, buffer, outlen);

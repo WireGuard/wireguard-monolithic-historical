@@ -74,7 +74,8 @@ struct wireguard_peer *peer_rcu_get(struct wireguard_peer *peer)
 
 /* We have a separate "remove" function to get rid of the final reference because
  * peer_list, clearing handshakes, and flushing all require mutexes which requires
- * sleeping, which must only be done from certain contexts. */
+ * sleeping, which must only be done from certain contexts.
+ */
 void peer_remove(struct wireguard_peer *peer)
 {
 	if (unlikely(!peer))

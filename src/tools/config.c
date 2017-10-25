@@ -222,6 +222,7 @@ static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **la
 {
 	struct wgallowedip *allowedip = *last_allowedip, *new_allowedip;
 	char *mask, *mutable = strdup(value), *sep;
+
 	if (!mutable) {
 		perror("strdup");
 		return false;
@@ -235,6 +236,7 @@ static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **la
 	while ((mask = strsep(&sep, ","))) {
 		unsigned long cidr = ULONG_MAX;
 		char *end, *ip = strsep(&mask, "/");
+
 		new_allowedip = calloc(1, sizeof(struct wgallowedip));
 		if (!new_allowedip) {
 			perror("calloc");
@@ -281,6 +283,7 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 	}
 	if (!strcasecmp(line, "[Peer]")) {
 		struct wgpeer *new_peer = calloc(1, sizeof(struct wgpeer));
+
 		if (!new_peer) {
 			perror("calloc");
 			return false;
@@ -345,6 +348,7 @@ bool config_read_line(struct config_ctx *ctx, const char *input)
 	size_t len = strlen(input), cleaned_len = 0;
 	char *line = calloc(len + 1, sizeof(char));
 	bool ret = true;
+
 	if (!line) {
 		perror("calloc");
 		ret = false;
@@ -384,6 +388,7 @@ bool config_read_init(struct config_ctx *ctx, bool append)
 struct wgdevice *config_read_finish(struct config_ctx *ctx)
 {
 	struct wgpeer *peer;
+
 	for_each_wgpeer(ctx->device, peer) {
 		if (key_is_zero(peer->public_key)) {
 			fprintf(stderr, "A peer is missing a public key\n");
@@ -416,6 +421,7 @@ static bool read_keyfile(char dst[WG_KEY_LEN_BASE64], const char *path)
 		/* If we're at the end and we didn't read anything, we're /dev/null. */
 		if (!ferror(f) && feof(f) && !ftell(f)) {
 			static const uint8_t zeros[WG_KEY_LEN] = { 0 };
+
 			key_to_base64(dst, zeros);
 			ret = true;
 			goto out;
@@ -466,6 +472,7 @@ struct wgdevice *config_read_cmd(char *argv[], int argc)
 	struct wgdevice *device = calloc(1, sizeof(struct wgdevice));
 	struct wgpeer *peer = NULL;
 	struct wgallowedip *allowedip = NULL;
+
 	if (!device) {
 		perror("calloc");
 		return false;
@@ -483,6 +490,7 @@ struct wgdevice *config_read_cmd(char *argv[], int argc)
 			argc -= 2;
 		} else if (!strcmp(argv[0], "private-key") && argc >= 2 && !peer) {
 			char key_line[WG_KEY_LEN_BASE64];
+
 			if (read_keyfile(key_line, argv[1])) {
 				if (!parse_key(device->private_key, key_line))
 					goto error;
@@ -493,6 +501,7 @@ struct wgdevice *config_read_cmd(char *argv[], int argc)
 			argc -= 2;
 		} else if (!strcmp(argv[0], "peer") && argc >= 2) {
 			struct wgpeer *new_peer = calloc(1, sizeof(struct wgpeer));
+
 			allowedip = NULL;
 			if (!new_peer) {
 				perror("calloc");
@@ -518,6 +527,7 @@ struct wgdevice *config_read_cmd(char *argv[], int argc)
 			argc -= 2;
 		} else if (!strcmp(argv[0], "allowed-ips") && argc >= 2 && peer) {
 			char *line = strip_spaces(argv[1]);
+
 			if (!line)
 				goto error;
 			if (!parse_allowedips(peer, &allowedip, line)) {
@@ -534,6 +544,7 @@ struct wgdevice *config_read_cmd(char *argv[], int argc)
 			argc -= 2;
 		} else if (!strcmp(argv[0], "preshared-key") && argc >= 2 && peer) {
 			char key_line[WG_KEY_LEN_BASE64];
+
 			if (read_keyfile(key_line, argv[1])) {
 				if (!parse_key(peer->preshared_key, key_line))
 					goto error;

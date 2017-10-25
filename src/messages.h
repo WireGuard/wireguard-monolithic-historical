@@ -122,7 +122,7 @@ enum message_alignments {
 #define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
 
 enum {
-	HANDSHAKE_DSCP = 0b10001000 /* AF41, plus 00 ECN */
+	HANDSHAKE_DSCP = 0x88 /* AF41, plus 00 ECN */
 };
 
 #endif /* _WG_MESSAGES_H */

@@ -1,6 +1,7 @@
 /* Copyright (C) 2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  *
- * Original author: Jiri Pirko <jiri@mellanox.com> */
+ * Original author: Jiri Pirko <jiri@mellanox.com>
+ */
 
 #ifdef __linux__
 
@@ -113,7 +114,7 @@ int mnlg_socket_recv_run(struct mnlg_socket *nlg, mnl_cb_t data_cb, void *data)
 		if (err <= 0)
 			break;
 		err = mnl_cb_run2(nlg->buf, err, nlg->seq, nlg->portid,
-				  data_cb, data, mnlg_cb_array, sizeof(mnlg_cb_array) / sizeof(mnlg_cb_array[0]));
+				  data_cb, data, mnlg_cb_array, MNL_ARRAY_SIZE(mnlg_cb_array));
 	} while (err > 0);
 
 	return err;

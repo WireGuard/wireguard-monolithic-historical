@@ -40,11 +40,13 @@ static void expired_retransmit_handshake(unsigned long ptr)
 		if (likely(timers_active(peer)))
 			del_timer(&peer->timer_send_keepalive);
 		/* We drop all packets without a keypair and don't try again,
-		 * if we try unsuccessfully for too long to make a handshake. */
+		 * if we try unsuccessfully for too long to make a handshake.
+		 */
 		skb_queue_purge(&peer->staged_packet_queue);
 
 		/* We set a timer for destroying any residue that might be left
-		 * of a partial exchange. */
+		 * of a partial exchange.
+		 */
 		if (likely(timers_active(peer)) && !timer_pending(&peer->timer_zero_key_material))
 			mod_timer(&peer->timer_zero_key_material, jiffies + (REJECT_AFTER_TIME * 3));
 	} else {

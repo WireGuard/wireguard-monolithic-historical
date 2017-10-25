@@ -13,6 +13,7 @@ static bool color_mode(FILE *file)
 {
 	static int mode = -1;
 	const char *var;
+
 	if (mode != -1)
 		return mode;
 	var = getenv("WG_COLOR_MODE");
@@ -64,6 +65,7 @@ static void filter_ansi(FILE *file, const char *fmt, va_list args)
 void terminal_printf(const char *fmt, ...)
 {
 	va_list args;
+
 	va_start(args, fmt);
 	filter_ansi(stdout, fmt, args);
 	va_end(args);
@@ -72,6 +74,7 @@ void terminal_printf(const char *fmt, ...)
 void terminal_fprintf(FILE *file, const char *fmt, ...)
 {
 	va_list args;
+
 	va_start(args, fmt);
 	filter_ansi(file, fmt, args);
 	va_end(args);
