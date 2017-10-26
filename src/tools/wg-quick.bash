@@ -83,6 +83,7 @@ add_if() {
 
 del_if() {
 	local fwmark
+	[[ $HAVE_SET_DNS -eq 0 ]] || unset_dns
 	fwmark="$(wg show "$INTERFACE" fwmark)"
 	DEFAULT_TABLE=0
 	[[ $fwmark != off ]] && DEFAULT_TABLE=$(( fwmark ))
@@ -130,12 +131,16 @@ set_mtu() {
 	cmd ip link set mtu $(( mtu - 80 )) dev "$INTERFACE"
 }
 
+HAVE_SET_DNS=0
 set_dns() {
-	[[ ${#DNS[@]} -eq 0 ]] || printf 'nameserver %s\n' "${DNS[@]}" | cmd resolvconf -a "tun.$INTERFACE" -m 0 -x
+	[[ ${#DNS[@]} -gt 0 ]] || return 0
+	printf 'nameserver %s\n' "${DNS[@]}" | cmd resolvconf -a "tun.$INTERFACE" -m 0 -x
+	HAVE_SET_DNS=1
 }
 
 unset_dns() {
-	[[ ${#DNS[@]} -eq 0 ]] || cmd resolvconf -d "tun.$INTERFACE"
+	[[ ${#DNS[@]} -gt 0 ]] || return 0
+	cmd resolvconf -d "tun.$INTERFACE"
 }
 
 add_route() {
@@ -254,8 +259,8 @@ cmd_down() {
 	[[ " $(wg show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
 	execute_hooks "${PRE_DOWN[@]}"
 	[[ $SAVE_CONFIG -eq 0 ]] || save_config
-	unset_dns
 	del_if
+	unset_dns
 	execute_hooks "${POST_DOWN[@]}"
 }
 
