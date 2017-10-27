@@ -204,10 +204,10 @@ static void destruct(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
 
+	mutex_lock(&wg->device_update_lock);
 	rtnl_lock();
 	list_del(&wg->device_list);
 	rtnl_unlock();
-	mutex_lock(&wg->device_update_lock);
 	peer_remove_all(wg); /* The final references are cleared in the below calls to destroy_workqueue. */
 	wg->incoming_port = 0;
 	destroy_workqueue(wg->handshake_receive_wq);
@@ -220,11 +220,11 @@ static void destruct(struct net_device *dev)
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
 	socket_uninit(wg);
-	mutex_unlock(&wg->device_update_lock);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
 	if (wg->have_creating_net_ref)
 		put_net(wg->creating_net);
+	mutex_unlock(&wg->device_update_lock);
 
 	pr_debug("%s: Interface deleted\n", dev->name);
 	free_netdev(dev);
