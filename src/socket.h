@@ -8,9 +8,6 @@
 #include <linux/if_vlan.h>
 #include <linux/if_ether.h>
 
-struct wireguard_device;
-struct endpoint;
-
 int socket_init(struct wireguard_device *wg);
 void socket_uninit(struct wireguard_device *wg);
 int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *data, size_t len, u8 ds);

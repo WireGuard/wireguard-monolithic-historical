@@ -7,8 +7,6 @@
 #include <linux/rwsem.h>
 
 struct wireguard_peer;
-struct wireguard_device;
-struct sk_buff;
 
 struct cookie_checker {
 	u8 secret[NOISE_HASH_LEN];
