@@ -177,7 +177,7 @@ set_config() {
 }
 
 save_config() {
-	local old_umask new_config current_config address
+	local old_umask new_config current_config address cmd
 	[[ $(ip -all -brief address show dev "$INTERFACE") =~ ^$INTERFACE\ +\ [A-Z]+\ +(.+)$ ]] || true
 	new_config=$'[Interface]\n'
 	for address in ${BASH_REMATCH[1]}; do
@@ -188,10 +188,18 @@ save_config() {
 	done < <(resolvconf -l "tun.$INTERFACE" 2>/dev/null)
 	[[ -n $MTU && $(ip link show dev "$INTERFACE") =~ mtu\ ([0-9]+) ]] && new_config+="MTU = ${BASH_REMATCH[1]}"$'\n'
 	[[ $SAVE_CONFIG -eq 0 ]] || new_config+=$'SaveConfig = true\n'
-	[[ -z $PRE_UP ]] || new_config+="PreUp = $PRE_UP"$'\n'
-	[[ -z $POST_UP ]] || new_config+="PostUp = $POST_UP"$'\n'
-	[[ -z $PRE_DOWN ]] || new_config+="PreDown = $PRE_DOWN"$'\n'
-	[[ -z $POST_DOWN ]] || new_config+="PostDown = $POST_DOWN"$'\n'
+	for cmd in "${PRE_UP[@]}"; do
+		new_config+="PreUp = $cmd"$'\n'
+	done
+	for cmd in "${POST_UP[@]}"; do
+		new_config+="PostUp = $cmd"$'\n'
+	done
+	for cmd in "${PRE_DOWN[@]}"; do
+		new_config+="PreDown = $cmd"$'\n'
+	done
+	for cmd in "${POST_DOWN[@]}"; do
+		new_config+="PostDown = $cmd"$'\n'
+	done
 	old_umask="$(umask)"
 	umask 077
 	current_config="$(cmd wg showconf "$INTERFACE")"
