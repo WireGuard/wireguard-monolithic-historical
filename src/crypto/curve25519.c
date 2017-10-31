@@ -206,7 +206,7 @@ void __init curve25519_fpu_init(void)
 void __init curve25519_fpu_init(void) { }
 #endif
 
-#ifdef __SIZEOF_INT128__
+#if defined(CONFIG_ARCH_SUPPORTS_INT128) && defined(__SIZEOF_INT128__)
 typedef u64 limb;
 typedef limb felem[5];
 typedef __uint128_t u128;
