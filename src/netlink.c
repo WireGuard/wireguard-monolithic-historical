@@ -481,10 +481,13 @@ static const struct genl_ops genl_ops[] = {
 	}
 };
 
-static struct genl_family genl_family __ro_after_init = {
+static struct genl_family genl_family
 #ifndef COMPAT_CANNOT_USE_GENL_NOPS
+__ro_after_init = {
 	.ops = genl_ops,
 	.n_ops = ARRAY_SIZE(genl_ops),
+#else
+= {
 #endif
 	.name = WG_GENL_NAME,
 	.version = WG_GENL_VERSION,
