@@ -264,6 +264,8 @@ cmd_down() {
 	execute_hooks "${POST_DOWN[@]}"
 }
 
+# ~~ function override insertion point ~~
+
 if [[ $# -eq 1 && ( $1 == --help || $1 == -h || $1 == help ) ]]; then
 	cmd_usage
 elif [[ $# -eq 2 && $1 == up ]]; then
