@@ -127,10 +127,12 @@ void timers_data_sent(struct wireguard_peer *peer)
 /* Should be called after an authenticated data packet is received. */
 void timers_data_received(struct wireguard_peer *peer)
 {
-	if (likely(timers_active(peer)) && !timer_pending(&peer->timer_send_keepalive))
-		mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
-	else
-		peer->timer_need_another_keepalive = true;
+	if (likely(timers_active(peer))) {
+		if (!timer_pending(&peer->timer_send_keepalive))
+			mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
+		else
+			peer->timer_need_another_keepalive = true;
+	}
 }
 
 /* Should be called after any type of authenticated packet is received -- keepalive or data. */
