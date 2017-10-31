@@ -147,12 +147,12 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 		}
 		break;
 	}
-	default:
+	}
+
+	if (unlikely(!peer)) {
 		WARN(1, "Somehow a wrong type of packet wound up in the handshake queue!\n");
 		return;
 	}
-
-	BUG_ON(!peer);
 
 	local_bh_disable();
 	rx_stats(peer, skb->len);
