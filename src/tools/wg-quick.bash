@@ -197,6 +197,7 @@ save_config() {
 	current_config="$(cmd wg showconf "$INTERFACE")"
 	trap 'rm -f "$CONFIG_FILE.tmp"; exit' INT TERM EXIT
 	echo "${current_config/\[Interface\]$'\n'/$new_config}" > "$CONFIG_FILE.tmp" || die "Could not write configuration file"
+	sync "$CONFIG_FILE.tmp"
 	mv "$CONFIG_FILE.tmp" "$CONFIG_FILE" || die "Could not move configuration file"
 	trap - INT TERM EXIT
 	umask "$old_umask"
