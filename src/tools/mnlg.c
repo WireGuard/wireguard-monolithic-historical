@@ -19,14 +19,14 @@
 struct mnlg_socket {
 	struct mnl_socket *nl;
 	char *buf;
-	uint32_t id;
+	uint16_t id;
 	uint8_t version;
 	unsigned int seq;
 	unsigned int portid;
 };
 
 static struct nlmsghdr *__mnlg_msg_prepare(struct mnlg_socket *nlg, uint8_t cmd,
-					   uint16_t flags, uint32_t id,
+					   uint16_t flags, uint16_t id,
 					   uint8_t version)
 {
 	struct nlmsghdr *nlh;
@@ -206,7 +206,7 @@ int mnlg_socket_group_add(struct mnlg_socket *nlg, const char *group_name)
 
 	nlh = __mnlg_msg_prepare(nlg, CTRL_CMD_GETFAMILY,
 				 NLM_F_REQUEST | NLM_F_ACK, GENL_ID_CTRL, 1);
-	mnl_attr_put_u32(nlh, CTRL_ATTR_FAMILY_ID, nlg->id);
+	mnl_attr_put_u16(nlh, CTRL_ATTR_FAMILY_ID, nlg->id);
 
 	err = mnlg_socket_send(nlg, nlh);
 	if (err < 0)
@@ -248,7 +248,7 @@ static int get_family_id_attr_cb(const struct nlattr *attr, void *data)
 
 static int get_family_id_cb(const struct nlmsghdr *nlh, void *data)
 {
-	uint32_t *p_id = data;
+	uint16_t *p_id = data;
 	struct nlattr *tb[CTRL_ATTR_MAX + 1] = { 0 };
 
 	mnl_attr_parse(nlh, sizeof(struct genlmsghdr), get_family_id_attr_cb, tb);
