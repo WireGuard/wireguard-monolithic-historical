@@ -248,12 +248,17 @@ void socket_set_peer_endpoint(struct wireguard_peer *peer, const struct endpoint
 		return;
 	write_lock_bh(&peer->endpoint_lock);
 	if (endpoint->addr.sa_family == AF_INET) {
-		peer->endpoint.addr4 = endpoint->addr4;
-		peer->endpoint.src4 = endpoint->src4;
-		peer->endpoint.src_if4 = endpoint->src_if4;
+		if (!peer->endpoint.fixed)
+			peer->endpoint.addr4 = endpoint->addr4;
+		if (!peer->endpoint.fixed || peer->endpoint.addr.sa_family == AF_INET) {
+			peer->endpoint.src4 = endpoint->src4;
+			peer->endpoint.src_if4 = endpoint->src_if4;
+		}
 	} else if (endpoint->addr.sa_family == AF_INET6) {
-		peer->endpoint.addr6 = endpoint->addr6;
-		peer->endpoint.src6 = endpoint->src6;
+		if (!peer->endpoint.fixed)
+			peer->endpoint.addr6 = endpoint->addr6;
+		if (!peer->endpoint.fixed || peer->endpoint.addr.sa_family == AF_INET6)
+			peer->endpoint.src6 = endpoint->src6;
 	} else
 		goto out;
 	dst_cache_reset(&peer->endpoint_cache);

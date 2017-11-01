@@ -116,6 +116,8 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index, struct rout
 			fail = nla_put(skb, WGPEER_A_ENDPOINT, sizeof(struct sockaddr_in), &peer->endpoint.addr4);
 		else if (peer->endpoint.addr.sa_family == AF_INET6)
 			fail = nla_put(skb, WGPEER_A_ENDPOINT, sizeof(struct sockaddr_in6), &peer->endpoint.addr6);
+		if (peer->endpoint.fixed)
+			nla_put_u32(skb, WGPEER_A_FLAGS, WGPEER_F_FIXED_ENDPOINT);
 		read_unlock_bh(&peer->endpoint_lock);
 		if (fail)
 			goto err;
@@ -347,9 +349,14 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 		if ((len == sizeof(struct sockaddr_in) && addr->sa_family == AF_INET) || (len == sizeof(struct sockaddr_in6) && addr->sa_family == AF_INET6)) {
 			struct endpoint endpoint = { { { 0 } } };
 
+			endpoint.fixed = flags & WGPEER_F_FIXED_ENDPOINT;
 			memcpy(&endpoint.addr, addr, len);
 			socket_set_peer_endpoint(peer, &endpoint);
 		}
+	} else if (flags & WGPEER_F_FIXED_ENDPOINT) {
+		write_lock_bh(&peer->endpoint_lock);
+		peer->endpoint.fixed = peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6;
+		write_unlock_bh(&peer->endpoint_lock);
 	}
 
 	if (flags & WGPEER_F_REPLACE_ALLOWEDIPS)

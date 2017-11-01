@@ -28,6 +28,7 @@ struct endpoint {
 		};
 		struct in6_addr src6;
 	};
+	bool fixed;
 };
 
 struct wireguard_peer {
