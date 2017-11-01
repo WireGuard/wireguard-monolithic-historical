@@ -26,5 +26,5 @@ config WIREGUARD_DEBUG
 	  that occur for a WireGuard interface. It will also perform some
 	  extra validation checks and unit tests at various points. This is
 	  only useful for debugging.
-	  
+
 	  Say N here unless you know what you're doing.
