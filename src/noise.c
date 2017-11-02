@@ -118,7 +118,7 @@ void noise_keypair_put(struct noise_keypair *keypair)
 
 struct noise_keypair *noise_keypair_get(struct noise_keypair *keypair)
 {
-	RCU_LOCKDEP_WARN(!rcu_read_lock_bh_held(), "Calling " __func__ " without holding the RCU BH read lock");
+	RCU_LOCKDEP_WARN(!rcu_read_lock_bh_held(), "Taking noise keypair reference without holding the RCU BH read lock");
 	if (unlikely(!keypair || !kref_get_unless_zero(&keypair->refcount)))
 		return NULL;
 	return keypair;
