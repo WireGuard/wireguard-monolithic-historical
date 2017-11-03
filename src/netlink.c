@@ -229,7 +229,7 @@ out:
 	}
 	genlmsg_end(skb, hdr);
 	if (done) {
-		cb->args[1] = cb->args[2] = 0;
+		cb->args[1] = 0;
 		return 0;
 	}
 	cb->args[1] = (long)next_peer_cursor;
