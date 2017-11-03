@@ -17,6 +17,7 @@
 #include <sys/ioctl.h>
 #include <sys/reboot.h>
 #include <sys/utsname.h>
+#include <sys/sendfile.h>
 #include <linux/random.h>
 #include <linux/version.h>
 
@@ -207,6 +208,28 @@ static void ensure_console(void)
 	panic("Unable to open console device");
 }
 
+static void check_leaks(void)
+{
+	int fd;
+
+	if (mount("none", "/sys/kernel/debug", "debugfs", 0, NULL) < 0)
+		return;
+	fd = open("/sys/kernel/debug/kmemleak", O_WRONLY);
+	if (fd < 0)
+		return;
+	pretty_message("[+] Scanning for memory leaks...");
+	sleep(2); /* Wait for any grace periods. */
+	write(fd, "scan\n", 5);
+	close(fd);
+
+	fd = open("/sys/kernel/debug/kmemleak", O_RDONLY);
+	if (fd < 0)
+		return;
+	if (sendfile(1, fd, NULL, 0x7ffff000) > 0)
+		panic("Memory leaks encountered");
+	close(fd);
+}
+
 int main(int argc, char *argv[])
 {
 	seed_rng();
@@ -216,6 +239,7 @@ int main(int argc, char *argv[])
 	kmod_selftests();
 	enable_logging();
 	launch_tests();
+	check_leaks();
 	poweroff();
 	return 1;
 }
