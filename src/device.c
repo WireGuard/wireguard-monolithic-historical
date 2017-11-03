@@ -215,6 +215,7 @@ static void destruct(struct net_device *dev)
 	packet_queue_free(&wg->decrypt_queue, true);
 	packet_queue_free(&wg->encrypt_queue, true);
 	destroy_workqueue(wg->packet_crypt_wq);
+	rcu_barrier_bh(); /* Wait for all the peers to be actually freed. */
 	routing_table_free(&wg->peer_routing_table, &wg->device_update_lock);
 	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
