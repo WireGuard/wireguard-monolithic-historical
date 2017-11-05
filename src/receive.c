@@ -196,7 +196,7 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 	}
 }
 
-static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *key)
+static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *key, bool have_simd)
 {
 	struct scatterlist sg[MAX_SKB_FRAGS * 2 + 1];
 	struct sk_buff *trailer;
@@ -229,7 +229,7 @@ static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *
 	if (skb_to_sgvec(skb, sg, 0, skb->len) <= 0)
 		return false;
 
-	if (!chacha20poly1305_decrypt_sg(sg, sg, skb->len, NULL, 0, PACKET_CB(skb)->nonce, key->key))
+	if (!chacha20poly1305_decrypt_sg(sg, sg, skb->len, NULL, 0, PACKET_CB(skb)->nonce, key->key, have_simd))
 		return false;
 
 	/* Another ugly situation of pushing and pulling the header so as to
@@ -411,12 +411,15 @@ void packet_decrypt_worker(struct work_struct *work)
 {
 	struct crypt_queue *queue = container_of(work, struct multicore_worker, work)->ptr;
 	struct sk_buff *skb;
+	bool have_simd = chacha20poly1305_init_simd();
 
 	while ((skb = ptr_ring_consume_bh(&queue->ring)) != NULL) {
-		enum packet_state state = likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving)) ? PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
+		enum packet_state state = likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving, have_simd)) ? PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
 
 		queue_enqueue_per_peer(&PACKET_PEER(skb)->rx_queue, skb, state);
 	}
+
+	chacha20poly1305_deinit_simd(have_simd);
 }
 
 static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb)
