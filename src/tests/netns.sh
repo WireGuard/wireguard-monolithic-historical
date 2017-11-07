@@ -415,6 +415,15 @@ while read -r line; do
 done < <(n0 wg show wg0 allowed-ips)
 ((i == 40))
 ip0 link del wg0
+ip0 link add wg0 type wireguard
+config=( )
+for i in {1..29}; do
+	config+=( "[Peer]" "PublicKey=$(wg genkey)" )
+done
+config+=( "[Peer]" "PublicKey=$(wg genkey)" "AllowedIPs=255.2.3.4/32,abcd::255/128" )
+n0 wg setconf wg0 <(printf '%s\n' "${config[@]}")
+n0 wg showconf wg0 > /dev/null
+ip0 link del wg0
 
 ! n0 wg show doesnotexist || false
 
