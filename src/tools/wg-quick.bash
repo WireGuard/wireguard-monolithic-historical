@@ -35,8 +35,8 @@ parse_options() {
 	INTERFACE="${BASH_REMATCH[1]}"
 	shopt -s nocasematch
 	while read -r line || [[ -n $line ]]; do
-		key="${line%%=*}"; key="${key##*( )}"; key="${key%%*( )}"
-		value="${line#*=}"; value="${value##*( )}"; value="${value%%*( )}"
+		key="${line%%=*}"; key="${key##*([[:space:]])}"; key="${key%%*([[:space:]])}"
+		value="${line#*=}"; value="${value##*([[:space:]])}"; value="${value%%*([[:space:]])}"
 		[[ $key == "["* ]] && interface_section=0
 		[[ $key == "[Interface]" ]] && interface_section=1
 		if [[ $interface_section -eq 1 ]]; then
