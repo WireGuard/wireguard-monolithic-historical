@@ -57,10 +57,6 @@ enum {
 	WGDEVICE_HAS_FWMARK = 1U << 3
 };
 
-enum {
-	WG_API_VERSION_MAGIC = 0xbeef0003
-};
-
 struct wgdevice {
 	char name[IFNAMSIZ];
 	uint32_t ifindex;
