@@ -81,7 +81,7 @@ void peer_remove(struct wireguard_peer *peer)
 	if (unlikely(!peer))
 		return;
 	lockdep_assert_held(&peer->device->device_update_lock);
-	routing_table_remove_by_peer(&peer->device->peer_routing_table, peer, &peer->device->device_update_lock);
+	allowedips_remove_by_peer(&peer->device->peer_allowedips, peer, &peer->device->device_update_lock);
 	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
 	skb_queue_purge(&peer->staged_packet_queue);
 	noise_handshake_clear(&peer->handshake);

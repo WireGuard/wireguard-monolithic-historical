@@ -4,7 +4,7 @@
 
 #ifdef DEBUG_PRINT_TRIE_GRAPHVIZ
 #include <linux/siphash.h>
-static __init void print_node(struct routing_table_node *node, u8 bits)
+static __init void print_node(struct allowedips_node *node, u8 bits)
 {
 	u32 color = 0;
 	char *style = "dotted";
@@ -33,7 +33,7 @@ static __init void print_node(struct routing_table_node *node, u8 bits)
 		print_node(node->bit[1], bits);
 	}
 }
-static __init void print_tree(struct routing_table_node *top, u8 bits)
+static __init void print_tree(struct allowedips_node *top, u8 bits)
 {
 	printk(KERN_DEBUG "digraph trie {\n");
 	print_node(top, bits);
@@ -47,24 +47,24 @@ static __init void print_tree(struct routing_table_node *top, u8 bits)
 #define NUM_MUTATED_ROUTES 100
 #define NUM_QUERIES (NUM_RAND_ROUTES * NUM_MUTATED_ROUTES * 30)
 #include <linux/random.h>
-struct horrible_routing_table {
+struct horrible_allowedips {
 	struct hlist_head head;
 };
-struct horrible_routing_table_node {
+struct horrible_allowedips_node {
 	struct hlist_node table;
 	union nf_inet_addr ip;
 	union nf_inet_addr mask;
 	uint8_t ip_version;
 	void *value;
 };
-static __init void horrible_routing_table_init(struct horrible_routing_table *table)
+static __init void horrible_allowedips_init(struct horrible_allowedips *table)
 {
 	INIT_HLIST_HEAD(&table->head);
 }
-static __init void horrible_routing_table_free(struct horrible_routing_table *table)
+static __init void horrible_allowedips_free(struct horrible_allowedips *table)
 {
 	struct hlist_node *h;
-	struct horrible_routing_table_node *node;
+	struct horrible_allowedips_node *node;
 	hlist_for_each_entry_safe(node, h, &table->head, table) {
 		hlist_del(&node->table);
 		kfree(node);
@@ -86,7 +86,7 @@ static __init inline uint8_t horrible_mask_to_cidr(union nf_inet_addr subnet)
 	     + hweight32(subnet.all[2])
 	     + hweight32(subnet.all[3]);
 }
-static __init inline void horrible_mask_self(struct horrible_routing_table_node *node)
+static __init inline void horrible_mask_self(struct horrible_allowedips_node *node)
 {
 	if (node->ip_version == 4)
 		node->ip.ip &= node->mask.ip;
@@ -97,20 +97,20 @@ static __init inline void horrible_mask_self(struct horrible_routing_table_node 
 		node->ip.ip6[3] &= node->mask.ip6[3];
 	}
 }
-static __init inline bool horrible_match_v4(const struct horrible_routing_table_node *node, struct in_addr *ip)
+static __init inline bool horrible_match_v4(const struct horrible_allowedips_node *node, struct in_addr *ip)
 {
 	return (ip->s_addr & node->mask.ip) == node->ip.ip;
 }
-static __init inline bool horrible_match_v6(const struct horrible_routing_table_node *node, struct in6_addr *ip)
+static __init inline bool horrible_match_v6(const struct horrible_allowedips_node *node, struct in6_addr *ip)
 {
 	return	(ip->in6_u.u6_addr32[0] & node->mask.ip6[0]) == node->ip.ip6[0] &&
 		(ip->in6_u.u6_addr32[1] & node->mask.ip6[1]) == node->ip.ip6[1] &&
 		(ip->in6_u.u6_addr32[2] & node->mask.ip6[2]) == node->ip.ip6[2] &&
 		(ip->in6_u.u6_addr32[3] & node->mask.ip6[3]) == node->ip.ip6[3];
 }
-static __init void horrible_insert_ordered(struct horrible_routing_table *table, struct horrible_routing_table_node *node)
+static __init void horrible_insert_ordered(struct horrible_allowedips *table, struct horrible_allowedips_node *node)
 {
-	struct horrible_routing_table_node *other = NULL, *where = NULL;
+	struct horrible_allowedips_node *other = NULL, *where = NULL;
 	uint8_t my_cidr = horrible_mask_to_cidr(node->mask);
 	hlist_for_each_entry(other, &table->head, table) {
 		if (!memcmp(&other->mask, &node->mask, sizeof(union nf_inet_addr)) &&
@@ -131,9 +131,9 @@ static __init void horrible_insert_ordered(struct horrible_routing_table *table,
 	else
 		hlist_add_before(&node->table, &where->table);
 }
-static __init int horrible_routing_table_insert_v4(struct horrible_routing_table *table, struct in_addr *ip, uint8_t cidr, void *value)
+static __init int horrible_allowedips_insert_v4(struct horrible_allowedips *table, struct in_addr *ip, uint8_t cidr, void *value)
 {
-	struct horrible_routing_table_node *node = kzalloc(sizeof(struct horrible_routing_table_node), GFP_KERNEL);
+	struct horrible_allowedips_node *node = kzalloc(sizeof(struct horrible_allowedips_node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
 	node->ip.in = *ip;
@@ -144,9 +144,9 @@ static __init int horrible_routing_table_insert_v4(struct horrible_routing_table
 	horrible_insert_ordered(table, node);
 	return 0;
 }
-static __init int horrible_routing_table_insert_v6(struct horrible_routing_table *table, struct in6_addr *ip, uint8_t cidr, void *value)
+static __init int horrible_allowedips_insert_v6(struct horrible_allowedips *table, struct in6_addr *ip, uint8_t cidr, void *value)
 {
-	struct horrible_routing_table_node *node = kzalloc(sizeof(struct horrible_routing_table_node), GFP_KERNEL);
+	struct horrible_allowedips_node *node = kzalloc(sizeof(struct horrible_allowedips_node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
 	node->ip.in6 = *ip;
@@ -157,9 +157,9 @@ static __init int horrible_routing_table_insert_v6(struct horrible_routing_table
 	horrible_insert_ordered(table, node);
 	return 0;
 }
-static __init void *horrible_routing_table_lookup_v4(struct horrible_routing_table *table, struct in_addr *ip)
+static __init void *horrible_allowedips_lookup_v4(struct horrible_allowedips *table, struct in_addr *ip)
 {
-	struct horrible_routing_table_node *node;
+	struct horrible_allowedips_node *node;
 	void *ret = NULL;
 	hlist_for_each_entry(node, &table->head, table) {
 		if (node->ip_version != 4)
@@ -171,9 +171,9 @@ static __init void *horrible_routing_table_lookup_v4(struct horrible_routing_tab
 	}
 	return ret;
 }
-static __init void *horrible_routing_table_lookup_v6(struct horrible_routing_table *table, struct in6_addr *ip)
+static __init void *horrible_allowedips_lookup_v6(struct horrible_allowedips *table, struct in6_addr *ip)
 {
-	struct horrible_routing_table_node *node;
+	struct horrible_allowedips_node *node;
 	void *ret = NULL;
 	hlist_for_each_entry(node, &table->head, table) {
 		if (node->ip_version != 6)
@@ -191,22 +191,22 @@ static __init bool randomized_test(void)
 	bool ret = false;
 	unsigned int i, j, k, mutate_amount, cidr;
 	struct wireguard_peer **peers, *peer;
-	struct routing_table t;
-	struct horrible_routing_table h;
+	struct allowedips t;
+	struct horrible_allowedips h;
 	u8 ip[16], mutate_mask[16], mutated[16];
 
-	routing_table_init(&t);
-	horrible_routing_table_init(&h);
+	allowedips_init(&t);
+	horrible_allowedips_init(&h);
 
 	peers = kcalloc(NUM_PEERS, sizeof(struct wireguard_peer *), GFP_KERNEL);
 	if (!peers) {
-		pr_info("routing table random self-test: out of memory\n");
+		pr_info("allowedips random self-test: out of memory\n");
 		goto free;
 	}
 	for (i = 0; i < NUM_PEERS; ++i) {
 		peers[i] = kzalloc(sizeof(struct wireguard_peer), GFP_KERNEL);
 		if (!peers[i]) {
-			pr_info("routing table random self-test: out of memory\n");
+			pr_info("allowedips random self-test: out of memory\n");
 			goto free;
 		}
 		kref_init(&peers[i]->refcount);
@@ -216,12 +216,12 @@ static __init bool randomized_test(void)
 		prandom_bytes(ip, 4);
 		cidr = prandom_u32_max(32) + 1;
 		peer = peers[prandom_u32_max(NUM_PEERS)];
-		if (routing_table_insert_v4(&t, (struct in_addr *)ip, cidr, peer) < 0) {
-			pr_info("routing table random self-test: out of memory\n");
+		if (allowedips_insert_v4(&t, (struct in_addr *)ip, cidr, peer) < 0) {
+			pr_info("allowedips random self-test: out of memory\n");
 			goto free;
 		}
-		if (horrible_routing_table_insert_v4(&h, (struct in_addr *)ip, cidr, peer) < 0) {
-			pr_info("routing table random self-test: out of memory\n");
+		if (horrible_allowedips_insert_v4(&h, (struct in_addr *)ip, cidr, peer) < 0) {
+			pr_info("allowedips random self-test: out of memory\n");
 			goto free;
 		}
 		for (j = 0; j < NUM_MUTATED_ROUTES; ++j) {
@@ -237,12 +237,12 @@ static __init bool randomized_test(void)
 				mutated[k] = (mutated[k] & mutate_mask[k]) | (~mutate_mask[k] & prandom_u32_max(256));
 			cidr = prandom_u32_max(32) + 1;
 			peer = peers[prandom_u32_max(NUM_PEERS)];
-			if (routing_table_insert_v4(&t, (struct in_addr *)mutated, cidr, peer) < 0) {
-				pr_info("routing table random self-test: out of memory\n");
+			if (allowedips_insert_v4(&t, (struct in_addr *)mutated, cidr, peer) < 0) {
+				pr_info("allowedips random self-test: out of memory\n");
 				goto free;
 			}
-			if (horrible_routing_table_insert_v4(&h, (struct in_addr *)mutated, cidr, peer)) {
-				pr_info("routing table random self-test: out of memory\n");
+			if (horrible_allowedips_insert_v4(&h, (struct in_addr *)mutated, cidr, peer)) {
+				pr_info("allowedips random self-test: out of memory\n");
 				goto free;
 			}
 		}
@@ -252,12 +252,12 @@ static __init bool randomized_test(void)
 		prandom_bytes(ip, 16);
 		cidr = prandom_u32_max(128) + 1;
 		peer = peers[prandom_u32_max(NUM_PEERS)];
-		if (routing_table_insert_v6(&t, (struct in6_addr *)ip, cidr, peer) < 0) {
-			pr_info("routing table random self-test: out of memory\n");
+		if (allowedips_insert_v6(&t, (struct in6_addr *)ip, cidr, peer) < 0) {
+			pr_info("allowedips random self-test: out of memory\n");
 			goto free;
 		}
-		if (horrible_routing_table_insert_v6(&h, (struct in6_addr *)ip, cidr, peer) < 0) {
-			pr_info("routing table random self-test: out of memory\n");
+		if (horrible_allowedips_insert_v6(&h, (struct in6_addr *)ip, cidr, peer) < 0) {
+			pr_info("allowedips random self-test: out of memory\n");
 			goto free;
 		}
 		for (j = 0; j < NUM_MUTATED_ROUTES; ++j) {
@@ -273,12 +273,12 @@ static __init bool randomized_test(void)
 				mutated[k] = (mutated[k] & mutate_mask[k]) | (~mutate_mask[k] & prandom_u32_max(256));
 			cidr = prandom_u32_max(128) + 1;
 			peer = peers[prandom_u32_max(NUM_PEERS)];
-			if (routing_table_insert_v6(&t, (struct in6_addr *)mutated, cidr, peer) < 0) {
-				pr_info("routing table random self-test: out of memory\n");
+			if (allowedips_insert_v6(&t, (struct in6_addr *)mutated, cidr, peer) < 0) {
+				pr_info("allowedips random self-test: out of memory\n");
 				goto free;
 			}
-			if (horrible_routing_table_insert_v6(&h, (struct in6_addr *)mutated, cidr, peer)) {
-				pr_info("routing table random self-test: out of memory\n");
+			if (horrible_allowedips_insert_v6(&h, (struct in6_addr *)mutated, cidr, peer)) {
+				pr_info("allowedips random self-test: out of memory\n");
 				goto free;
 			}
 		}
@@ -291,24 +291,24 @@ static __init bool randomized_test(void)
 
 	for (i = 0; i < NUM_QUERIES; ++i) {
 		prandom_bytes(ip, 4);
-		if (lookup(t.root4, 32, ip) != horrible_routing_table_lookup_v4(&h, (struct in_addr *)ip)) {
-			pr_info("routing table random self-test: FAIL\n");
+		if (lookup(t.root4, 32, ip) != horrible_allowedips_lookup_v4(&h, (struct in_addr *)ip)) {
+			pr_info("allowedips random self-test: FAIL\n");
 			goto free;
 		}
 	}
 
 	for (i = 0; i < NUM_QUERIES; ++i) {
 		prandom_bytes(ip, 16);
-		if (lookup(t.root6, 128, ip) != horrible_routing_table_lookup_v6(&h, (struct in6_addr *)ip)) {
-			pr_info("routing table random self-test: FAIL\n");
+		if (lookup(t.root6, 128, ip) != horrible_allowedips_lookup_v6(&h, (struct in6_addr *)ip)) {
+			pr_info("allowedips random self-test: FAIL\n");
 			goto free;
 		}
 	}
 	ret = true;
 
 free:
-	routing_table_free(&t);
-	horrible_routing_table_free(&h);
+	allowedips_free(&t);
+	horrible_allowedips_free(&h);
 	if (peers) {
 		for (i = 0; i < NUM_PEERS; ++i)
 			kfree(peers[i]);
@@ -342,19 +342,19 @@ static __init inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 #define init_peer(name) do { \
 	name = kzalloc(sizeof(struct wireguard_peer), GFP_KERNEL); \
 	if (!name) { \
-		pr_info("routing table self-test: out of memory\n"); \
+		pr_info("allowedips self-test: out of memory\n"); \
 		goto free; \
 	} \
 	kref_init(&name->refcount); \
 } while (0)
 
 #define insert(version, mem, ipa, ipb, ipc, ipd, cidr) \
-	routing_table_insert_v##version(&t, ip##version(ipa, ipb, ipc, ipd), cidr, mem, &mutex)
+	allowedips_insert_v##version(&t, ip##version(ipa, ipb, ipc, ipd), cidr, mem, &mutex)
 
 #define maybe_fail \
 	++i; \
 	if (!_s) { \
-		pr_info("routing table self-test %zu: FAIL\n", i); \
+		pr_info("allowedips self-test %zu: FAIL\n", i); \
 		success = false; \
 	}
 
@@ -368,10 +368,10 @@ static __init inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 	maybe_fail \
 } while (0)
 
-bool __init routing_table_selftest(void)
+bool __init allowedips_selftest(void)
 {
 	DEFINE_MUTEX(mutex);
-	struct routing_table t;
+	struct allowedips t;
 	struct wireguard_peer *a = NULL, *b = NULL, *c = NULL, *d = NULL, *e = NULL, *f = NULL, *g = NULL, *h = NULL;
 	size_t i = 0;
 	bool success = false;
@@ -382,7 +382,7 @@ bool __init routing_table_selftest(void)
 
 	mutex_lock(&mutex);
 
-	routing_table_init(&t);
+	allowedips_init(&t);
 	init_peer(a);
 	init_peer(b);
 	init_peer(c);
@@ -457,18 +457,18 @@ bool __init routing_table_selftest(void)
 	insert(4, a, 128, 0, 0, 0, 32);
 	insert(4, a, 192, 0, 0, 0, 32);
 	insert(4, a, 255, 0, 0, 0, 32);
-	routing_table_remove_by_peer(&t, a, &mutex);
+	allowedips_remove_by_peer(&t, a, &mutex);
 	test_negative(4, a, 1, 0, 0, 0);
 	test_negative(4, a, 64, 0, 0, 0);
 	test_negative(4, a, 128, 0, 0, 0);
 	test_negative(4, a, 192, 0, 0, 0);
 	test_negative(4, a, 255, 0, 0, 0);
 
-	routing_table_free(&t, &mutex);
-	routing_table_init(&t);
+	allowedips_free(&t, &mutex);
+	allowedips_init(&t);
 	insert(4, a, 192, 168, 0, 0, 16);
 	insert(4, a, 192, 168, 0, 0, 24);
-	routing_table_remove_by_peer(&t, a, &mutex);
+	allowedips_remove_by_peer(&t, a, &mutex);
 	test_negative(4, a, 192, 168, 0, 1);
 
 	/* These will hit the BUG_ON(len >= 128) in free_node if something goes wrong. */
@@ -476,7 +476,7 @@ bool __init routing_table_selftest(void)
 		part = cpu_to_be64(~(1LLU << (i % 64)));
 		memset(&ip, 0xff, 16);
 		memcpy((u8 *)&ip + (i < 64) * 8, &part, 8);
-		routing_table_insert_v6(&t, &ip, 128, a, &mutex);
+		allowedips_insert_v6(&t, &ip, 128, a, &mutex);
 	}
 
 #ifdef DEBUG_RANDOM_TRIE
@@ -485,10 +485,10 @@ bool __init routing_table_selftest(void)
 #endif
 
 	if (success)
-		pr_info("routing table self-tests: pass\n");
+		pr_info("allowedips self-tests: pass\n");
 
 free:
-	routing_table_free(&t, &mutex);
+	allowedips_free(&t, &mutex);
 	kfree(a);
 	kfree(b);
 	kfree(c);

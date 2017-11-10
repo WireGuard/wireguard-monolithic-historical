@@ -4,7 +4,7 @@
 #define _WG_DEVICE_H
 
 #include "noise.h"
-#include "routingtable.h"
+#include "allowedips.h"
 #include "hashtables.h"
 #include "cookie.h"
 
@@ -46,7 +46,7 @@ struct wireguard_device {
 	struct cookie_checker cookie_checker;
 	struct pubkey_hashtable peer_hashtable;
 	struct index_hashtable index_hashtable;
-	struct routing_table peer_routing_table;
+	struct allowedips peer_allowedips;
 	struct mutex device_update_lock, socket_update_lock;
 	struct list_head device_list, peer_list;
 	unsigned int num_peers, device_update_gen;

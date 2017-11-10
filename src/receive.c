@@ -329,7 +329,7 @@ static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpo
 
 	timers_data_received(peer);
 
-	routed_peer = routing_table_lookup_src(&peer->device->peer_routing_table, skb);
+	routed_peer = allowedips_lookup_src(&peer->device->peer_allowedips, skb);
 	peer_put(routed_peer); /* We don't need the extra reference. */
 
 	if (unlikely(routed_peer != peer))

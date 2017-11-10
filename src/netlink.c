@@ -85,7 +85,7 @@ static int get_allowedips(void *ctx, const u8 *ip, u8 cidr, int family)
 	return 0;
 }
 
-static int get_peer(struct wireguard_peer *peer, unsigned int index, struct routing_table_cursor *rt_cursor, struct sk_buff *skb)
+static int get_peer(struct wireguard_peer *peer, unsigned int index, struct allowedips_cursor *rt_cursor, struct sk_buff *skb)
 {
 	struct allowedips_ctx ctx = { .skb = skb };
 	struct nlattr *allowedips_nest, *peer_nest = nla_nest_start(skb, index);
@@ -124,7 +124,7 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index, struct rout
 	allowedips_nest = nla_nest_start(skb, WGPEER_A_ALLOWEDIPS);
 	if (!allowedips_nest)
 		goto err;
-	if (routing_table_walk_by_peer(&peer->device->peer_routing_table, rt_cursor, peer, get_allowedips, &ctx, &peer->device->device_update_lock)) {
+	if (allowedips_walk_by_peer(&peer->device->peer_allowedips, rt_cursor, peer, get_allowedips, &ctx, &peer->device->device_update_lock)) {
 		nla_nest_end(skb, allowedips_nest);
 		nla_nest_end(skb, peer_nest);
 		return -EMSGSIZE;
@@ -146,7 +146,7 @@ static int get_device_start(struct netlink_callback *cb)
 
 	if (ret < 0)
 		return ret;
-	cb->args[2] = (long)kzalloc(sizeof(struct routing_table_cursor), GFP_KERNEL);
+	cb->args[2] = (long)kzalloc(sizeof(struct allowedips_cursor), GFP_KERNEL);
 	if (!cb->args[2])
 		return -ENOMEM;
 	wg = lookup_interface(attrs, cb->skb);
@@ -163,7 +163,7 @@ static int get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0];
 	struct wireguard_peer *peer, *next_peer_cursor = NULL, *last_peer_cursor = (struct wireguard_peer *)cb->args[1];
-	struct routing_table_cursor *rt_cursor = (struct routing_table_cursor *)cb->args[2];
+	struct allowedips_cursor *rt_cursor = (struct allowedips_cursor *)cb->args[2];
 	unsigned int peer_idx = 0;
 	struct nlattr *peers_nest;
 	bool done = true;
@@ -245,7 +245,7 @@ static int get_device_done(struct netlink_callback *cb)
 {
 	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0];
 	struct wireguard_peer *peer = (struct wireguard_peer *)cb->args[1];
-	struct routing_table_cursor *rt_cursor = (struct routing_table_cursor *)cb->args[2];
+	struct allowedips_cursor *rt_cursor = (struct allowedips_cursor *)cb->args[2];
 
 	if (wg)
 		dev_put(wg->dev);
@@ -281,9 +281,9 @@ static int set_allowedip(struct wireguard_peer *peer, struct nlattr **attrs)
 	cidr = nla_get_u8(attrs[WGALLOWEDIP_A_CIDR_MASK]);
 
 	if (family == AF_INET && cidr <= 32 && nla_len(attrs[WGALLOWEDIP_A_IPADDR]) == sizeof(struct in_addr))
-		ret = routing_table_insert_v4(&peer->device->peer_routing_table, nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer, &peer->device->device_update_lock);
+		ret = allowedips_insert_v4(&peer->device->peer_allowedips, nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer, &peer->device->device_update_lock);
 	else if (family == AF_INET6 && cidr <= 128 && nla_len(attrs[WGALLOWEDIP_A_IPADDR]) == sizeof(struct in6_addr))
-		ret = routing_table_insert_v6(&peer->device->peer_routing_table, nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer, &peer->device->device_update_lock);
+		ret = allowedips_insert_v6(&peer->device->peer_allowedips, nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer, &peer->device->device_update_lock);
 
 	return ret;
 }
@@ -353,7 +353,7 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 	}
 
 	if (flags & WGPEER_F_REPLACE_ALLOWEDIPS)
-		routing_table_remove_by_peer(&wg->peer_routing_table, peer, &wg->device_update_lock);
+		allowedips_remove_by_peer(&wg->peer_allowedips, peer, &wg->device_update_lock);
 
 	if (attrs[WGPEER_A_ALLOWEDIPS]) {
 		int rem;

@@ -1,17 +1,17 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
 
-#include "routingtable.h"
+#include "allowedips.h"
 #include "peer.h"
 
-struct routing_table_node {
-	struct routing_table_node __rcu *bit[2];
+struct allowedips_node {
+	struct allowedips_node __rcu *bit[2];
 	struct rcu_head rcu;
 	struct wireguard_peer *peer;
 	u8 cidr, bit_at_a, bit_at_b;
 	u8 bits[] __aligned(__alignof__(u64));
 };
 
-static inline void copy_and_assign_cidr(struct routing_table_node *node, const u8 *src, u8 cidr)
+static inline void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src, u8 cidr)
 {
 	memcpy(node->bits, src, (cidr + 7) / 8);
 	node->bits[(cidr + 7) / 8 - 1] &= 0xffU << ((8 - (cidr % 8)) % 8);
@@ -23,7 +23,7 @@ static inline void copy_and_assign_cidr(struct routing_table_node *node, const u
 
 static void node_free_rcu(struct rcu_head *rcu)
 {
-	kfree(container_of(rcu, struct routing_table_node, rcu));
+	kfree(container_of(rcu, struct allowedips_node, rcu));
 }
 
 #define push(stack, p, len) ({ \
@@ -33,18 +33,18 @@ static void node_free_rcu(struct rcu_head *rcu)
 	} \
 	true; \
 })
-static void free_root_node(struct routing_table_node __rcu *top, struct mutex *lock)
+static void free_root_node(struct allowedips_node __rcu *top, struct mutex *lock)
 {
-	struct routing_table_node *stack[128], *node;
+	struct allowedips_node *stack[128], *node;
 	unsigned int len;
 
 	for (len = 0, push(stack, top, len); len > 0 && (node = stack[--len]) && push(stack, node->bit[0], len) && push(stack, node->bit[1], len);)
 		call_rcu_bh(&node->rcu, node_free_rcu);
 }
 
-static int walk_by_peer(struct routing_table_node __rcu *top, int family, struct routing_table_cursor *cursor, struct wireguard_peer *peer, int (*func)(void *ctx, const u8 *ip, u8 cidr, int family), void *ctx, struct mutex *lock)
+static int walk_by_peer(struct allowedips_node __rcu *top, int family, struct allowedips_cursor *cursor, struct wireguard_peer *peer, int (*func)(void *ctx, const u8 *ip, u8 cidr, int family), void *ctx, struct mutex *lock)
 {
-	struct routing_table_node *node;
+	struct allowedips_node *node;
 	int ret;
 
 	if (!rcu_access_pointer(top))
@@ -67,10 +67,10 @@ static int walk_by_peer(struct routing_table_node __rcu *top, int family, struct
 #define ref(p) rcu_access_pointer(p)
 #define deref(p) rcu_dereference_protected(*p, lockdep_is_held(lock))
 #define push(p) ({ BUG_ON(len >= 128); stack[len++] = p; })
-static void walk_remove_by_peer(struct routing_table_node __rcu **top, struct wireguard_peer *peer, struct mutex *lock)
+static void walk_remove_by_peer(struct allowedips_node __rcu **top, struct wireguard_peer *peer, struct mutex *lock)
 {
-	struct routing_table_node __rcu **stack[128], **nptr;
-	struct routing_table_node *node, *prev;
+	struct allowedips_node __rcu **stack[128], **nptr;
+	struct allowedips_node *node, *prev;
 	unsigned int len;
 
 	if (unlikely(!peer || !ref(*top)))
@@ -113,7 +113,7 @@ static __always_inline unsigned int fls128(u64 a, u64 b)
 	return a ? fls64(a) + 64 : fls64(b);
 }
 
-static __always_inline u8 common_bits(const struct routing_table_node *node, const u8 *key, u8 bits)
+static __always_inline u8 common_bits(const struct allowedips_node *node, const u8 *key, u8 bits)
 {
 	if (bits == 32)
 		return 32 - fls(be32_to_cpu(*(const __be32 *)node->bits ^ *(const __be32 *)key));
@@ -122,9 +122,9 @@ static __always_inline u8 common_bits(const struct routing_table_node *node, con
 	return 0;
 }
 
-static inline struct routing_table_node *find_node(struct routing_table_node *trie, u8 bits, const u8 *key)
+static inline struct allowedips_node *find_node(struct allowedips_node *trie, u8 bits, const u8 *key)
 {
-	struct routing_table_node *node = trie, *found = NULL;
+	struct allowedips_node *node = trie, *found = NULL;
 
 	while (node && common_bits(node, key, bits) >= node->cidr) {
 		if (node->peer)
@@ -137,10 +137,10 @@ static inline struct routing_table_node *find_node(struct routing_table_node *tr
 }
 
 /* Returns a strong reference to a peer */
-static inline struct wireguard_peer *lookup(struct routing_table_node __rcu *root, u8 bits, const void *ip)
+static inline struct wireguard_peer *lookup(struct allowedips_node __rcu *root, u8 bits, const void *ip)
 {
 	struct wireguard_peer *peer = NULL;
-	struct routing_table_node *node;
+	struct allowedips_node *node;
 
 	rcu_read_lock_bh();
 	node = find_node(rcu_dereference_bh(root), bits, ip);
@@ -150,10 +150,10 @@ static inline struct wireguard_peer *lookup(struct routing_table_node __rcu *roo
 	return peer;
 }
 
-static inline bool node_placement(struct routing_table_node __rcu *trie, const u8 *key, u8 cidr, u8 bits, struct routing_table_node **rnode, struct mutex *lock)
+static inline bool node_placement(struct allowedips_node __rcu *trie, const u8 *key, u8 cidr, u8 bits, struct allowedips_node **rnode, struct mutex *lock)
 {
 	bool exact = false;
-	struct routing_table_node *parent = NULL, *node = rcu_dereference_protected(trie, lockdep_is_held(lock));
+	struct allowedips_node *parent = NULL, *node = rcu_dereference_protected(trie, lockdep_is_held(lock));
 
 	while (node && node->cidr <= cidr && common_bits(node, key, bits) >= node->cidr) {
 		parent = node;
@@ -167,9 +167,9 @@ static inline bool node_placement(struct routing_table_node __rcu *trie, const u
 	return exact;
 }
 
-static int add(struct routing_table_node __rcu **trie, u8 bits, const u8 *key, u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
+static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *key, u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
 {
-	struct routing_table_node *node, *parent, *down, *newnode;
+	struct allowedips_node *node, *parent, *down, *newnode;
 
 	if (unlikely(cidr > bits || !peer))
 		return -EINVAL;
@@ -230,13 +230,13 @@ static int add(struct routing_table_node __rcu **trie, u8 bits, const u8 *key, u
 	return 0;
 }
 
-void routing_table_init(struct routing_table *table)
+void allowedips_init(struct allowedips *table)
 {
 	table->root4 = table->root6 = NULL;
 	table->seq = 1;
 }
 
-void routing_table_free(struct routing_table *table, struct mutex *lock)
+void allowedips_free(struct allowedips *table, struct mutex *lock)
 {
 	++table->seq;
 	free_root_node(table->root4, lock);
@@ -245,26 +245,26 @@ void routing_table_free(struct routing_table *table, struct mutex *lock)
 	rcu_assign_pointer(table->root6, NULL);
 }
 
-int routing_table_insert_v4(struct routing_table *table, const struct in_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
+int allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
 {
 	++table->seq;
 	return add(&table->root4, 32, (const u8 *)ip, cidr, peer, lock);
 }
 
-int routing_table_insert_v6(struct routing_table *table, const struct in6_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
+int allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
 {
 	++table->seq;
 	return add(&table->root6, 128, (const u8 *)ip, cidr, peer, lock);
 }
 
-void routing_table_remove_by_peer(struct routing_table *table, struct wireguard_peer *peer, struct mutex *lock)
+void allowedips_remove_by_peer(struct allowedips *table, struct wireguard_peer *peer, struct mutex *lock)
 {
 	++table->seq;
 	walk_remove_by_peer(&table->root4, peer, lock);
 	walk_remove_by_peer(&table->root6, peer, lock);
 }
 
-int routing_table_walk_by_peer(struct routing_table *table, struct routing_table_cursor *cursor, struct wireguard_peer *peer, int (*func)(void *ctx, const u8 *ip, u8 cidr, int family), void *ctx, struct mutex *lock)
+int allowedips_walk_by_peer(struct allowedips *table, struct allowedips_cursor *cursor, struct wireguard_peer *peer, int (*func)(void *ctx, const u8 *ip, u8 cidr, int family), void *ctx, struct mutex *lock)
 {
 	int ret;
 
@@ -284,7 +284,7 @@ int routing_table_walk_by_peer(struct routing_table *table, struct routing_table
 }
 
 /* Returns a strong reference to a peer */
-struct wireguard_peer *routing_table_lookup_dst(struct routing_table *table, struct sk_buff *skb)
+struct wireguard_peer *allowedips_lookup_dst(struct allowedips *table, struct sk_buff *skb)
 {
 	if (skb->protocol == htons(ETH_P_IP))
 		return lookup(table->root4, 32, &ip_hdr(skb)->daddr);
@@ -294,7 +294,7 @@ struct wireguard_peer *routing_table_lookup_dst(struct routing_table *table, str
 }
 
 /* Returns a strong reference to a peer */
-struct wireguard_peer *routing_table_lookup_src(struct routing_table *table, struct sk_buff *skb)
+struct wireguard_peer *allowedips_lookup_src(struct allowedips *table, struct sk_buff *skb)
 {
 	if (skb->protocol == htons(ETH_P_IP))
 		return lookup(table->root4, 32, &ip_hdr(skb)->saddr);
@@ -303,4 +303,4 @@ struct wireguard_peer *routing_table_lookup_src(struct routing_table *table, str
 	return NULL;
 }
 
-#include "selftest/routingtable.h"
+#include "selftest/allowedips.h"

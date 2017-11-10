@@ -124,7 +124,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err;
 	}
 
-	peer = routing_table_lookup_dst(&wg->peer_routing_table, skb);
+	peer = allowedips_lookup_dst(&wg->peer_allowedips, skb);
 	if (unlikely(!peer)) {
 		ret = -ENOKEY;
 		net_dbg_skb_ratelimited("%s: No peer is configured for %pISc\n", dev->name, skb);
@@ -216,7 +216,7 @@ static void destruct(struct net_device *dev)
 	packet_queue_free(&wg->encrypt_queue, true);
 	destroy_workqueue(wg->packet_crypt_wq);
 	rcu_barrier_bh(); /* Wait for all the peers to be actually freed. */
-	routing_table_free(&wg->peer_routing_table, &wg->device_update_lock);
+	allowedips_free(&wg->peer_allowedips, &wg->device_update_lock);
 	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
@@ -273,7 +273,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	skb_queue_head_init(&wg->incoming_handshakes);
 	pubkey_hashtable_init(&wg->peer_hashtable);
 	index_hashtable_init(&wg->index_hashtable);
-	routing_table_init(&wg->peer_routing_table);
+	allowedips_init(&wg->peer_allowedips);
 	cookie_checker_init(&wg->cookie_checker, wg);
 	INIT_LIST_HEAD(&wg->peer_list);
 	wg->device_update_gen = 1;
