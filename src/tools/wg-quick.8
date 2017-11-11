@@ -137,9 +137,9 @@ Building on the last example, one might attempt the so-called ``kill-switch'', i
 to prevent the flow of unencrypted packets through the non-WireGuard interfaces, by adding the following
 two lines `PostUp` and `PreDown` lines to the `[Interface]` section:
 
-    \fBPostUp = iptables -I OUTPUT ! -o %i -m mark ! --mark $(wg show %i fwmark) -j REJECT\fP
+    \fBPostUp = iptables -I OUTPUT ! -o %i -m mark ! --mark $(wg show %i fwmark) -m addrtype ! --dst-type LOCAL -j REJECT\fP
 .br
-    \fBPreDown = iptables -D OUTPUT ! -o %i -m mark ! --mark $(wg show %i fwmark) -j REJECT\fP
+    \fBPreDown = iptables -D OUTPUT ! -o %i -m mark ! --mark $(wg show %i fwmark) -m addrtype ! --dst-type LOCAL -j REJECT\fP
 .br
 
 The `PostUp' and `PreDown' fields have been added to specify an
@@ -148,7 +148,8 @@ command which, when used with interfaces that have a peer that specifies 0.0.0.0
 `AllowedIPs', works together with wg-quick's fwmark usage in order to drop all packets that
 are either not coming out of the tunnel encrypted or not going through the tunnel itself. (Note
 that this continues to allow most DHCP traffic through, since most DHCP clients make use of PF_PACKET
-sockets, which bypass Netfilter.)
+sockets, which bypass Netfilter.) When IPv6 is in use, additional similar lines could be added using
+.BR ip6tables (8).
 
 Or, perhaps it is desirable to store private keys in encrypted form, such as through use of
 .BR pass (1):
