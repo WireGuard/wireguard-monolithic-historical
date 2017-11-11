@@ -318,9 +318,11 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 	} else if (ctx->is_peer_section) {
 		if (key_match("Endpoint"))
 			ret = parse_endpoint(&ctx->last_peer->endpoint.addr, value);
-		else if (key_match("PublicKey"))
+		else if (key_match("PublicKey")) {
 			ret = parse_key(ctx->last_peer->public_key, value);
-		else if (key_match("AllowedIPs"))
+			if (ret)
+				ctx->last_peer->flags |= WGPEER_HAS_PUBLIC_KEY;
+		} else if (key_match("AllowedIPs"))
 			ret = parse_allowedips(ctx->last_peer, &ctx->last_allowedip, value);
 		else if (key_match("PersistentKeepalive"))
 			ret = parse_persistent_keepalive(&ctx->last_peer->persistent_keepalive_interval, &ctx->last_peer->flags, value);
@@ -328,7 +330,7 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 			ret = parse_key(ctx->last_peer->preshared_key, value);
 			if (!ret)
 				memset(ctx->last_peer->preshared_key, 0, WG_KEY_LEN);
-			else
+			else if (!key_is_zero(ctx->last_peer->preshared_key))
 				ctx->last_peer->flags |= WGPEER_HAS_PRESHARED_KEY;
 		} else
 			goto error;
@@ -390,7 +392,7 @@ struct wgdevice *config_read_finish(struct config_ctx *ctx)
 	struct wgpeer *peer;
 
 	for_each_wgpeer(ctx->device, peer) {
-		if (key_is_zero(peer->public_key)) {
+		if (!(peer->flags & WGPEER_HAS_PUBLIC_KEY)) {
 			fprintf(stderr, "A peer is missing a public key\n");
 			goto err;
 		}
@@ -548,7 +550,8 @@ struct wgdevice *config_read_cmd(char *argv[], int argc)
 			if (read_keyfile(key_line, argv[1])) {
 				if (!parse_key(peer->preshared_key, key_line))
 					goto error;
-				peer->flags |= WGPEER_HAS_PRESHARED_KEY;
+				if (!key_is_zero(peer->preshared_key))
+					peer->flags |= WGPEER_HAS_PRESHARED_KEY;
 			} else
 				goto error;
 			argv += 2;

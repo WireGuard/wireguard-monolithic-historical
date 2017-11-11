@@ -328,7 +328,7 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 			if (!key_from_hex(dev->private_key, value))
 				break;
 			curve25519_generate_public(dev->public_key, dev->private_key);
-			dev->flags |= WGDEVICE_HAS_PRIVATE_KEY;
+			dev->flags |= WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_PUBLIC_KEY;
 		} else if (!peer && !strcmp(key, "listen_port")) {
 			dev->listen_port = NUM(0xffffU);
 			dev->flags |= WGDEVICE_HAS_LISTEN_PORT;
@@ -350,10 +350,12 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 			peer = new_peer;
 			if (!key_from_hex(peer->public_key, value))
 				break;
+			peer->flags |= WGPEER_HAS_PUBLIC_KEY;
 		} else if (peer && !strcmp(key, "preshared_key")) {
 			if (!key_from_hex(peer->preshared_key, value))
 				break;
-			peer->flags |= WGPEER_HAS_PRESHARED_KEY;
+			if (!key_is_zero(peer->preshared_key))
+				peer->flags |= WGPEER_HAS_PRESHARED_KEY;
 		} else if (peer && !strcmp(key, "endpoint")) {
 			char *begin, *end;
 			struct addrinfo *resolved;
@@ -744,12 +746,17 @@ static int parse_peer(const struct nlattr *attr, void *data)
 	case WGPEER_A_UNSPEC:
 		break;
 	case WGPEER_A_PUBLIC_KEY:
-		if (mnl_attr_get_payload_len(attr) == sizeof(peer->public_key))
+		if (mnl_attr_get_payload_len(attr) == sizeof(peer->public_key)) {
 			memcpy(peer->public_key, mnl_attr_get_payload(attr), sizeof(peer->public_key));
+			peer->flags |= WGPEER_HAS_PUBLIC_KEY;
+		}
 		break;
 	case WGPEER_A_PRESHARED_KEY:
-		if (mnl_attr_get_payload_len(attr) == sizeof(peer->preshared_key))
+		if (mnl_attr_get_payload_len(attr) == sizeof(peer->preshared_key)) {
 			memcpy(peer->preshared_key, mnl_attr_get_payload(attr), sizeof(peer->preshared_key));
+			if (!key_is_zero(peer->preshared_key))
+				peer->flags |= WGPEER_HAS_PRESHARED_KEY;
+		}
 		break;
 	case WGPEER_A_ENDPOINT: {
 		struct sockaddr *addr;
@@ -807,7 +814,7 @@ static int parse_peers(const struct nlattr *attr, void *data)
 	ret = mnl_attr_parse_nested(attr, parse_peer, new_peer);
 	if (!ret)
 		return ret;
-	if (key_is_zero(new_peer->public_key))
+	if (!(new_peer->flags & WGPEER_HAS_PUBLIC_KEY))
 		return MNL_CB_ERROR;
 	return MNL_CB_OK;
 }
@@ -828,12 +835,16 @@ static int parse_device(const struct nlattr *attr, void *data)
 			strncpy(device->name, mnl_attr_get_str(attr), sizeof(device->name) - 1);
 		break;
 	case WGDEVICE_A_PRIVATE_KEY:
-		if (mnl_attr_get_payload_len(attr) == sizeof(device->private_key))
+		if (mnl_attr_get_payload_len(attr) == sizeof(device->private_key)) {
 			memcpy(device->private_key, mnl_attr_get_payload(attr), sizeof(device->private_key));
+			device->flags |= WGDEVICE_HAS_PRIVATE_KEY;
+		}
 		break;
 	case WGDEVICE_A_PUBLIC_KEY:
-		if (mnl_attr_get_payload_len(attr) == sizeof(device->public_key))
+		if (mnl_attr_get_payload_len(attr) == sizeof(device->public_key)) {
 			memcpy(device->public_key, mnl_attr_get_payload(attr), sizeof(device->public_key));
+			device->flags |= WGDEVICE_HAS_PUBLIC_KEY;
+		}
 		break;
 	case WGDEVICE_A_LISTEN_PORT:
 		if (!mnl_attr_validate(attr, MNL_TYPE_U16))

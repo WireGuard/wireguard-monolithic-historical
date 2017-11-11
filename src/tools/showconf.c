@@ -38,7 +38,7 @@ int showconf_main(int argc, char *argv[])
 		printf("ListenPort = %u\n", device->listen_port);
 	if (device->fwmark)
 		printf("FwMark = 0x%x\n", device->fwmark);
-	if (!key_is_zero(device->private_key)) {
+	if (device->flags & WGDEVICE_HAS_PRIVATE_KEY) {
 		key_to_base64(base64, device->private_key);
 		printf("PrivateKey = %s\n", base64);
 	}
@@ -46,7 +46,7 @@ int showconf_main(int argc, char *argv[])
 	for_each_wgpeer(device, peer) {
 		key_to_base64(base64, peer->public_key);
 		printf("[Peer]\nPublicKey = %s\n", base64);
-		if (!key_is_zero(peer->preshared_key)) {
+		if (peer->flags & WGPEER_HAS_PRESHARED_KEY) {
 			key_to_base64(base64, peer->preshared_key);
 			printf("PresharedKey = %s\n", base64);
 		}
