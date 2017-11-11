@@ -421,15 +421,17 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[WGDEVICE_A_PRIVATE_KEY] && nla_len(info->attrs[WGDEVICE_A_PRIVATE_KEY]) == NOISE_PUBLIC_KEY_LEN) {
 		struct wireguard_peer *peer, *temp;
-		u8 public_key[NOISE_PUBLIC_KEY_LEN] = { 0 }, *private_key = nla_data(info->attrs[WGDEVICE_A_PRIVATE_KEY]);
-		/* We remove before setting, to prevent race, which means doing two 25519-genpub ops. */
-		__attribute((unused)) bool unused = curve25519_generate_public(public_key, private_key);
+		u8 public_key[NOISE_PUBLIC_KEY_LEN], *private_key = nla_data(info->attrs[WGDEVICE_A_PRIVATE_KEY]);
 
-		peer = pubkey_hashtable_lookup(&wg->peer_hashtable, public_key);
-		if (peer) {
-			peer_put(peer);
-			peer_remove(peer);
+		/* We remove before setting, to prevent race, which means doing two 25519-genpub ops. */
+		if (curve25519_generate_public(public_key, private_key)) {
+			peer = pubkey_hashtable_lookup(&wg->peer_hashtable, public_key);
+			if (peer) {
+				peer_put(peer);
+				peer_remove(peer);
+			}
 		}
+
 		noise_set_static_identity_private_key(&wg->static_identity, private_key);
 		list_for_each_entry_safe(peer, temp, &wg->peer_list, peer_list) {
 			if (!noise_precompute_static_static(peer))

@@ -619,6 +619,10 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
 	static const u8 basepoint[CURVE25519_POINT_SIZE] __aligned(32) = { 9 };
+
+	if (unlikely(!crypto_memneq(secret, null_point, CURVE25519_POINT_SIZE)))
+		return false;
+
 #ifdef CONFIG_X86_64
 	if (curve25519_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
@@ -1675,6 +1679,9 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
 	static const u8 basepoint[CURVE25519_POINT_SIZE] __aligned(32) = { 9 };
+
+	if (unlikely(!crypto_memneq(secret, null_point, CURVE25519_POINT_SIZE)))
+		return false;
 
 	return curve25519(pub, secret, basepoint);
 }
