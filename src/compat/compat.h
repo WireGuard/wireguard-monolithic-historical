@@ -561,5 +561,17 @@ static inline void new_icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 
 #undef __read_mostly
 #define __read_mostly
 #endif
+#if defined(RAP_PLUGIN) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+#include <linux/timer.h>
+#define expired_retransmit_handshake(a) expired_retransmit_handshake(unsigned long timer)
+#define expired_send_keepalive(a) expired_send_keepalive(unsigned long timer)
+#define expired_new_handshake(a) expired_new_handshake(unsigned long timer)
+#define expired_zero_key_material(a) expired_zero_key_material(unsigned long timer)
+#define expired_send_persistent_keepalive(a) expired_send_persistent_keepalive(unsigned long timer)
+#undef timer_setup
+#define timer_setup(a, b, c) setup_timer(a, ((void (*)(unsigned long))b), ((unsigned long)a))
+#undef from_timer
+#define from_timer(var, callback_timer, timer_fieldname) container_of((struct timer_list *)callback_timer, typeof(*var), timer_fieldname)
+#endif
 
 #endif /* _WG_COMPAT_H */
