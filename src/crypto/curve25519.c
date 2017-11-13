@@ -192,7 +192,7 @@ static void curve25519_sandy2x_base(u8 pub[CURVE25519_POINT_SIZE], const u8 secr
 	memzero_explicit(x_51, sizeof(x_51));
 	memzero_explicit(z_51, sizeof(z_51));
 }
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM) && !defined(CONFIG_CPU_THUMBONLY)
+#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
 #include <asm/hwcap.h>
 #include <asm/neon.h>
 #include <asm/simd.h>
@@ -1470,7 +1470,7 @@ static void cmult(limb *resultx, limb *resultz, const u8 *n, const limb *q)
 
 bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
 {
-#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM) && !defined(CONFIG_CPU_THUMBONLY)
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
 	if (curve25519_use_neon && may_use_simd()) {
 		kernel_neon_begin();
 		curve25519_asm_neon(mypublic, secret, basepoint);
@@ -1649,7 +1649,7 @@ static void cmult(struct other_stack *s, limb *resultx, limb *resultz, const u8 
 
 bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
 {
-#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM) && !defined(CONFIG_CPU_THUMBONLY)
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
 	if (curve25519_use_neon && may_use_simd()) {
 		kernel_neon_begin();
 		curve25519_asm_neon(mypublic, secret, basepoint);

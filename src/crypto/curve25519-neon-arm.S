@@ -6,15 +6,15 @@
 #include <linux/linkage.h>
 
 	.text
-	.arm
 	.fpu		neon
 	.align		4
 
 ENTRY(curve25519_asm_neon)
 	vpush {q4,q5,q6,q7}
 	mov r12,sp
-	sub sp,sp,#736
-	and sp,sp,#0xffffffe0
+	sub r3,sp,#736
+	and r3,r3,#0xffffffe0
+	mov sp,r3
 	strd r4,[sp,#0]
 	strd r6,[sp,#8]
 	strd r8,[sp,#16]
