@@ -13,11 +13,13 @@ struct allowedips_node {
 
 static inline void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src, u8 cidr)
 {
-	memcpy(node->bits, src, (cidr + 7) / 8);
-	node->bits[(cidr + 7) / 8 - 1] &= 0xffU << ((8 - (cidr % 8)) % 8);
 	node->cidr = cidr;
 	node->bit_at_a = cidr / 8;
 	node->bit_at_b = 7 - (cidr % 8);
+	if (cidr) {
+		memcpy(node->bits, src, (cidr + 7) / 8);
+		node->bits[(cidr + 7) / 8 - 1] &= ~0U << ((8 - (cidr % 8)) % 8);
+	}
 }
 #define choose_node(parent, key) parent->bit[(key[parent->bit_at_a] >> parent->bit_at_b) & 1]
 
