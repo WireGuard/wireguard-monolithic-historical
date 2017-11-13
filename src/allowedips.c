@@ -5,13 +5,28 @@
 
 struct allowedips_node {
 	struct allowedips_node __rcu *bit[2];
-	struct rcu_head rcu;
-	struct wireguard_peer *peer;
+	/* While it may seem scandalous that we waste space for v4,
+	 * we're alloc'ing to the nearest power of 2 anyway, so this
+	 * doesn't actually make a difference.
+	 */
+	union {
+		__be64 v6[2];
+		__be32 v4;
+		u8 bits[16];
+	};
+	union {
+		__be64 mask_v6;
+		__be32 mask_v4;
+	};
 	u8 cidr, bit_at_a, bit_at_b;
-	u8 bits[] __aligned(__alignof__(u64));
+	/* Putting these members here puts a big hole in the struct,
+	 * but it also keeps it above the cache line, which is important.
+	 */
+	struct wireguard_peer *peer;
+	struct rcu_head rcu;
 };
 
-static inline void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src, u8 cidr)
+static void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src, u8 cidr, u8 bits)
 {
 	node->cidr = cidr;
 	node->bit_at_a = cidr / 8;
@@ -19,8 +34,13 @@ static inline void copy_and_assign_cidr(struct allowedips_node *node, const u8 *
 	if (cidr) {
 		memcpy(node->bits, src, (cidr + 7) / 8);
 		node->bits[(cidr + 7) / 8 - 1] &= ~0U << ((8 - (cidr % 8)) % 8);
+		if (bits == 32)
+			node->mask_v4 = cpu_to_be32(~0U << (32 - cidr));
+		else if (bits == 128)
+			node->mask_v6 = cpu_to_be64(~0ULL << (64 - (cidr & 63)));
 	}
 }
+
 #define choose_node(parent, key) parent->bit[(key[parent->bit_at_a] >> parent->bit_at_b) & 1]
 
 static void node_free_rcu(struct rcu_head *rcu)
@@ -123,12 +143,30 @@ static __always_inline u8 common_bits(const struct allowedips_node *node, const 
 		return 128 - fls128(be64_to_cpu(*(const __be64 *)&node->bits[0] ^ *(const __be64 *)&key[0]), be64_to_cpu(*(const __be64 *)&node->bits[8] ^ *(const __be64 *)&key[8]));
 	return 0;
 }
+static __always_inline bool prefix_matches(struct allowedips_node *node, const u8 *key, u8 bits)
+{
+	if (!node->cidr)
+		return true;
+	if (bits == 32)
+		return !((node->v4 ^ ((__be32 *)key)[0]) & node->mask_v4);
+	else if (bits == 128) {
+		if (node->cidr >= 64) {
+			if (node->v6[0] ^ ((__be64 *)key)[0])
+				return false;
+			if (node->cidr == 64)
+				return true;
+			return !((node->v6[1] ^ ((__be64 *)key)[1]) & node->mask_v6);
+		}
+		return !((node->v6[0] ^ ((__be64 *)key)[0]) & node->mask_v6);
+	} else
+		return false;
+}
 
-static inline struct allowedips_node *find_node(struct allowedips_node *trie, u8 bits, const u8 *key)
+static __always_inline struct allowedips_node *find_node(struct allowedips_node *trie, u8 bits, const u8 *key)
 {
 	struct allowedips_node *node = trie, *found = NULL;
 
-	while (node && common_bits(node, key, bits) >= node->cidr) {
+	while (node && prefix_matches(node, key, bits)) {
 		if (node->peer)
 			found = node;
 		if (node->cidr == bits)
@@ -139,7 +177,7 @@ static inline struct allowedips_node *find_node(struct allowedips_node *trie, u8
 }
 
 /* Returns a strong reference to a peer */
-static inline struct wireguard_peer *lookup(struct allowedips_node __rcu *root, u8 bits, const void *ip)
+static __always_inline struct wireguard_peer *lookup(struct allowedips_node __rcu *root, u8 bits, const void *ip)
 {
 	struct wireguard_peer *peer = NULL;
 	struct allowedips_node *node;
@@ -157,7 +195,7 @@ static inline bool node_placement(struct allowedips_node __rcu *trie, const u8 *
 	bool exact = false;
 	struct allowedips_node *parent = NULL, *node = rcu_dereference_protected(trie, lockdep_is_held(lock));
 
-	while (node && node->cidr <= cidr && common_bits(node, key, bits) >= node->cidr) {
+	while (node && node->cidr <= cidr && prefix_matches(node, key, bits)) {
 		parent = node;
 		if (parent->cidr == cidr) {
 			exact = true;
@@ -177,11 +215,11 @@ static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *key, u8 c
 		return -EINVAL;
 
 	if (!rcu_access_pointer(*trie)) {
-		node = kzalloc(sizeof(*node) + (bits + 7) / 8, GFP_KERNEL);
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
 		if (!node)
 			return -ENOMEM;
 		node->peer = peer;
-		copy_and_assign_cidr(node, key, cidr);
+		copy_and_assign_cidr(node, key, cidr, bits);
 		rcu_assign_pointer(*trie, node);
 		return 0;
 	}
@@ -190,11 +228,11 @@ static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *key, u8 c
 		return 0;
 	}
 
-	newnode = kzalloc(sizeof(*node) + (bits + 7) / 8, GFP_KERNEL);
+	newnode = kzalloc(sizeof(*newnode), GFP_KERNEL);
 	if (!newnode)
 		return -ENOMEM;
 	newnode->peer = peer;
-	copy_and_assign_cidr(newnode, key, cidr);
+	copy_and_assign_cidr(newnode, key, cidr, bits);
 
 	if (!node)
 		down = rcu_dereference_protected(*trie, lockdep_is_held(lock));
@@ -215,12 +253,12 @@ static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *key, u8 c
 		else
 			rcu_assign_pointer(choose_node(parent, newnode->bits), newnode);
 	} else {
-		node = kzalloc(sizeof(*node) + (bits + 7) / 8, GFP_KERNEL);
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
 		if (!node) {
 			kfree(newnode);
 			return -ENOMEM;
 		}
-		copy_and_assign_cidr(node, newnode->bits, cidr);
+		copy_and_assign_cidr(node, newnode->bits, cidr, bits);
 
 		rcu_assign_pointer(choose_node(node, down->bits), down);
 		rcu_assign_pointer(choose_node(node, newnode->bits), newnode);
