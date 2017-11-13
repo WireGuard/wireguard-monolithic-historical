@@ -188,6 +188,7 @@ static __init void *horrible_allowedips_lookup_v6(struct horrible_allowedips *ta
 
 static __init bool randomized_test(void)
 {
+	DEFINE_MUTEX(mutex);
 	bool ret = false;
 	unsigned int i, j, k, mutate_amount, cidr;
 	struct wireguard_peer **peers, *peer;
@@ -216,7 +217,7 @@ static __init bool randomized_test(void)
 		prandom_bytes(ip, 4);
 		cidr = prandom_u32_max(32) + 1;
 		peer = peers[prandom_u32_max(NUM_PEERS)];
-		if (allowedips_insert_v4(&t, (struct in_addr *)ip, cidr, peer) < 0) {
+		if (allowedips_insert_v4(&t, (struct in_addr *)ip, cidr, peer, &mutex) < 0) {
 			pr_info("allowedips random self-test: out of memory\n");
 			goto free;
 		}
@@ -237,7 +238,7 @@ static __init bool randomized_test(void)
 				mutated[k] = (mutated[k] & mutate_mask[k]) | (~mutate_mask[k] & prandom_u32_max(256));
 			cidr = prandom_u32_max(32) + 1;
 			peer = peers[prandom_u32_max(NUM_PEERS)];
-			if (allowedips_insert_v4(&t, (struct in_addr *)mutated, cidr, peer) < 0) {
+			if (allowedips_insert_v4(&t, (struct in_addr *)mutated, cidr, peer, &mutex) < 0) {
 				pr_info("allowedips random self-test: out of memory\n");
 				goto free;
 			}
@@ -252,7 +253,7 @@ static __init bool randomized_test(void)
 		prandom_bytes(ip, 16);
 		cidr = prandom_u32_max(128) + 1;
 		peer = peers[prandom_u32_max(NUM_PEERS)];
-		if (allowedips_insert_v6(&t, (struct in6_addr *)ip, cidr, peer) < 0) {
+		if (allowedips_insert_v6(&t, (struct in6_addr *)ip, cidr, peer, &mutex) < 0) {
 			pr_info("allowedips random self-test: out of memory\n");
 			goto free;
 		}
@@ -273,7 +274,7 @@ static __init bool randomized_test(void)
 				mutated[k] = (mutated[k] & mutate_mask[k]) | (~mutate_mask[k] & prandom_u32_max(256));
 			cidr = prandom_u32_max(128) + 1;
 			peer = peers[prandom_u32_max(NUM_PEERS)];
-			if (allowedips_insert_v6(&t, (struct in6_addr *)mutated, cidr, peer) < 0) {
+			if (allowedips_insert_v6(&t, (struct in6_addr *)mutated, cidr, peer, &mutex) < 0) {
 				pr_info("allowedips random self-test: out of memory\n");
 				goto free;
 			}
@@ -307,7 +308,7 @@ static __init bool randomized_test(void)
 	ret = true;
 
 free:
-	allowedips_free(&t);
+	allowedips_free(&t, &mutex);
 	horrible_allowedips_free(&h);
 	if (peers) {
 		for (i = 0; i < NUM_PEERS; ++i)
