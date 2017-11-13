@@ -15,7 +15,7 @@
 #include <net/route.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ip6_fib.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 50)
 static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 {
 	if ((unlikely(rt->dst.flags & DST_NOCACHE) && rt->dst.from))
