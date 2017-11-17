@@ -208,8 +208,9 @@ static void destruct(struct net_device *dev)
 	list_del(&wg->device_list);
 	rtnl_unlock();
 	mutex_lock(&wg->device_update_lock);
-	peer_remove_all(wg); /* The final references are cleared in the below calls to destroy_workqueue. */
 	wg->incoming_port = 0;
+	socket_reinit(wg, NULL, NULL);
+	peer_remove_all(wg); /* The final references are cleared in the below calls to destroy_workqueue. */
 	destroy_workqueue(wg->handshake_receive_wq);
 	destroy_workqueue(wg->handshake_send_wq);
 	packet_queue_free(&wg->decrypt_queue, true);
@@ -220,7 +221,6 @@ static void destruct(struct net_device *dev)
 	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
-	socket_reinit(wg, NULL, NULL);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
 	if (wg->have_creating_net_ref)
