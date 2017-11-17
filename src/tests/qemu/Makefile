@@ -62,10 +62,12 @@ export CPPFLAGS := -I$(BUILD_PATH)/include
 ifeq ($(CHOST),$(CBUILD))
 CROSS_COMPILE_FLAG := --host=$(CHOST)
 CFLAGS += -march=native
+STRIP := strip
 else
 $(info Cross compilation: building for $(CBUILD) using $(CHOST))
 CROSS_COMPILE_FLAG := --build=$(CBUILD) --host=$(CHOST)
 export CROSS_COMPILE=$(CBUILD)-
+STRIP := $(CBUILD)-strip
 endif
 ifeq ($(ARCH),aarch64)
 QEMU_ARCH := aarch64
@@ -155,7 +157,6 @@ else
 $(error I only build: x86_64, i686, arm, aarch64, mips, mipsel, mips64, mips64el)
 endif
 
-STRIP := $(CBUILD)-strip
 REAL_CC := $(CBUILD)-gcc
 MUSL_CC := $(BUILD_PATH)/musl-gcc
 export CC := $(MUSL_CC)
