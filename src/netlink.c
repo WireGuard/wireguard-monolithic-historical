@@ -260,13 +260,13 @@ static int set_port(struct wireguard_device *wg, u16 port)
 
 	if (wg->incoming_port == port)
 		return 0;
-	socket_uninit(wg);
-	wg->incoming_port = port;
 	list_for_each_entry(peer, &wg->peer_list, peer_list)
 		socket_clear_peer_endpoint_src(peer);
-	if (!netif_running(wg->dev))
+	if (!netif_running(wg->dev)) {
+		wg->incoming_port = port;
 		return 0;
-	return socket_init(wg);
+	}
+	return socket_init(wg, port);
 }
 
 static int set_allowedip(struct wireguard_peer *peer, struct nlattr **attrs)
