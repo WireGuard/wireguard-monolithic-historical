@@ -35,3 +35,26 @@ ifeq ($(shell grep -F "int crypto_memneq" "$(srctree)/include/crypto/algapi.h"),
 ccflags-y += -include $(src)/compat/memneq/include.h
 wireguard-y += compat/memneq/memneq.o
 endif
+
+ifeq ($(CONFIG_X86_64),y)
+	ifeq ($(ssse3_instr),)
+		ssse3_instr := $(call as-instr,pshufb %xmm0$(comma)%xmm0,-DCONFIG_AS_SSSE3=1)
+		ccflags-y += $(ssse3_instr)
+		asflags-y += $(ssse3_instr)
+	endif
+	ifeq ($(avx_instr),)
+		avx_instr := $(call as-instr,vxorps %ymm0$(comma)%ymm1$(comma)%ymm2,-DCONFIG_AS_AVX=1)
+		ccflags-y += $(avx_instr)
+		asflags-y += $(avx_instr)
+	endif
+	ifeq ($(avx2_instr),)
+		avx2_instr := $(call as-instr,vpbroadcastb %xmm0$(comma)%ymm1,-DCONFIG_AS_AVX2=1)
+		ccflags-y += $(avx2_instr)
+		asflags-y += $(avx2_instr)
+	endif
+	ifeq ($(avx512_instr),)
+		avx512_instr := $(call as-instr,vpmovm2b %k1$(comma)%zmm5,-DCONFIG_AS_AVX512=1)
+		ccflags-y += $(avx512_instr)
+		asflags-y += $(avx512_instr)
+	endif
+endif

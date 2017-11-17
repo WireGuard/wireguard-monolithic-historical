@@ -28,10 +28,6 @@
 #error "WireGuard requires Linux >= 3.10"
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0) && defined(CONFIG_X86_64)
-#define CONFIG_AS_SSSE3
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0) && !defined(ISRHEL7)
 #define headers_start data
 #define headers_end data
@@ -507,6 +503,9 @@ static inline int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_n
 #ifndef XFEATURE_MASK_SSE
 #define XFEATURE_MASK_SSE XSTATE_SSE
 #endif
+#ifndef XFEATURE_MASK_ZMM_Hi256
+#define XFEATURE_MASK_ZMM_Hi256 XSTATE_ZMM_Hi256
+#endif
 #endif
 #endif
 
@@ -518,6 +517,10 @@ struct _____dummy_container { char dev; };
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 #define timer_setup(a, b, c) setup_timer(a, ((void (*)(unsigned long))b), ((unsigned long)a))
 #define from_timer(var, callback_timer, timer_fieldname) container_of(callback_timer, typeof(*var), timer_fieldname)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 3)
+#define COMPAT_CANNOT_USE_AVX512
 #endif
 
 /* https://lkml.org/lkml/2017/6/23/790 */

@@ -17,6 +17,7 @@ ROT16:	.octa 0x0D0C0F0E09080B0A0504070601000302
 ROR328:	.octa 0x0C0F0E0D080B0A090407060500030201
 
 .text
+#ifdef CONFIG_AS_AVX
 ENTRY(blake2s_compress_avx)
 	movl		%ecx, %ecx
 	testq		%rdx, %rdx
@@ -584,3 +585,4 @@ ENTRY(blake2s_compress_avx)
 .Lendofloop:
 	ret
 ENDPROC(blake2s_compress_avx)
+#endif /* CONFIG_AS_AVX */
