@@ -83,16 +83,22 @@ static inline bool parse_fwmark(uint32_t *fwmark, uint32_t *flags, const char *v
 		return true;
 	}
 
-	if (value[0] == '0' && value[1] == 'x') {
-		value += 2;
+	if (!isdigit(value[0]))
+		goto err;
+
+	if (strlen(value) > 2 && value[0] == '0' && value[1] == 'x')
 		base = 16;
-	}
+
 	ret = strtoul(value, &end, base);
-	if (!*value || *end || ret > UINT32_MAX)
-		return false;
+	if (*end || ret > UINT32_MAX)
+		goto err;
+
 	*fwmark = ret;
 	*flags |= WGDEVICE_HAS_FWMARK;
 	return true;
+err:
+	fprintf(stderr, "Fwmark is neither 0/off nor 0-0xffffffff: `%s'\n", value);
+	return false;
 }
 
 static inline bool parse_key(uint8_t key[static WG_KEY_LEN], const char *value)
@@ -206,22 +212,26 @@ static inline bool parse_persistent_keepalive(uint16_t *interval, uint32_t *flag
 		return true;
 	}
 
+	if (!isdigit(value[0]))
+		goto err;
+
 	ret = strtoul(value, &end, 10);
-	if (!*value || *value == '-' || *end || ret > 65535) {
-		fprintf(stderr, "The persistent keepalive interval must be 0/off or 1-65535. Found: `%s'\n", value);
-		return false;
-	}
+	if (*end || ret > 65535)
+		goto err;
 
 	*interval = (uint16_t)ret;
 	*flags |= WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL;
 	return true;
+err:
+	fprintf(stderr, "Persistent keepalive interval is neither 0/off nor 1-65535: `%s'\n", value);
+	return false;
 }
 
 
 static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **last_allowedip, const char *value)
 {
 	struct wgallowedip *allowedip = *last_allowedip, *new_allowedip;
-	char *mask, *mutable = strdup(value), *sep;
+	char *mask, *mutable = strdup(value), *sep, *saved_entry;
 
 	if (!mutable) {
 		perror("strdup");
@@ -234,41 +244,57 @@ static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **la
 	}
 	sep = mutable;
 	while ((mask = strsep(&sep, ","))) {
-		unsigned long cidr = ULONG_MAX;
-		char *end, *ip = strsep(&mask, "/");
+		unsigned long cidr;
+		char *end, *ip;
+
+		saved_entry = strdup(mask);
+		ip = strsep(&mask, "/");
 
 		new_allowedip = calloc(1, sizeof(struct wgallowedip));
 		if (!new_allowedip) {
 			perror("calloc");
+			free(saved_entry);
 			free(mutable);
 			return false;
 		}
+
+		if (!parse_ip(new_allowedip, ip)) {
+			free(saved_entry);
+			free(mutable);
+			return false;
+		}
+
+		if (mask) {
+			if (!isdigit(mask[0]))
+				goto err;
+			cidr = strtoul(mask, &end, 10);
+			if (*end || (cidr > 32 && new_allowedip->family == AF_INET) || (cidr > 128 && new_allowedip->family == AF_INET6))
+				goto err;
+		} else if (new_allowedip->family == AF_INET)
+			cidr = 32;
+		else if (new_allowedip->family == AF_INET6)
+			cidr = 128;
+		else
+			goto err;
+		new_allowedip->cidr = cidr;
+
 		if (allowedip)
 			allowedip->next_allowedip = new_allowedip;
 		else
 			peer->first_allowedip = new_allowedip;
 		allowedip = new_allowedip;
-
-		if (!parse_ip(allowedip, ip)) {
-			free(mutable);
-			return false;
-		}
-		if (mask && *mask) {
-			cidr = strtoul(mask, &end, 10);
-			if (*end)
-				cidr = ULONG_MAX;
-		}
-		if (allowedip->family == AF_INET)
-			cidr = cidr > 32 ? 32 : cidr;
-		else if (allowedip->family == AF_INET6)
-			cidr = cidr > 128 ? 128 : cidr;
-		else
-			continue;
-		allowedip->cidr = cidr;
+		free(saved_entry);
 	}
 	free(mutable);
 	*last_allowedip = allowedip;
 	return true;
+
+err:
+	free(new_allowedip);
+	free(mutable);
+	fprintf(stderr, "AllowedIP is not in the correct format: `%s'\n", saved_entry);
+	free(saved_entry);
+	return false;
 }
 
 static bool process_line(struct config_ctx *ctx, const char *line)

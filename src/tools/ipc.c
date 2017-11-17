@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <time.h>
 #include <dirent.h>
@@ -280,7 +281,7 @@ static int userspace_set_device(struct wgdevice *dev)
 #define NUM(max) ({ \
 	unsigned long long num; \
 	char *end; \
-	if (!strlen(value)) \
+	if (!isdigit(value[0])) \
 		break; \
 	num = strtoull(value, &end, 10); \
 	if (*end || num > max) \
@@ -398,11 +399,10 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 			peer->flags |= WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL;
 		} else if (peer && !strcmp(key, "allowed_ip")) {
 			struct wgallowedip *new_allowedip;
-			char *end, *cidr = strchr(value, '/');
+			char *end, *mask = value, *ip = strsep(&mask, "/");
 
-			if (!cidr || strlen(cidr) <= 1)
+			if (!mask || !isdigit(mask[0]))
 				break;
-			*cidr++ = '\0';
 			new_allowedip = calloc(1, sizeof(struct wgallowedip));
 			if (!new_allowedip) {
 				ret = -ENOMEM;
@@ -414,14 +414,14 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 				peer->first_allowedip = new_allowedip;
 			allowedip = new_allowedip;
 			allowedip->family = AF_UNSPEC;
-			if (strchr(value, ':')) {
-				if (inet_pton(AF_INET6, value, &allowedip->ip6) == 1)
+			if (strchr(ip, ':')) {
+				if (inet_pton(AF_INET6, ip, &allowedip->ip6) == 1)
 					allowedip->family = AF_INET6;
 			} else {
-				if (inet_pton(AF_INET, value, &allowedip->ip4) == 1)
+				if (inet_pton(AF_INET, ip, &allowedip->ip4) == 1)
 					allowedip->family = AF_INET;
 			}
-			allowedip->cidr = strtoul(cidr, &end, 10);
+			allowedip->cidr = strtoul(mask, &end, 10);
 			if (*end || allowedip->family == AF_UNSPEC || (allowedip->family == AF_INET6 && allowedip->cidr > 128) || (allowedip->family == AF_INET && allowedip->cidr > 32))
 				break;
 		} else if (peer && !strcmp(key, "last_handshake_time_sec"))
