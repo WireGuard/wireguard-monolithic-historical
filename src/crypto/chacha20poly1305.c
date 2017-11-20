@@ -43,24 +43,24 @@
 #if defined(CONFIG_X86_64)
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
-asmlinkage void poly1305_init_x86_64(void *ctx, const unsigned char key[16]);
-asmlinkage void poly1305_blocks_x86_64(void *ctx, const unsigned char *inp, size_t len, u32 padbit);
-asmlinkage void poly1305_emit_x86_64(void *ctx, unsigned char mac[16], const u32 nonce[4]);
+asmlinkage void poly1305_init_x86_64(void *ctx, const u8 key[16]);
+asmlinkage void poly1305_blocks_x86_64(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_emit_x86_64(void *ctx, u8 mac[16], const u32 nonce[4]);
 #ifdef CONFIG_AS_SSSE3
 asmlinkage void hchacha20_ssse3(u8 *derived_key, const u8 *nonce, const u8 *key);
-asmlinkage void chacha20_ssse3(unsigned char *out, const unsigned char *in, size_t len, const unsigned int key[8], const unsigned int counter[4]);
+asmlinkage void chacha20_ssse3(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
 #endif
 #ifdef CONFIG_AS_AVX
 asmlinkage void poly1305_emit_avx(void *ctx, u8 mac[16], const u32 nonce[4]);
 asmlinkage void poly1305_blocks_avx(void *ctx, const u8 *inp, size_t len, u32 padbit);
 #endif
 #ifdef CONFIG_AS_AVX2
-asmlinkage void chacha20_avx2(unsigned char *out, const unsigned char *in, size_t len, const unsigned int key[8], const unsigned int counter[4]);
-asmlinkage void poly1305_blocks_avx2(void *ctx, const unsigned char *inp, size_t len, u32 padbit);
+asmlinkage void chacha20_avx2(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void poly1305_blocks_avx2(void *ctx, const u8 *inp, size_t len, u32 padbit);
 #endif
 #ifdef CONFIG_AS_AVX512
-asmlinkage void chacha20_avx512(unsigned char *out, const unsigned char *in, size_t len, const unsigned int key[8], const unsigned int counter[4]);
-asmlinkage void poly1305_blocks_avx512(void *ctx, const unsigned char *inp, size_t len, u32 padbit);
+asmlinkage void chacha20_avx512(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void poly1305_blocks_avx512(void *ctx, const u8 *inp, size_t len, u32 padbit);
 #endif
 
 static bool chacha20poly1305_use_ssse3 __read_mostly;
@@ -77,11 +77,19 @@ void chacha20poly1305_fpu_init(void)
 	chacha20poly1305_use_avx512 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_ZMM_Hi256, NULL);
 #endif
 }
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+#elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+asmlinkage void poly1305_init_arm(void *ctx, const u8 key[16]);
+asmlinkage void poly1305_blocks_arm(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_emit_arm(void *ctx, u8 mac[16], const u32 nonce[4]);
+asmlinkage void chacha20_arm(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && (!defined(__LINUX_ARM_ARCH__) || __LINUX_ARM_ARCH__ >= 7)
+#define ARM_USE_NEON
 #include <asm/hwcap.h>
 #include <asm/neon.h>
-asmlinkage void chacha20_asm_block_xor_neon(u32 *state, u8 *dst, const u8 *src);
-asmlinkage void chacha20_asm_4block_xor_neon(u32 *state, u8 *dst, const u8 *src);
+asmlinkage void poly1305_blocks_neon(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_emit_neon(void *ctx, u8 mac[16], const u32 nonce[4]);
+asmlinkage void chacha20_neon(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+#endif
 static bool chacha20poly1305_use_neon __read_mostly;
 void __init chacha20poly1305_fpu_init(void)
 {
@@ -295,7 +303,7 @@ static void chacha20_crypt(struct chacha20_ctx *ctx, u8 *dst, const u8 *src, u32
 #if defined(CONFIG_X86_64)
 		|| !chacha20poly1305_use_ssse3
 
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+#elif defined(ARM_USE_NEON)
 		|| !chacha20poly1305_use_neon
 #endif
 	)
@@ -321,30 +329,19 @@ static void chacha20_crypt(struct chacha20_ctx *ctx, u8 *dst, const u8 *src, u32
 	ctx->state[12] += (bytes + 63) / 64;
 	return;
 #endif
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
-	while (bytes >= CHACHA20_BLOCK_SIZE * 4) {
-		chacha20_asm_4block_xor_neon(ctx->state, dst, src);
-		bytes -= CHACHA20_BLOCK_SIZE * 4;
-		src += CHACHA20_BLOCK_SIZE * 4;
-		dst += CHACHA20_BLOCK_SIZE * 4;
-		ctx->state[12] += 4;
-	}
-	while (bytes >= CHACHA20_BLOCK_SIZE) {
-		chacha20_asm_block_xor_neon(ctx->state, dst, src);
-		bytes -= CHACHA20_BLOCK_SIZE;
-		src += CHACHA20_BLOCK_SIZE;
-		dst += CHACHA20_BLOCK_SIZE;
-		ctx->state[12]++;
-	}
-	if (bytes) {
-		memcpy(buf, src, bytes);
-		chacha20_asm_block_xor_neon(ctx->state, buf, buf);
-		memcpy(dst, buf, bytes);
-	}
+#elif defined(ARM_USE_NEON)
+	chacha20_neon(dst, src, bytes, &ctx->state[4], &ctx->state[12]);
+	ctx->state[12] += (bytes + 63) / 64;
 	return;
 #endif
 
 no_simd:
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+	chacha20_arm(dst, src, bytes, &ctx->state[4], &ctx->state[12]);
+	ctx->state[12] += (bytes + 63) / 64;
+	return;
+#endif
+
 	if (dst != src)
 		memcpy(dst, src, bytes);
 
@@ -373,7 +370,7 @@ struct poly1305_ctx {
 	} func;
 } __aligned(8);
 
-#ifndef CONFIG_X86_64
+#if !(defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
 struct poly1305_internal {
 	u32 h[5];
 	u32 r[4];
@@ -397,8 +394,7 @@ static void poly1305_init_generic(void *ctx, const u8 key[16])
 	st->r[3] = le32_to_cpuvp(&key[12]) & 0x0ffffffc;
 }
 
-static void
-poly1305_blocks_generic(void *ctx, const u8 *inp, size_t len, u32 padbit)
+static void poly1305_blocks_generic(void *ctx, const u8 *inp, size_t len, u32 padbit)
 {
 #define CONSTANT_TIME_CARRY(a,b) ((a ^ ((a ^ b) | ((a - b) ^ b))) >> (sizeof(a) * 8 - 1))
 	struct poly1305_internal *st = (struct poly1305_internal *)ctx;
@@ -536,14 +532,14 @@ static void poly1305_emit_generic(void *ctx, u8 mac[16], const u32 nonce[4])
 }
 #endif /* !CONFIG_X86_64 */
 
-void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], bool have_simd)
+static void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], bool have_simd)
 {
 	ctx->nonce[0] = le32_to_cpuvp(&key[16]);
 	ctx->nonce[1] = le32_to_cpuvp(&key[20]);
 	ctx->nonce[2] = le32_to_cpuvp(&key[24]);
 	ctx->nonce[3] = le32_to_cpuvp(&key[28]);
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64)
 	poly1305_init_x86_64(ctx->opaque, key);
 	ctx->func.blocks = poly1305_blocks_x86_64;
 	ctx->func.emit = poly1305_emit_x86_64;
@@ -565,15 +561,25 @@ void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], bo
 		ctx->func.emit = poly1305_emit_avx;
 	}
 #endif
+#elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+	poly1305_init_arm(ctx->opaque, key);
+	ctx->func.blocks = poly1305_blocks_arm;
+	ctx->func.emit = poly1305_emit_arm;
+#if defined(ARM_USE_NEON)
+	if (chacha20poly1305_use_neon && have_simd) {
+		ctx->func.blocks = poly1305_blocks_neon;
+		ctx->func.emit = poly1305_emit_neon;
+	}
+#endif
 #else
 	poly1305_init_generic(ctx->opaque, key);
 #endif
 	ctx->num = 0;
 }
 
-void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len)
+static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len)
 {
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 	const poly1305_blocks_f blocks = ctx->func.blocks;
 #else
 	const poly1305_blocks_f blocks = poly1305_blocks_generic;
@@ -611,14 +617,14 @@ void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len)
 	ctx->num = rem;
 }
 
-void poly1305_finish(struct poly1305_ctx * ctx, u8 mac[16])
+static void poly1305_finish(struct poly1305_ctx * ctx, u8 mac[16])
 {
-#ifdef CONFIG_X86_64
-	poly1305_blocks_f blocks = ctx->func.blocks;
-	poly1305_emit_f emit = ctx->func.emit;
+#if defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+	const poly1305_blocks_f blocks = ctx->func.blocks;
+	const poly1305_emit_f emit = ctx->func.emit;
 #else
-	poly1305_blocks_f blocks = poly1305_blocks_generic;
-	poly1305_emit_f emit = poly1305_emit_generic;
+	const poly1305_blocks_f blocks = poly1305_blocks_generic;
+	const poly1305_emit_f emit = poly1305_emit_generic;
 #endif
 	size_t num = ctx->num;
 

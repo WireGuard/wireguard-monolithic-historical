@@ -3,13 +3,15 @@
  * Based on algorithms from Daniel J. Bernstein and Peter Schwabe.
  */
 
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+
 #include <linux/linkage.h>
 
 	.text
 	.fpu		neon
 	.align		4
 
-ENTRY(curve25519_asm_neon)
+ENTRY(curve25519_neon)
 	vpush {q4,q5,q6,q7}
 	mov r12,sp
 	sub r3,sp,#736
@@ -2102,4 +2104,5 @@ ENTRY(curve25519_asm_neon)
 	mov sp,r12
 	vpop {q4,q5,q6,q7}
 	bx lr
-ENDPROC(curve25519_asm_neon)
+ENDPROC(curve25519_neon)
+#endif

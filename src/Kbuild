@@ -6,13 +6,8 @@ wireguard-y := main.o noise.o device.o peer.o timers.o queueing.o send.o receive
 wireguard-y += crypto/curve25519.o crypto/chacha20poly1305.o crypto/blake2s.o
 
 wireguard-$(CONFIG_X86_64) += crypto/chacha20-x86_64.o crypto/poly1305-x86_64.o crypto/blake2s-x86_64.o crypto/curve25519-x86_64.o
-
-ifeq ($(CONFIG_ARM64),y)
-	wireguard-$(CONFIG_KERNEL_MODE_NEON) += crypto/chacha20-neon-arm64.o
-endif
-ifeq ($(CONFIG_ARM),y)
-	wireguard-$(CONFIG_KERNEL_MODE_NEON) += crypto/chacha20-neon-arm.o crypto/curve25519-neon-arm.o
-endif
+wireguard-$(CONFIG_ARM) += crypto/chacha20-arm.o crypto/poly1305-arm.o crypto/curve25519-arm.o
+wireguard-$(CONFIG_ARM64) += crypto/chacha20-arm64.o crypto/poly1305-arm64.o
 
 ifneq ($(KBUILD_EXTMOD),)
 CONFIG_WIREGUARD := m

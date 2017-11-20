@@ -196,7 +196,7 @@ static void curve25519_sandy2x_base(u8 pub[CURVE25519_POINT_SIZE], const u8 secr
 #include <asm/hwcap.h>
 #include <asm/neon.h>
 #include <asm/simd.h>
-asmlinkage void curve25519_asm_neon(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE]);
+asmlinkage void curve25519_neon(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE]);
 static bool curve25519_use_neon __read_mostly;
 void __init curve25519_fpu_init(void)
 {
@@ -1473,7 +1473,7 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 #if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
 	if (curve25519_use_neon && may_use_simd()) {
 		kernel_neon_begin();
-		curve25519_asm_neon(mypublic, secret, basepoint);
+		curve25519_neon(mypublic, secret, basepoint);
 		kernel_neon_end();
 	} else
 #endif
@@ -1652,7 +1652,7 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 #if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
 	if (curve25519_use_neon && may_use_simd()) {
 		kernel_neon_begin();
-		curve25519_asm_neon(mypublic, secret, basepoint);
+		curve25519_neon(mypublic, secret, basepoint);
 		kernel_neon_end();
 	} else
 #endif
