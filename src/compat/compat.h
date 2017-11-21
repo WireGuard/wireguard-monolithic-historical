@@ -451,32 +451,29 @@ static inline struct nlattr **genl_family_attrbuf(const struct genl_family *fami
 #define COMPAT_CANNOT_USE_GENL_NOPS
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 2) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 16) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 65) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 101) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 84)
+#define ___COMPAT_NETLINK_DUMP_BLOCK { int ret; skb->end -= nlmsg_total_size(sizeof(int)); ret = get_device_dump_real(skb, cb); skb->end += nlmsg_total_size(sizeof(int)); return ret; }
+#define ___COMPAT_NETLINK_DUMP_OVERRIDE
+#else
+#define ___COMPAT_NETLINK_DUMP_BLOCK return get_device_dump_real(skb, cb);
+#endif
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 14) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 63)
 #define get_device_dump(a, b) get_device_dump_real(a, b); \
 static int get_device_dump(a, b) { \
-	int ret; \
 	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0]; \
 	if (!wg) { \
 		int ret = get_device_start(cb); \
 		if (ret) \
 			return ret; \
 	} \
-	/* https://patchwork.kernel.org/patch/10046511/ */ \
-	skb->end -= nlmsg_total_size(sizeof(int)); \
-	ret = get_device_dump_real(skb, cb); \
-	skb->end += nlmsg_total_size(sizeof(int)); \
-	return ret; \
+	___COMPAT_NETLINK_DUMP_BLOCK \
 } \
 static int get_device_dump_real(a, b)
 #define COMPAT_CANNOT_USE_NETLINK_START
-#else /* https://patchwork.kernel.org/patch/10046511/ */
+#elif defined(___COMPAT_NETLINK_DUMP_OVERRIDE)
 #define get_device_dump(a, b) get_device_dump_real(a, b); \
 static int get_device_dump(a, b) { \
-	int ret; \
-	skb->end -= nlmsg_total_size(sizeof(int)); \
-	ret = get_device_dump_real(skb, cb); \
-	skb->end += nlmsg_total_size(sizeof(int)); \
-	return ret; \
+	___COMPAT_NETLINK_DUMP_BLOCK \
 } \
 static int get_device_dump_real(a, b)
 #endif
