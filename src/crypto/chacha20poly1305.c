@@ -74,7 +74,12 @@ void __init chacha20poly1305_fpu_init(void)
 	chacha20poly1305_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 #ifndef COMPAT_CANNOT_USE_AVX512
-	chacha20poly1305_use_avx512 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_ZMM_Hi256, NULL);
+	/* ChaCha20 only needs AVX512F, but Poly1305 needs F+VL+BW. Since
+	 * there's no hardware that actually supports one and not the other,
+	 * we keep this as one flag. But should bizarre hardware ever be
+	 * produced, we'll want to separate these out.
+	 */
+	chacha20poly1305_use_avx512 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) && boot_cpu_has(X86_FEATURE_AVX512VL) && boot_cpu_has(X86_FEATURE_AVX512BW) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_ZMM_Hi256, NULL);
 #endif
 }
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
