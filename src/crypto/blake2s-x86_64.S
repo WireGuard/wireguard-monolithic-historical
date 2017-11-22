@@ -15,6 +15,40 @@ ROT16:	.octa 0x0D0C0F0E09080B0A0504070601000302
 .section .rodata.cst16.ROR328, "aM", @progbits, 16
 .align 16
 ROR328:	.octa 0x0C0F0E0D080B0A090407060500030201
+#ifdef CONFIG_AS_AVX512
+.section .rodata.cst64.BLAKESIGMA, "aM", @progbits, 640
+.align 64
+SIGMA:
+  .long  0,  2,  4,  6,  1,  3,  5,  7
+  .long  8, 10, 12, 14,  9, 11, 13, 15
+
+  .long 14,  4,  9, 13, 10,  8, 15,  6
+  .long  1,  0, 11,  5, 12,  2,  7,  3
+
+  .long 11, 12,  5, 15,  8,  0,  2, 13
+  .long 10,  3,  7,  9, 14,  6,  1,  4
+
+  .long  7,  3, 13, 11,  9,  1, 12, 14
+  .long  2,  5,  4, 15,  6, 10,  0,  8
+
+  .long  9,  5,  2, 10,  0,  7,  4, 15
+  .long 14, 11,  6,  3,  1, 12,  8, 13
+
+  .long  2,  6,  0,  8, 12, 10, 11,  3
+  .long  4,  7, 15,  1, 13,  5, 14,  9
+
+  .long 12,  1, 14,  4,  5, 15, 13, 10
+  .long  0,  6,  9,  8,  7,  3,  2, 11
+
+  .long 13,  7, 12,  3, 11, 14,  1,  9
+  .long  5, 15,  8,  2,  0,  4,  6, 10
+
+  .long  6, 14, 11,  0, 15,  9,  3,  8
+  .long 12, 13,  1, 10,  2,  7,  4,  5
+
+  .long 10,  8,  7,  1,  2,  4,  6,  5
+  .long 15,  9,  3, 13, 11, 14, 12,  0
+#endif /* CONFIG_AS_AVX512 */
 
 .text
 #ifdef CONFIG_AS_AVX
@@ -586,3 +620,82 @@ ENTRY(blake2s_compress_avx)
 	ret
 ENDPROC(blake2s_compress_avx)
 #endif /* CONFIG_AS_AVX */
+
+#ifdef CONFIG_AS_AVX512
+ENTRY(blake2s_compress_avx512)
+	vmovdqu (%rdi),%xmm0
+	vmovdqu 0x10(%rdi),%xmm1
+	vmovdqu 0x20(%rdi),%xmm15
+	vmovq  %rcx,%xmm13
+	jmp .Lblake2s_compress_avx512_mainloop
+.align 32
+.Lblake2s_compress_avx512_mainloop:
+	vpaddq %xmm13,%xmm15,%xmm15
+	vmovdqa IV(%rip),%xmm2
+	vpxor  IV+16(%rip),%xmm15,%xmm3
+	lea    SIGMA(%rip),%rax
+	movl  $10,%ecx
+.Lblake2s_compress_avx512_roundloop:
+	add    $0x40,%rax
+	vmovdqa -0x40(%rax),%xmm7
+	vpcmpeqd %xmm14,%xmm14,%xmm14
+	vpgatherdd %xmm14,(%rsi,%xmm7,4),%xmm6
+	vpaddd %xmm6,%xmm0,%xmm0
+	vpaddd %xmm1,%xmm0,%xmm0
+	vpxor  %xmm0,%xmm3,%xmm3
+	vprord $0x10,%xmm3,%xmm3
+	vpaddd %xmm3,%xmm2,%xmm2
+	vpxor  %xmm2,%xmm1,%xmm1
+	vprord $0xc,%xmm1,%xmm1
+	vmovdqa -0x30(%rax),%xmm7
+	vpcmpeqd %xmm14,%xmm14,%xmm14
+	vpgatherdd %xmm14,(%rsi,%xmm7,4),%xmm6
+	vpaddd %xmm6,%xmm0,%xmm0
+	vpaddd %xmm1,%xmm0,%xmm0
+	vpxor  %xmm0,%xmm3,%xmm3
+	vprord $0x8,%xmm3,%xmm3
+	vpaddd %xmm3,%xmm2,%xmm2
+	vpxor  %xmm2,%xmm1,%xmm1
+	vprord $0x7,%xmm1,%xmm1
+	vpshufd $0x39,%xmm1,%xmm1
+	vpshufd $0x4e,%xmm2,%xmm2
+	vpshufd $0x93,%xmm3,%xmm3
+	vmovdqa -0x20(%rax),%xmm7
+	vpcmpeqd %xmm14,%xmm14,%xmm14
+	vpgatherdd %xmm14,(%rsi,%xmm7,4),%xmm6
+	vpaddd %xmm6,%xmm0,%xmm0
+	vpaddd %xmm1,%xmm0,%xmm0
+	vpxor  %xmm0,%xmm3,%xmm3
+	vprord $0x10,%xmm3,%xmm3
+	vpaddd %xmm3,%xmm2,%xmm2
+	vpxor  %xmm2,%xmm1,%xmm1
+	vprord $0xc,%xmm1,%xmm1
+	vmovdqa -0x10(%rax),%xmm7
+	vpcmpeqd %xmm14,%xmm14,%xmm14
+	vpgatherdd %xmm14,(%rsi,%xmm7,4),%xmm6
+	vpaddd %xmm6,%xmm0,%xmm0
+	vpaddd %xmm1,%xmm0,%xmm0
+	vpxor  %xmm0,%xmm3,%xmm3
+	vprord $0x8,%xmm3,%xmm3
+	vpaddd %xmm3,%xmm2,%xmm2
+	vpxor  %xmm2,%xmm1,%xmm1
+	vprord $0x7,%xmm1,%xmm1
+	vpshufd $0x93,%xmm1,%xmm1
+	vpshufd $0x4e,%xmm2,%xmm2
+	vpshufd $0x39,%xmm3,%xmm3
+	decl  %ecx
+	jne    .Lblake2s_compress_avx512_roundloop
+	add    $0x40,%rsi
+	vpxor  (%rdi),%xmm0,%xmm0
+	vpxor  0x10(%rdi),%xmm1,%xmm1
+	vpxor  %xmm2,%xmm0,%xmm0
+	vpxor  %xmm3,%xmm1,%xmm1
+	vmovdqu %xmm0,(%rdi)
+	vmovdqu %xmm1,0x10(%rdi)
+	dec    %rdx
+	jne    .Lblake2s_compress_avx512_mainloop
+	vmovdqu %xmm15,0x20(%rdi)
+	vzeroupper 
+	retq
+ENDPROC(blake2s_compress_avx512)
+#endif /* CONFIG_AS_AVX512 */
