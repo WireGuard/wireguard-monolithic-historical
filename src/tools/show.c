@@ -24,13 +24,13 @@ static int peer_cmp(const void *first, const void *second)
 	time_t diff;
 	const struct wgpeer *a = *(const void **)first, *b = *(const void **)second;
 
-	if (!a->last_handshake_time.tv_sec && !a->last_handshake_time.tv_usec && (b->last_handshake_time.tv_sec || b->last_handshake_time.tv_usec))
+	if (!a->last_handshake_time.tv_sec && !a->last_handshake_time.tv_nsec && (b->last_handshake_time.tv_sec || b->last_handshake_time.tv_nsec))
 		return 1;
-	if (!b->last_handshake_time.tv_sec && !b->last_handshake_time.tv_usec && (a->last_handshake_time.tv_sec || a->last_handshake_time.tv_usec))
+	if (!b->last_handshake_time.tv_sec && !b->last_handshake_time.tv_nsec && (a->last_handshake_time.tv_sec || a->last_handshake_time.tv_nsec))
 		return -1;
 	diff = a->last_handshake_time.tv_sec - b->last_handshake_time.tv_sec;
 	if (!diff)
-		diff = a->last_handshake_time.tv_usec - b->last_handshake_time.tv_usec;
+		diff = a->last_handshake_time.tv_nsec - b->last_handshake_time.tv_nsec;
 	if (diff < 0)
 		return 1;
 	if (diff > 0)
@@ -149,7 +149,7 @@ static size_t pretty_time(char *buf, const size_t len, unsigned long long left)
 	return offset;
 }
 
-static char *ago(const struct timeval *t)
+static char *ago(const struct timespec *t)
 {
 	static char buf[1024];
 	size_t offset;

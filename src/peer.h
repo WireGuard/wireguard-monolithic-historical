@@ -49,7 +49,7 @@ struct wireguard_peer {
 	unsigned int timer_handshake_attempts;
 	unsigned long persistent_keepalive_interval;
 	bool timers_enabled, timer_need_another_keepalive, sent_lastminute_handshake;
-	struct timeval walltime_last_handshake;
+	struct timespec walltime_last_handshake;
 	struct kref refcount;
 	struct rcu_head rcu;
 	struct list_head peer_list;

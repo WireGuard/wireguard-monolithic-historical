@@ -30,7 +30,7 @@ static const struct nla_policy peer_policy[WGPEER_A_MAX + 1] = {
 	[WGPEER_A_FLAGS]			= { .type = NLA_U32 },
 	[WGPEER_A_ENDPOINT]			= { .len = sizeof(struct sockaddr) },
 	[WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL]= { .type = NLA_U16 },
-	[WGPEER_A_LAST_HANDSHAKE_TIME]		= { .len = sizeof(struct timeval) },
+	[WGPEER_A_LAST_HANDSHAKE_TIME]		= { .len = sizeof(struct timespec) },
 	[WGPEER_A_RX_BYTES]			= { .type = NLA_U64 },
 	[WGPEER_A_TX_BYTES]			= { .type = NLA_U64 },
 	[WGPEER_A_ALLOWEDIPS]			= { .type = NLA_NESTED }
@@ -107,7 +107,7 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index, struct allo
 		if (fail)
 			goto err;
 
-		if (nla_put(skb, WGPEER_A_LAST_HANDSHAKE_TIME, sizeof(struct timeval), &peer->walltime_last_handshake) || nla_put_u16(skb, WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL, peer->persistent_keepalive_interval / HZ) ||
+		if (nla_put(skb, WGPEER_A_LAST_HANDSHAKE_TIME, sizeof(struct timespec), &peer->walltime_last_handshake) || nla_put_u16(skb, WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL, peer->persistent_keepalive_interval / HZ) ||
 				nla_put_u64_64bit(skb, WGPEER_A_TX_BYTES, peer->tx_bytes, WGPEER_A_UNSPEC) || nla_put_u64_64bit(skb, WGPEER_A_RX_BYTES, peer->rx_bytes, WGPEER_A_UNSPEC))
 			goto err;
 

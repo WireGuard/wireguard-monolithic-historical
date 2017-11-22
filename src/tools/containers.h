@@ -6,9 +6,9 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <time.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 
 #include "../uapi/wireguard.h"
@@ -43,7 +43,7 @@ struct wgpeer {
 		struct sockaddr_in6 addr6;
 	} endpoint;
 
-	struct timeval last_handshake_time;
+	struct timespec last_handshake_time;
 	uint64_t rx_bytes, tx_bytes;
 	uint16_t persistent_keepalive_interval;
 

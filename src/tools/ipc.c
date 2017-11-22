@@ -427,7 +427,7 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 		} else if (peer && !strcmp(key, "last_handshake_time_sec"))
 			peer->last_handshake_time.tv_sec = NUM(0xffffffffffffffffULL);
 		else if (peer && !strcmp(key, "last_handshake_time_nsec"))
-			peer->last_handshake_time.tv_usec = NUM(0xffffffffffffffffULL) / 1000;
+			peer->last_handshake_time.tv_nsec = NUM(0xffffffffffffffffULL);
 		else if (peer && !strcmp(key, "rx_bytes"))
 			peer->rx_bytes = NUM(0xffffffffffffffffULL);
 		else if (peer && !strcmp(key, "tx_bytes"))
