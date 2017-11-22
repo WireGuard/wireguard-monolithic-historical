@@ -68,7 +68,7 @@ static bool chacha20poly1305_use_avx __read_mostly;
 static bool chacha20poly1305_use_avx2 __read_mostly;
 static bool chacha20poly1305_use_avx512 __read_mostly;
 
-void chacha20poly1305_fpu_init(void)
+void __init chacha20poly1305_fpu_init(void)
 {
 	chacha20poly1305_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
 	chacha20poly1305_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
@@ -99,6 +99,11 @@ void __init chacha20poly1305_fpu_init(void)
 	chacha20poly1305_use_neon = elf_hwcap & HWCAP_NEON;
 #endif
 }
+#elif defined(CONFIG_MIPS) && defined(CONFIG_64BIT)
+asmlinkage void poly1305_init_mips(void *ctx, const u8 key[16]);
+asmlinkage void poly1305_blocks_mips(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_emit_mips(void *ctx, u8 mac[16], const u32 nonce[4]);
+void __init chacha20poly1305_fpu_init(void) { }
 #else
 void __init chacha20poly1305_fpu_init(void) { }
 #endif
@@ -129,7 +134,7 @@ struct chacha20_ctx {
 	u32 state[CHACHA20_BLOCK_SIZE / sizeof(u32)];
 } __aligned(32);
 
-static void chacha20_generic_block(struct chacha20_ctx *ctx, void *stream)
+static void chacha20_block_generic(struct chacha20_ctx *ctx, void *stream)
 {
 	u32 x[CHACHA20_BLOCK_SIZE / sizeof(u32)];
 	__le32 *out = stream;
@@ -346,13 +351,13 @@ no_simd:
 		memcpy(dst, src, bytes);
 
 	while (bytes >= CHACHA20_BLOCK_SIZE) {
-		chacha20_generic_block(ctx, buf);
+		chacha20_block_generic(ctx, buf);
 		crypto_xor(dst, buf, CHACHA20_BLOCK_SIZE);
 		bytes -= CHACHA20_BLOCK_SIZE;
 		dst += CHACHA20_BLOCK_SIZE;
 	}
 	if (bytes) {
-		chacha20_generic_block(ctx, buf);
+		chacha20_block_generic(ctx, buf);
 		crypto_xor(dst, buf, bytes);
 	}
 }
@@ -370,7 +375,7 @@ struct poly1305_ctx {
 	} func;
 } __aligned(8);
 
-#if !(defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
+#if !(defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64) || (defined(CONFIG_MIPS) && defined(CONFIG_64BIT)))
 struct poly1305_internal {
 	u32 h[5];
 	u32 r[4];
@@ -530,7 +535,7 @@ static void poly1305_emit_generic(void *ctx, u8 mac[16], const u32 nonce[4])
 	omac[2] = cpu_to_le32(h2);
 	omac[3] = cpu_to_le32(h3);
 }
-#endif /* !CONFIG_X86_64 */
+#endif
 
 static void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], bool have_simd)
 {
@@ -571,6 +576,10 @@ static void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SI
 		ctx->func.emit = poly1305_emit_neon;
 	}
 #endif
+#elif defined(CONFIG_MIPS) && defined(CONFIG_64BIT)
+	poly1305_init_mips(ctx->opaque, key);
+	ctx->func.blocks = poly1305_blocks_mips;
+	ctx->func.emit = poly1305_emit_mips;
 #else
 	poly1305_init_generic(ctx->opaque, key);
 #endif
@@ -579,7 +588,7 @@ static void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SI
 
 static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len)
 {
-#if defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+#if defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64) || (defined(CONFIG_MIPS) && defined(CONFIG_64BIT))
 	const poly1305_blocks_f blocks = ctx->func.blocks;
 #else
 	const poly1305_blocks_f blocks = poly1305_blocks_generic;
@@ -619,7 +628,7 @@ static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len)
 
 static void poly1305_finish(struct poly1305_ctx * ctx, u8 mac[16])
 {
-#if defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+#if defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64) || (defined(CONFIG_MIPS) && defined(CONFIG_64BIT))
 	const poly1305_blocks_f blocks = ctx->func.blocks;
 	const poly1305_emit_f emit = ctx->func.emit;
 #else
