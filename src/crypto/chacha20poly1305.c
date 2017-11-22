@@ -626,7 +626,7 @@ static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len)
 	ctx->num = rem;
 }
 
-static void poly1305_finish(struct poly1305_ctx * ctx, u8 mac[16])
+static void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[16])
 {
 #if defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64) || (defined(CONFIG_MIPS) && defined(CONFIG_64BIT))
 	const poly1305_blocks_f blocks = ctx->func.blocks;
@@ -699,7 +699,6 @@ static inline void __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size
 
 	poly1305_finish(&poly1305_state, dst + src_len);
 
-	memzero_explicit(&poly1305_state, sizeof(poly1305_state));
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 }
 
@@ -767,7 +766,6 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	poly1305_finish(&poly1305_state, mac);
 	scatterwalk_map_and_copy(mac, dst, src_len, sizeof(mac), 1);
 err:
-	memzero_explicit(&poly1305_state, sizeof(poly1305_state));
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 	memzero_explicit(mac, sizeof(mac));
 	return !ret;
@@ -810,7 +808,6 @@ static inline bool __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size
 	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
 
 	poly1305_finish(&poly1305_state, mac);
-	memzero_explicit(&poly1305_state, sizeof(poly1305_state));
 
 	ret = crypto_memneq(mac, src + dst_len, POLY1305_MAC_SIZE);
 	memzero_explicit(mac, POLY1305_MAC_SIZE);
@@ -890,7 +887,6 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
 
 	poly1305_finish(&poly1305_state, computed_mac);
-	memzero_explicit(&poly1305_state, sizeof(poly1305_state));
 
 	scatterwalk_map_and_copy(read_mac, src, dst_len, POLY1305_MAC_SIZE, 0);
 	ret = crypto_memneq(read_mac, computed_mac, POLY1305_MAC_SIZE);
