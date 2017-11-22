@@ -523,6 +523,11 @@ struct _____dummy_container { char dev; };
 #define COMPAT_CANNOT_USE_AVX512
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+#define timespec64 timespec
+#define getnstimeofday64 getnstimeofday
+#endif
+
 /* https://lkml.org/lkml/2017/6/23/790 */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
