@@ -85,11 +85,11 @@ ENTRY(poly1305_blocks_x86_64)
 	jz	.Lno_data
 
 	pushq	%rbx
-	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+	pushq	%rdi
 
 .Lblocks_body:
 
@@ -100,7 +100,7 @@ ENTRY(poly1305_blocks_x86_64)
 
 	movq	0(%rdi),%r14
 	movq	8(%rdi),%rbx
-	movq	16(%rdi),%rbp
+	movq	16(%rdi),%r10
 
 	movq	%r13,%r12
 	shrq	$2,%r13
@@ -110,14 +110,15 @@ ENTRY(poly1305_blocks_x86_64)
 
 .align	32
 .Loop:
+
 	addq	0(%rsi),%r14
 	adcq	8(%rsi),%rbx
 	leaq	16(%rsi),%rsi
-	adcq	%rcx,%rbp
+	adcq	%rcx,%r10
 	mulq	%r14
 	movq	%rax,%r9
 	movq	%r11,%rax
-	movq	%rdx,%r10
+	movq	%rdx,%rdi
 
 	mulq	%r14
 	movq	%rax,%r14
@@ -127,47 +128,48 @@ ENTRY(poly1305_blocks_x86_64)
 	mulq	%rbx
 	addq	%rax,%r9
 	movq	%r13,%rax
-	adcq	%rdx,%r10
+	adcq	%rdx,%rdi
 
 	mulq	%rbx
-	movq	%rbp,%rbx
+	movq	%r10,%rbx
 	addq	%rax,%r14
 	adcq	%rdx,%r8
 
 	imulq	%r13,%rbx
 	addq	%rbx,%r9
 	movq	%r8,%rbx
-	adcq	$0,%r10
+	adcq	$0,%rdi
 
-	imulq	%r11,%rbp
+	imulq	%r11,%r10
 	addq	%r9,%rbx
 	movq	$-4,%rax
-	adcq	%rbp,%r10
+	adcq	%r10,%rdi
 
-	andq	%r10,%rax
-	movq	%r10,%rbp
-	shrq	$2,%r10
-	andq	$3,%rbp
-	addq	%r10,%rax
+	andq	%rdi,%rax
+	movq	%rdi,%r10
+	shrq	$2,%rdi
+	andq	$3,%r10
+	addq	%rdi,%rax
 	addq	%rax,%r14
 	adcq	$0,%rbx
-	adcq	$0,%rbp
+	adcq	$0,%r10
+
 	movq	%r12,%rax
 	decq	%r15
 	jnz	.Loop
 
+	movq	0(%rsp),%rdi
+
 	movq	%r14,0(%rdi)
 	movq	%rbx,8(%rdi)
-	movq	%rbp,16(%rdi)
+	movq	%r10,16(%rdi)
 
-	movq	0(%rsp),%r15
-	movq	8(%rsp),%r14
-	movq	16(%rsp),%r13
-	movq	24(%rsp),%r12
-	movq	32(%rsp),%rbp
+	movq	8(%rsp),%r15
+	movq	16(%rsp),%r14
+	movq	24(%rsp),%r13
+	movq	32(%rsp),%r12
 	movq	40(%rsp),%rbx
 	leaq	48(%rsp),%rsp
-
 .Lno_data:
 .Lblocks_epilogue:
 	ret
@@ -201,7 +203,7 @@ ENDPROC(poly1305_emit_x86_64)
 	mulq	%r14
 	movq	%rax,%r9
 	movq	%r11,%rax
-	movq	%rdx,%r10
+	movq	%rdx,%rdi
 
 	mulq	%r14
 	movq	%rax,%r14
@@ -211,42 +213,44 @@ ENDPROC(poly1305_emit_x86_64)
 	mulq	%rbx
 	addq	%rax,%r9
 	movq	%r13,%rax
-	adcq	%rdx,%r10
+	adcq	%rdx,%rdi
 
 	mulq	%rbx
-	movq	%rbp,%rbx
+	movq	%r10,%rbx
 	addq	%rax,%r14
 	adcq	%rdx,%r8
 
 	imulq	%r13,%rbx
 	addq	%rbx,%r9
 	movq	%r8,%rbx
-	adcq	$0,%r10
+	adcq	$0,%rdi
 
-	imulq	%r11,%rbp
+	imulq	%r11,%r10
 	addq	%r9,%rbx
 	movq	$-4,%rax
-	adcq	%rbp,%r10
+	adcq	%r10,%rdi
 
-	andq	%r10,%rax
-	movq	%r10,%rbp
-	shrq	$2,%r10
-	andq	$3,%rbp
-	addq	%r10,%rax
+	andq	%rdi,%rax
+	movq	%rdi,%r10
+	shrq	$2,%rdi
+	andq	$3,%r10
+	addq	%rdi,%rax
 	addq	%rax,%r14
 	adcq	$0,%rbx
-	adcq	$0,%rbp
+	adcq	$0,%r10
 .endm
 
 .macro __poly1305_init_avx
 	movq	%r11,%r14
 	movq	%r12,%rbx
-	xorq	%rbp,%rbp
+	xorq	%r10,%r10
 
 	leaq	48+64(%rdi),%rdi
 
 	movq	%r12,%rax
+	movq	%rdi,0(%rsp)
 	__poly1305_block
+	movq	0(%rsp),%rdi
 
 	movl	$0x3ffffff,%eax
 	movl	$0x3ffffff,%edx
@@ -304,7 +308,7 @@ ENDPROC(poly1305_emit_x86_64)
 	movl	%edx,36(%rdi)
 	shrq	$26,%r9
 
-	movq	%rbp,%rax
+	movq	%r10,%rax
 	shlq	$24,%rax
 	orq	%rax,%r8
 	movl	%r8d,48(%rdi)
@@ -315,7 +319,9 @@ ENDPROC(poly1305_emit_x86_64)
 	movl	%r9d,68(%rdi)
 
 	movq	%r12,%rax
+	movq	%rdi,0(%rsp)
 	__poly1305_block
+	movq	0(%rsp),%rdi
 
 	movl	$0x3ffffff,%eax
 	movq	%r14,%r8
@@ -347,7 +353,7 @@ ENDPROC(poly1305_emit_x86_64)
 	shrq	$26,%r8
 	movl	%edx,44(%rdi)
 
-	movq	%rbp,%rax
+	movq	%r10,%rax
 	shlq	$24,%rax
 	orq	%rax,%r8
 	movl	%r8d,60(%rdi)
@@ -355,7 +361,9 @@ ENDPROC(poly1305_emit_x86_64)
 	movl	%r8d,76(%rdi)
 
 	movq	%r12,%rax
+	movq	%rdi,0(%rsp)
 	__poly1305_block
+	movq	0(%rsp),%rdi
 
 	movl	$0x3ffffff,%eax
 	movq	%r14,%r8
@@ -387,7 +395,7 @@ ENDPROC(poly1305_emit_x86_64)
 	shrq	$26,%r8
 	movl	%edx,40(%rdi)
 
-	movq	%rbp,%rax
+	movq	%r10,%rax
 	shlq	$24,%rax
 	orq	%rax,%r8
 	movl	%r8d,56(%rdi)
@@ -420,11 +428,11 @@ ENTRY(poly1305_blocks_avx)
 	jz	.Leven_avx
 
 	pushq	%rbx
-	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+	pushq	%rdi
 
 .Lblocks_avx_body:
 
@@ -432,7 +440,7 @@ ENTRY(poly1305_blocks_avx)
 
 	movq	0(%rdi),%r8
 	movq	8(%rdi),%r9
-	movl	16(%rdi),%ebp
+	movl	16(%rdi),%r10d
 
 	movq	24(%rdi),%r11
 	movq	32(%rdi),%r13
@@ -452,21 +460,21 @@ ENTRY(poly1305_blocks_avx)
 	addq	%r12,%r14
 	adcq	%r9,%rbx
 
-	movq	%rbp,%r8
+	movq	%r10,%r8
 	shlq	$40,%r8
-	shrq	$24,%rbp
+	shrq	$24,%r10
 	addq	%r8,%rbx
-	adcq	$0,%rbp
+	adcq	$0,%r10
 
 	movq	$-4,%r9
-	movq	%rbp,%r8
-	andq	%rbp,%r9
+	movq	%r10,%r8
+	andq	%r10,%r9
 	shrq	$2,%r8
-	andq	$3,%rbp
+	andq	$3,%r10
 	addq	%r9,%r8
 	addq	%r8,%r14
 	adcq	$0,%rbx
-	adcq	$0,%rbp
+	adcq	$0,%r10
 
 	movq	%r13,%r12
 	movq	%r13,%rax
@@ -476,9 +484,11 @@ ENTRY(poly1305_blocks_avx)
 	addq	0(%rsi),%r14
 	adcq	8(%rsi),%rbx
 	leaq	16(%rsi),%rsi
-	adcq	%rcx,%rbp
+	adcq	%rcx,%r10
 
+	movq	%rdi,0(%rsp)
 	__poly1305_block
+	movq	0(%rsp),%rdi
 
 	testq	%rcx,%rcx
 	jz	.Lstore_base2_64_avx
@@ -495,11 +505,11 @@ ENTRY(poly1305_blocks_avx)
 	andq	$0x3ffffff,%rdx
 	shrq	$14,%rbx
 	orq	%r11,%r14
-	shlq	$24,%rbp
+	shlq	$24,%r10
 	andq	$0x3ffffff,%r14
 	shrq	$40,%r12
 	andq	$0x3ffffff,%rbx
-	orq	%r12,%rbp
+	orq	%r12,%r10
 
 	subq	$16,%r15
 	jz	.Lstore_base2_26_avx
@@ -508,14 +518,14 @@ ENTRY(poly1305_blocks_avx)
 	vmovd	%edx,%xmm1
 	vmovd	%r14d,%xmm2
 	vmovd	%ebx,%xmm3
-	vmovd	%ebp,%xmm4
+	vmovd	%r10d,%xmm4
 	jmp	.Lproceed_avx
 
 .align	32
 .Lstore_base2_64_avx:
 	movq	%r14,0(%rdi)
 	movq	%rbx,8(%rdi)
-	movq	%rbp,16(%rdi)
+	movq	%r10,16(%rdi)
 	jmp	.Ldone_avx
 
 .align	16
@@ -524,14 +534,13 @@ ENTRY(poly1305_blocks_avx)
 	movl	%edx,4(%rdi)
 	movl	%r14d,8(%rdi)
 	movl	%ebx,12(%rdi)
-	movl	%ebp,16(%rdi)
+	movl	%r10d,16(%rdi)
 .align	16
 .Ldone_avx:
-	movq	0(%rsp),%r15
-	movq	8(%rsp),%r14
-	movq	16(%rsp),%r13
-	movq	24(%rsp),%r12
-	movq	32(%rsp),%rbp
+	movq	8(%rsp),%r15
+	movq	16(%rsp),%r14
+	movq	24(%rsp),%r13
+	movq	32(%rsp),%r12
 	movq	40(%rsp),%rbx
 	leaq	48(%rsp),%rsp
 
@@ -543,11 +552,11 @@ ENTRY(poly1305_blocks_avx)
 .Lbase2_64_avx:
 
 	pushq	%rbx
-	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+	pushq	%rdi
 
 .Lbase2_64_avx_body:
 
@@ -558,7 +567,7 @@ ENTRY(poly1305_blocks_avx)
 
 	movq	0(%rdi),%r14
 	movq	8(%rdi),%rbx
-	movl	16(%rdi),%ebp
+	movl	16(%rdi),%r10d
 
 	movq	%r13,%r12
 	movq	%r13,%rax
@@ -571,10 +580,12 @@ ENTRY(poly1305_blocks_avx)
 	addq	0(%rsi),%r14
 	adcq	8(%rsi),%rbx
 	leaq	16(%rsi),%rsi
-	adcq	%rcx,%rbp
+	adcq	%rcx,%r10
 	subq	$16,%r15
 
+	movq	%rdi,0(%rsp)
 	__poly1305_block
+	movq	0(%rsp),%rdi
 
 .Linit_avx:
 
@@ -589,17 +600,17 @@ ENTRY(poly1305_blocks_avx)
 	andq	$0x3ffffff,%rdx
 	shrq	$14,%rbx
 	orq	%r8,%r14
-	shlq	$24,%rbp
+	shlq	$24,%r10
 	andq	$0x3ffffff,%r14
 	shrq	$40,%r9
 	andq	$0x3ffffff,%rbx
-	orq	%r9,%rbp
+	orq	%r9,%r10
 
 	vmovd	%eax,%xmm0
 	vmovd	%edx,%xmm1
 	vmovd	%r14d,%xmm2
 	vmovd	%ebx,%xmm3
-	vmovd	%ebp,%xmm4
+	vmovd	%r10d,%xmm4
 	movl	$1,20(%rdi)
 
 	__poly1305_init_avx
@@ -607,11 +618,10 @@ ENTRY(poly1305_blocks_avx)
 .Lproceed_avx:
 	movq	%r15,%rdx
 
-	movq	0(%rsp),%r15
-	movq	8(%rsp),%r14
-	movq	16(%rsp),%r13
-	movq	24(%rsp),%r12
-	movq	32(%rsp),%rbp
+	movq	8(%rsp),%r15
+	movq	16(%rsp),%r14
+	movq	24(%rsp),%r13
+	movq	32(%rsp),%r12
 	movq	40(%rsp),%rbx
 	leaq	48(%rsp),%rax
 	leaq	48(%rsp),%rsp
@@ -1224,11 +1234,11 @@ ENTRY(poly1305_blocks_avx2)
 	jz	.Leven_avx2
 
 	pushq	%rbx
-	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+	pushq	%rdi
 
 .Lblocks_avx2_body:
 
@@ -1236,7 +1246,7 @@ ENTRY(poly1305_blocks_avx2)
 
 	movq	0(%rdi),%r8
 	movq	8(%rdi),%r9
-	movl	16(%rdi),%ebp
+	movl	16(%rdi),%r10d
 
 	movq	24(%rdi),%r11
 	movq	32(%rdi),%r13
@@ -1256,21 +1266,21 @@ ENTRY(poly1305_blocks_avx2)
 	addq	%r12,%r14
 	adcq	%r9,%rbx
 
-	movq	%rbp,%r8
+	movq	%r10,%r8
 	shlq	$40,%r8
-	shrq	$24,%rbp
+	shrq	$24,%r10
 	addq	%r8,%rbx
-	adcq	$0,%rbp
+	adcq	$0,%r10
 
 	movq	$-4,%r9
-	movq	%rbp,%r8
-	andq	%rbp,%r9
+	movq	%r10,%r8
+	andq	%r10,%r9
 	shrq	$2,%r8
-	andq	$3,%rbp
+	andq	$3,%r10
 	addq	%r9,%r8
 	addq	%r8,%r14
 	adcq	$0,%rbx
-	adcq	$0,%rbp
+	adcq	$0,%r10
 
 	movq	%r13,%r12
 	movq	%r13,%rax
@@ -1281,10 +1291,12 @@ ENTRY(poly1305_blocks_avx2)
 	addq	0(%rsi),%r14
 	adcq	8(%rsi),%rbx
 	leaq	16(%rsi),%rsi
-	adcq	%rcx,%rbp
+	adcq	%rcx,%r10
 	subq	$16,%r15
 
+	movq	%rdi,0(%rsp)
 	__poly1305_block
+	movq	0(%rsp),%rdi
 	movq	%r12,%rax
 
 	testq	$63,%r15
@@ -1305,11 +1317,11 @@ ENTRY(poly1305_blocks_avx2)
 	andq	$0x3ffffff,%rdx
 	shrq	$14,%rbx
 	orq	%r11,%r14
-	shlq	$24,%rbp
+	shlq	$24,%r10
 	andq	$0x3ffffff,%r14
 	shrq	$40,%r12
 	andq	$0x3ffffff,%rbx
-	orq	%r12,%rbp
+	orq	%r12,%r10
 
 	testq	%r15,%r15
 	jz	.Lstore_base2_26_avx2
@@ -1318,14 +1330,14 @@ ENTRY(poly1305_blocks_avx2)
 	vmovd	%edx,%xmm1
 	vmovd	%r14d,%xmm2
 	vmovd	%ebx,%xmm3
-	vmovd	%ebp,%xmm4
+	vmovd	%r10d,%xmm4
 	jmp	.Lproceed_avx2
 
 .align	32
 .Lstore_base2_64_avx2:
 	movq	%r14,0(%rdi)
 	movq	%rbx,8(%rdi)
-	movq	%rbp,16(%rdi)
+	movq	%r10,16(%rdi)
 	jmp	.Ldone_avx2
 
 .align	16
@@ -1334,14 +1346,13 @@ ENTRY(poly1305_blocks_avx2)
 	movl	%edx,4(%rdi)
 	movl	%r14d,8(%rdi)
 	movl	%ebx,12(%rdi)
-	movl	%ebp,16(%rdi)
+	movl	%r10d,16(%rdi)
 .align	16
 .Ldone_avx2:
-	movq	0(%rsp),%r15
-	movq	8(%rsp),%r14
-	movq	16(%rsp),%r13
-	movq	24(%rsp),%r12
-	movq	32(%rsp),%rbp
+	movq	8(%rsp),%r15
+	movq	16(%rsp),%r14
+	movq	24(%rsp),%r13
+	movq	32(%rsp),%r12
 	movq	40(%rsp),%rbx
 	leaq	48(%rsp),%rsp
 
@@ -1355,11 +1366,11 @@ ENTRY(poly1305_blocks_avx2)
 
 
 	pushq	%rbx
-	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+	pushq	%rdi
 
 .Lbase2_64_avx2_body:
 
@@ -1370,7 +1381,7 @@ ENTRY(poly1305_blocks_avx2)
 
 	movq	0(%rdi),%r14
 	movq	8(%rdi),%rbx
-	movl	16(%rdi),%ebp
+	movl	16(%rdi),%r10d
 
 	movq	%r13,%r12
 	movq	%r13,%rax
@@ -1384,10 +1395,12 @@ ENTRY(poly1305_blocks_avx2)
 	addq	0(%rsi),%r14
 	adcq	8(%rsi),%rbx
 	leaq	16(%rsi),%rsi
-	adcq	%rcx,%rbp
+	adcq	%rcx,%r10
 	subq	$16,%r15
 
+	movq	%rdi,0(%rsp)
 	__poly1305_block
+	movq	0(%rsp),%rdi
 	movq	%r12,%rax
 
 	testq	$63,%r15
@@ -1406,17 +1419,17 @@ ENTRY(poly1305_blocks_avx2)
 	andq	$0x3ffffff,%rdx
 	shrq	$14,%rbx
 	orq	%r8,%r14
-	shlq	$24,%rbp
+	shlq	$24,%r10
 	andq	$0x3ffffff,%r14
 	shrq	$40,%r9
 	andq	$0x3ffffff,%rbx
-	orq	%r9,%rbp
+	orq	%r9,%r10
 
 	vmovd	%eax,%xmm0
 	vmovd	%edx,%xmm1
 	vmovd	%r14d,%xmm2
 	vmovd	%ebx,%xmm3
-	vmovd	%ebp,%xmm4
+	vmovd	%r10d,%xmm4
 	movl	$1,20(%rdi)
 
 	__poly1305_init_avx
@@ -1424,11 +1437,10 @@ ENTRY(poly1305_blocks_avx2)
 .Lproceed_avx2:
 	movq	%r15,%rdx
 
-	movq	0(%rsp),%r15
-	movq	8(%rsp),%r14
-	movq	16(%rsp),%r13
-	movq	24(%rsp),%r12
-	movq	32(%rsp),%rbp
+	movq	8(%rsp),%r15
+	movq	16(%rsp),%r14
+	movq	24(%rsp),%r13
+	movq	32(%rsp),%r12
 	movq	40(%rsp),%rbx
 	leaq	48(%rsp),%rax
 	leaq	48(%rsp),%rsp
@@ -1796,11 +1808,11 @@ ENTRY(poly1305_blocks_avx512)
 	jz	.Leven_avx2_512
 
 	pushq	%rbx
-	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+	pushq	%rdi
 
 .Lblocks_avx2_body_512:
 
@@ -1808,7 +1820,7 @@ ENTRY(poly1305_blocks_avx512)
 
 	movq	0(%rdi),%r8
 	movq	8(%rdi),%r9
-	movl	16(%rdi),%ebp
+	movl	16(%rdi),%r10d
 
 	movq	24(%rdi),%r11
 	movq	32(%rdi),%r13
@@ -1828,21 +1840,21 @@ ENTRY(poly1305_blocks_avx512)
 	addq	%r12,%r14
 	adcq	%r9,%rbx
 
-	movq	%rbp,%r8
+	movq	%r10,%r8
 	shlq	$40,%r8
-	shrq	$24,%rbp
+	shrq	$24,%r10
 	addq	%r8,%rbx
-	adcq	$0,%rbp
+	adcq	$0,%r10
 
 	movq	$-4,%r9
-	movq	%rbp,%r8
-	andq	%rbp,%r9
+	movq	%r10,%r8
+	andq	%r10,%r9
 	shrq	$2,%r8
-	andq	$3,%rbp
+	andq	$3,%r10
 	addq	%r9,%r8
 	addq	%r8,%r14
 	adcq	$0,%rbx
-	adcq	$0,%rbp
+	adcq	$0,%r10
 
 	movq	%r13,%r12
 	movq	%r13,%rax
@@ -1853,10 +1865,12 @@ ENTRY(poly1305_blocks_avx512)
 	addq	0(%rsi),%r14
 	adcq	8(%rsi),%rbx
 	leaq	16(%rsi),%rsi
-	adcq	%rcx,%rbp
+	adcq	%rcx,%r10
 	subq	$16,%r15
 
+	movq	%rdi,0(%rsp)
 	__poly1305_block
+	movq	0(%rsp),%rdi
 	movq	%r12,%rax
 
 	testq	$63,%r15
@@ -1877,11 +1891,11 @@ ENTRY(poly1305_blocks_avx512)
 	andq	$0x3ffffff,%rdx
 	shrq	$14,%rbx
 	orq	%r11,%r14
-	shlq	$24,%rbp
+	shlq	$24,%r10
 	andq	$0x3ffffff,%r14
 	shrq	$40,%r12
 	andq	$0x3ffffff,%rbx
-	orq	%r12,%rbp
+	orq	%r12,%r10
 
 	testq	%r15,%r15
 	jz	.Lstore_base2_26_avx2_512
@@ -1890,14 +1904,14 @@ ENTRY(poly1305_blocks_avx512)
 	vmovd	%edx,%xmm1
 	vmovd	%r14d,%xmm2
 	vmovd	%ebx,%xmm3
-	vmovd	%ebp,%xmm4
+	vmovd	%r10d,%xmm4
 	jmp	.Lproceed_avx2_512
 
 .align	32
 .Lstore_base2_64_avx2_512:
 	movq	%r14,0(%rdi)
 	movq	%rbx,8(%rdi)
-	movq	%rbp,16(%rdi)
+	movq	%r10,16(%rdi)
 	jmp	.Ldone_avx2_512
 
 .align	16
@@ -1906,14 +1920,13 @@ ENTRY(poly1305_blocks_avx512)
 	movl	%edx,4(%rdi)
 	movl	%r14d,8(%rdi)
 	movl	%ebx,12(%rdi)
-	movl	%ebp,16(%rdi)
+	movl	%r10d,16(%rdi)
 .align	16
 .Ldone_avx2_512:
-	movq	0(%rsp),%r15
-	movq	8(%rsp),%r14
-	movq	16(%rsp),%r13
-	movq	24(%rsp),%r12
-	movq	32(%rsp),%rbp
+	movq	8(%rsp),%r15
+	movq	16(%rsp),%r14
+	movq	24(%rsp),%r13
+	movq	32(%rsp),%r12
 	movq	40(%rsp),%rbx
 	leaq	48(%rsp),%rsp
 
@@ -1926,11 +1939,11 @@ ENTRY(poly1305_blocks_avx512)
 .Lbase2_64_avx2_512:
 
 	pushq	%rbx
-	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+	pushq	%rdi
 
 .Lbase2_64_avx2_body_512:
 
@@ -1941,7 +1954,7 @@ ENTRY(poly1305_blocks_avx512)
 
 	movq	0(%rdi),%r14
 	movq	8(%rdi),%rbx
-	movl	16(%rdi),%ebp
+	movl	16(%rdi),%r10d
 
 	movq	%r13,%r12
 	movq	%r13,%rax
@@ -1955,10 +1968,12 @@ ENTRY(poly1305_blocks_avx512)
 	addq	0(%rsi),%r14
 	adcq	8(%rsi),%rbx
 	leaq	16(%rsi),%rsi
-	adcq	%rcx,%rbp
+	adcq	%rcx,%r10
 	subq	$16,%r15
 
+	movq	%rdi,0(%rsp)
 	__poly1305_block
+	movq	0(%rsp),%rdi
 	movq	%r12,%rax
 
 	testq	$63,%r15
@@ -1977,17 +1992,17 @@ ENTRY(poly1305_blocks_avx512)
 	andq	$0x3ffffff,%rdx
 	shrq	$14,%rbx
 	orq	%r8,%r14
-	shlq	$24,%rbp
+	shlq	$24,%r10
 	andq	$0x3ffffff,%r14
 	shrq	$40,%r9
 	andq	$0x3ffffff,%rbx
-	orq	%r9,%rbp
+	orq	%r9,%r10
 
 	vmovd	%eax,%xmm0
 	vmovd	%edx,%xmm1
 	vmovd	%r14d,%xmm2
 	vmovd	%ebx,%xmm3
-	vmovd	%ebp,%xmm4
+	vmovd	%r10d,%xmm4
 	movl	$1,20(%rdi)
 
 	__poly1305_init_avx
@@ -1995,11 +2010,10 @@ ENTRY(poly1305_blocks_avx512)
 .Lproceed_avx2_512:
 	movq	%r15,%rdx
 
-	movq	0(%rsp),%r15
-	movq	8(%rsp),%r14
-	movq	16(%rsp),%r13
-	movq	24(%rsp),%r12
-	movq	32(%rsp),%rbp
+	movq	8(%rsp),%r15
+	movq	16(%rsp),%r14
+	movq	24(%rsp),%r13
+	movq	32(%rsp),%r12
 	movq	40(%rsp),%rbx
 	leaq	48(%rsp),%rax
 	leaq	48(%rsp),%rsp
