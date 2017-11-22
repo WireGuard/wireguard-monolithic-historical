@@ -486,8 +486,7 @@ static int get_device_dump_real(a, b)
 #define COMPAT_CANNOT_USE_IFF_NO_QUEUE
 #endif
 
-#if defined(CONFIG_X86_64)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
+#if defined(CONFIG_X86_64) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
 #include <asm/user.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
 #include <asm/xsave.h>
@@ -506,6 +505,20 @@ static inline int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_n
 #ifndef XFEATURE_MASK_ZMM_Hi256
 #define XFEATURE_MASK_ZMM_Hi256 XSTATE_ZMM_Hi256
 #endif
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0) && defined(CONFIG_X86_64)
+/* This is incredibly dumb and reckless, but as it turns out, there's
+ * not really hardware Linux runs properly on that supports F but not BW
+ * and VL, so in practice this isn't so bad. Plus, this is compat layer,
+ * so the bar remains fairly low.
+ */
+#include <asm/cpufeature.h>
+#ifndef X86_FEATURE_AVX512BW
+#define X86_FEATURE_AVX512BW X86_FEATURE_AVX512F
+#endif
+#ifndef X86_FEATURE_AVX512VL
+#define X86_FEATURE_AVX512VL X86_FEATURE_AVX512F
 #endif
 #endif
 
