@@ -196,30 +196,16 @@ static void chacha20_block_generic(struct chacha20_ctx *ctx, void *stream)
 	ctx->state[12]++;
 }
 
-static const char constant[16] = "expand 32-byte k";
-
 static void hchacha20_generic(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 nonce[16], const u8 key[CHACHA20POLY1305_KEYLEN])
 {
-	u32 x[CHACHA20_BLOCK_SIZE / sizeof(u32)];
 	__le32 *out = (__force __le32 *)derived_key;
 	int i;
-
-	x[0]  = le32_to_cpuvp(constant +  0);
-	x[1]  = le32_to_cpuvp(constant +  4);
-	x[2]  = le32_to_cpuvp(constant +  8);
-	x[3]  = le32_to_cpuvp(constant + 12);
-	x[4]  = le32_to_cpuvp(key + 0);
-	x[5]  = le32_to_cpuvp(key + 4);
-	x[6]  = le32_to_cpuvp(key + 8);
-	x[7]  = le32_to_cpuvp(key + 12);
-	x[8]  = le32_to_cpuvp(key + 16);
-	x[9]  = le32_to_cpuvp(key + 20);
-	x[10] = le32_to_cpuvp(key + 24);
-	x[11] = le32_to_cpuvp(key + 28);
-	x[12]  = le32_to_cpuvp(nonce +  0);
-	x[13]  = le32_to_cpuvp(nonce +  4);
-	x[14]  = le32_to_cpuvp(nonce +  8);
-	x[15]  = le32_to_cpuvp(nonce + 12);
+	u32 x[] = {
+		0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
+		le32_to_cpuvp(key + 0), le32_to_cpuvp(key + 4), le32_to_cpuvp(key + 8), le32_to_cpuvp(key + 12),
+		le32_to_cpuvp(key + 16), le32_to_cpuvp(key + 20), le32_to_cpuvp(key + 24), le32_to_cpuvp(key + 28),
+		le32_to_cpuvp(nonce +  0), le32_to_cpuvp(nonce +  4), le32_to_cpuvp(nonce +  8), le32_to_cpuvp(nonce + 12)
+	};
 
 	for (i = 0; i < 20; i += 2) {
 		x[0]  += x[4];    x[12] = rotl32(x[12] ^ x[0],  16);
@@ -285,25 +271,12 @@ static inline void hchacha20(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 n
 	hchacha20_generic(derived_key, nonce, key);
 }
 
-static void chacha20_keysetup(struct chacha20_ctx *ctx, const u8 key[CHACHA20_KEY_SIZE], const u8 nonce[sizeof(u64)])
-{
-	ctx->state[0]  = le32_to_cpuvp(constant +  0);
-	ctx->state[1]  = le32_to_cpuvp(constant +  4);
-	ctx->state[2]  = le32_to_cpuvp(constant +  8);
-	ctx->state[3]  = le32_to_cpuvp(constant + 12);
-	ctx->state[4]  = le32_to_cpuvp(key + 0);
-	ctx->state[5]  = le32_to_cpuvp(key + 4);
-	ctx->state[6]  = le32_to_cpuvp(key + 8);
-	ctx->state[7]  = le32_to_cpuvp(key + 12);
-	ctx->state[8]  = le32_to_cpuvp(key + 16);
-	ctx->state[9]  = le32_to_cpuvp(key + 20);
-	ctx->state[10] = le32_to_cpuvp(key + 24);
-	ctx->state[11] = le32_to_cpuvp(key + 28);
-	ctx->state[12] = 0;
-	ctx->state[13] = 0;
-	ctx->state[14] = le32_to_cpuvp(nonce + 0);
-	ctx->state[15] = le32_to_cpuvp(nonce + 4);
-}
+#define chacha20_initial_state(key, nonce) {{ \
+	0x61707865, 0x3320646e, 0x79622d32, 0x6b206574, \
+	le32_to_cpuvp((key) + 0), le32_to_cpuvp((key) + 4), le32_to_cpuvp((key) + 8), le32_to_cpuvp((key) + 12), \
+	le32_to_cpuvp((key) + 16), le32_to_cpuvp((key) + 20), le32_to_cpuvp((key) + 24), le32_to_cpuvp((key) + 28), \
+	0, 0, le32_to_cpuvp((nonce) +  0), le32_to_cpuvp((nonce) + 4) \
+}}
 
 static void chacha20_crypt(struct chacha20_ctx *ctx, u8 *dst, const u8 *src, u32 bytes, bool have_simd)
 {
@@ -676,13 +649,10 @@ static inline void __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size
 					      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 					      bool have_simd)
 {
+	__le64 len, le_nonce = cpu_to_le64(nonce);
 	struct poly1305_ctx poly1305_state;
-	struct chacha20_ctx chacha20_state;
+	struct chacha20_ctx chacha20_state = chacha20_initial_state(key, (u8 *)&le_nonce);
 	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
-	__le64 len;
-	__le64 le_nonce = cpu_to_le64(nonce);
-
-	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
 	chacha20_crypt(&chacha20_state, block0, block0, sizeof(block0), have_simd);
 	poly1305_init(&poly1305_state, block0, have_simd);
@@ -723,16 +693,13 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 				 bool have_simd)
 {
+	__le64 len, le_nonce = cpu_to_le64(nonce);
 	struct poly1305_ctx poly1305_state;
-	struct chacha20_ctx chacha20_state;
+	struct chacha20_ctx chacha20_state = chacha20_initial_state(key, (u8 *)&le_nonce);
 	int ret = 0;
 	struct blkcipher_walk walk;
 	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
 	u8 mac[POLY1305_MAC_SIZE];
-	__le64 len;
-	__le64 le_nonce = cpu_to_le64(nonce);
-
-	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
 	chacha20_crypt(&chacha20_state, block0, block0, sizeof(block0), have_simd);
 	poly1305_init(&poly1305_state, block0, have_simd);
@@ -781,19 +748,16 @@ static inline bool __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size
 					      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 					      bool have_simd)
 {
+	__le64 len, le_nonce = cpu_to_le64(nonce);
 	struct poly1305_ctx poly1305_state;
-	struct chacha20_ctx chacha20_state;
+	struct chacha20_ctx chacha20_state = chacha20_initial_state(key, (u8 *)&le_nonce);
 	int ret;
 	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
 	u8 mac[POLY1305_MAC_SIZE];
 	size_t dst_len;
-	__le64 len;
-	__le64 le_nonce = cpu_to_le64(nonce);
 
 	if (unlikely(src_len < POLY1305_MAC_SIZE))
 		return false;
-
-	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
 	chacha20_crypt(&chacha20_state, block0, block0, sizeof(block0), have_simd);
 	poly1305_init(&poly1305_state, block0, have_simd);
@@ -841,20 +805,17 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 				 bool have_simd)
 {
+	__le64 len, le_nonce = cpu_to_le64(nonce);
 	struct poly1305_ctx poly1305_state;
-	struct chacha20_ctx chacha20_state;
+	struct chacha20_ctx chacha20_state = chacha20_initial_state(key, (u8 *)&le_nonce);
 	struct blkcipher_walk walk;
 	int ret = 0;
 	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
 	u8 read_mac[POLY1305_MAC_SIZE], computed_mac[POLY1305_MAC_SIZE];
 	size_t dst_len;
-	__le64 len;
-	__le64 le_nonce = cpu_to_le64(nonce);
 
 	if (unlikely(src_len < POLY1305_MAC_SIZE))
 		return false;
-
-	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
 	chacha20_crypt(&chacha20_state, block0, block0, sizeof(block0), have_simd);
 	poly1305_init(&poly1305_state, block0, have_simd);
