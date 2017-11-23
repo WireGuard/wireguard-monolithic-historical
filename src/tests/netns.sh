@@ -427,6 +427,24 @@ ip0 link del wg0
 
 ! n0 wg show doesnotexist || false
 
+n0 ip link add wg0 type wireguard
+n0 wg set wg0 private-key <(echo "$key1") peer "$pub2" preshared-key <(echo "$psk")
+[[ $(n0 wg show wg0 private-key) == "$key1" ]]
+[[ $(n0 wg show wg0 preshared-keys) == "$pub2	$psk" ]]
+n0 wg set wg0 private-key /dev/null peer "$pub2" preshared-key /dev/null
+[[ $(n0 wg show wg0 private-key) == "(none)" ]]
+[[ $(n0 wg show wg0 preshared-keys) == "$pub2	(none)" ]]
+n0 wg set wg0 peer "$pub2"
+n0 wg set wg0 private-key <(echo "$key2")
+[[ $(n0 wg show wg0 public-key) == "$pub2" ]]
+[[ -z $(n0 wg show wg0 peers) ]]
+n0 wg set wg0 peer "$pub2"
+[[ -z $(n0 wg show wg0 peers) ]]
+n0 wg set wg0 private-key <(echo "$key1")
+n0 wg set wg0 peer "$pub2"
+[[ $(n0 wg show wg0 peers) == "$pub2" ]]
+n0 ip link del wg0
+
 declare -A objects
 while read -t 0.1 -r line 2>/dev/null || [[ $? -ne 142 ]]; do
 	[[ $line =~ .*(wg[0-9]+:\ [A-Z][a-z]+\ [0-9]+)\ .*(created|destroyed).* ]] || continue
