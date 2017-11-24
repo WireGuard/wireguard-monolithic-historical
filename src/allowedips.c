@@ -4,6 +4,8 @@
 #include "peer.h"
 
 struct allowedips_node {
+	struct wireguard_peer *peer;
+	struct rcu_head rcu;
 	struct allowedips_node __rcu *bit[2];
 	/* While it may seem scandalous that we waste space for v4,
 	 * we're alloc'ing to the nearest power of 2 anyway, so this
@@ -14,19 +16,10 @@ struct allowedips_node {
 		__be32 v4;
 		u8 bits[16];
 	};
-	union {
-		__be64 mask_v6;
-		__be32 mask_v4;
-	};
 	u8 cidr, bit_at_a, bit_at_b;
-	/* Putting these members here puts a big hole in the struct,
-	 * but it also keeps it above the cache line, which is important.
-	 */
-	struct wireguard_peer *peer;
-	struct rcu_head rcu;
 };
 
-static void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src, u8 cidr, u8 bits)
+static void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src, u8 cidr)
 {
 	node->cidr = cidr;
 	node->bit_at_a = cidr / 8;
@@ -34,10 +27,6 @@ static void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src, u8
 	if (cidr) {
 		memcpy(node->bits, src, (cidr + 7) / 8);
 		node->bits[(cidr + 7) / 8 - 1] &= ~0U << ((8 - (cidr % 8)) % 8);
-		if (bits == 32)
-			node->mask_v4 = cpu_to_be32(~0U << (32 - cidr));
-		else if (bits == 128)
-			node->mask_v6 = cpu_to_be64(~0ULL << (64 - (cidr & 63)));
 	}
 }
 
@@ -143,24 +132,12 @@ static __always_inline u8 common_bits(const struct allowedips_node *node, const 
 		return 128 - fls128(be64_to_cpu(*(const __be64 *)&node->bits[0] ^ *(const __be64 *)&key[0]), be64_to_cpu(*(const __be64 *)&node->bits[8] ^ *(const __be64 *)&key[8]));
 	return 0;
 }
-static __always_inline bool prefix_matches(struct allowedips_node *node, const u8 *key, u8 bits)
-{
-	if (!node->cidr)
-		return true;
-	if (bits == 32)
-		return !((node->v4 ^ ((__be32 *)key)[0]) & node->mask_v4);
-	else if (bits == 128) {
-		if (node->cidr >= 64) {
-			if (node->v6[0] ^ ((__be64 *)key)[0])
-				return false;
-			if (node->cidr == 64)
-				return true;
-			return !((node->v6[1] ^ ((__be64 *)key)[1]) & node->mask_v6);
-		}
-		return !((node->v6[0] ^ ((__be64 *)key)[0]) & node->mask_v6);
-	} else
-		return false;
-}
+
+/* This could be much faster if it actually just compared the common bits properly,
+ * by precomputing a mask bswap(~0 << (32 - cidr)), and the rest, but it turns out that
+ * common_bits is already super fast on modern processors, even taking into account
+ * the unfortunate bswap. So, we just inline it like this instead. */
+#define prefix_matches(node, key, bits) (common_bits(node, key, bits) >= node->cidr)
 
 static __always_inline struct allowedips_node *find_node(struct allowedips_node *trie, u8 bits, const u8 *key)
 {
@@ -219,7 +196,7 @@ static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *key, u8 c
 		if (!node)
 			return -ENOMEM;
 		node->peer = peer;
-		copy_and_assign_cidr(node, key, cidr, bits);
+		copy_and_assign_cidr(node, key, cidr);
 		rcu_assign_pointer(*trie, node);
 		return 0;
 	}
@@ -232,7 +209,7 @@ static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *key, u8 c
 	if (!newnode)
 		return -ENOMEM;
 	newnode->peer = peer;
-	copy_and_assign_cidr(newnode, key, cidr, bits);
+	copy_and_assign_cidr(newnode, key, cidr);
 
 	if (!node)
 		down = rcu_dereference_protected(*trie, lockdep_is_held(lock));
@@ -258,7 +235,7 @@ static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *key, u8 c
 			kfree(newnode);
 			return -ENOMEM;
 		}
-		copy_and_assign_cidr(node, newnode->bits, cidr, bits);
+		copy_and_assign_cidr(node, newnode->bits, cidr);
 
 		rcu_assign_pointer(choose_node(node, down->bits), down);
 		rcu_assign_pointer(choose_node(node, newnode->bits), newnode);
