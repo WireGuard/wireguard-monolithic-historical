@@ -48,11 +48,11 @@ endif
 
 $(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.gz,$(KERNEL_URL_DIRECTORY)))
 $(eval $(call tar_download,MUSL,musl,1.1.16,.tar.gz,https://www.musl-libc.org/releases/))
-$(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,http://ftp.netfilter.org/pub/libmnl/))
+$(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,https://www.netfilter.org/projects/libmnl/files/))
 $(eval $(call tar_download,IPERF,iperf,3.1.7,.tar.gz,http://downloads.es.net/pub/iperf/))
 $(eval $(call tar_download,BASH,bash,4.4.12,.tar.gz,https://ftp.gnu.org/gnu/bash/))
 $(eval $(call tar_download,IPROUTE2,iproute2,4.13.0,.tar.gz,https://www.kernel.org/pub/linux/utils/net/iproute2/))
-$(eval $(call tar_download,IPTABLES,iptables,1.6.1,.tar.bz2,http://ftp.netfilter.org/pub/iptables/))
+$(eval $(call tar_download,IPTABLES,iptables,1.6.1,.tar.bz2,https://www.netfilter.org/projects/iptables/files/))
 $(eval $(call tar_download,NMAP,nmap,7.60,.tar.bz2,https://nmap.org/dist/))
 $(eval $(call tar_download,IPUTILS,iputils,s20161105,.tar.gz,https://github.com/iputils/iputils/archive/s20161105.tar.gz/#))
 
