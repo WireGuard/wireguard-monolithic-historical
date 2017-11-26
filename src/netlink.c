@@ -177,7 +177,7 @@ static int get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq, &genl_family, NLM_F_MULTI, WG_CMD_GET_DEVICE);
 	if (!hdr)
 		goto out;
-	genl_dump_check_consistent(cb, hdr, &genl_family);
+	genl_dump_check_consistent(cb, hdr);
 
 	if (!last_peer_cursor) {
 		if (nla_put_u16(skb, WGDEVICE_A_LISTEN_PORT, wg->incoming_port) || nla_put_u32(skb, WGDEVICE_A_FWMARK, wg->fwmark) || nla_put_u32(skb, WGDEVICE_A_IFINDEX, wg->dev->ifindex) || nla_put_string(skb, WGDEVICE_A_IFNAME, wg->dev->name))

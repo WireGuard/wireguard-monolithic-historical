@@ -38,6 +38,7 @@
 #define __ro_after_init __read_mostly
 #endif
 
+#include <linux/compiler.h>
 #ifndef READ_ONCE
 #define READ_ONCE ACCESS_ONCE
 #endif
@@ -539,6 +540,11 @@ struct _____dummy_container { char dev; };
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
 #define timespec64 timespec
 #define getnstimeofday64 getnstimeofday
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+#include <net/genetlink.h>
+#define genl_dump_check_consistent(a, b) genl_dump_check_consistent(a, b, &genl_family)
 #endif
 
 /* https://lkml.org/lkml/2017/6/23/790 */
