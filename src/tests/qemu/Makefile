@@ -10,7 +10,7 @@ endif
 ARCH := $(firstword $(subst -, ,$(CBUILD)))
 
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.14.1
+KERNEL_VERSION ?= 4.14.2
 BUILD_PATH ?= $(PWD)/../../../qemu-build/$(ARCH)
 DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
@@ -201,7 +201,7 @@ $(BUILD_PATH)/init-cpio-spec.txt:
 
 $(KERNEL_PATH)/.installed: $(KERNEL_TAR)
 	mkdir -p $(BUILD_PATH)
-	tar -C $(BUILD_PATH) -xf $<
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	sed -i "/^if INET\$$/a source \"net/wireguard/Kconfig\"" $(KERNEL_PATH)/net/Kconfig
 	sed -i "/^obj-\$$(CONFIG_NETFILTER).*+=/a obj-\$$(CONFIG_WIREGUARD) += wireguard/" $(KERNEL_PATH)/net/Makefile
 	ln -sfT $(shell readlink -f ../..) $(KERNEL_PATH)/net/wireguard
@@ -224,8 +224,7 @@ $(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.config
 
 $(MUSL_PATH)/lib/libc.so: $(MUSL_TAR)
 	mkdir -p $(BUILD_PATH)
-	flock -x $<.lock true
-	tar -C $(BUILD_PATH) -xf $<
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	cd $(MUSL_PATH) && CC=$(REAL_CC) ./configure --prefix=/ --disable-static --build=$(CBUILD)
 	$(MAKE) -C $(MUSL_PATH)
 	$(STRIP) -s $@
@@ -241,8 +240,7 @@ $(MUSL_CC): $(MUSL_PATH)/lib/libc.so
 
 $(IPERF_PATH)/.installed: $(IPERF_TAR)
 	mkdir -p $(BUILD_PATH)
-	flock -x $<.lock true
-	tar -C $(BUILD_PATH) -xf $<
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	sed -i '1s/^/#include <stdint.h>/' $(IPERF_PATH)/src/cjson.h $(IPERF_PATH)/src/timer.h
 	sed -i -r 's/-p?g//g' $(IPERF_PATH)/src/Makefile*
 	touch $@
@@ -253,8 +251,7 @@ $(IPERF_PATH)/src/iperf3: | $(IPERF_PATH)/.installed $(USERSPACE_DEPS)
 	$(STRIP) -s $@
 
 $(LIBMNL_PATH)/.installed: $(LIBMNL_TAR)
-	flock -x $<.lock true
-	tar -C $(BUILD_PATH) -xf $<
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	touch $@
 
 $(LIBMNL_PATH)/src/.libs/libmnl.a: | $(LIBMNL_PATH)/.installed $(USERSPACE_DEPS)
@@ -276,8 +273,7 @@ $(BUILD_PATH)/init: init.c | $(USERSPACE_DEPS)
 
 $(IPUTILS_PATH)/.installed: $(IPUTILS_TAR)
 	mkdir -p $(BUILD_PATH)
-	flock -x $<.lock true
-	tar -C $(BUILD_PATH) -xf $<
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	touch $@
 
 $(IPUTILS_PATH)/ping: | $(IPUTILS_PATH)/.installed $(USERSPACE_DEPS)
@@ -286,8 +282,7 @@ $(IPUTILS_PATH)/ping: | $(IPUTILS_PATH)/.installed $(USERSPACE_DEPS)
 
 $(BASH_PATH)/.installed: $(BASH_TAR)
 	mkdir -p $(BUILD_PATH)
-	flock -x $<.lock true
-	tar -C $(BUILD_PATH) -xf $<
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	touch $@
 
 $(BASH_PATH)/bash: | $(BASH_PATH)/.installed $(USERSPACE_DEPS)
@@ -300,8 +295,7 @@ $(eval $(call file_download,272-uapi-if_ether.h-prevent-redefinition-of-struct-e
 
 $(IPROUTE2_PATH)/.installed: $(IPROUTE2_TAR) | $(DISTFILES_PATH)/271-uapi-libc-compat.h-do-not-rely-on-__GLIBC__.patch $(DISTFILES_PATH)/272-uapi-if_ether.h-prevent-redefinition-of-struct-ethhd.patch
 	mkdir -p $(BUILD_PATH)
-	flock -x $<.lock true
-	tar -C $(BUILD_PATH) -xf $<
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	patch -d $(IPROUTE2_PATH) -p 1 < $(DISTFILES_PATH)/271-uapi-libc-compat.h-do-not-rely-on-__GLIBC__.patch
 	patch -d $(IPROUTE2_PATH) -p 1 < $(DISTFILES_PATH)/272-uapi-if_ether.h-prevent-redefinition-of-struct-ethhd.patch
 	printf 'CC=$(CC)\nPKG_CONFIG=pkg-config\nTC_CONFIG_XT=n\nTC_CONFIG_ATM=n\nTC_CONFIG_IPSET=n\nIP_CONFIG_SETNS=y\nHAVE_ELF=n\nHAVE_MNL=y\nHAVE_BERKELEY_DB=n\nHAVE_LATEX=n\nHAVE_PDFLATEX=n\n' > $(IPROUTE2_PATH)/Config
@@ -318,8 +312,7 @@ $(IPROUTE2_PATH)/misc/ss: | $(IPROUTE2_PATH)/.installed $(LIBMNL_PATH)/src/.libs
 
 $(IPTABLES_PATH)/.installed: $(IPTABLES_TAR)
 	mkdir -p $(BUILD_PATH)
-	flock -x $<.lock true
-	tar -C $(BUILD_PATH) -xf $<
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	sed -i -e "/nfnetlink=[01]/s:=[01]:=0:" -e "/nfconntrack=[01]/s:=[01]:=0:" $(IPTABLES_PATH)/configure
 	touch $@
 
@@ -330,8 +323,7 @@ $(IPTABLES_PATH)/iptables/xtables-multi: | $(IPTABLES_PATH)/.installed $(LIBMNL_
 
 $(NMAP_PATH)/.installed: $(NMAP_TAR)
 	mkdir -p $(BUILD_PATH)
-	flock -x $<.lock true
-	tar -C $(BUILD_PATH) -xf $<
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	touch $@
 
 $(NMAP_PATH)/ncat/ncat: | $(NMAP_PATH)/.installed $(USERSPACE_DEPS)
