@@ -64,7 +64,7 @@ static int open(struct net_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
 static int pm_notification(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct wireguard_device *wg;
@@ -375,7 +375,7 @@ int __init device_init(void)
 {
 	int ret;
 
-#ifdef CONFIG_PM_SLEEP
+#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
 	ret = register_pm_notifier(&pm_notifier);
 	if (ret)
 		return ret;
@@ -394,7 +394,7 @@ int __init device_init(void)
 error_netdevice:
 	unregister_netdevice_notifier(&netdevice_notifier);
 error_pm:
-#ifdef CONFIG_PM_SLEEP
+#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
 	unregister_pm_notifier(&pm_notifier);
 #endif
 	return ret;
@@ -404,7 +404,7 @@ void device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
 	unregister_netdevice_notifier(&netdevice_notifier);
-#ifdef CONFIG_PM_SLEEP
+#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
 	unregister_pm_notifier(&pm_notifier);
 #endif
 	rcu_barrier_bh();
