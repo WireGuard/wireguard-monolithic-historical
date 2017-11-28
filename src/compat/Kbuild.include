@@ -1,7 +1,9 @@
 ifeq ($(wildcard $(src)/compat/compat.h),)
 ccflags-y += -include $(srctree)/$(src)/compat/compat.h
+asflags-y += -include $(srctree)/$(src)/compat/compat-asm.h
 else
 ccflags-y += -include $(src)/compat/compat.h
+asflags-y += -include $(src)/compat/compat-asm.h
 endif
 
 ifeq ($(wildcard $(srctree)/include/linux/ptr_ring.h),)
