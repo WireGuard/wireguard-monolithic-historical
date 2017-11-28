@@ -23,7 +23,7 @@ static __always_inline void normalize_secret(u8 secret[CURVE25519_POINT_SIZE])
 	secret[31] |= 64;
 }
 
-#if defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX)
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 #include <asm/fpu/api.h>
@@ -1638,7 +1638,7 @@ static const u8 null_point[CURVE25519_POINT_SIZE] = { 0 };
 bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
 {
 	bool ret = true;
-#if defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX)
 	if (curve25519_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
 		curve25519_sandy2x(mypublic, secret, basepoint);
@@ -1666,7 +1666,7 @@ bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[C
 	if (unlikely(!crypto_memneq(secret, null_point, CURVE25519_POINT_SIZE)))
 		return false;
 
-#if defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX)
 	if (curve25519_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
 		curve25519_sandy2x_base(pub, secret);
