@@ -2,6 +2,8 @@
 #include <net/esp.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/ip6_checksum.h>
+
 #define IP6_MF          0x0001
 #define IP6_OFFSET      0xFFF8
 static inline int skb_maybe_pull_tail(struct sk_buff *skb, unsigned int len, unsigned int max)
