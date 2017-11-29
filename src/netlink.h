@@ -3,7 +3,7 @@
 #ifndef _WG_NETLINK_H
 #define _WG_NETLINK_H
 
-int netlink_init(void);
-void netlink_uninit(void);
+int genetlink_init(void);
+void genetlink_uninit(void);
 
 #endif /* _WG_NETLINK_H */

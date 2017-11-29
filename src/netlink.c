@@ -498,12 +498,12 @@ __ro_after_init = {
 	.netnsok = true
 };
 
-int __init netlink_init(void)
+int __init genetlink_init(void)
 {
 	return genl_register_family(&genl_family);
 }
 
-void __exit netlink_uninit(void)
+void __exit genetlink_uninit(void)
 {
 	genl_unregister_family(&genl_family);
 }
