@@ -1,6 +1,9 @@
-/* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
-
-/* Example only. Do not run in production. */
+/* SPDX-License-Identifier: GPL-2.0
+ *
+ * Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ *
+ * Example only. Do not run in production.
+ */
 
 #include <stdio.h>
 #include <unistd.h>

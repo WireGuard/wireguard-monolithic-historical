@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+
 ifeq ($(wildcard $(src)/compat/compat.h),)
 ccflags-y += -include $(srctree)/$(src)/compat/compat.h
 asflags-y += -include $(srctree)/$(src)/compat/compat-asm.h

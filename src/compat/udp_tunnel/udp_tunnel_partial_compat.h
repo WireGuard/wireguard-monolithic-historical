@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0
+ *
+ * Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ */
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
 #define udp_sock_create4 udp_sock_create
 #define udp_sock_create6 udp_sock_create

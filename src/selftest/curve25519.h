@@ -1,4 +1,7 @@
-/* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
+/* SPDX-License-Identifier: GPL-2.0
+ *
+ * Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ */
 
 #ifdef DEBUG
 struct curve25519_test_vector {
