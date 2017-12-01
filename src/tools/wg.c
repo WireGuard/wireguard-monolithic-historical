@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (argc == 1) {
-		char *new_argv[] = { "show", NULL };
+		static char *new_argv[] = { "show", NULL };
 		return show_main(1, new_argv);
 	}
 
