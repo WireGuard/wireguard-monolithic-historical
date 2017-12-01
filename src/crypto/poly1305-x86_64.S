@@ -2361,7 +2361,8 @@ ENTRY(poly1305_blocks_avx512)
 
 .Lblocks_avx512:
 
-	vzeroupper
+	movl	$15,%eax
+	kmovw	%eax,%k2
 	leaq	8(%rsp),%r10
 
 	subq	$0x128,%rsp
@@ -2369,126 +2370,126 @@ ENTRY(poly1305_blocks_avx512)
 	leaq	48+64(%rdi),%rdi
 	vmovdqa	96(%rcx),%ymm9
 
-
-	vmovdqu32	-64(%rdi),%xmm16
+	vmovdqu32	-64(%rdi),%zmm16{%k2}{z}
 	andq	$-512,%rsp
-	vmovdqu32	-48(%rdi),%xmm17
-	vmovdqu32	-32(%rdi),%xmm21
-	vmovdqu32	-16(%rdi),%xmm18
-	vmovdqu32	0(%rdi),%xmm22
-	vmovdqu32	16(%rdi),%xmm19
-	vmovdqu32	32(%rdi),%xmm23
-	vmovdqu32	48(%rdi),%xmm20
-	vmovdqu32	64(%rdi),%xmm24
-	vpermd	%ymm16,%ymm9,%ymm16
-	vmovdqa64	64(%rcx),%ymm5
-	vpermd	%ymm17,%ymm9,%ymm17
-	vpermd	%ymm21,%ymm9,%ymm21
-	vpermd	%ymm18,%ymm9,%ymm18
-	vmovdqa32	%ymm16,0(%rsp)
-	vpsrlq	$32,%ymm16,%ymm7
-	vpermd	%ymm22,%ymm9,%ymm22
-	vmovdqa32	%ymm17,32(%rsp)
-	vpsrlq	$32,%ymm17,%ymm8
-	vpermd	%ymm19,%ymm9,%ymm19
-	vmovdqa32	%ymm21,64(%rsp)
-	vpermd	%ymm23,%ymm9,%ymm23
-	vpermd	%ymm20,%ymm9,%ymm20
-	vmovdqa32	%ymm18,96(%rsp)
-	vpermd	%ymm24,%ymm9,%ymm24
-	vmovdqa32	%ymm22,128(%rsp)
-	vmovdqa32	%ymm19,160(%rsp)
-	vmovdqa32	%ymm23,192(%rsp)
-	vmovdqa32	%ymm20,224(%rsp)
-	vmovdqa32	%ymm24,256(%rsp)
+	vmovdqu32	-48(%rdi),%zmm17{%k2}{z}
+	movq	$0x20,%rax
+	vmovdqu32	-32(%rdi),%zmm21{%k2}{z}
+	vmovdqu32	-16(%rdi),%zmm18{%k2}{z}
+	vmovdqu32	0(%rdi),%zmm22{%k2}{z}
+	vmovdqu32	16(%rdi),%zmm19{%k2}{z}
+	vmovdqu32	32(%rdi),%zmm23{%k2}{z}
+	vmovdqu32	48(%rdi),%zmm20{%k2}{z}
+	vmovdqu32	64(%rdi),%zmm24{%k2}{z}
+	vpermd	%zmm16,%zmm9,%zmm16
+	vpbroadcastq	64(%rcx),%zmm5
+	vpermd	%zmm17,%zmm9,%zmm17
+	vpermd	%zmm21,%zmm9,%zmm21
+	vpermd	%zmm18,%zmm9,%zmm18
+	vmovdqa64	%zmm16,0(%rsp){%k2}
+	vpsrlq	$32,%zmm16,%zmm7
+	vpermd	%zmm22,%zmm9,%zmm22
+	vmovdqu64	%zmm17,0(%rsp,%rax,1){%k2}
+	vpsrlq	$32,%zmm17,%zmm8
+	vpermd	%zmm19,%zmm9,%zmm19
+	vmovdqa64	%zmm21,64(%rsp){%k2}
+	vpermd	%zmm23,%zmm9,%zmm23
+	vpermd	%zmm20,%zmm9,%zmm20
+	vmovdqu64	%zmm18,64(%rsp,%rax,1){%k2}
+	vpermd	%zmm24,%zmm9,%zmm24
+	vmovdqa64	%zmm22,128(%rsp){%k2}
+	vmovdqu64	%zmm19,128(%rsp,%rax,1){%k2}
+	vmovdqa64	%zmm23,192(%rsp){%k2}
+	vmovdqu64	%zmm20,192(%rsp,%rax,1){%k2}
+	vmovdqa64	%zmm24,256(%rsp){%k2}
 
-	vpmuludq	%ymm7,%ymm16,%ymm11
-	vpmuludq	%ymm7,%ymm17,%ymm12
-	vpmuludq	%ymm7,%ymm18,%ymm13
-	vpmuludq	%ymm7,%ymm19,%ymm14
-	vpmuludq	%ymm7,%ymm20,%ymm15
-	vpsrlq	$32,%ymm18,%ymm9
+	vpmuludq	%zmm7,%zmm16,%zmm11
+	vpmuludq	%zmm7,%zmm17,%zmm12
+	vpmuludq	%zmm7,%zmm18,%zmm13
+	vpmuludq	%zmm7,%zmm19,%zmm14
+	vpmuludq	%zmm7,%zmm20,%zmm15
+	vpsrlq	$32,%zmm18,%zmm9
 
-	vpmuludq	%ymm8,%ymm24,%ymm25
-	vpmuludq	%ymm8,%ymm16,%ymm26
-	vpmuludq	%ymm8,%ymm17,%ymm27
-	vpmuludq	%ymm8,%ymm18,%ymm28
-	vpmuludq	%ymm8,%ymm19,%ymm29
-	vpsrlq	$32,%ymm19,%ymm10
-	vpaddq	%ymm25,%ymm11,%ymm11
-	vpaddq	%ymm26,%ymm12,%ymm12
-	vpaddq	%ymm27,%ymm13,%ymm13
-	vpaddq	%ymm28,%ymm14,%ymm14
-	vpaddq	%ymm29,%ymm15,%ymm15
+	vpmuludq	%zmm8,%zmm24,%zmm25
+	vpmuludq	%zmm8,%zmm16,%zmm26
+	vpmuludq	%zmm8,%zmm17,%zmm27
+	vpmuludq	%zmm8,%zmm18,%zmm28
+	vpmuludq	%zmm8,%zmm19,%zmm29
+	vpsrlq	$32,%zmm19,%zmm10
+	vpaddq	%zmm25,%zmm11,%zmm11
+	vpaddq	%zmm26,%zmm12,%zmm12
+	vpaddq	%zmm27,%zmm13,%zmm13
+	vpaddq	%zmm28,%zmm14,%zmm14
+	vpaddq	%zmm29,%zmm15,%zmm15
 
-	vpmuludq	%ymm9,%ymm23,%ymm25
-	vpmuludq	%ymm9,%ymm24,%ymm26
-	vpmuludq	%ymm9,%ymm17,%ymm28
-	vpmuludq	%ymm9,%ymm18,%ymm29
-	vpmuludq	%ymm9,%ymm16,%ymm27
-	vpsrlq	$32,%ymm20,%ymm6
-	vpaddq	%ymm25,%ymm11,%ymm11
-	vpaddq	%ymm26,%ymm12,%ymm12
-	vpaddq	%ymm28,%ymm14,%ymm14
-	vpaddq	%ymm29,%ymm15,%ymm15
-	vpaddq	%ymm27,%ymm13,%ymm13
+	vpmuludq	%zmm9,%zmm23,%zmm25
+	vpmuludq	%zmm9,%zmm24,%zmm26
+	vpmuludq	%zmm9,%zmm17,%zmm28
+	vpmuludq	%zmm9,%zmm18,%zmm29
+	vpmuludq	%zmm9,%zmm16,%zmm27
+	vpsrlq	$32,%zmm20,%zmm6
+	vpaddq	%zmm25,%zmm11,%zmm11
+	vpaddq	%zmm26,%zmm12,%zmm12
+	vpaddq	%zmm28,%zmm14,%zmm14
+	vpaddq	%zmm29,%zmm15,%zmm15
+	vpaddq	%zmm27,%zmm13,%zmm13
 
-	vpmuludq	%ymm10,%ymm22,%ymm25
-	vpmuludq	%ymm10,%ymm16,%ymm28
-	vpmuludq	%ymm10,%ymm17,%ymm29
-	vpmuludq	%ymm10,%ymm23,%ymm26
-	vpmuludq	%ymm10,%ymm24,%ymm27
-	vpaddq	%ymm25,%ymm11,%ymm11
-	vpaddq	%ymm28,%ymm14,%ymm14
-	vpaddq	%ymm29,%ymm15,%ymm15
-	vpaddq	%ymm26,%ymm12,%ymm12
-	vpaddq	%ymm27,%ymm13,%ymm13
+	vpmuludq	%zmm10,%zmm22,%zmm25
+	vpmuludq	%zmm10,%zmm16,%zmm28
+	vpmuludq	%zmm10,%zmm17,%zmm29
+	vpmuludq	%zmm10,%zmm23,%zmm26
+	vpmuludq	%zmm10,%zmm24,%zmm27
+	vpaddq	%zmm25,%zmm11,%zmm11
+	vpaddq	%zmm28,%zmm14,%zmm14
+	vpaddq	%zmm29,%zmm15,%zmm15
+	vpaddq	%zmm26,%zmm12,%zmm12
+	vpaddq	%zmm27,%zmm13,%zmm13
 
-	vpmuludq	%ymm6,%ymm24,%ymm28
-	vpmuludq	%ymm6,%ymm16,%ymm29
-	vpmuludq	%ymm6,%ymm21,%ymm25
-	vpmuludq	%ymm6,%ymm22,%ymm26
-	vpmuludq	%ymm6,%ymm23,%ymm27
-	vpaddq	%ymm28,%ymm14,%ymm14
-	vpaddq	%ymm29,%ymm15,%ymm15
-	vpaddq	%ymm25,%ymm11,%ymm11
-	vpaddq	%ymm26,%ymm12,%ymm12
-	vpaddq	%ymm27,%ymm13,%ymm13
+	vpmuludq	%zmm6,%zmm24,%zmm28
+	vpmuludq	%zmm6,%zmm16,%zmm29
+	vpmuludq	%zmm6,%zmm21,%zmm25
+	vpmuludq	%zmm6,%zmm22,%zmm26
+	vpmuludq	%zmm6,%zmm23,%zmm27
+	vpaddq	%zmm28,%zmm14,%zmm14
+	vpaddq	%zmm29,%zmm15,%zmm15
+	vpaddq	%zmm25,%zmm11,%zmm11
+	vpaddq	%zmm26,%zmm12,%zmm12
+	vpaddq	%zmm27,%zmm13,%zmm13
 
 	vmovdqu64	0(%rsi),%zmm10
 	vmovdqu64	64(%rsi),%zmm6
 	leaq	128(%rsi),%rsi
 
-	vpsrlq	$26,%ymm14,%ymm28
-	vpandq	%ymm5,%ymm14,%ymm14
-	vpaddq	%ymm28,%ymm15,%ymm15
+	vpsrlq	$26,%zmm14,%zmm28
+	vpandq	%zmm5,%zmm14,%zmm14
+	vpaddq	%zmm28,%zmm15,%zmm15
 
-	vpsrlq	$26,%ymm11,%ymm25
-	vpandq	%ymm5,%ymm11,%ymm11
-	vpaddq	%ymm25,%ymm12,%ymm12
+	vpsrlq	$26,%zmm11,%zmm25
+	vpandq	%zmm5,%zmm11,%zmm11
+	vpaddq	%zmm25,%zmm12,%zmm12
 
-	vpsrlq	$26,%ymm15,%ymm29
-	vpandq	%ymm5,%ymm15,%ymm15
+	vpsrlq	$26,%zmm15,%zmm29
+	vpandq	%zmm5,%zmm15,%zmm15
 
-	vpsrlq	$26,%ymm12,%ymm26
-	vpandq	%ymm5,%ymm12,%ymm12
-	vpaddq	%ymm26,%ymm13,%ymm13
+	vpsrlq	$26,%zmm12,%zmm26
+	vpandq	%zmm5,%zmm12,%zmm12
+	vpaddq	%zmm26,%zmm13,%zmm13
 
-	vpaddq	%ymm29,%ymm11,%ymm11
-	vpsllq	$2,%ymm29,%ymm29
-	vpaddq	%ymm29,%ymm11,%ymm11
+	vpaddq	%zmm29,%zmm11,%zmm11
+	vpsllq	$2,%zmm29,%zmm29
+	vpaddq	%zmm29,%zmm11,%zmm11
 
-	vpsrlq	$26,%ymm13,%ymm27
-	vpandq	%ymm5,%ymm13,%ymm13
-	vpaddq	%ymm27,%ymm14,%ymm14
+	vpsrlq	$26,%zmm13,%zmm27
+	vpandq	%zmm5,%zmm13,%zmm13
+	vpaddq	%zmm27,%zmm14,%zmm14
 
-	vpsrlq	$26,%ymm11,%ymm25
-	vpandq	%ymm5,%ymm11,%ymm11
-	vpaddq	%ymm25,%ymm12,%ymm12
+	vpsrlq	$26,%zmm11,%zmm25
+	vpandq	%zmm5,%zmm11,%zmm11
+	vpaddq	%zmm25,%zmm12,%zmm12
 
-	vpsrlq	$26,%ymm14,%ymm28
-	vpandq	%ymm5,%ymm14,%ymm14
-	vpaddq	%ymm28,%ymm15,%ymm15
+	vpsrlq	$26,%zmm14,%zmm28
+	vpandq	%zmm5,%zmm14,%zmm14
+	vpaddq	%zmm28,%zmm15,%zmm15
 
 	vpunpcklqdq	%zmm6,%zmm10,%zmm7
 	vpunpckhqdq	%zmm6,%zmm10,%zmm6
@@ -2518,7 +2519,6 @@ ENTRY(poly1305_blocks_avx512)
 	vpaddd	%zmm19,%zmm23,%zmm23
 	vpaddd	%zmm20,%zmm24,%zmm24
 
-	vpbroadcastq	%xmm5,%zmm5
 	vpbroadcastq	32(%rcx),%zmm30
 
 	vpsrlq	$52,%zmm7,%zmm9
@@ -2533,6 +2533,7 @@ ENTRY(poly1305_blocks_avx512)
 	vpaddq	%zmm2,%zmm9,%zmm2
 	subq	$192,%rdx
 	jbe	.Ltail_avx512
+	jmp	.Loop_avx512
 
 .align	32
 .Loop_avx512:
@@ -2679,7 +2680,7 @@ ENTRY(poly1305_blocks_avx512)
 	vpaddq	%zmm3,%zmm10,%zmm3
 	vpaddq	%zmm4,%zmm6,%zmm4
 
-	vmovdqu64	0(%rsi),%xmm7
+	vmovdqu	0(%rsi),%xmm7
 	vpmuludq	%zmm0,%zmm19,%zmm28
 	vpmuludq	%zmm0,%zmm20,%zmm29
 	vpmuludq	%zmm0,%zmm16,%zmm25
@@ -2689,7 +2690,7 @@ ENTRY(poly1305_blocks_avx512)
 	vpaddq	%zmm25,%zmm11,%zmm11
 	vpaddq	%zmm26,%zmm12,%zmm12
 
-	vmovdqu64	16(%rsi),%xmm8
+	vmovdqu	16(%rsi),%xmm8
 	vpmuludq	%zmm1,%zmm18,%zmm28
 	vpmuludq	%zmm1,%zmm19,%zmm29
 	vpmuludq	%zmm1,%zmm24,%zmm25
@@ -2699,7 +2700,7 @@ ENTRY(poly1305_blocks_avx512)
 	vpaddq	%zmm25,%zmm11,%zmm11
 	vpaddq	%zmm27,%zmm13,%zmm13
 
-	vinserti64x2	$1,32(%rsi),%zmm7,%zmm7
+	vinserti128	$1,32(%rsi),%ymm7,%ymm7
 	vpmuludq	%zmm3,%zmm16,%zmm28
 	vpmuludq	%zmm3,%zmm17,%zmm29
 	vpmuludq	%zmm1,%zmm16,%zmm26
@@ -2709,7 +2710,7 @@ ENTRY(poly1305_blocks_avx512)
 	vpaddq	%zmm26,%zmm12,%zmm12
 	vpaddq	%zmm27,%zmm13,%zmm13
 
-	vinserti64x2	$1,48(%rsi),%zmm8,%zmm8
+	vinserti128	$1,48(%rsi),%ymm8,%ymm8
 	vpmuludq	%zmm4,%zmm24,%zmm28
 	vpmuludq	%zmm4,%zmm16,%zmm29
 	vpmuludq	%zmm3,%zmm22,%zmm25
@@ -2729,11 +2730,11 @@ ENTRY(poly1305_blocks_avx512)
 	vpaddq	%zmm27,%zmm13,%zmm2
 
 	movl	$1,%eax
-	vpsrldq	$8,%zmm3,%zmm14
-	vpsrldq	$8,%zmm15,%zmm4
-	vpsrldq	$8,%zmm0,%zmm11
-	vpsrldq	$8,%zmm1,%zmm12
-	vpsrldq	$8,%zmm2,%zmm13
+	vpermq	$0xb1,%zmm3,%zmm14
+	vpermq	$0xb1,%zmm15,%zmm4
+	vpermq	$0xb1,%zmm0,%zmm11
+	vpermq	$0xb1,%zmm1,%zmm12
+	vpermq	$0xb1,%zmm2,%zmm13
 	vpaddq	%zmm14,%zmm3,%zmm3
 	vpaddq	%zmm15,%zmm4,%zmm4
 	vpaddq	%zmm11,%zmm0,%zmm0
@@ -2763,26 +2764,24 @@ ENTRY(poly1305_blocks_avx512)
 	vpaddq	%zmm12,%zmm1,%zmm1{%k3}{z}
 	vpaddq	%zmm13,%zmm2,%zmm2{%k3}{z}
 
-
-
 	vpsrlq	$26,%ymm3,%ymm14
-	vpandq	%ymm5,%ymm3,%ymm3
+	vpand	%ymm5,%ymm3,%ymm3
 	vpsrldq	$6,%ymm7,%ymm9
 	vpsrldq	$6,%ymm8,%ymm10
 	vpunpckhqdq	%ymm8,%ymm7,%ymm6
 	vpaddq	%ymm14,%ymm4,%ymm4
 
 	vpsrlq	$26,%ymm0,%ymm11
-	vpandq	%ymm5,%ymm0,%ymm0
+	vpand	%ymm5,%ymm0,%ymm0
 	vpunpcklqdq	%ymm10,%ymm9,%ymm9
 	vpunpcklqdq	%ymm8,%ymm7,%ymm7
 	vpaddq	%ymm11,%ymm1,%ymm1
 
 	vpsrlq	$26,%ymm4,%ymm15
-	vpandq	%ymm5,%ymm4,%ymm4
+	vpand	%ymm5,%ymm4,%ymm4
 
 	vpsrlq	$26,%ymm1,%ymm12
-	vpandq	%ymm5,%ymm1,%ymm1
+	vpand	%ymm5,%ymm1,%ymm1
 	vpsrlq	$30,%ymm9,%ymm10
 	vpsrlq	$4,%ymm9,%ymm9
 	vpaddq	%ymm12,%ymm2,%ymm2
@@ -2794,21 +2793,21 @@ ENTRY(poly1305_blocks_avx512)
 	vpaddq	%ymm15,%ymm0,%ymm0
 
 	vpsrlq	$26,%ymm2,%ymm13
-	vpandq	%ymm5,%ymm2,%ymm2
-	vpandq	%ymm5,%ymm9,%ymm9
-	vpandq	%ymm5,%ymm7,%ymm7
+	vpand	%ymm5,%ymm2,%ymm2
+	vpand	%ymm5,%ymm9,%ymm9
+	vpand	%ymm5,%ymm7,%ymm7
 	vpaddq	%ymm13,%ymm3,%ymm3
 
 	vpsrlq	$26,%ymm0,%ymm11
-	vpandq	%ymm5,%ymm0,%ymm0
+	vpand	%ymm5,%ymm0,%ymm0
 	vpaddq	%ymm2,%ymm9,%ymm2
-	vpandq	%ymm5,%ymm8,%ymm8
+	vpand	%ymm5,%ymm8,%ymm8
 	vpaddq	%ymm11,%ymm1,%ymm1
 
 	vpsrlq	$26,%ymm3,%ymm14
-	vpandq	%ymm5,%ymm3,%ymm3
-	vpandq	%ymm5,%ymm10,%ymm10
-	vporq	%ymm30,%ymm6,%ymm6
+	vpand	%ymm5,%ymm3,%ymm3
+	vpand	%ymm5,%ymm10,%ymm10
+	vpor	32(%rcx),%ymm6,%ymm6
 	vpaddq	%ymm14,%ymm4,%ymm4
 
 	leaq	144(%rsp),%rax
