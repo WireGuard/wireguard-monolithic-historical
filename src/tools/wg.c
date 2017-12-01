@@ -34,8 +34,6 @@ static void show_usage(FILE *file)
 
 int main(int argc, char *argv[])
 {
-	char *tmp = NULL;
-
 	PROG_NAME = argv[0];
 
 	if (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "help"))) {
@@ -48,18 +46,9 @@ int main(int argc, char *argv[])
 		return show_main(1, new_argv);
 	}
 
-findsubcommand:
 	for (size_t i = 0; i < sizeof(subcommands) / sizeof(subcommands[0]); ++i) {
 		if (!strcmp(argv[1], subcommands[i].subcommand))
 			return subcommands[i].function(argc - 1, argv + 1);
-	}
-
-	/* Crude way of supporting "wg wg0 show..." */
-	if (!tmp && argc >= 3) {
-		tmp = argv[1];
-		argv[1] = argv[2];
-		argv[2] = tmp;
-		goto findsubcommand;
 	}
 
 	fprintf(stderr, "Invalid subcommand: `%s'\n", argv[1]);
