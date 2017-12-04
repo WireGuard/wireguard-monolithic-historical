@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: OpenSSL OR (BSD-3-Clause OR GPL-2.0)
  *
  * Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
- * Copyright 2015 Martin Willi.
  * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
  */
 
@@ -82,12 +81,14 @@ void __init chacha20poly1305_fpu_init(void) { }
 void __init chacha20poly1305_fpu_init(void) { }
 #endif
 
-#define CHACHA20_IV_SIZE	16
-#define CHACHA20_KEY_SIZE	32
-#define CHACHA20_BLOCK_SIZE	64
-#define POLY1305_BLOCK_SIZE	16
-#define POLY1305_KEY_SIZE	32
-#define POLY1305_MAC_SIZE	16
+enum {
+	CHACHA20_IV_SIZE = 16,
+	CHACHA20_KEY_SIZE = 32,
+	CHACHA20_BLOCK_SIZE = 64,
+	POLY1305_BLOCK_SIZE = 16,
+	POLY1305_KEY_SIZE = 32,
+	POLY1305_MAC_SIZE = 16
+};
 
 static inline u32 le32_to_cpuvp(const void *p)
 {
@@ -108,6 +109,45 @@ struct chacha20_ctx {
 	u32 state[CHACHA20_BLOCK_SIZE / sizeof(u32)];
 } __aligned(32);
 
+#define QUARTER_ROUND(x, a, b, c, d) ( \
+	x[a] += x[b], \
+	x[d] = rotl32((x[d] ^ x[a]), 16), \
+	x[c] += x[d], \
+	x[b] = rotl32((x[b] ^ x[c]), 12), \
+	x[a] += x[b], \
+	x[d] = rotl32((x[d] ^ x[a]), 8), \
+	x[c] += x[d], \
+	x[b] = rotl32((x[b] ^ x[c]), 7) \
+)
+
+#define C(i, j) (i * 4 + j)
+
+#define DOUBLE_ROUND(x) ( \
+	/* Column Round */ \
+	QUARTER_ROUND(x, C(0, 0), C(1, 0), C(2, 0), C(3, 0)), \
+	QUARTER_ROUND(x, C(0, 1), C(1, 1), C(2, 1), C(3, 1)), \
+	QUARTER_ROUND(x, C(0, 2), C(1, 2), C(2, 2), C(3, 2)), \
+	QUARTER_ROUND(x, C(0, 3), C(1, 3), C(2, 3), C(3, 3)), \
+	/* Diagonal Round */ \
+	QUARTER_ROUND(x, C(0, 0), C(1, 1), C(2, 2), C(3, 3)), \
+	QUARTER_ROUND(x, C(0, 1), C(1, 2), C(2, 3), C(3, 0)), \
+	QUARTER_ROUND(x, C(0, 2), C(1, 3), C(2, 0), C(3, 1)), \
+	QUARTER_ROUND(x, C(0, 3), C(1, 0), C(2, 1), C(3, 2)) \
+)
+
+#define TWENTY_ROUNDS(x) ( \
+	DOUBLE_ROUND(x), \
+	DOUBLE_ROUND(x), \
+	DOUBLE_ROUND(x), \
+	DOUBLE_ROUND(x), \
+	DOUBLE_ROUND(x), \
+	DOUBLE_ROUND(x), \
+	DOUBLE_ROUND(x), \
+	DOUBLE_ROUND(x), \
+	DOUBLE_ROUND(x), \
+	DOUBLE_ROUND(x) \
+)
+
 static void chacha20_block_generic(struct chacha20_ctx *ctx, void *stream)
 {
 	u32 x[CHACHA20_BLOCK_SIZE / sizeof(u32)];
@@ -117,47 +157,7 @@ static void chacha20_block_generic(struct chacha20_ctx *ctx, void *stream)
 	for (i = 0; i < ARRAY_SIZE(x); i++)
 		x[i] = ctx->state[i];
 
-	for (i = 0; i < 20; i += 2) {
-		x[0]  += x[4];    x[12] = rotl32(x[12] ^ x[0],  16);
-		x[1]  += x[5];    x[13] = rotl32(x[13] ^ x[1],  16);
-		x[2]  += x[6];    x[14] = rotl32(x[14] ^ x[2],  16);
-		x[3]  += x[7];    x[15] = rotl32(x[15] ^ x[3],  16);
-
-		x[8]  += x[12];   x[4]  = rotl32(x[4]  ^ x[8],  12);
-		x[9]  += x[13];   x[5]  = rotl32(x[5]  ^ x[9],  12);
-		x[10] += x[14];   x[6]  = rotl32(x[6]  ^ x[10], 12);
-		x[11] += x[15];   x[7]  = rotl32(x[7]  ^ x[11], 12);
-
-		x[0]  += x[4];    x[12] = rotl32(x[12] ^ x[0],   8);
-		x[1]  += x[5];    x[13] = rotl32(x[13] ^ x[1],   8);
-		x[2]  += x[6];    x[14] = rotl32(x[14] ^ x[2],   8);
-		x[3]  += x[7];    x[15] = rotl32(x[15] ^ x[3],   8);
-
-		x[8]  += x[12];   x[4]  = rotl32(x[4]  ^ x[8],   7);
-		x[9]  += x[13];   x[5]  = rotl32(x[5]  ^ x[9],   7);
-		x[10] += x[14];   x[6]  = rotl32(x[6]  ^ x[10],  7);
-		x[11] += x[15];   x[7]  = rotl32(x[7]  ^ x[11],  7);
-
-		x[0]  += x[5];    x[15] = rotl32(x[15] ^ x[0],  16);
-		x[1]  += x[6];    x[12] = rotl32(x[12] ^ x[1],  16);
-		x[2]  += x[7];    x[13] = rotl32(x[13] ^ x[2],  16);
-		x[3]  += x[4];    x[14] = rotl32(x[14] ^ x[3],  16);
-
-		x[10] += x[15];   x[5]  = rotl32(x[5]  ^ x[10], 12);
-		x[11] += x[12];   x[6]  = rotl32(x[6]  ^ x[11], 12);
-		x[8]  += x[13];   x[7]  = rotl32(x[7]  ^ x[8],  12);
-		x[9]  += x[14];   x[4]  = rotl32(x[4]  ^ x[9],  12);
-
-		x[0]  += x[5];    x[15] = rotl32(x[15] ^ x[0],   8);
-		x[1]  += x[6];    x[12] = rotl32(x[12] ^ x[1],   8);
-		x[2]  += x[7];    x[13] = rotl32(x[13] ^ x[2],   8);
-		x[3]  += x[4];    x[14] = rotl32(x[14] ^ x[3],   8);
-
-		x[10] += x[15];   x[5]  = rotl32(x[5]  ^ x[10],  7);
-		x[11] += x[12];   x[6]  = rotl32(x[6]  ^ x[11],  7);
-		x[8]  += x[13];   x[7]  = rotl32(x[7]  ^ x[8],   7);
-		x[9]  += x[14];   x[4]  = rotl32(x[4]  ^ x[9],   7);
-	}
+	TWENTY_ROUNDS(x);
 
 	for (i = 0; i < ARRAY_SIZE(x); i++)
 		out[i] = cpu_to_le32(x[i] + ctx->state[i]);
@@ -168,7 +168,6 @@ static void chacha20_block_generic(struct chacha20_ctx *ctx, void *stream)
 static void hchacha20_generic(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 nonce[16], const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	__le32 *out = (__force __le32 *)derived_key;
-	int i;
 	u32 x[] = {
 		0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
 		le32_to_cpuvp(key + 0), le32_to_cpuvp(key + 4), le32_to_cpuvp(key + 8), le32_to_cpuvp(key + 12),
@@ -176,47 +175,7 @@ static void hchacha20_generic(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 
 		le32_to_cpuvp(nonce +  0), le32_to_cpuvp(nonce +  4), le32_to_cpuvp(nonce +  8), le32_to_cpuvp(nonce + 12)
 	};
 
-	for (i = 0; i < 20; i += 2) {
-		x[0]  += x[4];    x[12] = rotl32(x[12] ^ x[0],  16);
-		x[1]  += x[5];    x[13] = rotl32(x[13] ^ x[1],  16);
-		x[2]  += x[6];    x[14] = rotl32(x[14] ^ x[2],  16);
-		x[3]  += x[7];    x[15] = rotl32(x[15] ^ x[3],  16);
-
-		x[8]  += x[12];   x[4]  = rotl32(x[4]  ^ x[8],  12);
-		x[9]  += x[13];   x[5]  = rotl32(x[5]  ^ x[9],  12);
-		x[10] += x[14];   x[6]  = rotl32(x[6]  ^ x[10], 12);
-		x[11] += x[15];   x[7]  = rotl32(x[7]  ^ x[11], 12);
-
-		x[0]  += x[4];    x[12] = rotl32(x[12] ^ x[0],   8);
-		x[1]  += x[5];    x[13] = rotl32(x[13] ^ x[1],   8);
-		x[2]  += x[6];    x[14] = rotl32(x[14] ^ x[2],   8);
-		x[3]  += x[7];    x[15] = rotl32(x[15] ^ x[3],   8);
-
-		x[8]  += x[12];   x[4]  = rotl32(x[4]  ^ x[8],   7);
-		x[9]  += x[13];   x[5]  = rotl32(x[5]  ^ x[9],   7);
-		x[10] += x[14];   x[6]  = rotl32(x[6]  ^ x[10],  7);
-		x[11] += x[15];   x[7]  = rotl32(x[7]  ^ x[11],  7);
-
-		x[0]  += x[5];    x[15] = rotl32(x[15] ^ x[0],  16);
-		x[1]  += x[6];    x[12] = rotl32(x[12] ^ x[1],  16);
-		x[2]  += x[7];    x[13] = rotl32(x[13] ^ x[2],  16);
-		x[3]  += x[4];    x[14] = rotl32(x[14] ^ x[3],  16);
-
-		x[10] += x[15];   x[5]  = rotl32(x[5]  ^ x[10], 12);
-		x[11] += x[12];   x[6]  = rotl32(x[6]  ^ x[11], 12);
-		x[8]  += x[13];   x[7]  = rotl32(x[7]  ^ x[8],  12);
-		x[9]  += x[14];   x[4]  = rotl32(x[4]  ^ x[9],  12);
-
-		x[0]  += x[5];    x[15] = rotl32(x[15] ^ x[0],   8);
-		x[1]  += x[6];    x[12] = rotl32(x[12] ^ x[1],   8);
-		x[2]  += x[7];    x[13] = rotl32(x[13] ^ x[2],   8);
-		x[3]  += x[4];    x[14] = rotl32(x[14] ^ x[3],   8);
-
-		x[10] += x[15];   x[5]  = rotl32(x[5]  ^ x[10],  7);
-		x[11] += x[12];   x[6]  = rotl32(x[6]  ^ x[11],  7);
-		x[8]  += x[13];   x[7]  = rotl32(x[7]  ^ x[8],   7);
-		x[9]  += x[14];   x[4]  = rotl32(x[4]  ^ x[9],   7);
-	}
+	TWENTY_ROUNDS(x);
 
 	out[0] = cpu_to_le32(x[0]);
 	out[1] = cpu_to_le32(x[1]);
