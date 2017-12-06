@@ -33,6 +33,7 @@ asmlinkage void poly1305_blocks_avx2(void *ctx, const u8 *inp, size_t len, u32 p
 #endif
 #ifdef CONFIG_AS_AVX512
 asmlinkage void chacha20_avx512(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void chacha20_avx512vl(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
 asmlinkage void poly1305_blocks_avx512(void *ctx, const u8 *inp, size_t len, u32 padbit);
 #endif
 
