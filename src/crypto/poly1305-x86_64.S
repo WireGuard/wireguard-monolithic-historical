@@ -8,7 +8,7 @@
 #include <linux/linkage.h>
 
 .section .rodata.cst32.Lmask24, "aM", @progbits, 32
-.align	32
+.align	64
 .Lconst:
 .Lmask24:
 .long	0x0ffffff,0,0x0ffffff,0,0x0ffffff,0,0x0ffffff,0
