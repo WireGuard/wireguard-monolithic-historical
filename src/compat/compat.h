@@ -530,8 +530,11 @@ static inline int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_n
 #ifndef XFEATURE_MASK_SSE
 #define XFEATURE_MASK_SSE XSTATE_SSE
 #endif
-#ifndef XFEATURE_MASK_ZMM_Hi256
-#define XFEATURE_MASK_ZMM_Hi256 XSTATE_ZMM_Hi256
+#ifndef XSTATE_AVX512
+#define XSTATE_AVX512 (XSTATE_OPMASK | XSTATE_ZMM_Hi256 | XSTATE_Hi16_ZMM)
+#endif
+#ifndef XFEATURE_MASK_AVX512
+#define XFEATURE_MASK_AVX512 XSTATE_AVX512
 #endif
 #endif
 

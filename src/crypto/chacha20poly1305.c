@@ -16,6 +16,7 @@
 #if defined(CONFIG_X86_64)
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
+#include <asm/intel-family.h>
 asmlinkage void poly1305_init_x86_64(void *ctx, const u8 key[16]);
 asmlinkage void poly1305_blocks_x86_64(void *ctx, const u8 *inp, size_t len, u32 padbit);
 asmlinkage void poly1305_emit_x86_64(void *ctx, u8 mac[16], const u32 nonce[4]);
@@ -41,14 +42,21 @@ static bool chacha20poly1305_use_ssse3 __read_mostly;
 static bool chacha20poly1305_use_avx __read_mostly;
 static bool chacha20poly1305_use_avx2 __read_mostly;
 static bool chacha20poly1305_use_avx512 __read_mostly;
+static bool chacha20poly1305_use_avx512vl __read_mostly;
 
 void __init chacha20poly1305_fpu_init(void)
 {
 	chacha20poly1305_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
-	chacha20poly1305_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
-	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
+	chacha20poly1305_use_avx = boot_cpu_has(X86_FEATURE_AVX) &&
+				   cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
+	chacha20poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) &&
+				    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 #ifndef COMPAT_CANNOT_USE_AVX512
-	chacha20poly1305_use_avx512 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_ZMM_Hi256, NULL);
+	chacha20poly1305_use_avx512 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) &&
+				      cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_AVX512, NULL) &&
+				      boot_cpu_data.x86_model != INTEL_FAM6_SKYLAKE_X;
+	chacha20poly1305_use_avx512vl = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) && boot_cpu_has(X86_FEATURE_AVX512VL) &&
+					cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_AVX512, NULL);
 #endif
 }
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
@@ -225,6 +233,11 @@ static void chacha20_crypt(struct chacha20_ctx *ctx, u8 *dst, const u8 *src, u32
 #ifdef CONFIG_AS_AVX512
 	if (chacha20poly1305_use_avx512) {
 		chacha20_avx512(dst, src, bytes, &ctx->state[4], &ctx->state[12]);
+		ctx->state[12] += (bytes + 63) / 64;
+		return;
+	}
+	if (chacha20poly1305_use_avx512vl) {
+		chacha20_avx512vl(dst, src, bytes, &ctx->state[4], &ctx->state[12]);
 		ctx->state[12] += (bytes + 63) / 64;
 		return;
 	}
