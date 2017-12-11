@@ -167,10 +167,6 @@ add_default() {
 	cmd ip $proto route add "$1" dev "$INTERFACE" table $DEFAULT_TABLE
 	cmd ip $proto rule add not fwmark $DEFAULT_TABLE table $DEFAULT_TABLE
 	cmd ip $proto rule add table main suppress_prefixlength 0
-	local key value
-	while read -r key _ value; do
-		[[ $value -eq 1 ]] && sysctl -q "$key=2"
-	done < <(sysctl -a -r '^net\.ipv4.conf\.[^ .=]+\.rp_filter$')
 	return 0
 }
 

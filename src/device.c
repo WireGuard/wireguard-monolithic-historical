@@ -44,6 +44,13 @@ static int open(struct net_device *dev)
 		 */
 		IN_DEV_CONF_SET(dev_v4, SEND_REDIRECTS, false);
 		IPV4_DEVCONF_ALL(dev_net(dev), SEND_REDIRECTS) = false;
+
+		/* TODO: when we merge to mainline, put this check in fib_validate_source in
+		 * net/ipv4/fib_frontend.c, just like what currently happens with secpath_exists.
+		 */
+		IN_DEV_CONF_SET(dev_v4, RP_FILTER, 0);
+		if (IPV4_DEVCONF_ALL(dev_net(dev), RP_FILTER) == 1)
+			IPV4_DEVCONF_ALL(dev_net(dev), RP_FILTER) = 2;
 	}
 #ifndef COMPAT_CANNOT_USE_IN6_DEV_GET
 	if (dev_v6)
