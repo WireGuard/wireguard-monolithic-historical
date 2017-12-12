@@ -2,8 +2,6 @@
  *
  * Copyright (C) 2008 Google Inc. All Rights Reserved.
  * Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
- *
- * Build with emcc -O3 --memory-init-file 0 -o curve25519_generate.js curve25519_generate.c
  */
 
 #include <emscripten.h>
