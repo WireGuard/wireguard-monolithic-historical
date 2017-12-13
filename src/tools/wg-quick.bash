@@ -152,7 +152,7 @@ add_route() {
 
 	if [[ -n $TABLE && $TABLE != auto ]]; then
 		cmd ip route add "$1" dev "$INTERFACE" table "$TABLE"
-	elif [[ $1 == 0.0.0.0/0 || $1 =~ ^[0:]+/0$ ]]; then
+	elif [[ $1 == */0 ]]; then
 		add_default "$1"
 	else
 		[[ $(ip route get "$i" 2>/dev/null) == *dev\ $INTERFACE\ * ]] || cmd ip route add "$1" dev "$INTERFACE"
