@@ -119,9 +119,11 @@ static bool blake2s_use_avx __read_mostly;
 static bool blake2s_use_avx512 __read_mostly;
 void __init blake2s_fpu_init(void)
 {
+#ifndef CONFIG_UML
 	blake2s_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 #ifndef COMPAT_CANNOT_USE_AVX512
 	blake2s_use_avx512 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) && boot_cpu_has(X86_FEATURE_AVX512VL) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_AVX512, NULL);
+#endif
 #endif
 }
 #ifdef CONFIG_AS_AVX

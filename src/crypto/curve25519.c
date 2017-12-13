@@ -33,7 +33,9 @@ static __always_inline void normalize_secret(u8 secret[CURVE25519_POINT_SIZE])
 static bool curve25519_use_avx __read_mostly;
 void __init curve25519_fpu_init(void)
 {
+#ifndef CONFIG_UML
 	curve25519_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
+#endif
 }
 
 typedef u64 fe[10];

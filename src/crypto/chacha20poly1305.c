@@ -46,6 +46,7 @@ static bool chacha20poly1305_use_avx512vl __read_mostly;
 
 void __init chacha20poly1305_fpu_init(void)
 {
+#ifndef CONFIG_UML
 	chacha20poly1305_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
 	chacha20poly1305_use_avx = boot_cpu_has(X86_FEATURE_AVX) &&
 				   cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
@@ -57,6 +58,7 @@ void __init chacha20poly1305_fpu_init(void)
 				      boot_cpu_data.x86_model != INTEL_FAM6_SKYLAKE_X;
 	chacha20poly1305_use_avx512vl = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) && boot_cpu_has(X86_FEATURE_AVX512VL) &&
 					cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_AVX512, NULL);
+#endif
 #endif
 }
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)

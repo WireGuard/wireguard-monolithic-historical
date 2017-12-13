@@ -58,7 +58,7 @@ bool __must_check xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t
 static inline bool chacha20poly1305_init_simd(void)
 {
 	bool have_simd = false;
-#if defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
 	have_simd = irq_fpu_usable();
 	if (have_simd)
 		kernel_fpu_begin();
@@ -76,7 +76,7 @@ static inline bool chacha20poly1305_init_simd(void)
 
 static inline void chacha20poly1305_deinit_simd(bool was_on)
 {
-#if defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
 	if (was_on)
 		kernel_fpu_end();
 #elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
