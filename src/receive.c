@@ -296,12 +296,17 @@ static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpo
 
 	keep_key_fresh(peer);
 
+	timers_any_authenticated_packet_received(peer);
+	timers_any_authenticated_packet_traversal(peer);
+
 	/* A packet with length 0 is a keepalive packet */
 	if (unlikely(!skb->len)) {
 		rx_stats(peer, message_data_len(0));
 		net_dbg_ratelimited("%s: Receiving keepalive packet from peer %llu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
 		goto packet_processed;
 	}
+
+	timers_data_received(peer);
 
 	if (unlikely(skb_network_header(skb) < skb->head))
 		goto dishonest_packet_size;
@@ -330,8 +335,6 @@ static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpo
 	if (unlikely(pskb_trim(skb, len)))
 		goto packet_processed;
 
-	timers_data_received(peer);
-
 	routed_peer = allowedips_lookup_src(&peer->device->peer_allowedips, skb);
 	peer_put(routed_peer); /* We don't need the extra reference. */
 
@@ -343,7 +346,7 @@ static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpo
 		net_dbg_ratelimited("%s: Failed to give packet to userspace from peer %llu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
 	} else
 		rx_stats(peer, message_data_len(len_before_trim));
-	goto continue_processing;
+	return;
 
 dishonest_packet_peer:
 	net_dbg_skb_ratelimited("%s: Packet has unallowed src IP (%pISc) from peer %llu (%pISpfsc)\n", dev->name, skb, peer->internal_id, &peer->endpoint.addr);
@@ -362,9 +365,6 @@ dishonest_packet_size:
 	goto packet_processed;
 packet_processed:
 	dev_kfree_skb(skb);
-continue_processing:
-	timers_any_authenticated_packet_received(peer);
-	timers_any_authenticated_packet_traversal(peer);
 }
 
 void packet_rx_worker(struct work_struct *work)
