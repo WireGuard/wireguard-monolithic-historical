@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: OpenSSL OR (BSD-3-Clause OR GPL-2.0)
  *
- * Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
  */
 
