@@ -36,12 +36,13 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 
 	rcu_read_lock_bh();
 	sock = rcu_dereference_bh(wg->sock4);
-	fl.fl4_sport = inet_sk(sock)->inet_sport;
 
 	if (unlikely(!sock)) {
 		ret = -ENONET;
 		goto err;
 	}
+
+	fl.fl4_sport = inet_sk(sock)->inet_sport;
 
 	if (cache)
 		rt = dst_cache_get_ip4(cache, &fl.saddr);
@@ -107,12 +108,13 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 
 	rcu_read_lock_bh();
 	sock = rcu_dereference_bh(wg->sock6);
-	fl.fl6_sport = inet_sk(sock)->inet_sport;
 
 	if (unlikely(!sock)) {
 		ret = -ENONET;
 		goto err;
 	}
+
+	fl.fl6_sport = inet_sk(sock)->inet_sport;
 
 	if (cache)
 		dst = dst_cache_get_ip6(cache, &fl.saddr);
