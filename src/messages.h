@@ -119,7 +119,9 @@ enum message_alignments {
 	MESSAGE_MINIMUM_LENGTH = message_data_len(0)
 };
 
-#define SKB_HEADER_LEN (max(sizeof(struct iphdr), sizeof(struct ipv6hdr)) + sizeof(struct udphdr) + NET_SKB_PAD)
+#define WG_L4_HDR_LEN (max(sizeof(struct iphdr), sizeof(struct ipv6hdr)) + sizeof(struct udphdr))
+#define WG_L5_HDR_LEN (WG_L4_HDR_LEN + MESSAGE_MINIMUM_LENGTH)
+#define SKB_HEADER_LEN (WG_L4_HDR_LEN + NET_SKB_PAD)
 #define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
 
 enum {

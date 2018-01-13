@@ -119,8 +119,12 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	struct wireguard_peer *peer;
 	struct sk_buff *next;
 	struct sk_buff_head packets;
+	struct dst_entry *dst_peer;
+	struct dst_entry *dst_skb;
 	sa_family_t family;
 	int ret;
+	u32 mtu;
+	u32 dbgf = 0;
 
 	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol)) {
 		ret = -EPROTONOSUPPORT;
@@ -141,6 +145,27 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		net_dbg_ratelimited("%s: No valid endpoint has been configured or discovered for peer %llu\n", dev->name, peer->internal_id);
 		goto err_peer;
 	}
+
+	dst_peer = dst_cache_get(&peer->endpoint_cache); /* TODO: Laaaaaaazy */
+	if (dst_peer) {
+		dbgf |= 1;
+		mtu = dst_mtu(dst_peer);
+
+		if(unlikely(mtu < WG_L5_HDR_LEN)) {
+			ret = -EMSGSIZE;
+			net_dbg_ratelimited("%s: Path MTU for peer %llu is too small: %u\n", dev->name, peer->internal_id, mtu);
+			goto err_peer;
+		}
+		mtu -= WG_L5_HDR_LEN;
+
+		if (mtu != dev->mtu) {
+			dbgf |= 2;
+			mtu &= ~(MESSAGE_PADDING_MULTIPLE - 1); /* w/o this, skb_encrypt() would happily pad the msg past the peer PMTU. */
+			dst_skb = skb_dst(skb);
+			dst_skb->ops->update_pmtu(dst_skb, NULL, skb, mtu); /* TODO: Should we pass in skb->sk instead of NULL? */
+		}
+	}
+	printk("wg xmit: %u\n", dbgf);
 
 	__skb_queue_head_init(&packets);
 	if (!skb_is_gso(skb))
@@ -256,7 +281,7 @@ static void setup(struct net_device *dev)
 	dev->features |= WG_NETDEV_FEATURES;
 	dev->hw_features |= WG_NETDEV_FEATURES;
 	dev->hw_enc_features |= WG_NETDEV_FEATURES;
-	dev->mtu = ETH_DATA_LEN - MESSAGE_MINIMUM_LENGTH - sizeof(struct udphdr) - max(sizeof(struct ipv6hdr), sizeof(struct iphdr));
+	dev->mtu = ETH_DATA_LEN - WG_L5_HDR_LEN;
 
 	/* We need to keep the dst around in case of icmp replies. */
 	netif_keep_dst(dev);
