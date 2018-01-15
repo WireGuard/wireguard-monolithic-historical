@@ -283,18 +283,12 @@ no_simd:
 		crypto_xor(dst, buf, bytes);
 	}
 }
-typedef void (*poly1305_blocks_f)(void *ctx, const u8 *inp, size_t len, u32 padbit);
-typedef void (*poly1305_emit_f)(void *ctx, u8 mac[16], const u32 nonce[4]);
 
 struct poly1305_ctx {
 	u8 opaque[24 * sizeof(u64)];
 	u32 nonce[4];
 	u8 data[POLY1305_BLOCK_SIZE];
 	size_t num;
-	struct {
-		poly1305_blocks_f blocks;
-		poly1305_emit_f emit;
-	} func;
 } __aligned(8);
 
 #if !(defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64) || (defined(CONFIG_MIPS) && defined(CONFIG_64BIT)))
@@ -468,62 +462,92 @@ static void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SI
 
 #if defined(CONFIG_X86_64)
 	poly1305_init_x86_64(ctx->opaque, key);
-	ctx->func.blocks = poly1305_blocks_x86_64;
-	ctx->func.emit = poly1305_emit_x86_64;
-#ifdef CONFIG_AS_AVX512
-	if(chacha20poly1305_use_avx512 && have_simd) {
-		ctx->func.blocks = poly1305_blocks_avx512;
-		ctx->func.emit = poly1305_emit_avx;
-	} else
-#endif
-#ifdef CONFIG_AS_AVX2
-	if (chacha20poly1305_use_avx2 && have_simd) {
-		ctx->func.blocks = poly1305_blocks_avx2;
-		ctx->func.emit = poly1305_emit_avx;
-	} else
-#endif
-#ifdef CONFIG_AS_AVX
-	if (chacha20poly1305_use_avx && have_simd) {
-		ctx->func.blocks = poly1305_blocks_avx;
-		ctx->func.emit = poly1305_emit_avx;
-	}
-#endif
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 	poly1305_init_arm(ctx->opaque, key);
-	ctx->func.blocks = poly1305_blocks_arm;
-	ctx->func.emit = poly1305_emit_arm;
-#if defined(ARM_USE_NEON)
-	if (chacha20poly1305_use_neon && have_simd) {
-		ctx->func.blocks = poly1305_blocks_neon;
-		ctx->func.emit = poly1305_emit_neon;
-	}
-#endif
 #elif defined(CONFIG_MIPS) && defined(CONFIG_64BIT)
 	poly1305_init_mips(ctx->opaque, key);
-	ctx->func.blocks = poly1305_blocks_mips;
-	ctx->func.emit = poly1305_emit_mips;
 #else
 	poly1305_init_generic(ctx->opaque, key);
 #endif
 	ctx->num = 0;
 }
 
-static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len)
+static inline void poly1305_blocks(void *ctx, const u8 *inp, size_t len, u32 padbit, bool have_simd)
 {
-#if defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64) || (defined(CONFIG_MIPS) && defined(CONFIG_64BIT))
-	const poly1305_blocks_f blocks = ctx->func.blocks;
-#else
-	const poly1305_blocks_f blocks = poly1305_blocks_generic;
+#if defined(CONFIG_X86_64)
+#ifdef CONFIG_AS_AVX512
+	if(chacha20poly1305_use_avx512 && have_simd)
+		poly1305_blocks_avx512(ctx, inp, len, padbit);
+	else
 #endif
+#ifdef CONFIG_AS_AVX2
+	if (chacha20poly1305_use_avx2 && have_simd)
+		poly1305_blocks_avx2(ctx, inp, len, padbit);
+	else
+#endif
+#ifdef CONFIG_AS_AVX
+	if (chacha20poly1305_use_avx && have_simd)
+		poly1305_blocks_avx(ctx, inp, len, padbit);
+	else
+#endif
+		poly1305_blocks_x86_64(ctx, inp, len, padbit);
+#elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+#if defined(ARM_USE_NEON)
+	if (chacha20poly1305_use_neon && have_simd)
+		poly1305_blocks_neon(ctx, inp, len, padbit);
+	else
+#endif
+		poly1305_blocks_arm(ctx, inp, len, padbit);
+#elif defined(CONFIG_MIPS) && defined(CONFIG_64BIT)
+	poly1305_blocks_mips(ctx, inp, len, padbit);
+#else
+	poly1305_blocks_generic(ctx, inp, len, padbit);
+#endif
+}
 
+static inline void poly1305_emit(void *ctx, u8 mac[16], const u32 nonce[4], bool have_simd)
+{
+#if defined(CONFIG_X86_64)
+#ifdef CONFIG_AS_AVX512
+	if(chacha20poly1305_use_avx512 && have_simd)
+		poly1305_emit_avx(ctx, mac, nonce);
+	else
+#endif
+#ifdef CONFIG_AS_AVX2
+	if (chacha20poly1305_use_avx2 && have_simd)
+		poly1305_emit_avx(ctx, mac, nonce);
+	else
+#endif
+#ifdef CONFIG_AS_AVX
+	if (chacha20poly1305_use_avx && have_simd)
+		poly1305_emit_avx(ctx, mac, nonce);
+	else
+#endif
+		poly1305_emit_x86_64(ctx, mac, nonce);
+#elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+#if defined(ARM_USE_NEON)
+	if (chacha20poly1305_use_neon && have_simd)
+		poly1305_emit_neon(ctx, mac, nonce);
+	else
+#endif
+		poly1305_emit_arm(ctx, mac, nonce);
+#elif defined(CONFIG_MIPS) && defined(CONFIG_64BIT)
+	poly1305_emit_mips(ctx, mac, nonce);
+#else
+	poly1305_emit_generic(ctx, mac, nonce);
+#endif
+}
+
+static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len, bool have_simd)
+{
 	const size_t num = ctx->num;
-	size_t rem;;
+	size_t rem;
 
 	if (num) {
 		rem = POLY1305_BLOCK_SIZE - num;
 		if (len >= rem) {
 			memcpy(ctx->data + num, inp, rem);
-			blocks(ctx->opaque, ctx->data, POLY1305_BLOCK_SIZE, 1);
+			poly1305_blocks(ctx->opaque, ctx->data, POLY1305_BLOCK_SIZE, 1, have_simd);
 			inp += rem;
 			len -= rem;
 		} else {
@@ -538,7 +562,7 @@ static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len)
 	len -= rem;
 
 	if (len >= POLY1305_BLOCK_SIZE) {
-		blocks(ctx->opaque, inp, len, 1);
+		poly1305_blocks(ctx->opaque, inp, len, 1, have_simd);
 		inp += len;
 	}
 
@@ -548,25 +572,18 @@ static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len)
 	ctx->num = rem;
 }
 
-static void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[16])
+static void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[16], bool have_simd)
 {
-#if defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64) || (defined(CONFIG_MIPS) && defined(CONFIG_64BIT))
-	const poly1305_blocks_f blocks = ctx->func.blocks;
-	const poly1305_emit_f emit = ctx->func.emit;
-#else
-	const poly1305_blocks_f blocks = poly1305_blocks_generic;
-	const poly1305_emit_f emit = poly1305_emit_generic;
-#endif
 	size_t num = ctx->num;
 
 	if (num) {
 		ctx->data[num++] = 1;   /* pad bit */
 		while (num < POLY1305_BLOCK_SIZE)
 			ctx->data[num++] = 0;
-		blocks(ctx->opaque, ctx->data, POLY1305_BLOCK_SIZE, 0);
+		poly1305_blocks(ctx->opaque, ctx->data, POLY1305_BLOCK_SIZE, 0, have_simd);
 	}
 
-	emit(ctx->opaque, mac, ctx->nonce);
+	poly1305_emit(ctx->opaque, mac, ctx->nonce, have_simd);
 
 	/* zero out the state */
 	memzero_explicit(ctx, sizeof(*ctx));
@@ -602,21 +619,21 @@ static inline void __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size
 	poly1305_init(&poly1305_state, block0, have_simd);
 	memzero_explicit(block0, sizeof(block0));
 
-	poly1305_update(&poly1305_state, ad, ad_len);
-	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf);
+	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
+	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
 
 	chacha20_crypt(&chacha20_state, dst, src, src_len, have_simd);
 
-	poly1305_update(&poly1305_state, dst, src_len);
-	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf);
+	poly1305_update(&poly1305_state, dst, src_len, have_simd);
+	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, have_simd);
 
 	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	len = cpu_to_le64(src_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
-	poly1305_finish(&poly1305_state, dst + src_len);
+	poly1305_finish(&poly1305_state, dst + src_len, have_simd);
 
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 }
@@ -649,8 +666,8 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	poly1305_init(&poly1305_state, block0, have_simd);
 	memzero_explicit(block0, sizeof(block0));
 
-	poly1305_update(&poly1305_state, ad, ad_len);
-	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf);
+	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
+	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
 
 	if (likely(src_len)) {
 		blkcipher_walk_init(&walk, dst, src, src_len);
@@ -659,27 +676,27 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 			size_t chunk_len = rounddown(walk.nbytes, CHACHA20_BLOCK_SIZE);
 
 			chacha20_crypt(&chacha20_state, walk.dst.virt.addr, walk.src.virt.addr, chunk_len, have_simd);
-			poly1305_update(&poly1305_state, walk.dst.virt.addr, chunk_len);
+			poly1305_update(&poly1305_state, walk.dst.virt.addr, chunk_len, have_simd);
 			ret = blkcipher_walk_done(&chacha20_desc, &walk, walk.nbytes % CHACHA20_BLOCK_SIZE);
 		}
 		if (walk.nbytes) {
 			chacha20_crypt(&chacha20_state, walk.dst.virt.addr, walk.src.virt.addr, walk.nbytes, have_simd);
-			poly1305_update(&poly1305_state, walk.dst.virt.addr, walk.nbytes);
+			poly1305_update(&poly1305_state, walk.dst.virt.addr, walk.nbytes, have_simd);
 			ret = blkcipher_walk_done(&chacha20_desc, &walk, 0);
 		}
 	}
 	if (unlikely(ret))
 		goto err;
 
-	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf);
+	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, have_simd);
 
 	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	len = cpu_to_le64(src_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
-	poly1305_finish(&poly1305_state, mac);
+	poly1305_finish(&poly1305_state, mac, have_simd);
 	scatterwalk_map_and_copy(mac, dst, src_len, sizeof(mac), 1);
 err:
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
@@ -707,20 +724,20 @@ static inline bool __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size
 	poly1305_init(&poly1305_state, block0, have_simd);
 	memzero_explicit(block0, sizeof(block0));
 
-	poly1305_update(&poly1305_state, ad, ad_len);
-	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf);
+	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
+	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
 
 	dst_len = src_len - POLY1305_MAC_SIZE;
-	poly1305_update(&poly1305_state, src, dst_len);
-	poly1305_update(&poly1305_state, pad0, (0x10 - dst_len) & 0xf);
+	poly1305_update(&poly1305_state, src, dst_len, have_simd);
+	poly1305_update(&poly1305_state, pad0, (0x10 - dst_len) & 0xf, have_simd);
 
 	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	len = cpu_to_le64(dst_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
-	poly1305_finish(&poly1305_state, mac);
+	poly1305_finish(&poly1305_state, mac, have_simd);
 
 	ret = crypto_memneq(mac, src + dst_len, POLY1305_MAC_SIZE);
 	memzero_explicit(mac, POLY1305_MAC_SIZE);
@@ -765,8 +782,8 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	poly1305_init(&poly1305_state, block0, have_simd);
 	memzero_explicit(block0, sizeof(block0));
 
-	poly1305_update(&poly1305_state, ad, ad_len);
-	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf);
+	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
+	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
 
 	dst_len = src_len - POLY1305_MAC_SIZE;
 	if (likely(dst_len)) {
@@ -775,12 +792,12 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 		while (walk.nbytes >= CHACHA20_BLOCK_SIZE) {
 			size_t chunk_len = rounddown(walk.nbytes, CHACHA20_BLOCK_SIZE);
 
-			poly1305_update(&poly1305_state, walk.src.virt.addr, chunk_len);
+			poly1305_update(&poly1305_state, walk.src.virt.addr, chunk_len, have_simd);
 			chacha20_crypt(&chacha20_state, walk.dst.virt.addr, walk.src.virt.addr, chunk_len, have_simd);
 			ret = blkcipher_walk_done(&chacha20_desc, &walk, walk.nbytes % CHACHA20_BLOCK_SIZE);
 		}
 		if (walk.nbytes) {
-			poly1305_update(&poly1305_state, walk.src.virt.addr, walk.nbytes);
+			poly1305_update(&poly1305_state, walk.src.virt.addr, walk.nbytes, have_simd);
 			chacha20_crypt(&chacha20_state, walk.dst.virt.addr, walk.src.virt.addr, walk.nbytes, have_simd);
 			ret = blkcipher_walk_done(&chacha20_desc, &walk, 0);
 		}
@@ -788,15 +805,15 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	if (unlikely(ret))
 		goto err;
 
-	poly1305_update(&poly1305_state, pad0, (0x10 - dst_len) & 0xf);
+	poly1305_update(&poly1305_state, pad0, (0x10 - dst_len) & 0xf, have_simd);
 
 	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
 	len = cpu_to_le64(dst_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len));
+	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
 
-	poly1305_finish(&poly1305_state, computed_mac);
+	poly1305_finish(&poly1305_state, computed_mac, have_simd);
 
 	scatterwalk_map_and_copy(read_mac, src, dst_len, POLY1305_MAC_SIZE, 0);
 	ret = crypto_memneq(read_mac, computed_mac, POLY1305_MAC_SIZE);
