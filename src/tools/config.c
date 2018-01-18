@@ -310,6 +310,7 @@ static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **la
 		}
 
 		if (!parse_ip(new_allowedip, ip)) {
+			free(new_allowedip);
 			free(saved_entry);
 			free(mutable);
 			return false;
