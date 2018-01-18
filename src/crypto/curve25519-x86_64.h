@@ -17,10 +17,10 @@ void __init curve25519_fpu_init(void)
 #endif
 }
 
-typedef u64 fe[10];
+typedef u64 fex[10];
 typedef u64 fe51[5];
-asmlinkage void curve25519_sandy2x_ladder(fe *, const u8 *);
-asmlinkage void curve25519_sandy2x_ladder_base(fe *, const u8 *);
+asmlinkage void curve25519_sandy2x_ladder(fex *, const u8 *);
+asmlinkage void curve25519_sandy2x_ladder_base(fex *, const u8 *);
 asmlinkage void curve25519_sandy2x_fe51_pack(u8 *, const fe51 *);
 asmlinkage void curve25519_sandy2x_fe51_mul(fe51 *, const fe51 *, const fe51 *);
 asmlinkage void curve25519_sandy2x_fe51_nsquare(fe51 *, const fe51 *, int);
@@ -30,7 +30,7 @@ static inline u32 le24_to_cpupv(const u8 *in)
 	return le16_to_cpup((__le16 *)in) | ((u32)in[2]) << 16;
 }
 
-static inline void fe_frombytes(fe h, const u8 *s)
+static inline void fex_frombytes(fex h, const u8 *s)
 {
 	u64 h0 = le32_to_cpup((__le32 *)s);
 	u64 h1 = le24_to_cpupv(s + 4) << 6;
@@ -108,7 +108,7 @@ static inline void fe51_invert(fe51 *r, const fe51 *x)
 static void curve25519_sandy2x(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
 {
 	u8 e[32];
-	fe var[3];
+	fex var[3];
 	fe51 x_51, z_51;
 
 	memcpy(e, secret, 32);
@@ -116,7 +116,7 @@ static void curve25519_sandy2x(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secr
 #define x1 var[0]
 #define x2 var[1]
 #define z2 var[2]
-	fe_frombytes(x1, basepoint);
+	fex_frombytes(x1, basepoint);
 	curve25519_sandy2x_ladder(var, e);
 	z_51[0] = (z2[1] << 26) + z2[0];
 	z_51[1] = (z2[3] << 26) + z2[2];
@@ -144,7 +144,7 @@ static void curve25519_sandy2x(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secr
 static void curve25519_sandy2x_base(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE])
 {
 	u8 e[32];
-	fe var[3];
+	fex var[3];
 	fe51 x_51, z_51;
 
 	memcpy(e, secret, 32);
