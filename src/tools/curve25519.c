@@ -957,7 +957,7 @@ static __always_inline void fe_1(fe *h)
 	h->v[0] = 1;
 }
 
-static __always_inline void fe_add_impl(uint32_t out[10], const uint32_t in1[10], const uint32_t in2[10])
+static void fe_add_impl(uint32_t out[10], const uint32_t in1[10], const uint32_t in2[10])
 {
 	{ const uint32_t x20 = in1[9];
 	{ const uint32_t x21 = in1[8];
@@ -1000,7 +1000,7 @@ static __always_inline void fe_add(fe_loose *h, const fe *f, const fe *g)
 	fe_add_impl(h->v, f->v, g->v);
 }
 
-static __always_inline void fe_sub_impl(uint32_t out[10], const uint32_t in1[10], const uint32_t in2[10])
+static void fe_sub_impl(uint32_t out[10], const uint32_t in1[10], const uint32_t in2[10])
 {
 	{ const uint32_t x20 = in1[9];
 	{ const uint32_t x21 = in1[8];
@@ -1043,7 +1043,7 @@ static __always_inline void fe_sub(fe_loose *h, const fe *f, const fe *g)
 	fe_sub_impl(h->v, f->v, g->v);
 }
 
-static __always_inline void fe_mul_impl(uint32_t out[10], const uint32_t in1[10], const uint32_t in2[10])
+static void fe_mul_impl(uint32_t out[10], const uint32_t in1[10], const uint32_t in2[10])
 {
 	{ const uint32_t x20 = in1[9];
 	{ const uint32_t x21 = in1[8];
@@ -1174,7 +1174,7 @@ static __always_inline void fe_mul_tll(fe *h, const fe_loose *f, const fe_loose 
 	fe_mul_impl(h->v, f->v, g->v);
 }
 
-static __always_inline void fe_sqr_impl(uint32_t out[10], const uint32_t in1[10])
+static void fe_sqr_impl(uint32_t out[10], const uint32_t in1[10])
 {
 	{ const uint32_t x17 = in1[9];
 	{ const uint32_t x18 = in1[8];
