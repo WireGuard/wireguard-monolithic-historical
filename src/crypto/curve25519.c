@@ -26,17 +26,15 @@ void __init curve25519_fpu_init(void) { }
 #endif
 
 #if defined(CONFIG_ARCH_SUPPORTS_INT128) && defined(__SIZEOF_INT128__)
-#include "curve25519-u128.h"
+#include "curve25519-hacl64.h"
 #else
-#include "curve25519-generic.h"
+#include "curve25519-fiat32.h"
 #endif
 
 static const u8 null_point[CURVE25519_POINT_SIZE] = { 0 };
 
 bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
 {
-	bool ret = true;
-
 #if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX)
 	if (curve25519_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
@@ -50,10 +48,7 @@ bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_P
 		kernel_neon_end();
 	} else
 #endif
-		ret = curve25519_donna(mypublic, secret, basepoint);
-
-	if (!ret) /* OOM or the like; not the result of a cryptographic operation or string comparison. */
-		return ret;
+		curve25519_generic(mypublic, secret, basepoint);
 
 	return crypto_memneq(mypublic, null_point, CURVE25519_POINT_SIZE);
 }
