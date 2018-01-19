@@ -28,7 +28,7 @@ static int __init mod_init(void)
 	blake2s_fpu_init();
 	curve25519_fpu_init();
 #ifdef DEBUG
-	if (!allowedips_selftest() || !packet_counter_selftest() || !curve25519_selftest() || !chacha20poly1305_selftest() || !blake2s_selftest() || !ratelimiter_selftest())
+	if (!allowedips_selftest() || !packet_counter_selftest() || !curve25519_selftest() || !chacha20poly1305_selftest() || !poly1305_selftest() || !blake2s_selftest() || !ratelimiter_selftest())
 		return -ENOTRECOVERABLE;
 #endif
 	noise_init();

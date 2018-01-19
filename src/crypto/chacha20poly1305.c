@@ -855,3 +855,4 @@ bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 }
 
 #include "../selftest/chacha20poly1305.h"
+#include "../selftest/poly1305.h"

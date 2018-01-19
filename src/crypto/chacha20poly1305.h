@@ -87,6 +87,7 @@ static inline void chacha20poly1305_deinit_simd(bool was_on)
 
 #ifdef DEBUG
 bool chacha20poly1305_selftest(void);
+bool poly1305_selftest(void);
 #endif
 
 #endif /* _WG_CHACHA20POLY1305_H */
