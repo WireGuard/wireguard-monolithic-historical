@@ -25,7 +25,7 @@ DOWNLOAD := wget -O
 MIRROR := https://download.wireguard.com/qemu-test/distfiles/
 
 WIREGUARD_SOURCES := $(wildcard ../../*.c ../../*.h ../../selftest/*.h ../../crypto/*.c ../../crypto/*.h ../../crypto/*.S ../../compat/*.h)
-TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools/*.h ../../uapi/*.h)
+TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools/*.h ../../uapi/*.h ../../crypto/curve25519-hacl64.h ../../crypto/curve25519-fiat32.h)
 
 default: qemu
 
@@ -265,7 +265,7 @@ $(LIBMNL_PATH)/src/.libs/libmnl.a: | $(LIBMNL_PATH)/.installed $(USERSPACE_DEPS)
 
 $(BUILD_PATH)/tools/wg: $(TOOLS_SOURCES) | $(LIBMNL_PATH)/src/.libs/libmnl.a $(USERSPACE_DEPS)
 	mkdir -p $(BUILD_PATH)
-	cp -pr ../../uapi ../../tools $(BUILD_PATH)/
+	cp -pr ../../uapi ../../crypto ../../tools $(BUILD_PATH)/
 	$(MAKE) -C $(BUILD_PATH)/tools clean
 	LDFLAGS="$(LDFLAGS) -L$(LIBMNL_PATH)/src/.libs" $(MAKE) -C $(BUILD_PATH)/tools LIBMNL_CFLAGS="-I$(LIBMNL_PATH)/include" LIBMNL_LDLIBS="-lmnl" wg
 	$(STRIP) -s $@
