@@ -67,6 +67,8 @@ ifeq ($(CHOST),$(CBUILD))
 CROSS_COMPILE_FLAG := --host=$(CHOST)
 NOPIE_GCC := gcc -fno-PIE
 CFLAGS += -march=native
+OMIT_AVX512 := $(shell gcc -march=native -Q --help=target | sed -n 's/.*\-m\(avx512[^ ]*\).*\[enabled\].*/-mno-\1/p')
+CFLAGS += $(OMIT_AVX512)
 STRIP := strip
 else
 $(info Cross compilation: building for $(CBUILD) using $(CHOST))
