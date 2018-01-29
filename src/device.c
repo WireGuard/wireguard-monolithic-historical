@@ -235,6 +235,10 @@ static void destruct(struct net_device *dev)
 	free_netdev(dev);
 }
 
+static const struct device_type device_type = {
+	.name = KBUILD_MODNAME
+};
+
 static void setup(struct net_device *dev)
 {
 	struct wireguard_device *wg = netdev_priv(dev);
@@ -257,6 +261,8 @@ static void setup(struct net_device *dev)
 	dev->hw_features |= WG_NETDEV_FEATURES;
 	dev->hw_enc_features |= WG_NETDEV_FEATURES;
 	dev->mtu = ETH_DATA_LEN - MESSAGE_MINIMUM_LENGTH - sizeof(struct udphdr) - max(sizeof(struct ipv6hdr), sizeof(struct iphdr));
+
+	SET_NETDEV_DEVTYPE(dev, &device_type);
 
 	/* We need to keep the dst around in case of icmp replies. */
 	netif_keep_dst(dev);
