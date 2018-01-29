@@ -128,10 +128,6 @@ static bool parse_keyfile(uint8_t key[static WG_KEY_LEN], const char *path)
 	}
 
 	if (fread(dst, WG_KEY_LEN_BASE64 - 1, 1, f) != 1) {
-		if (errno) {
-			perror("fread");
-			goto out;
-		}
 		/* If we're at the end and we didn't read anything, we're /dev/null or an empty file. */
 		if (!ferror(f) && feof(f) && !ftell(f)) {
 			memset(key, 0, WG_KEY_LEN);
