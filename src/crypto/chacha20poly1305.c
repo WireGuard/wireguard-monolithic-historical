@@ -154,21 +154,20 @@ struct chacha20_ctx {
 	DOUBLE_ROUND(x) \
 )
 
-static void chacha20_block_generic(struct chacha20_ctx *ctx, void *stream)
+static void chacha20_block_generic(struct chacha20_ctx *ctx, __le32 *stream)
 {
 	u32 x[CHACHA20_BLOCK_SIZE / sizeof(u32)];
-	__le32 *out = stream;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(x); i++)
+	for (i = 0; i < ARRAY_SIZE(x); ++i)
 		x[i] = ctx->state[i];
 
 	TWENTY_ROUNDS(x);
 
-	for (i = 0; i < ARRAY_SIZE(x); i++)
-		out[i] = cpu_to_le32(x[i] + ctx->state[i]);
+	for (i = 0; i < ARRAY_SIZE(x); ++i)
+		stream[i] = cpu_to_le32(x[i] + ctx->state[i]);
 
-	ctx->state[12]++;
+	++ctx->state[12];
 }
 
 static void hchacha20_generic(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 nonce[16], const u8 key[CHACHA20POLY1305_KEYLEN])
@@ -214,7 +213,7 @@ static inline void hchacha20(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 n
 
 static void chacha20_crypt(struct chacha20_ctx *ctx, u8 *dst, const u8 *src, u32 bytes, bool have_simd)
 {
-	u8 buf[CHACHA20_BLOCK_SIZE];
+	__le32 buf[CHACHA20_BLOCK_SIZE / sizeof(__le32)];
 
 	if (!have_simd
 #if defined(CONFIG_X86_64)
@@ -269,13 +268,13 @@ no_simd:
 
 	while (bytes >= CHACHA20_BLOCK_SIZE) {
 		chacha20_block_generic(ctx, buf);
-		crypto_xor(dst, buf, CHACHA20_BLOCK_SIZE);
+		crypto_xor(dst, (u8 *)buf, CHACHA20_BLOCK_SIZE);
 		bytes -= CHACHA20_BLOCK_SIZE;
 		dst += CHACHA20_BLOCK_SIZE;
 	}
 	if (bytes) {
 		chacha20_block_generic(ctx, buf);
-		crypto_xor(dst, buf, bytes);
+		crypto_xor(dst, (u8 *)buf, bytes);
 	}
 }
 
