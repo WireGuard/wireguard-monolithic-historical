@@ -111,24 +111,19 @@ static inline u64 le64_to_cpuvp(const void *p)
 	return le64_to_cpup(p);
 }
 
-static inline u32 rotl32(u32 v, u8 n)
-{
-	return (v << n) | (v >> (sizeof(v) * 8 - n));
-}
-
 struct chacha20_ctx {
 	u32 state[CHACHA20_BLOCK_SIZE / sizeof(u32)];
 } __aligned(32);
 
 #define QUARTER_ROUND(x, a, b, c, d) ( \
 	x[a] += x[b], \
-	x[d] = rotl32((x[d] ^ x[a]), 16), \
+	x[d] = rol32((x[d] ^ x[a]), 16), \
 	x[c] += x[d], \
-	x[b] = rotl32((x[b] ^ x[c]), 12), \
+	x[b] = rol32((x[b] ^ x[c]), 12), \
 	x[a] += x[b], \
-	x[d] = rotl32((x[d] ^ x[a]), 8), \
+	x[d] = rol32((x[d] ^ x[a]), 8), \
 	x[c] += x[d], \
-	x[b] = rotl32((x[b] ^ x[c]), 7) \
+	x[b] = rol32((x[b] ^ x[c]), 7) \
 )
 
 #define C(i, j) (i * 4 + j)
