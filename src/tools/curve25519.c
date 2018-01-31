@@ -35,18 +35,12 @@ typedef u32 __le32;
 #ifndef __force
 #define __force
 #endif
+#define normalize_secret(a) curve25519_normalize_secret(a)
 
 static noinline void memzero_explicit(void *s, size_t count)
 {
 	memset(s, 0, count);
 	__asm__ __volatile__("": :"r"(s) :"memory");
-}
-
-static __always_inline void normalize_secret(u8 secret[CURVE25519_POINT_SIZE])
-{
-	secret[0] &= 248;
-	secret[31] &= 127;
-	secret[31] |= 64;
 }
 
 #ifdef __SIZEOF_INT128__
