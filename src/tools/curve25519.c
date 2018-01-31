@@ -1,11 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright (C) 2016-2017 INRIA and Microsoft Corporation.
- * Copyright (C) 2015-2016 The fiat-crypto Authors.
  * Copyright (C) 2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
- *
- * This is a machine-generated formally verified implementation of curve25519 DH from:
- * https://github.com/mitls/hacl-star and https://github.com/mit-plv/fiat-crypto
  */
 
 #include "curve25519.h"
@@ -44,10 +39,10 @@ static noinline void memzero_explicit(void *s, size_t count)
 }
 
 #ifdef __SIZEOF_INT128__
-#include "../crypto/curve25519-hacl64.h"
-#else
-#include "../crypto/curve25519-fiat32.h"
+#define CONFIG_ARCH_SUPPORTS_INT128
 #endif
+
+#include "../crypto/curve25519-generic.h"
 
 void curve25519_generate_public(uint8_t pub[static CURVE25519_POINT_SIZE], const uint8_t secret[static CURVE25519_POINT_SIZE])
 {

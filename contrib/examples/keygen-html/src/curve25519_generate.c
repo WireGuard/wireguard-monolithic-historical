@@ -48,7 +48,7 @@ static __always_inline void normalize_secret(u8 secret[CURVE25519_POINT_SIZE])
 	secret[31] |= 64;
 }
 
-#include "../../../../src/crypto/curve25519-fiat32.h"
+#include "../../../../src/crypto/curve25519-generic.h"
 
 EMSCRIPTEN_KEEPALIVE void curve25519_generate_public(u8 public[static 32], const u8 private[static 32])
 {
