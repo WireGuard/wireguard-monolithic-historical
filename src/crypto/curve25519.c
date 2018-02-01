@@ -25,7 +25,11 @@ static __always_inline void normalize_secret(u8 secret[CURVE25519_POINT_SIZE])
 void __init curve25519_fpu_init(void) { }
 #endif
 
-#include "curve25519-generic.h"
+#if defined(CONFIG_ARCH_SUPPORTS_INT128) && defined(__SIZEOF_INT128__)
+#include "curve25519-hacl64.h"
+#else
+#include "curve25519-fiat32.h"
+#endif
 
 static const u8 null_point[CURVE25519_POINT_SIZE] = { 0 };
 
