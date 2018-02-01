@@ -17,7 +17,7 @@ static __always_inline void normalize_secret(u8 secret[CURVE25519_POINT_SIZE])
 	secret[31] |= 64;
 }
 
-#if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX)
+#if defined(CONFIG_X86_64)
 #include "curve25519-x86_64.h"
 #elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
 #include "curve25519-arm.h"
@@ -35,12 +35,12 @@ static const u8 null_point[CURVE25519_POINT_SIZE] = { 0 };
 
 bool curve25519(u8 mypublic[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE], const u8 basepoint[CURVE25519_POINT_SIZE])
 {
-#if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX)
-	if (curve25519_use_avx && irq_fpu_usable()) {
-		kernel_fpu_begin();
-		curve25519_sandy2x(mypublic, secret, basepoint);
-		kernel_fpu_end();
-	} else
+#if defined(CONFIG_X86_64)
+	if (curve25519_use_adx)
+		curve25519_adx(mypublic, secret, basepoint);
+	else if (curve25519_use_bmi2)
+		curve25519_bmi2(mypublic, secret, basepoint);
+	else
 #elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && defined(CONFIG_ARM)
 	if (curve25519_use_neon && may_use_simd()) {
 		kernel_neon_begin();
@@ -60,11 +60,13 @@ bool curve25519_generate_public(u8 pub[CURVE25519_POINT_SIZE], const u8 secret[C
 	if (unlikely(!crypto_memneq(secret, null_point, CURVE25519_POINT_SIZE)))
 		return false;
 
-#if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX)
-	if (curve25519_use_avx && irq_fpu_usable()) {
-		kernel_fpu_begin();
-		curve25519_sandy2x_base(pub, secret);
-		kernel_fpu_end();
+#if defined(CONFIG_X86_64)
+	if (curve25519_use_adx) {
+		curve25519_adx_base(pub, secret);
+		return crypto_memneq(pub, null_point, CURVE25519_POINT_SIZE);
+	}
+	if (curve25519_use_bmi2) {
+		curve25519_bmi2_base(pub, secret);
 		return crypto_memneq(pub, null_point, CURVE25519_POINT_SIZE);
 	}
 #endif
