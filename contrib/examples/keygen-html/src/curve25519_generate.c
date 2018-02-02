@@ -1,10 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright (C) 2015-2016 The fiat-crypto Authors.
  * Copyright (C) 2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
- *
- * This is a machine-generated formally verified implementation of curve25519 DH from:
- * https://github.com/mit-plv/fiat-crypto
  */
 
 #include <emscripten.h>
