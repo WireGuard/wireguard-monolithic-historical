@@ -7,7 +7,6 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <endian.h>
 
 typedef uint64_t u64;
 typedef uint32_t u32;
@@ -15,9 +14,15 @@ typedef uint8_t u8;
 typedef int64_t s64;
 typedef u64 __le64;
 typedef u32 __le32;
-#define le64_to_cpup(a) le64toh(*(a));
-#define le32_to_cpup(a) le32toh(*(a));
-#define cpu_to_le64(a) htole64(a);
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define le64_to_cpup(a) __builtin_bswap64(*(a))
+#define le32_to_cpup(a) __builtin_bswap32(*(a))
+#define cpu_to_le64(a) __builtin_bswap64(a)
+#else
+#define le64_to_cpup(a) (*(a))
+#define le32_to_cpup(a) (*(a))
+#define cpu_to_le64(a) (a)
+#endif
 #ifndef __always_inline
 #define __always_inline __inline __attribute__((__always_inline__))
 #endif
