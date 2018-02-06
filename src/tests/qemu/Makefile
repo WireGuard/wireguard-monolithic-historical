@@ -14,7 +14,7 @@ endif
 ARCH := $(firstword $(subst -, ,$(CBUILD)))
 
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.15
+KERNEL_VERSION ?= 4.15.1
 BUILD_PATH ?= $(PWD)/../../../qemu-build/$(ARCH)
 DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
@@ -161,8 +161,18 @@ else
 QEMU_MACHINE := -cpu 24Kf -machine malta -smp 1
 CFLAGS += -march=mips32r2 -EL
 endif
+else ifeq ($(ARCH),powerpc)
+QEMU_ARCH := ppc
+KERNEL_ARCH := powerpc
+KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/powerpc/boot/uImage
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host,accel=kvm -machine ppce500
 else
-$(error I only build: x86_64, i686, arm, aarch64, mips, mipsel, mips64, mips64el)
+QEMU_MACHINE := -machine ppce500
+endif
+CFLAGS += -mcpu=powerpc -mlong-double-64 -msecure-plt
+else
+$(error I only build: x86_64, i686, arm, aarch64, mips, mipsel, mips64, mips64el, powerpc)
 endif
 
 REAL_CC := $(CBUILD)-gcc
