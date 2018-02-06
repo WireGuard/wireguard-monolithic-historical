@@ -31,10 +31,10 @@ parse_options() {
 	CONFIG_FILE="$1"
 	[[ $CONFIG_FILE =~ ^[a-zA-Z0-9_=+.-]{1,15}$ ]] && CONFIG_FILE="/etc/wireguard/$CONFIG_FILE.conf"
 	[[ -e $CONFIG_FILE ]] || die "\`$CONFIG_FILE' does not exist"
-	[[ $CONFIG_FILE =~ /?([a-zA-Z0-9_=+.-]{1,15})\.conf$ ]] || die "The config file must be a valid interface name, followed by .conf"
+	[[ $CONFIG_FILE =~ (^|/)([a-zA-Z0-9_=+.-]{1,15})\.conf$ ]] || die "The config file must be a valid interface name, followed by .conf"
 	CONFIG_FILE="$(readlink -f "$CONFIG_FILE")"
 	((($(stat -c '0%#a' "$CONFIG_FILE") & $(stat -c '0%#a' "${CONFIG_FILE%/*}") & 0007) == 0)) || echo "Warning: \`$CONFIG_FILE' is world accessible" >&2
-	INTERFACE="${BASH_REMATCH[1]}"
+	INTERFACE="${BASH_REMATCH[2]}"
 	shopt -s nocasematch
 	while read -r line || [[ -n $line ]]; do
 		key="${line%%=*}"; key="${key##*([[:space:]])}"; key="${key%%*([[:space:]])}"
