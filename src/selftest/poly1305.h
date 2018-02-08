@@ -1491,7 +1491,7 @@ bool __init poly1305_selftest(void)
 	bool success = true;
 	size_t i;
 
-	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {
+	for (i = 0; i < ARRAY_SIZE(poly1305_testvecs); ++i) {
 		struct poly1305_ctx poly1305;
 		const u8 *in = poly1305_testvecs[i].input.data;
 		size_t inlen = poly1305_testvecs[i].input.size;
