@@ -98,6 +98,8 @@ static void mount_filesystems(void)
 		panic("tmpfs mount");
 	if (mount("none", "/run", "tmpfs", 0, NULL))
 		panic("tmpfs mount");
+	if (mount("none", "/sys/kernel/debug", "debugfs", 0, NULL))
+		; /* Not a problem if it fails.*/
 	if (symlink("/run", "/var/run"))
 		panic("run symlink");
 	if (symlink("/proc/self/fd", "/dev/fd"))
@@ -217,12 +219,22 @@ static void ensure_console(void)
 	panic("Unable to open console device");
 }
 
+static void clear_leaks(void)
+{
+	int fd;
+
+	fd = open("/sys/kernel/debug/kmemleak", O_WRONLY);
+	if (fd < 0)
+		return;
+	pretty_message("[+] Starting memory leak detection...");
+	write(fd, "clear\n", 5);
+	close(fd);
+}
+
 static void check_leaks(void)
 {
 	int fd;
 
-	if (mount("none", "/sys/kernel/debug", "debugfs", 0, NULL) < 0)
-		return;
 	fd = open("/sys/kernel/debug/kmemleak", O_WRONLY);
 	if (fd < 0)
 		return;
@@ -247,6 +259,7 @@ int main(int argc, char *argv[])
 	mount_filesystems();
 	kmod_selftests();
 	enable_logging();
+	clear_leaks();
 	launch_tests();
 	check_leaks();
 	poweroff();
