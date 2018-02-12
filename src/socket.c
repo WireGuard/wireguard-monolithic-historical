@@ -163,6 +163,8 @@ int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb, u8
 		ret = send4(peer->device, skb, &peer->endpoint, ds, &peer->endpoint_cache);
 	else if (peer->endpoint.addr.sa_family == AF_INET6)
 		ret = send6(peer->device, skb, &peer->endpoint, ds, &peer->endpoint_cache);
+	else
+		dev_kfree_skb(skb);
 	if (likely(!ret))
 		peer->tx_bytes += skb_len;
 	read_unlock_bh(&peer->endpoint_lock);
