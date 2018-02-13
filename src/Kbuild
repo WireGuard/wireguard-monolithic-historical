@@ -13,6 +13,7 @@ wireguard-$(CONFIG_X86_64) += crypto/chacha20-x86_64.o crypto/poly1305-x86_64.o 
 wireguard-$(CONFIG_ARM) += crypto/chacha20-arm.o crypto/poly1305-arm.o crypto/curve25519-arm.o
 wireguard-$(CONFIG_ARM64) += crypto/chacha20-arm64.o crypto/poly1305-arm64.o
 wireguard-$(if $(filter yy,$(CONFIG_MIPS)$(CONFIG_64BIT)),y,n) += crypto/poly1305-mips64.o
+wireguard-$(if $(filter yy,$(CONFIG_MIPS)$(CONFIG_CPU_MIPS32_R2)),y,n) += crypto/poly1305-mips.o crypto/chacha20-mips.o
 
 include $(src)/compat/Kbuild.include
 
