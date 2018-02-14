@@ -114,7 +114,7 @@ static FILE *userspace_interface_file(const char *interface)
 	ret = -EINVAL;
 	if (strchr(interface, '/'))
 		goto out;
-	ret = snprintf(addr.sun_path, sizeof(addr.sun_path) - 1, SOCK_PATH "%s" SOCK_SUFFIX, interface);
+	ret = snprintf(addr.sun_path, sizeof(addr.sun_path), SOCK_PATH "%s" SOCK_SUFFIX, interface);
 	if (ret < 0)
 		goto out;
 	ret = stat(addr.sun_path, &sbuf);
@@ -155,7 +155,7 @@ static bool userspace_has_wireguard_interface(const char *interface)
 
 	if (strchr(interface, '/'))
 		return false;
-	if (snprintf(addr.sun_path, sizeof(addr.sun_path) - 1, SOCK_PATH "%s" SOCK_SUFFIX, interface) < 0)
+	if (snprintf(addr.sun_path, sizeof(addr.sun_path), SOCK_PATH "%s" SOCK_SUFFIX, interface) < 0)
 		return false;
 	if (stat(addr.sun_path, &sbuf) < 0)
 		return false;
@@ -834,8 +834,10 @@ static int parse_device(const struct nlattr *attr, void *data)
 			device->ifindex = mnl_attr_get_u32(attr);
 		break;
 	case WGDEVICE_A_IFNAME:
-		if (!mnl_attr_validate(attr, MNL_TYPE_STRING))
+		if (!mnl_attr_validate(attr, MNL_TYPE_STRING)) {
 			strncpy(device->name, mnl_attr_get_str(attr), sizeof(device->name) - 1);
+			device->name[sizeof(device->name) - 1] = '\0';
+		}
 		break;
 	case WGDEVICE_A_PRIVATE_KEY:
 		if (mnl_attr_get_payload_len(attr) == sizeof(device->private_key)) {

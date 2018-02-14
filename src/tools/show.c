@@ -117,10 +117,11 @@ static char *endpoint(const struct sockaddr *addr)
 		addr_len = sizeof(struct sockaddr_in6);
 
 	ret = getnameinfo(addr, addr_len, host, sizeof(host), service, sizeof(service), NI_DGRAM | NI_NUMERICSERV | NI_NUMERICHOST);
-	if (ret)
+	if (ret) {
 		strncpy(buf, gai_strerror(ret), sizeof(buf) - 1);
-	else
-		snprintf(buf, sizeof(buf) - 1, (addr->sa_family == AF_INET6 && strchr(host, ':')) ? "[%s]:%s" : "%s:%s", host, service);
+		buf[sizeof(buf) - 1] = '\0';
+	} else
+		snprintf(buf, sizeof(buf), (addr->sa_family == AF_INET6 && strchr(host, ':')) ? "[%s]:%s" : "%s:%s", host, service);
 	return buf;
 }
 
@@ -139,15 +140,15 @@ static size_t pretty_time(char *buf, const size_t len, unsigned long long left)
 	seconds = left % 60;
 
 	if (years)
-		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN "year%s" TERMINAL_RESET, offset ? ", " : "", years, years == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN "year%s" TERMINAL_RESET, offset ? ", " : "", years, years == 1 ? "" : "s");
 	if (days)
-		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN  "day%s" TERMINAL_RESET, offset ? ", " : "", days, days == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN  "day%s" TERMINAL_RESET, offset ? ", " : "", days, days == 1 ? "" : "s");
 	if (hours)
-		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN  "hour%s" TERMINAL_RESET, offset ? ", " : "", hours, hours == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN  "hour%s" TERMINAL_RESET, offset ? ", " : "", hours, hours == 1 ? "" : "s");
 	if (minutes)
-		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN "minute%s" TERMINAL_RESET, offset ? ", " : "", minutes, minutes == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN "minute%s" TERMINAL_RESET, offset ? ", " : "", minutes, minutes == 1 ? "" : "s");
 	if (seconds)
-		offset += snprintf(buf + offset, len - offset - 1, "%s%llu " TERMINAL_FG_CYAN  "second%s" TERMINAL_RESET, offset ? ", " : "", seconds, seconds == 1 ? "" : "s");
+		offset += snprintf(buf + offset, len - offset, "%s%llu " TERMINAL_FG_CYAN  "second%s" TERMINAL_RESET, offset ? ", " : "", seconds, seconds == 1 ? "" : "s");
 
 	return offset;
 }
@@ -166,6 +167,7 @@ static char *ago(const struct timespec *t)
 		offset = pretty_time(buf, sizeof(buf), now - t->tv_sec);
 		strncpy(buf + offset, " ago", sizeof(buf) - offset - 1);
 	}
+	buf[sizeof(buf) - 1] = '\0';
 
 	return buf;
 }
@@ -183,15 +185,15 @@ static char *bytes(uint64_t b)
 	static char buf[1024];
 
 	if (b < 1024ULL)
-		snprintf(buf, sizeof(buf) - 1, "%u " TERMINAL_FG_CYAN "B" TERMINAL_RESET, (unsigned int)b);
+		snprintf(buf, sizeof(buf), "%u " TERMINAL_FG_CYAN "B" TERMINAL_RESET, (unsigned int)b);
 	else if (b < 1024ULL * 1024ULL)
-		snprintf(buf, sizeof(buf) - 1, "%.2f " TERMINAL_FG_CYAN "KiB" TERMINAL_RESET, (double)b / 1024);
+		snprintf(buf, sizeof(buf), "%.2f " TERMINAL_FG_CYAN "KiB" TERMINAL_RESET, (double)b / 1024);
 	else if (b < 1024ULL * 1024ULL * 1024ULL)
-		snprintf(buf, sizeof(buf) - 1, "%.2f " TERMINAL_FG_CYAN "MiB" TERMINAL_RESET, (double)b / (1024 * 1024));
+		snprintf(buf, sizeof(buf), "%.2f " TERMINAL_FG_CYAN "MiB" TERMINAL_RESET, (double)b / (1024 * 1024));
 	else if (b < 1024ULL * 1024ULL * 1024ULL * 1024ULL)
-		snprintf(buf, sizeof(buf) - 1, "%.2f " TERMINAL_FG_CYAN "GiB" TERMINAL_RESET, (double)b / (1024 * 1024 * 1024));
+		snprintf(buf, sizeof(buf), "%.2f " TERMINAL_FG_CYAN "GiB" TERMINAL_RESET, (double)b / (1024 * 1024 * 1024));
 	else
-		snprintf(buf, sizeof(buf) - 1, "%.2f " TERMINAL_FG_CYAN "TiB" TERMINAL_RESET, (double)b / (1024 * 1024 * 1024) / 1024);
+		snprintf(buf, sizeof(buf), "%.2f " TERMINAL_FG_CYAN "TiB" TERMINAL_RESET, (double)b / (1024 * 1024 * 1024) / 1024);
 
 	return buf;
 }

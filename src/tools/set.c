@@ -26,7 +26,7 @@ int set_main(int argc, char *argv[])
 	if (!device)
 		goto cleanup;
 	strncpy(device->name, argv[1], IFNAMSIZ -  1);
-	device->name[IFNAMSIZ - 1] = 0;
+	device->name[IFNAMSIZ - 1] = '\0';
 
 	if (ipc_set_device(device) != 0) {
 		perror("Unable to set device");
