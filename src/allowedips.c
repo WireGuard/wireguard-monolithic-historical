@@ -170,6 +170,7 @@ static __always_inline struct wireguard_peer *lookup(struct allowedips_node __rc
 	return peer;
 }
 
+__attribute__((nonnull(1)))
 static inline bool node_placement(struct allowedips_node __rcu *trie, const u8 *key, u8 cidr, u8 bits, struct allowedips_node **rnode, struct mutex *lock)
 {
 	bool exact = false;
