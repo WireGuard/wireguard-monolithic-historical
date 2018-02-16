@@ -417,24 +417,29 @@ error:
 
 bool config_read_line(struct config_ctx *ctx, const char *input)
 {
-	size_t len = strlen(input), cleaned_len = 0;
-	char *line = calloc(len + 1, sizeof(char));
+	size_t len, cleaned_len = 0;
+	char *line, *comment;
 	bool ret = true;
 
+	/* This is what strchrnull is for, but that isn't portable. */
+	comment = strchr(input, COMMENT_CHAR);
+	if (comment)
+		len = comment - input;
+	else
+		len = strlen(input);
+
+	line = calloc(len + 1, sizeof(char));
 	if (!line) {
 		perror("calloc");
 		ret = false;
 		goto out;
 	}
-	if (!len)
-		goto out;
+
 	for (size_t i = 0; i < len; ++i) {
 		if (!isspace(input[i]))
 			line[cleaned_len++] = input[i];
 	}
 	if (!cleaned_len)
-		goto out;
-	if (line[0] == COMMENT_CHAR)
 		goto out;
 	ret = process_line(ctx, line);
 out:

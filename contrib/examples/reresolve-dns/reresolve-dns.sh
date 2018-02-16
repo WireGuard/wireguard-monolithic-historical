@@ -29,8 +29,9 @@ reset_peer_section() {
 
 reset_peer_section
 while read -r line || [[ -n $line ]]; do
-	key="${line%%=*}"; key="${key##*([[:space:]])}"; key="${key%%*([[:space:]])}"
-	value="${line#*=}"; value="${value##*([[:space:]])}"; value="${value%%*([[:space:]])}"
+	stripped="${line%%\#*}"
+	key="${stripped%%=*}"; key="${key##*([[:space:]])}"; key="${key%%*([[:space:]])}"
+	value="${stripped#*=}"; value="${value##*([[:space:]])}"; value="${value%%*([[:space:]])}"
 	[[ $key == "["* ]] && { process_peer; reset_peer_section; }
 	[[ $key == "[Peer]" ]] && PEER_SECTION=1
 	if [[ $PEER_SECTION -eq 1 ]]; then
