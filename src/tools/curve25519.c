@@ -8,12 +8,18 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef uint64_t u64;
-typedef uint32_t u32;
+#ifdef __linux__
+#include <linux/types.h>
+typedef __u64 u64;
+typedef __u32 u32;
+typedef __u8 u8;
+typedef __s64 s64;
+#else
+typedef uint64_t u64, __le64;
+typedef uint32_t u32, __le32;
 typedef uint8_t u8;
 typedef int64_t s64;
-typedef u64 __le64;
-typedef u32 __le32;
+#endif
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define le64_to_cpup(a) __builtin_bswap64(*(a))
 #define le32_to_cpup(a) __builtin_bswap32(*(a))
