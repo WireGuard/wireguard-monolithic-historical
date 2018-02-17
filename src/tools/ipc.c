@@ -48,7 +48,6 @@
 #define SOCKET_BUFFER_SIZE 8192
 #endif
 
-
 struct inflatable_buffer {
 	char *buffer;
 	char *next;
@@ -57,6 +56,7 @@ struct inflatable_buffer {
 	size_t pos;
 };
 
+#define max(a, b) ((a) > (b) ? (a) : (b))
 static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 {
 	size_t len, expand_to;
@@ -111,7 +111,7 @@ static FILE *userspace_interface_file(const char *interface)
 	int fd = -1, ret;
 	FILE *f = NULL;
 
-	ret = -EINVAL;
+	errno = EINVAL;
 	if (strchr(interface, '/'))
 		goto out;
 	ret = snprintf(addr.sun_path, sizeof(addr.sun_path), SOCK_PATH "%s" SOCK_SUFFIX, interface);
@@ -120,7 +120,7 @@ static FILE *userspace_interface_file(const char *interface)
 	ret = stat(addr.sun_path, &sbuf);
 	if (ret < 0)
 		goto out;
-	ret = -EBADF;
+	errno = EBADF;
 	if (!S_ISSOCK(sbuf.st_mode))
 		goto out;
 
@@ -135,12 +135,13 @@ static FILE *userspace_interface_file(const char *interface)
 		goto out;
 	}
 	f = fdopen(fd, "r+");
-	if (!f)
-		ret = -errno;
+	if (f)
+		errno = 0;
 out:
-	if (ret && fd >= 0)
-		close(fd);
+	ret = -errno;
 	if (ret) {
+		if (fd >= 0)
+			close(fd);
 		errno = -ret;
 		return NULL;
 	}
