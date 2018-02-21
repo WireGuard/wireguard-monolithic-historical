@@ -83,6 +83,8 @@ typedef struct wg_device {
 
 int wg_set_device(wg_device *dev);
 int wg_get_device(wg_device **dev, const char *device_name);
+int wg_add_device(const char *device_name);
+int wg_del_device(const char *device_name);
 void wg_free_device(wg_device *dev);
 char *wg_list_device_names(void); /* first\0second\0third\0forth\0last\0\0 */
 void wg_key_to_base64(wg_key_b64_string base64, const wg_key key);

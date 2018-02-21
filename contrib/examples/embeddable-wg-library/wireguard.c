@@ -910,7 +910,7 @@ static int parse_linkinfo(const struct nlattr *attr, void *data)
 {
 	struct inflatable_buffer *buffer = data;
 
-	if (mnl_attr_get_type(attr) == IFLA_INFO_KIND && !strcmp("wireguard", mnl_attr_get_str(attr)))
+	if (mnl_attr_get_type(attr) == IFLA_INFO_KIND && !strcmp(WG_GENL_NAME, mnl_attr_get_str(attr)))
 		buffer->good = true;
 	return MNL_CB_OK;
 }
@@ -997,6 +997,65 @@ another:
 	}
 	if (len == MNL_CB_OK + 1)
 		goto another;
+	ret = 0;
+
+cleanup:
+	free(rtnl_buffer);
+	if (nl)
+		mnl_socket_close(nl);
+	return ret;
+}
+
+static int add_del_iface(const char *ifname, bool add)
+{
+	struct mnl_socket *nl = NULL;
+	char *rtnl_buffer;
+	ssize_t len;
+	int ret;
+	struct nlmsghdr *nlh;
+	struct ifinfomsg *ifm;
+	struct nlattr *nest;
+
+	rtnl_buffer = calloc(MNL_SOCKET_BUFFER_SIZE, 1);
+	if (!rtnl_buffer) {
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+
+	nl = mnl_socket_open(NETLINK_ROUTE);
+	if (!nl) {
+		ret = -errno;
+		goto cleanup;
+	}
+
+	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
+		ret = -errno;
+		goto cleanup;
+	}
+
+	nlh = mnl_nlmsg_put_header(rtnl_buffer);
+	nlh->nlmsg_type = add ? RTM_NEWLINK : RTM_DELLINK;
+	nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK | (add ? NLM_F_CREATE | NLM_F_EXCL : 0);
+	nlh->nlmsg_seq = time(NULL);
+	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
+	ifm->ifi_family = AF_UNSPEC;
+	mnl_attr_put_strz(nlh, IFLA_IFNAME, ifname);
+	nest = mnl_attr_nest_start(nlh, IFLA_LINKINFO);
+	mnl_attr_put_strz(nlh, IFLA_INFO_KIND, WG_GENL_NAME);
+	mnl_attr_nest_end(nlh, nest);
+
+	if (mnl_socket_sendto(nl, rtnl_buffer, nlh->nlmsg_len) < 0) {
+		ret = -errno;
+		goto cleanup;
+	}
+	if ((len = mnl_socket_recvfrom(nl, rtnl_buffer, MNL_SOCKET_BUFFER_SIZE)) < 0) {
+		ret = -errno;
+		goto cleanup;
+	}
+	if (mnl_cb_run(rtnl_buffer, len, nlh->nlmsg_seq, mnl_socket_get_portid(nl), NULL, NULL) < 0) {
+		ret = -errno;
+		goto cleanup;
+	}
 	ret = 0;
 
 cleanup:
@@ -1422,6 +1481,16 @@ err:
 		return NULL;
 	}
 	return buffer.buffer;
+}
+
+int wg_add_device(const char *device_name)
+{
+	return add_del_iface(device_name, true);
+}
+
+int wg_del_device(const char *device_name)
+{
+	return add_del_iface(device_name, false);
 }
 
 void wg_free_device(wg_device *dev)

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-int main(int argc, char *argv[])
+void list_devices(void)
 {
 	char *device_names, *device_name;
 	size_t len;
@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 	device_names = wg_list_device_names();
 	if (!device_names) {
 		perror("Unable to get device names");
-		return 1;
+		exit(1);
 	}
 	wg_for_each_device_name(device_names, device_name, len) {
 		wg_device *device;
@@ -36,5 +36,40 @@ int main(int argc, char *argv[])
 		wg_free_device(device);
 	}
 	free(device_names);
+}
+
+int main(int argc, char *argv[])
+{
+	wg_peer new_peer = {
+		.flags = WGPEER_HAS_PUBLIC_KEY | WGPEER_REPLACE_ALLOWEDIPS
+	};
+	wg_device new_device = {
+		.name = "wgtest0",
+		.listen_port = 1234,
+		.flags = WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_LISTEN_PORT,
+		.first_peer = &new_peer,
+		.last_peer = &new_peer
+	};
+
+	wg_key_from_base64(new_device.private_key, "SFLKy56SOiFoAvQDSCBRrH/nyYonuAQnyr/JTQRPDlU=");
+	wg_key_from_base64(new_peer.public_key, "aNoLvvCfgbtTf4f2Eb/CWVNvIc5AJt/4C4pKrxMUZlM=");
+
+	if (wg_add_device(new_device.name) < 0) {
+		perror("Unable to add device");
+		exit(1);
+	}
+
+	if (wg_set_device(&new_device) < 0) {
+		perror("Unable to set device");
+		exit(1);
+	}
+
+	list_devices();
+
+	if (wg_del_device(new_device.name) < 0) {
+		perror("Unable to delete device");
+		exit(1);
+	}
+
 	return 0;
 }
