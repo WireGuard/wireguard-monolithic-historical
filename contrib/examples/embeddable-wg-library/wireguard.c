@@ -19,6 +19,8 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <assert.h>
 
 #include "wireguard.h"
 
@@ -1574,4 +1576,200 @@ int wg_key_from_base64(wg_key key, const wg_key_b64_string base64)
 	errno = 0;
 out:
 	return -errno;
+}
+
+typedef int64_t fe[16];
+
+static __attribute__((noinline)) void memzero_explicit(void *s, size_t count)
+{
+	memset(s, 0, count);
+	__asm__ __volatile__("": :"r"(s) :"memory");
+}
+
+static void carry(fe o)
+{
+	int i;
+	int64_t c;
+
+	for (i = 0; i < 16; ++i) {
+		o[i] += (1LL << 16);
+		c = o[i] >> 16;
+		o[(i + 1) * (i < 15)] += c - 1 + 37 * (c - 1) * (i == 15);
+		o[i] -= c << 16;
+	}
+
+	memzero_explicit(&c, sizeof(c));
+}
+
+static void cswap(fe p, fe q, int b)
+{
+	int i;
+	int64_t t, c = ~(b - 1);
+
+	for (i = 0; i < 16; ++i) {
+		t = c & (p[i] ^ q[i]);
+		p[i] ^= t;
+		q[i] ^= t;
+	}
+
+	memzero_explicit(&t, sizeof(t));
+	memzero_explicit(&c, sizeof(c));
+	memzero_explicit(&b, sizeof(b));
+}
+
+static void pack(uint8_t *o, const fe n)
+{
+	int i, j, b;
+	fe m, t;
+
+	memcpy(t, n, sizeof(t));
+	carry(t);
+	carry(t);
+	carry(t);
+	for (j = 0; j < 2; ++j) {
+		m[0] = t[0] - 0xffed;
+		for (i = 1; i < 15; ++i) {
+			m[i] = t[i] - 0xffff - ((m[i - 1] >> 16) & 1);
+			m[i - 1] &= 0xffff;
+		}
+		m[15] = t[15] - 0x7fff - ((m[14] >> 16) & 1);
+		b = (m[15] >> 16) & 1;
+		m[14] &= 0xffff;
+		cswap(t, m, 1 - b);
+	}
+	for (i = 0; i < 16; ++i) {
+		o[2 * i] = t[i] & 0xff;
+		o[2 * i + 1] = t[i] >> 8;
+	}
+
+	memzero_explicit(m, sizeof(m));
+	memzero_explicit(t, sizeof(t));
+	memzero_explicit(&b, sizeof(b));
+}
+
+static void add(fe o, const fe a, const fe b)
+{
+	int i;
+
+	for (i = 0; i < 16; ++i)
+		o[i] = a[i] + b[i];
+}
+
+static void subtract(fe o, const fe a, const fe b)
+{
+	int i;
+
+	for (i = 0; i < 16; ++i)
+		o[i] = a[i] - b[i];
+}
+
+static void multmod(fe o, const fe a, const fe b)
+{
+	int i, j;
+	int64_t t[31] = { 0 };
+
+	for (i = 0; i < 16; ++i) {
+		for (j = 0; j < 16; ++j)
+			t[i + j] += a[i] * b[j];
+	}
+	for (i = 0; i < 15; ++i)
+		t[i] += 38 * t[i + 16];
+	memcpy(o, t, sizeof(fe));
+	carry(o);
+	carry(o);
+
+	memzero_explicit(t, sizeof(t));
+}
+
+static void invert(fe o, const fe i)
+{
+	fe c;
+	int a;
+
+	memcpy(c, i, sizeof(c));
+	for (a = 253; a >= 0; --a) {
+		multmod(c, c, c);
+		if (a != 2 && a != 4)
+			multmod(c, c, i);
+	}
+	memcpy(o, c, sizeof(fe));
+
+	memzero_explicit(c, sizeof(c));
+}
+
+static void normalize_key(uint8_t *z)
+{
+	z[31] = (z[31] & 127) | 64;
+	z[0] &= 248;
+}
+
+void wg_generate_public_key(wg_key public_key, const wg_key private_key)
+{
+	int i, r;
+	uint8_t z[32];
+	fe a = { 1 }, b = { 9 }, c = { 0 }, d = { 1 }, e, f;
+
+	memcpy(z, private_key, sizeof(z));
+	normalize_key(z);
+
+	for (i = 254; i >= 0; --i) {
+		r = (z[i >> 3] >> (i & 7)) & 1;
+		cswap(a, b, r);
+		cswap(c, d, r);
+		add(e, a, c);
+		subtract(a, a, c);
+		add(c, b, d);
+		subtract(b, b, d);
+		multmod(d, e, e);
+		multmod(f, a, a);
+		multmod(a, c, a);
+		multmod(c, b, e);
+		add(e, a, c);
+		subtract(a, a, c);
+		multmod(b, a, a);
+		subtract(c, d, f);
+		multmod(a, c, (const fe){ 0xdb41, 1 });
+		add(a, a, d);
+		multmod(c, c, a);
+		multmod(a, d, f);
+		multmod(d, b, (const fe){ 9 });
+		multmod(b, e, e);
+		cswap(a, b, r);
+		cswap(c, d, r);
+	}
+	invert(c, c);
+	multmod(a, a, c);
+	pack(public_key, a);
+
+	memzero_explicit(&r, sizeof(r));
+	memzero_explicit(z, sizeof(z));
+	memzero_explicit(a, sizeof(a));
+	memzero_explicit(b, sizeof(b));
+	memzero_explicit(c, sizeof(c));
+	memzero_explicit(d, sizeof(d));
+	memzero_explicit(e, sizeof(e));
+	memzero_explicit(f, sizeof(f));
+}
+
+void wg_generate_private_key(wg_key private_key)
+{
+	wg_generate_preshared_key(private_key);
+	normalize_key(private_key);
+}
+
+void wg_generate_preshared_key(wg_key preshared_key)
+{
+	ssize_t ret;
+	int fd;
+
+#if defined(__NR_getrandom)
+	ret = syscall(__NR_getrandom, preshared_key, sizeof(wg_key), 0);
+	if (ret == sizeof(wg_key))
+		return;
+#endif
+	fd = open("/dev/urandom", O_RDONLY);
+	assert(fd >= 0);
+	ret = read(fd, preshared_key, sizeof(wg_key));
+	close(fd);
+	assert(ret == sizeof(wg_key));
 }

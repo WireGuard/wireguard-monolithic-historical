@@ -50,9 +50,11 @@ int main(int argc, char *argv[])
 		.first_peer = &new_peer,
 		.last_peer = &new_peer
 	};
+	wg_key temp_private_key;
 
-	wg_key_from_base64(new_device.private_key, "SFLKy56SOiFoAvQDSCBRrH/nyYonuAQnyr/JTQRPDlU=");
-	wg_key_from_base64(new_peer.public_key, "aNoLvvCfgbtTf4f2Eb/CWVNvIc5AJt/4C4pKrxMUZlM=");
+	wg_generate_private_key(temp_private_key);
+	wg_generate_public_key(new_peer.public_key, temp_private_key);
+	wg_generate_private_key(new_device.private_key);
 
 	if (wg_add_device(new_device.name) < 0) {
 		perror("Unable to add device");

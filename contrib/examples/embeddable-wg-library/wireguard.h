@@ -90,5 +90,8 @@ char *wg_list_device_names(void); /* first\0second\0third\0forth\0last\0\0 */
 void wg_key_to_base64(wg_key_b64_string base64, const wg_key key);
 int wg_key_from_base64(wg_key key, const wg_key_b64_string base64);
 bool wg_key_is_zero(const wg_key key);
+void wg_generate_public_key(wg_key public_key, const wg_key private_key);
+void wg_generate_private_key(wg_key private_key);
+void wg_generate_preshared_key(wg_key preshared_key);
 
 #endif
