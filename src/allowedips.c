@@ -139,7 +139,8 @@ static __always_inline u8 common_bits(const struct allowedips_node *node, const 
 /* This could be much faster if it actually just compared the common bits properly,
  * by precomputing a mask bswap(~0 << (32 - cidr)), and the rest, but it turns out that
  * common_bits is already super fast on modern processors, even taking into account
- * the unfortunate bswap. So, we just inline it like this instead. */
+ * the unfortunate bswap. So, we just inline it like this instead.
+ */
 #define prefix_matches(node, key, bits) (common_bits(node, key, bits) >= node->cidr)
 
 static __always_inline struct allowedips_node *find_node(struct allowedips_node *trie, u8 bits, const u8 *key)
