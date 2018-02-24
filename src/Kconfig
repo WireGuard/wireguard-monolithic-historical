@@ -2,6 +2,7 @@ config WIREGUARD
 	tristate "IP: WireGuard secure network tunnel"
 	depends on NET && INET
 	select NET_UDP_TUNNEL
+	select DST_CACHE
 	select CRYPTO_BLKCIPHER
 	select VFP
 	select VFPv3
