@@ -1657,16 +1657,43 @@ static __always_inline void fred_eltfp25519_1w(u64 *const c)
 		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx");
 }
 
-static __always_inline void cswap(u64 bit, u64 *const px, u64 *const py)
+static __always_inline void cswap(u8 bit, u64 *const px, u64 *const py)
 {
-	int i;
-	u64 mask = 0ULL - bit;
+	u64 temp;
+	asm volatile(
+		"test %9, %9 ;"
+		"movq %0, %8 ;"
+		"cmovnzq %4, %0 ;"
+		"cmovnzq %8, %4 ;"
+		"movq %1, %8 ;"
+		"cmovnzq %5, %1 ;"
+		"cmovnzq %8, %5 ;"
+		"movq %2, %8 ;"
+		"cmovnzq %6, %2 ;"
+		"cmovnzq %8, %6 ;"
+		"movq %3, %8 ;"
+		"cmovnzq %7, %3 ;"
+		"cmovnzq %8, %7 ;"
+		: "+r"(px[0]), "+r"(px[1]), "+r"(px[2]), "+r"(px[3]),
+		  "+r"(py[0]), "+r"(py[1]), "+r"(py[2]), "+r"(py[3]),
+		  "=r"(temp)
+		: "r"(bit)
+		: "cc"
+	);
+}
 
-	for (i = 0; i < NUM_WORDS_ELTFP25519; ++i) {
-		u64 t = mask & (px[i] ^ py[i]);
-		px[i] = px[i] ^ t;
-		py[i] = py[i] ^ t;
-	}
+static __always_inline void cselect(u8 bit, u64 *const px, u64 *const py)
+{
+	asm volatile(
+		"test %4, %4 ;"
+		"cmovnzq %5, %0 ;"
+		"cmovnzq %6, %1 ;"
+		"cmovnzq %7, %2 ;"
+		"cmovnzq %8, %3 ;"
+		: "+r"(px[0]), "+r"(px[1]), "+r"(px[2]), "+r"(px[3])
+		: "r"(bit), "rm"(py[0]), "rm"(py[1]), "rm"(py[2]), "rm"(py[3])
+		: "cc"
+	);
 }
 
 static void curve25519_adx(u8 shared[CURVE25519_POINT_SIZE], const u8 private_key[CURVE25519_POINT_SIZE], const u8 session_key[CURVE25519_POINT_SIZE])
@@ -1741,8 +1768,8 @@ static void curve25519_adx(u8 shared[CURVE25519_POINT_SIZE], const u8 private_ke
 			sub_eltfp25519_1w(D, X3, Z3);		/* D = (X3-Z3) */
 			mul_eltfp25519_2w_adx(DACB, AB, DC);	/* [DA|CB] = [A|B]*[D|C] */
 
-			cswap(swap, A, C);
-			cswap(swap, B, D);
+			cselect(swap, A, C);
+			cselect(swap, B, D);
 
 			sqr_eltfp25519_2w_adx(AB);		/* [AA|BB] = [A^2|B^2] */
 			add_eltfp25519_1w_adx(X3, DA, CB);	/* X3 = (DA+CB) */
@@ -1940,8 +1967,8 @@ static void curve25519_bmi2(u8 shared[CURVE25519_POINT_SIZE], const u8 private_k
 			sub_eltfp25519_1w(D, X3, Z3);		/* D = (X3-Z3) */
 			mul_eltfp25519_2w_bmi2(DACB, AB, DC);	/* [DA|CB] = [A|B]*[D|C] */
 
-			cswap(swap, A, C);
-			cswap(swap, B, D);
+			cselect(swap, A, C);
+			cselect(swap, B, D);
 
 			sqr_eltfp25519_2w_bmi2(AB);		/* [AA|BB] = [A^2|B^2] */
 			add_eltfp25519_1w_bmi2(X3, DA, CB);	/* X3 = (DA+CB) */
