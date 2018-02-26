@@ -9,7 +9,8 @@
 #include <asm/processor.h>
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
-static bool curve25519_use_avx __read_mostly;
+
+static bool curve25519_use_avx __ro_after_init;
 void __init curve25519_fpu_init(void)
 {
 #ifndef CONFIG_UML
