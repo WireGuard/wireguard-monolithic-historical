@@ -62,7 +62,7 @@
 #include <crypto/algapi.h>
 
 /* Make the optimizer believe the variable can be manipulated arbitrarily. */
-#define COMPILER_OPTIMIZER_HIDE_VAR(var) __asm__ ("" : "=r" (var) : "0" (var))
+#define COMPILER_OPTIMIZER_HIDE_VAR(var) asm("" : "=r" (var) : "0" (var))
 
 #ifndef __HAVE_ARCH_CRYPTO_MEMNEQ
 

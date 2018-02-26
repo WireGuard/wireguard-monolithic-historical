@@ -46,7 +46,7 @@ typedef int64_t s64;
 static noinline void memzero_explicit(void *s, size_t count)
 {
 	memset(s, 0, count);
-	__asm__ __volatile__("": :"r"(s) :"memory");
+	asm volatile("": :"r"(s) :"memory");
 }
 
 #ifdef __SIZEOF_INT128__
