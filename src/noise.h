@@ -109,7 +109,7 @@ bool noise_precompute_static_static(struct wireguard_peer *peer);
 bool noise_handshake_create_initiation(struct message_handshake_initiation *dst, struct noise_handshake *handshake);
 struct wireguard_peer *noise_handshake_consume_initiation(struct message_handshake_initiation *src, struct wireguard_device *wg);
 
-bool noise_handshake_create_response(struct message_handshake_response *dst, struct noise_handshake *peer);
+bool noise_handshake_create_response(struct message_handshake_response *dst, struct noise_handshake *handshake);
 struct wireguard_peer *noise_handshake_consume_response(struct message_handshake_response *src, struct wireguard_device *wg);
 
 bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noise_keypairs *keypairs);
