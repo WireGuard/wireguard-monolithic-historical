@@ -203,7 +203,7 @@ save_config() {
 	done
 	while read -r address; do
 		[[ $address =~ ^nameserver\ ([a-zA-Z0-9_=+:%.-]+)$ ]] && new_config+="DNS = ${BASH_REMATCH[1]}"$'\n'
-	done < <(resolvconf -l "$(resolvconf_iface_prefix)$INTERFACE" 2>/dev/null)
+	done < <(resolvconf -l "$(resolvconf_iface_prefix)$INTERFACE" 2>/dev/null || cat "/etc/resolvconf/run/interface/$(resolvconf_iface_prefix)$INTERFACE")
 	[[ -n $MTU && $(ip link show dev "$INTERFACE") =~ mtu\ ([0-9]+) ]] && new_config+="MTU = ${BASH_REMATCH[1]}"$'\n'
 	[[ -n $TABLE ]] && new_config+="Table = $TABLE"$'\n'
 	[[ $SAVE_CONFIG -eq 0 ]] || new_config+=$'SaveConfig = true\n'
