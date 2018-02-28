@@ -54,10 +54,10 @@ struct noise_keypairs {
 };
 
 struct noise_static_identity {
-	bool has_identity;
 	u8 static_public[NOISE_PUBLIC_KEY_LEN];
 	u8 static_private[NOISE_PUBLIC_KEY_LEN];
 	struct rw_semaphore lock;
+	bool has_identity;
 };
 
 enum noise_handshake_state {
