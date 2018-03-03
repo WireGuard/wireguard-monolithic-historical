@@ -345,7 +345,7 @@ __aligned(32) static const u64 table_ladder_8k[252 * NUM_WORDS_ELTFP25519] = {
  * a is two 256-bit integers: a0[0:3] and a1[4:7]
  * b is two 256-bit integers: b0[0:3] and b1[4:7]
  */
-static void mul2_256x256_integer_adx(u64 *const c, u64 *const a, u64 *const b)
+static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64 *const b)
 {
 	asm volatile(
 		"xorl %%r14d, %%r14d ;"
@@ -494,7 +494,7 @@ static void mul2_256x256_integer_adx(u64 *const c, u64 *const a, u64 *const b)
 		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14");
 }
 
-static void mul2_256x256_integer_bmi2(u64 *const c, u64 *const a, u64 *const b)
+static void mul2_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u64 *const b)
 {
 	asm volatile(
 		"movq   (%1), %%rdx; "	/* A[0] */
@@ -641,7 +641,7 @@ static void mul2_256x256_integer_bmi2(u64 *const c, u64 *const a, u64 *const b)
 		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13");
 }
 
-static void sqr2_256x256_integer_adx(u64 *const c, u64 *const a)
+static void sqr2_256x256_integer_adx(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movq   (%1), %%rdx        ;" /* A[0]      */
@@ -765,7 +765,7 @@ static void sqr2_256x256_integer_adx(u64 *const c, u64 *const a)
 		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15");
 }
 
-static void sqr2_256x256_integer_bmi2(u64 *const c, u64 *const a)
+static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movq  8(%1), %%rdx        ;" /* A[1]      */
@@ -890,7 +890,7 @@ static void sqr2_256x256_integer_bmi2(u64 *const c, u64 *const a)
 		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14");
 }
 
-void red_eltfp25519_2w_adx(u64 *const c, u64 *const a)
+void red_eltfp25519_2w_adx(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movl    $38, %%edx; "	/* 2*c = 38 = 2^256 */
@@ -956,7 +956,7 @@ void red_eltfp25519_2w_adx(u64 *const c, u64 *const a)
 		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11");
 }
 
-void red_eltfp25519_2w_bmi2(u64 *const c, u64 *const a)
+void red_eltfp25519_2w_bmi2(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movl    $38, %%edx ; "       /* 2*c = 38 = 2^256 */
@@ -1018,7 +1018,7 @@ void red_eltfp25519_2w_bmi2(u64 *const c, u64 *const a)
 		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11");
 }
 
-static void mul_256x256_integer_adx(u64 *const c, u64 *const a, u64 *const b)
+static void mul_256x256_integer_adx(u64 *const c, const u64 *const a, const u64 *const b)
 {
 	asm volatile(
 		"movq   (%1), %%rdx; "	/* A[0] */
@@ -1106,7 +1106,7 @@ static void mul_256x256_integer_adx(u64 *const c, u64 *const a, u64 *const b)
 		: "memory", "cc", "%rax", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14");
 }
 
-static void mul_256x256_integer_bmi2(u64 *const c, u64 *const a, u64 *const b)
+static void mul_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u64 *const b)
 {
 	asm volatile(
 		"movq   (%1), %%rdx; "	/* A[0] */
@@ -1183,7 +1183,7 @@ static void mul_256x256_integer_bmi2(u64 *const c, u64 *const a, u64 *const b)
 		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13");
 }
 
-static void sqr_256x256_integer_adx(u64 *const c, u64 *const a)
+static void sqr_256x256_integer_adx(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movq   (%1), %%rdx        ;" /* A[0]      */
@@ -1248,7 +1248,7 @@ static void sqr_256x256_integer_adx(u64 *const c, u64 *const a)
 		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15");
 }
 
-static void sqr_256x256_integer_bmi2(u64 *const c, u64 *const a)
+static void sqr_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movq  8(%1), %%rdx        ;" /* A[1]      */
@@ -1314,7 +1314,7 @@ static void sqr_256x256_integer_bmi2(u64 *const c, u64 *const a)
 		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14");
 }
 
-static void red_eltfp25519_1w_adx(u64 *const c, u64 *const a)
+static void red_eltfp25519_1w_adx(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movl    $38, %%edx ;"	/* 2*c = 38 = 2^256 */
@@ -1351,7 +1351,7 @@ static void red_eltfp25519_1w_adx(u64 *const c, u64 *const a)
 		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11");
 }
 
-static void red_eltfp25519_1w_bmi2(u64 *const c, u64 *const a)
+static void red_eltfp25519_1w_bmi2(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movl    $38, %%edx ;"	/* 2*c = 38 = 2^256 */
@@ -1386,7 +1386,7 @@ static void red_eltfp25519_1w_bmi2(u64 *const c, u64 *const a)
 		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11");
 }
 
-static __always_inline void add_eltfp25519_1w_adx(u64 *const c, u64 *const a, u64 *const b)
+static __always_inline void add_eltfp25519_1w_adx(u64 *const c, const u64 *const a, const u64 *const b)
 {
 	asm volatile(
 		"mov     $38, %%eax ;"
@@ -1417,7 +1417,7 @@ static __always_inline void add_eltfp25519_1w_adx(u64 *const c, u64 *const a, u6
 		: "memory", "cc", "%rax", "%rcx", "%r8", "%r9", "%r10", "%r11");
 }
 
-static __always_inline void add_eltfp25519_1w_bmi2(u64 *const c, u64 *const a, u64 *const b)
+static __always_inline void add_eltfp25519_1w_bmi2(u64 *const c, const u64 *const a, const u64 *const b)
 {
 	asm volatile(
 		"mov     $38, %%eax ;"
@@ -1447,7 +1447,7 @@ static __always_inline void add_eltfp25519_1w_bmi2(u64 *const c, u64 *const a, u
 		: "memory", "cc", "%rax", "%rcx", "%r8", "%r9", "%r10", "%r11");
 }
 
-static __always_inline void sub_eltfp25519_1w(u64 *const c, u64 *const a, u64 *const b)
+static __always_inline void sub_eltfp25519_1w(u64 *const c, const u64 *const a, const u64 *const b)
 {
 	asm volatile(
 		"mov     $38, %%eax ;"
@@ -1478,7 +1478,7 @@ static __always_inline void sub_eltfp25519_1w(u64 *const c, u64 *const a, u64 *c
 }
 
 /* Multiplication by a24 = (A+2)/4 = (486662+2)/4 = 121666 */
-static __always_inline void mul_a24_eltfp25519_1w(u64 *const c, u64 *const a)
+static __always_inline void mul_a24_eltfp25519_1w(u64 *const c, const u64 *const a)
 {
 	const u64 a24 = 121666;
 	asm volatile(
@@ -1510,19 +1510,18 @@ static __always_inline void mul_a24_eltfp25519_1w(u64 *const c, u64 *const a)
 		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11");
 }
 
-static void inv_eltfp25519_1w_adx(u64 *const c, u64 *const a)
+static void inv_eltfp25519_1w_adx(u64 *const c, const u64 *const a)
 {
 	struct {
 		eltfp25519_1w_buffer buffer;
 		eltfp25519_1w x0, x1, x2;
 	} __aligned(32) m;
-	u64 *T[5];
+	u64 *T[4];
 
 	T[0] = m.x0;
 	T[1] = c; /* x^(-1) */
 	T[2] = m.x1;
 	T[3] = m.x2;
-	T[4] = a; /* x */
 
 	copy_eltfp25519_1w(T[1], a);
 	sqrn_eltfp25519_1w_adx(T[1], 1);
@@ -1558,7 +1557,7 @@ static void inv_eltfp25519_1w_adx(u64 *const c, u64 *const a)
 	memzero_explicit(&m, sizeof(m));
 }
 
-static void inv_eltfp25519_1w_bmi2(u64 *const c, u64 *const a)
+static void inv_eltfp25519_1w_bmi2(u64 *const c, const u64 *const a)
 {
 	struct {
 		eltfp25519_1w_buffer buffer;
@@ -1570,7 +1569,6 @@ static void inv_eltfp25519_1w_bmi2(u64 *const c, u64 *const a)
 	T[1] = c; /* x^(-1) */
 	T[2] = m.x1;
 	T[3] = m.x2;
-	T[4] = a; /* x */
 
 	copy_eltfp25519_1w(T[1], a);
 	sqrn_eltfp25519_1w_bmi2(T[1], 1);
@@ -1680,7 +1678,7 @@ static __always_inline void cswap(u8 bit, u64 *const px, u64 *const py)
 	);
 }
 
-static __always_inline void cselect(u8 bit, u64 *const px, u64 *const py)
+static __always_inline void cselect(u8 bit, u64 *const px, const u64 *const py)
 {
 	asm volatile(
 		"test %4, %4 ;"
@@ -1824,7 +1822,7 @@ static void curve25519_adx_base(u8 session_key[CURVE25519_POINT_SIZE], const u8 
 	u64 *const AB = m.workspace + 0;
 	u64 *const CD = m.workspace + 8;
 
-	u64 *P = (u64 *)table_ladder_8k;
+	const u64 *const P = table_ladder_8k;
 
 	memcpy(m.private, private_key, sizeof(m.private));
 
@@ -2016,7 +2014,7 @@ static void curve25519_bmi2_base(u8 session_key[CURVE25519_POINT_SIZE], const u8
 	u64 *const AB = m.workspace + 0;
 	u64 *const CD = m.workspace + 8;
 
-	u64 *P = (u64 *)table_ladder_8k;
+	const u64 *const P = table_ladder_8k;
 
 	memcpy(m.private, private_key, sizeof(m.private));
 
