@@ -21,43 +21,43 @@ typedef __aligned(32) u64 eltfp25519_1w[NUM_WORDS_ELTFP25519];
 typedef __aligned(32) u64 eltfp25519_1w_buffer[2 * NUM_WORDS_ELTFP25519];
 
 #define mul_eltfp25519_1w_adx(c, a, b) do { \
-	mul_256x256_integer_adx(buffer_1w, a, b); \
-	red_eltfp25519_1w_adx(c, buffer_1w); \
+	mul_256x256_integer_adx(m.buffer, a, b); \
+	red_eltfp25519_1w_adx(c, m.buffer); \
 } while (0)
 
 #define mul_eltfp25519_1w_bmi2(c, a, b) do { \
-	mul_256x256_integer_bmi2(buffer_1w, a, b); \
-	red_eltfp25519_1w_bmi2(c, buffer_1w); \
+	mul_256x256_integer_bmi2(m.buffer, a, b); \
+	red_eltfp25519_1w_bmi2(c, m.buffer); \
 } while(0)
 
 #define sqr_eltfp25519_1w_adx(a) do { \
-	sqr_256x256_integer_adx(buffer_1w, a); \
-	red_eltfp25519_1w_adx(a, buffer_1w); \
+	sqr_256x256_integer_adx(m.buffer, a); \
+	red_eltfp25519_1w_adx(a, m.buffer); \
 } while (0)
 
 #define sqr_eltfp25519_1w_bmi2(a) do { \
-	sqr_256x256_integer_bmi2(buffer_1w, a); \
-	red_eltfp25519_1w_bmi2(a, buffer_1w); \
+	sqr_256x256_integer_bmi2(m.buffer, a); \
+	red_eltfp25519_1w_bmi2(a, m.buffer); \
 } while (0)
 
 #define mul_eltfp25519_2w_adx(c, a, b) do { \
-	mul2_256x256_integer_adx(buffer_2w, a, b); \
-	red_eltfp25519_2w_adx(c, buffer_2w); \
+	mul2_256x256_integer_adx(m.buffer, a, b); \
+	red_eltfp25519_2w_adx(c, m.buffer); \
 } while (0)
 
 #define mul_eltfp25519_2w_bmi2(c, a, b) do { \
-	mul2_256x256_integer_bmi2(buffer_2w, a, b); \
-	red_eltfp25519_2w_bmi2(c, buffer_2w); \
+	mul2_256x256_integer_bmi2(m.buffer, a, b); \
+	red_eltfp25519_2w_bmi2(c, m.buffer); \
 } while (0)
 
 #define sqr_eltfp25519_2w_adx(a) do { \
-	sqr2_256x256_integer_adx(buffer_2w, a); \
-	red_eltfp25519_2w_adx(a, buffer_2w); \
+	sqr2_256x256_integer_adx(m.buffer, a); \
+	red_eltfp25519_2w_adx(a, m.buffer); \
 } while (0)
 
 #define sqr_eltfp25519_2w_bmi2(a) do { \
-	sqr2_256x256_integer_bmi2(buffer_2w, a); \
-	red_eltfp25519_2w_bmi2(a, buffer_2w); \
+	sqr2_256x256_integer_bmi2(m.buffer, a); \
+	red_eltfp25519_2w_bmi2(a, m.buffer); \
 } while (0)
 
 #define sqrn_eltfp25519_1w_adx(a, times) do { \
@@ -1512,14 +1512,16 @@ static __always_inline void mul_a24_eltfp25519_1w(u64 *const c, u64 *const a)
 
 static void inv_eltfp25519_1w_adx(u64 *const c, u64 *const a)
 {
-	eltfp25519_1w_buffer buffer_1w;
-	eltfp25519_1w x0, x1, x2;
+	struct {
+		eltfp25519_1w_buffer buffer;
+		eltfp25519_1w x0, x1, x2;
+	} __aligned(32) m;
 	u64 *T[5];
 
-	T[0] = x0;
+	T[0] = m.x0;
 	T[1] = c; /* x^(-1) */
-	T[2] = x1;
-	T[3] = x2;
+	T[2] = m.x1;
+	T[3] = m.x2;
 	T[4] = a; /* x */
 
 	copy_eltfp25519_1w(T[1], a);
@@ -1553,22 +1555,21 @@ static void inv_eltfp25519_1w_adx(u64 *const c, u64 *const a)
 	sqrn_eltfp25519_1w_adx(T[2], 5);
 	mul_eltfp25519_1w_adx(T[1], T[1], T[2]);
 
-	memzero_explicit(&buffer_1w, sizeof(buffer_1w));
-	memzero_explicit(&x0, sizeof(x0));
-	memzero_explicit(&x1, sizeof(x1));
-	memzero_explicit(&x2, sizeof(x2));
+	memzero_explicit(&m, sizeof(m));
 }
 
 static void inv_eltfp25519_1w_bmi2(u64 *const c, u64 *const a)
 {
-	eltfp25519_1w_buffer buffer_1w;
-	eltfp25519_1w x0, x1, x2;
+	struct {
+		eltfp25519_1w_buffer buffer;
+		eltfp25519_1w x0, x1, x2;
+	} __aligned(32) m;
 	u64 *T[5];
 
-	T[0] = x0;
+	T[0] = m.x0;
 	T[1] = c; /* x^(-1) */
-	T[2] = x1;
-	T[3] = x2;
+	T[2] = m.x1;
+	T[3] = m.x2;
 	T[4] = a; /* x */
 
 	copy_eltfp25519_1w(T[1], a);
@@ -1602,10 +1603,7 @@ static void inv_eltfp25519_1w_bmi2(u64 *const c, u64 *const a)
 	sqrn_eltfp25519_1w_bmi2(T[2], 5);
 	mul_eltfp25519_1w_bmi2(T[1], T[1], T[2]);
 
-	memzero_explicit(&buffer_1w, sizeof(buffer_1w));
-	memzero_explicit(&x0, sizeof(x0));
-	memzero_explicit(&x1, sizeof(x1));
-	memzero_explicit(&x2, sizeof(x2));
+	memzero_explicit(&m, sizeof(m));
 }
 
 /* Given c, a 256-bit number, fred_eltfp25519_1w updates c
@@ -1698,20 +1696,22 @@ static __always_inline void cselect(u8 bit, u64 *const px, u64 *const py)
 
 static void curve25519_adx(u8 shared[CURVE25519_POINT_SIZE], const u8 private_key[CURVE25519_POINT_SIZE], const u8 session_key[CURVE25519_POINT_SIZE])
 {
-	__aligned(32) u64 buffer[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u64 coordinates[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u64 workspace[6 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u8 session[CURVE25519_POINT_SIZE];
-	__aligned(32) u8 private[CURVE25519_POINT_SIZE];
+	struct {
+		u64 buffer[4 * NUM_WORDS_ELTFP25519];
+		u64 coordinates[4 * NUM_WORDS_ELTFP25519];
+		u64 workspace[6 * NUM_WORDS_ELTFP25519];
+		u8 session[CURVE25519_POINT_SIZE];
+		u8 private[CURVE25519_POINT_SIZE];
+	} __aligned(32) m;
 
 	int i = 0, j = 0;
 	u64 prev = 0;
-	u64 *const X1 = (u64 *)session;
-	u64 *const key = (u64 *)private;
-	u64 *const Px = coordinates + 0;
-	u64 *const Pz = coordinates + 4;
-	u64 *const Qx = coordinates + 8;
-	u64 *const Qz = coordinates + 12;
+	u64 *const X1 = (u64 *)m.session;
+	u64 *const key = (u64 *)m.private;
+	u64 *const Px = m.coordinates + 0;
+	u64 *const Pz = m.coordinates + 4;
+	u64 *const Qx = m.coordinates + 8;
+	u64 *const Qz = m.coordinates + 12;
 	u64 *const X2 = Qx;
 	u64 *const Z2 = Qz;
 	u64 *const X3 = Px;
@@ -1719,22 +1719,20 @@ static void curve25519_adx(u8 shared[CURVE25519_POINT_SIZE], const u8 private_ke
 	u64 *const X2Z2 = Qx;
 	u64 *const X3Z3 = Px;
 
-	u64 *const A = workspace + 0;
-	u64 *const B = workspace + 4;
-	u64 *const D = workspace + 8;
-	u64 *const C = workspace + 12;
-	u64 *const DA = workspace + 16;
-	u64 *const CB = workspace + 20;
+	u64 *const A = m.workspace + 0;
+	u64 *const B = m.workspace + 4;
+	u64 *const D = m.workspace + 8;
+	u64 *const C = m.workspace + 12;
+	u64 *const DA = m.workspace + 16;
+	u64 *const CB = m.workspace + 20;
 	u64 *const AB = A;
 	u64 *const DC = D;
 	u64 *const DACB = DA;
-	u64 *const buffer_1w = buffer;
-	u64 *const buffer_2w = buffer;
 
-	memcpy(private, private_key, sizeof(private));
-	memcpy(session, session_key, sizeof(session));
+	memcpy(m.private, private_key, sizeof(m.private));
+	memcpy(m.session, session_key, sizeof(m.session));
 
-	normalize_secret(private);
+	normalize_secret(m.private);
 
 	/* As in the draft:
 	 * When receiving such an array, implementations of curve25519
@@ -1743,7 +1741,7 @@ static void curve25519_adx(u8 shared[CURVE25519_POINT_SIZE], const u8 private_ke
 	 * reserve the sign bit for use in other protocols and to
 	 * increase resistance to implementation fingerprinting
 	 */
-	session[CURVE25519_POINT_SIZE - 1] &= (1 << (255 % 8)) - 1;
+	m.session[CURVE25519_POINT_SIZE - 1] &= (1 << (255 % 8)) - 1;
 
 	copy_eltfp25519_1w(Px, X1);
 	setzero_eltfp25519_1w(Pz);
@@ -1792,49 +1790,45 @@ static void curve25519_adx(u8 shared[CURVE25519_POINT_SIZE], const u8 private_ke
 	mul_eltfp25519_1w_adx((u64 *)shared, Qx, A);
 	fred_eltfp25519_1w((u64 *)shared);
 
-	memzero_explicit(buffer, sizeof(buffer));
-	memzero_explicit(coordinates, sizeof(coordinates));
-	memzero_explicit(workspace, sizeof(workspace));
-	memzero_explicit(private, sizeof(private));
-	memzero_explicit(session, sizeof(session));
+	memzero_explicit(&m, sizeof(m));
 }
 
 static void curve25519_adx_base(u8 session_key[CURVE25519_POINT_SIZE], const u8 private_key[CURVE25519_POINT_SIZE])
 {
-	__aligned(32) u64 buffer[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u64 coordinates[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u64 workspace[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u8 private[CURVE25519_POINT_SIZE];
+	struct {
+		u64 buffer[4 * NUM_WORDS_ELTFP25519];
+		u64 coordinates[4 * NUM_WORDS_ELTFP25519];
+		u64 workspace[4 * NUM_WORDS_ELTFP25519];
+		u8 private[CURVE25519_POINT_SIZE];
+	} __aligned(32) m;
 
 	const int ite[4] = { 64, 64, 64, 63 };
 	const int q = 3;
 	u64 swap = 1;
 
 	int i = 0, j = 0, k = 0;
-	u64 *const key = (u64 *)private;
-	u64 *const Ur1 = coordinates + 0;
-	u64 *const Zr1 = coordinates + 4;
-	u64 *const Ur2 = coordinates + 8;
-	u64 *const Zr2 = coordinates + 12;
+	u64 *const key = (u64 *)m.private;
+	u64 *const Ur1 = m.coordinates + 0;
+	u64 *const Zr1 = m.coordinates + 4;
+	u64 *const Ur2 = m.coordinates + 8;
+	u64 *const Zr2 = m.coordinates + 12;
 
-	u64 *const UZr1 = coordinates + 0;
-	u64 *const ZUr2 = coordinates + 8;
+	u64 *const UZr1 = m.coordinates + 0;
+	u64 *const ZUr2 = m.coordinates + 8;
 
-	u64 *const A = workspace + 0;
-	u64 *const B = workspace + 4;
-	u64 *const C = workspace + 8;
-	u64 *const D = workspace + 12;
+	u64 *const A = m.workspace + 0;
+	u64 *const B = m.workspace + 4;
+	u64 *const C = m.workspace + 8;
+	u64 *const D = m.workspace + 12;
 
-	u64 *const AB = workspace + 0;
-	u64 *const CD = workspace + 8;
+	u64 *const AB = m.workspace + 0;
+	u64 *const CD = m.workspace + 8;
 
-	u64 *const buffer_1w = buffer;
-	u64 *const buffer_2w = buffer;
 	u64 *P = (u64 *)table_ladder_8k;
 
-	memcpy(private, private_key, sizeof(private));
+	memcpy(m.private, private_key, sizeof(m.private));
 
-	normalize_secret(private);
+	normalize_secret(m.private);
 
 	setzero_eltfp25519_1w(Ur1);
 	setzero_eltfp25519_1w(Zr1);
@@ -1889,28 +1883,27 @@ static void curve25519_adx_base(u8 session_key[CURVE25519_POINT_SIZE], const u8 
 	mul_eltfp25519_1w_adx((u64 *)session_key, Ur1, A);
 	fred_eltfp25519_1w((u64 *)session_key);
 
-	memzero_explicit(buffer, sizeof(buffer));
-	memzero_explicit(coordinates, sizeof(coordinates));
-	memzero_explicit(workspace, sizeof(workspace));
-	memzero_explicit(private, sizeof(private));
+	memzero_explicit(&m, sizeof(m));
 }
 
 static void curve25519_bmi2(u8 shared[CURVE25519_POINT_SIZE], const u8 private_key[CURVE25519_POINT_SIZE], const u8 session_key[CURVE25519_POINT_SIZE])
 {
-	__aligned(32) u64 buffer[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u64 coordinates[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u64 workspace[6 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u8 session[CURVE25519_POINT_SIZE];
-	__aligned(32) u8 private[CURVE25519_POINT_SIZE];
+	struct {
+		u64 buffer[4 * NUM_WORDS_ELTFP25519];
+		u64 coordinates[4 * NUM_WORDS_ELTFP25519];
+		u64 workspace[6 * NUM_WORDS_ELTFP25519];
+		u8 session[CURVE25519_POINT_SIZE];
+		u8 private[CURVE25519_POINT_SIZE];
+	} __aligned(32) m;
 
 	int i = 0, j = 0;
 	u64 prev = 0;
-	u64 *const X1 = (u64 *)session;
-	u64 *const key = (u64 *)private;
-	u64 *const Px = coordinates + 0;
-	u64 *const Pz = coordinates + 4;
-	u64 *const Qx = coordinates + 8;
-	u64 *const Qz = coordinates + 12;
+	u64 *const X1 = (u64 *)m.session;
+	u64 *const key = (u64 *)m.private;
+	u64 *const Px = m.coordinates + 0;
+	u64 *const Pz = m.coordinates + 4;
+	u64 *const Qx = m.coordinates + 8;
+	u64 *const Qz = m.coordinates + 12;
 	u64 *const X2 = Qx;
 	u64 *const Z2 = Qz;
 	u64 *const X3 = Px;
@@ -1918,22 +1911,20 @@ static void curve25519_bmi2(u8 shared[CURVE25519_POINT_SIZE], const u8 private_k
 	u64 *const X2Z2 = Qx;
 	u64 *const X3Z3 = Px;
 
-	u64 *const A = workspace + 0;
-	u64 *const B = workspace + 4;
-	u64 *const D = workspace + 8;
-	u64 *const C = workspace + 12;
-	u64 *const DA = workspace + 16;
-	u64 *const CB = workspace + 20;
+	u64 *const A = m.workspace + 0;
+	u64 *const B = m.workspace + 4;
+	u64 *const D = m.workspace + 8;
+	u64 *const C = m.workspace + 12;
+	u64 *const DA = m.workspace + 16;
+	u64 *const CB = m.workspace + 20;
 	u64 *const AB = A;
 	u64 *const DC = D;
 	u64 *const DACB = DA;
-	u64 *const buffer_1w = buffer;
-	u64 *const buffer_2w = buffer;
 
-	memcpy(private, private_key, sizeof(private));
-	memcpy(session, session_key, sizeof(session));
+	memcpy(m.private, private_key, sizeof(m.private));
+	memcpy(m.session, session_key, sizeof(m.session));
 
-	normalize_secret(private);
+	normalize_secret(m.private);
 
 	/* As in the draft:
 	 * When receiving such an array, implementations of curve25519
@@ -1942,7 +1933,7 @@ static void curve25519_bmi2(u8 shared[CURVE25519_POINT_SIZE], const u8 private_k
 	 * reserve the sign bit for use in other protocols and to
 	 * increase resistance to implementation fingerprinting
 	 */
-	session[CURVE25519_POINT_SIZE - 1] &= (1 << (255 % 8)) - 1;
+	m.session[CURVE25519_POINT_SIZE - 1] &= (1 << (255 % 8)) - 1;
 
 	copy_eltfp25519_1w(Px, X1);
 	setzero_eltfp25519_1w(Pz);
@@ -1991,49 +1982,45 @@ static void curve25519_bmi2(u8 shared[CURVE25519_POINT_SIZE], const u8 private_k
 	mul_eltfp25519_1w_bmi2((u64 *)shared, Qx, A);
 	fred_eltfp25519_1w((u64 *)shared);
 
-	memzero_explicit(buffer, sizeof(buffer));
-	memzero_explicit(coordinates, sizeof(coordinates));
-	memzero_explicit(workspace, sizeof(workspace));
-	memzero_explicit(private, sizeof(private));
-	memzero_explicit(session, sizeof(session));
+	memzero_explicit(&m, sizeof(m));
 }
 
 static void curve25519_bmi2_base(u8 session_key[CURVE25519_POINT_SIZE], const u8 private_key[CURVE25519_POINT_SIZE])
 {
-	__aligned(32) u64 buffer[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u64 coordinates[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u64 workspace[4 * NUM_WORDS_ELTFP25519];
-	__aligned(32) u8 private[CURVE25519_POINT_SIZE];
+	struct {
+		u64 buffer[4 * NUM_WORDS_ELTFP25519];
+		u64 coordinates[4 * NUM_WORDS_ELTFP25519];
+		u64 workspace[4 * NUM_WORDS_ELTFP25519];
+		u8 private[CURVE25519_POINT_SIZE];
+	} __aligned(32) m;
 
 	const int ite[4] = { 64, 64, 64, 63 };
 	const int q = 3;
 	u64 swap = 1;
 
 	int i = 0, j = 0, k = 0;
-	u64 *const key = (u64 *)private;
-	u64 *const Ur1 = coordinates + 0;
-	u64 *const Zr1 = coordinates + 4;
-	u64 *const Ur2 = coordinates + 8;
-	u64 *const Zr2 = coordinates + 12;
+	u64 *const key = (u64 *)m.private;
+	u64 *const Ur1 = m.coordinates + 0;
+	u64 *const Zr1 = m.coordinates + 4;
+	u64 *const Ur2 = m.coordinates + 8;
+	u64 *const Zr2 = m.coordinates + 12;
 
-	u64 *const UZr1 = coordinates + 0;
-	u64 *const ZUr2 = coordinates + 8;
+	u64 *const UZr1 = m.coordinates + 0;
+	u64 *const ZUr2 = m.coordinates + 8;
 
-	u64 *const A = workspace + 0;
-	u64 *const B = workspace + 4;
-	u64 *const C = workspace + 8;
-	u64 *const D = workspace + 12;
+	u64 *const A = m.workspace + 0;
+	u64 *const B = m.workspace + 4;
+	u64 *const C = m.workspace + 8;
+	u64 *const D = m.workspace + 12;
 
-	u64 *const AB = workspace + 0;
-	u64 *const CD = workspace + 8;
+	u64 *const AB = m.workspace + 0;
+	u64 *const CD = m.workspace + 8;
 
-	u64 *const buffer_1w = buffer;
-	u64 *const buffer_2w = buffer;
 	u64 *P = (u64 *)table_ladder_8k;
 
-	memcpy(private, private_key, sizeof(private));
+	memcpy(m.private, private_key, sizeof(m.private));
 
-	normalize_secret(private);
+	normalize_secret(m.private);
 
 	setzero_eltfp25519_1w(Ur1);
 	setzero_eltfp25519_1w(Zr1);
@@ -2088,8 +2075,5 @@ static void curve25519_bmi2_base(u8 session_key[CURVE25519_POINT_SIZE], const u8
 	mul_eltfp25519_1w_bmi2((u64 *)session_key, Ur1, A);
 	fred_eltfp25519_1w((u64 *)session_key);
 
-	memzero_explicit(buffer, sizeof(buffer));
-	memzero_explicit(coordinates, sizeof(coordinates));
-	memzero_explicit(workspace, sizeof(workspace));
-	memzero_explicit(private, sizeof(private));
+	memzero_explicit(&m, sizeof(m));
 }
