@@ -25,6 +25,9 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
 #define ISOPENSUSE42
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+#define ISOPENSUSE15
+#endif
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
@@ -274,7 +277,7 @@ static const struct in6_addr our_in6addr_any = IN6ADDR_ANY_INIT;
 #define in6addr_any our_in6addr_any
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0) && !defined(ISOPENSUSE15)
 #include <linux/completion.h>
 #include <linux/random.h>
 #include <linux/errno.h>
@@ -317,7 +320,7 @@ static inline int wait_for_random_bytes(void)
 	return 0;
 }
 #endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0) && !defined(ISOPENSUSE15)
 static inline int get_random_bytes_wait(void *buf, int nbytes)
 {
 	int ret = wait_for_random_bytes();
@@ -434,7 +437,7 @@ static inline void kvfree_ours(const void *addr)
 #define priv_destructor destructor
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0) && !defined(ISOPENSUSE15)
 #define newlink(a,b,c,d,e) newlink(a,b,c,d)
 #endif
 
