@@ -56,7 +56,10 @@
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
+#include <linux/rcupdate.h>
+#ifndef RCU_LOCKDEP_WARN
 #define RCU_LOCKDEP_WARN(cond, message) rcu_lockdep_assert(!(cond), message)
+#endif
 #endif
 
 #if ((LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 6)) || \
