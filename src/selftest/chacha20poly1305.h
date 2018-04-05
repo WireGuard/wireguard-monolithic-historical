@@ -1279,7 +1279,7 @@ static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 
 	__le64 len;
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state = {{
-		0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
+		EXPAND_32_BYTE_K,
 		le32_to_cpuvp(key + 0), le32_to_cpuvp(key + 4), le32_to_cpuvp(key + 8), le32_to_cpuvp(key + 12),
 		le32_to_cpuvp(key + 16), le32_to_cpuvp(key + 20), le32_to_cpuvp(key + 24), le32_to_cpuvp(key + 28),
 		0, le32_to_cpuvp(nonce + 0), le32_to_cpuvp(nonce + 4), le32_to_cpuvp(nonce + 8)

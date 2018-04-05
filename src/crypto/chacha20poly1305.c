@@ -154,6 +154,8 @@ struct chacha20_ctx {
 	DOUBLE_ROUND(x) \
 )
 
+#define EXPAND_32_BYTE_K 0x61707865, 0x3320646e, 0x79622d32, 0x6b206574
+
 static void chacha20_block_generic(struct chacha20_ctx *ctx, __le32 *stream)
 {
 	u32 x[CHACHA20_BLOCK_SIZE / sizeof(u32)];
@@ -174,7 +176,7 @@ static void hchacha20_generic(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 
 {
 	__le32 *out = (__force __le32 *)derived_key;
 	u32 x[] = {
-		0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
+		EXPAND_32_BYTE_K,
 		le32_to_cpuvp(key + 0), le32_to_cpuvp(key + 4), le32_to_cpuvp(key + 8), le32_to_cpuvp(key + 12),
 		le32_to_cpuvp(key + 16), le32_to_cpuvp(key + 20), le32_to_cpuvp(key + 24), le32_to_cpuvp(key + 28),
 		le32_to_cpuvp(nonce +  0), le32_to_cpuvp(nonce +  4), le32_to_cpuvp(nonce +  8), le32_to_cpuvp(nonce + 12)
@@ -205,7 +207,7 @@ static inline void hchacha20(u8 derived_key[CHACHA20POLY1305_KEYLEN], const u8 n
 }
 
 #define chacha20_initial_state(key, nonce) {{ \
-	0x61707865, 0x3320646e, 0x79622d32, 0x6b206574, \
+	EXPAND_32_BYTE_K, \
 	le32_to_cpuvp((key) + 0), le32_to_cpuvp((key) + 4), le32_to_cpuvp((key) + 8), le32_to_cpuvp((key) + 12), \
 	le32_to_cpuvp((key) + 16), le32_to_cpuvp((key) + 20), le32_to_cpuvp((key) + 24), le32_to_cpuvp((key) + 28), \
 	0, 0, le32_to_cpuvp((nonce) +  0), le32_to_cpuvp((nonce) + 4) \
