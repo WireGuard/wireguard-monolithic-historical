@@ -87,20 +87,17 @@ add_if() {
 }
 
 del_if() {
-	local fwmark
+	local table
 	[[ $HAVE_SET_DNS -eq 0 ]] || unset_dns
-	fwmark="$(wg show "$INTERFACE" fwmark)"
-	DEFAULT_TABLE=0
-	[[ $fwmark != off ]] && DEFAULT_TABLE=$(( fwmark ))
-	if [[ $DEFAULT_TABLE -ne 0 ]]; then
-		while [[ $(ip -4 rule show) == *"lookup $DEFAULT_TABLE"* ]]; do
-			cmd ip -4 rule delete table $DEFAULT_TABLE
+	if [[ -z $TABLE || $TABLE == auto ]] && get_fwmark table && [[ $(wg show "$INTERFACE" allowed-ips) =~ /0(\ |$'\n'|$) ]]; then
+		while [[ $(ip -4 rule show) == *"lookup $table"* ]]; do
+			cmd ip -4 rule delete table $table
 		done
 		while [[ $(ip -4 rule show) == *"from all lookup main suppress_prefixlength 0"* ]]; do
 			cmd ip -4 rule delete table main suppress_prefixlength 0
 		done
-		while [[ $(ip -6 rule show) == *"lookup $DEFAULT_TABLE"* ]]; do
-			cmd ip -6 rule delete table $DEFAULT_TABLE
+		while [[ $(ip -6 rule show) == *"lookup $table"* ]]; do
+			cmd ip -6 rule delete table $table
 		done
 		while [[ $(ip -6 rule show) == *"from all lookup main suppress_prefixlength 0"* ]]; do
 			cmd ip -6 rule delete table main suppress_prefixlength 0
@@ -169,21 +166,28 @@ add_route() {
 	fi
 }
 
-DEFAULT_TABLE=
+get_fwmark() {
+	local fwmark
+	fwmark="$(wg show "$INTERFACE" fwmark)" || return 1
+	[[ -n $fwmark && $fwmark != off ]] || return 1
+	printf -v "$1" "%d" "$fwmark"
+	return 0
+}
+
 add_default() {
-	if [[ -z $DEFAULT_TABLE ]]; then
-		DEFAULT_TABLE=51820
-		while [[ -n $(ip -4 route show table $DEFAULT_TABLE) || -n $(ip -6 route show table $DEFAULT_TABLE) ]]; do
-			((DEFAULT_TABLE++))
+	local table proto key value
+	if ! get_fwmark table; then
+		table=51820
+		while [[ -n $(ip -4 route show table $table) || -n $(ip -6 route show table $table) ]]; do
+			((table++))
 		done
+		cmd wg set "$INTERFACE" fwmark $table
 	fi
-	local proto=-4
+	proto=-4
 	[[ $1 == *:* ]] && proto=-6
-	cmd wg set "$INTERFACE" fwmark $DEFAULT_TABLE
-	cmd ip $proto route add "$1" dev "$INTERFACE" table $DEFAULT_TABLE
-	cmd ip $proto rule add not fwmark $DEFAULT_TABLE table $DEFAULT_TABLE
+	cmd ip $proto route add "$1" dev "$INTERFACE" table $table
+	cmd ip $proto rule add not fwmark $table table $table
 	cmd ip $proto rule add table main suppress_prefixlength 0
-	local key value
 	while read -r key _ value; do
 		[[ $value -eq 1 ]] && sysctl -q "$key=2"
 	done < <(sysctl -a -r '^net\.ipv4.conf\.[^ .=]+\.rp_filter$')
