@@ -46,6 +46,7 @@ struct packet_cb {
 	u64 nonce;
 	struct noise_keypair *keypair;
 	atomic_t state;
+	u32 mtu;
 	u8 ds;
 };
 #define PACKET_PEER(skb) (((struct packet_cb *)skb->cb)->keypair->entry.peer)

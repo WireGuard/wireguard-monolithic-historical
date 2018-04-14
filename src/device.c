@@ -120,6 +120,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sk_buff *next;
 	struct sk_buff_head packets;
 	sa_family_t family;
+	u32 mtu;
 	int ret;
 
 	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol)) {
@@ -141,6 +142,8 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		net_dbg_ratelimited("%s: No valid endpoint has been configured or discovered for peer %llu\n", dev->name, peer->internal_id);
 		goto err_peer;
 	}
+
+	mtu = dst_mtu(skb_dst(skb));
 
 	__skb_queue_head_init(&packets);
 	if (!skb_is_gso(skb))
@@ -167,6 +170,8 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		 * so at this point we're in a position to drop it.
 		 */
 		skb_dst_drop(skb);
+
+		PACKET_CB(skb)->mtu = mtu;
 
 		__skb_queue_tail(&packets, skb);
 	} while ((skb = next) != NULL);

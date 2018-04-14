@@ -116,11 +116,11 @@ static inline unsigned int skb_padding(struct sk_buff *skb)
 	 * isn't strictly neccessary, but it's better to be cautious here, especially
 	 * if that code ever changes.
 	 */
-	unsigned int last_unit = skb->len % skb->dev->mtu;
+	unsigned int last_unit = skb->len % PACKET_CB(skb)->mtu;
 	unsigned int padded_size = (last_unit + MESSAGE_PADDING_MULTIPLE - 1) & ~(MESSAGE_PADDING_MULTIPLE - 1);
 
-	if (padded_size > skb->dev->mtu)
-		padded_size = skb->dev->mtu;
+	if (padded_size > PACKET_CB(skb)->mtu)
+		padded_size = PACKET_CB(skb)->mtu;
 	return padded_size - last_unit;
 }
 
@@ -178,6 +178,7 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 			return;
 		skb_reserve(skb, DATA_PACKET_HEAD_ROOM);
 		skb->dev = peer->device->dev;
+		PACKET_CB(skb)->mtu = skb->dev->mtu;
 		skb_queue_tail(&peer->staged_packet_queue, skb);
 		net_dbg_ratelimited("%s: Sending keepalive packet to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	}
