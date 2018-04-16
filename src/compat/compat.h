@@ -65,13 +65,6 @@
 #endif
 #endif
 
-#if ((LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 6)) || \
-    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 12) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 17, 0)) || \
-    (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 8) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)) || \
-    LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 40)) && !defined(ISRHEL7) && !defined(ISUBUNTU1404)
-#define dev_recursion_level() 0
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0) && !defined(ISRHEL7)
 #define ipv6_dst_lookup(a, b, c, d) ipv6_dst_lookup(b, c, d)
 #endif
