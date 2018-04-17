@@ -7,26 +7,13 @@
 
 #include <linux/linkage.h>
 
-.section .rodata.cst32.Lmask24, "aM", @progbits, 32
+.section .rodata.cst192.Lconst, "aM", @progbits, 32
 .align	64
 .Lconst:
-.Lmask24:
 .long	0x0ffffff,0,0x0ffffff,0,0x0ffffff,0,0x0ffffff,0
-.section .rodata.cst32.L129, "aM", @progbits, 32
-.align	32
-.L129:
 .long	16777216,0,16777216,0,16777216,0,16777216,0
-.section .rodata.cst32.Lmask26, "aM", @progbits, 32
-.align	32
-.Lmask26:
 .long	0x3ffffff,0,0x3ffffff,0,0x3ffffff,0,0x3ffffff,0
-.section .rodata.cst32.Lpermd_avx2, "aM", @progbits, 32
-.align	32
-.Lpermd_avx2:
 .long	2,2,2,3,2,0,2,1
-.section .rodata.cst64.Lpermd_avx512, "aM", @progbits, 64
-.align	64
-.Lpermd_avx512:
 .long	0,0,0,1, 0,2,0,3, 0,4,0,5, 0,6,0,7
 
 .text
