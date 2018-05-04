@@ -31,10 +31,7 @@ static __always_inline void swap_endian(u8 *dst, const u8 *src, u8 bits)
 static void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src, u8 cidr, u8 bits)
 {
 	node->cidr = cidr;
-	node->bit_at_a = cidr / 8;
-#ifdef __LITTLE_ENDIAN
-	node->bit_at_a ^= (bits / 8 - 1) % 8;
-#endif
+	node->bit_at_a = (cidr / 8) ^ (((bits / 8 - 1) % 8) * *(u8 *)((u16 []){ 1 }));
 	node->bit_at_b = 7 - (cidr % 8);
 	memcpy(node->bits, src, bits / 8);
 }
