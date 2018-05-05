@@ -31,12 +31,12 @@ static __always_inline void swap_endian(u8 *dst, const u8 *src, u8 bits)
 static void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src, u8 cidr, u8 bits)
 {
 	node->cidr = cidr;
-	node->bit_at_a = cidr / 8;
+	node->bit_at_a = cidr / 8U;
 #ifdef __LITTLE_ENDIAN
-	node->bit_at_a ^= (bits / 8 - 1) % 8;
+	node->bit_at_a ^= (bits / 8U - 1U) % 8U;
 #endif
-	node->bit_at_b = 7 - (cidr % 8);
-	memcpy(node->bits, src, bits / 8);
+	node->bit_at_b = 7U - (cidr % 8U);
+	memcpy(node->bits, src, bits / 8U);
 }
 
 #define choose_node(parent, key) parent->bit[(key[parent->bit_at_a] >> parent->bit_at_b) & 1]
@@ -79,9 +79,9 @@ static int walk_by_peer(struct allowedips_node __rcu *top, u8 bits, struct allow
 			continue;
 
 		swap_endian(ip, node->bits, bits);
-		memset(ip + (node->cidr + 7) / 8, 0, bits / 8 - (node->cidr + 7) / 8);
+		memset(ip + (node->cidr + 7U) / 8U, 0, (bits / 8U) - ((node->cidr + 7U) / 8U));
 		if (node->cidr)
-			ip[(node->cidr + 7) / 8 - 1] &= ~0U << ((8 - (node->cidr % 8)) % 8);
+			ip[(node->cidr + 7U) / 8U - 1U] &= ~0U << ((8U - (node->cidr % 8U)) % 8U);
 
 		ret = func(ctx, ip, node->cidr, bits == 32 ? AF_INET : AF_INET6);
 		if (ret)
@@ -137,15 +137,15 @@ static void walk_remove_by_peer(struct allowedips_node __rcu **top, struct wireg
 
 static __always_inline unsigned int fls128(u64 a, u64 b)
 {
-	return a ? fls64(a) + 64 : fls64(b);
+	return a ? fls64(a) + 64U : fls64(b);
 }
 
 static __always_inline u8 common_bits(const struct allowedips_node *node, const u8 *key, u8 bits)
 {
 	if (bits == 32)
-		return 32 - fls(*(const u32 *)node->bits ^ *(const u32 *)key);
+		return 32U - fls(*(const u32 *)node->bits ^ *(const u32 *)key);
 	else if (bits == 128)
-		return 128 - fls128(*(const u64 *)&node->bits[0] ^ *(const u64 *)&key[0], *(const u64 *)&node->bits[8] ^ *(const u64 *)&key[8]);
+		return 128U - fls128(*(const u64 *)&node->bits[0] ^ *(const u64 *)&key[0], *(const u64 *)&node->bits[8] ^ *(const u64 *)&key[8]);
 	return 0;
 }
 
