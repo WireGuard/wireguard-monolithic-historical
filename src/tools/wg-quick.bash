@@ -83,7 +83,13 @@ auto_su() {
 }
 
 add_if() {
-	cmd ip link add "$INTERFACE" type wireguard
+	local ret
+	if ! cmd ip link add "$INTERFACE" type wireguard; then
+		ret=$?
+		[[ -e /sys/module/wireguard ]] || ! command -v wireguard-go >/dev/null && return $ret
+		echo "[!] Missing WireGuard kernel module. Falling back to slow userspace implementation."
+		cmd wireguard-go "$INTERFACE"
+	fi
 }
 
 del_if() {
