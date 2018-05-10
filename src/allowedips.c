@@ -81,7 +81,7 @@ static int walk_by_peer(struct allowedips_node __rcu *top, u8 bits, struct allow
 		swap_endian(ip, node->bits, bits);
 		memset(ip + (node->cidr + 7U) / 8U, 0, (bits / 8U) - ((node->cidr + 7U) / 8U));
 		if (node->cidr)
-			ip[(node->cidr + 7U) / 8U - 1U] &= ~0U << ((8U - (node->cidr % 8U)) % 8U);
+			ip[(node->cidr + 7U) / 8U - 1U] &= ~0U << (-node->cidr % 8U);
 
 		ret = func(ctx, ip, node->cidr, bits == 32 ? AF_INET : AF_INET6);
 		if (ret)
