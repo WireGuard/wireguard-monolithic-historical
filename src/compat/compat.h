@@ -110,7 +110,7 @@ static inline bool ipv6_mod_enabled(void)
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0) && !defined(ISRHEL7)
 #include <linux/skbuff.h>
 static inline void skb_reset_tc(struct sk_buff *skb)
 {
@@ -173,7 +173,7 @@ static inline void netif_keep_dst(struct net_device *dev)
 #endif
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0) && !defined(ISRHEL7)
 #include "checksum/checksum_partial_compat.h"
 static inline void *our_pskb_put(struct sk_buff *skb, struct sk_buff *tail, int len)
 {
@@ -441,7 +441,7 @@ static inline void kvfree_ours(const void *addr)
 #define nla_parse_nested(a, b, c, d, e) nla_parse_nested(a, b, c, d)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) && !defined(ISRHEL7)
 static inline struct nlattr **genl_family_attrbuf(const struct genl_family *family)
 {
 	return family->attrbuf;
@@ -464,9 +464,9 @@ static inline struct nlattr **genl_family_attrbuf(const struct genl_family *fami
 #endif
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) && !defined(ISRHEL7)
 #include <net/genetlink.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0) && !defined(ISRHEL7)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 #define genl_register_family(a) genl_register_family_with_ops(a, genl_ops, ARRAY_SIZE(genl_ops))
 #define COMPAT_CANNOT_USE_CONST_GENL_OPS
 #else
