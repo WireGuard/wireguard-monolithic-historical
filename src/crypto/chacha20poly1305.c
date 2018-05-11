@@ -536,7 +536,7 @@ static inline void poly1305_emit(void *ctx, u8 mac[16], const u32 nonce[4], bool
 
 static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len, bool have_simd)
 {
-	const size_t num = ctx->num;
+	const size_t num = ctx->num % POLY1305_BLOCK_SIZE;
 	size_t rem;
 
 	if (num) {
@@ -570,7 +570,7 @@ static void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len,
 
 static void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[16], bool have_simd)
 {
-	size_t num = ctx->num;
+	size_t num = ctx->num % POLY1305_BLOCK_SIZE;
 
 	if (num) {
 		ctx->data[num++] = 1;   /* pad bit */
