@@ -577,6 +577,15 @@ struct _____dummy_container { char dev; };
 #define genl_dump_check_consistent(a, b) genl_dump_check_consistent(a, b, &genl_family)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0) && !defined(ISRHEL7)
+static inline void *skb_put_data(struct sk_buff *skb, const void *data, unsigned int len)
+{
+	void *tmp = skb_put(skb, len);
+	memcpy(tmp, data, len);
+	return tmp;
+}
+#endif
+
 /* https://lkml.org/lkml/2017/6/23/790 */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
