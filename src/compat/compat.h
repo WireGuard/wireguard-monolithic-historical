@@ -34,7 +34,10 @@
 #error "WireGuard requires Linux >= 3.10"
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0) && !defined(ISRHEL7)
+#if defined(ISRHEL7)
+#include <linux/skbuff.h>
+#define headers_end headers_start
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
 #define headers_start data
 #define headers_end data
 #endif
