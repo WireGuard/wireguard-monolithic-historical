@@ -6,8 +6,8 @@ Documentation=man:wg-quick(8)
 Documentation=man:wg(8)
 Documentation=https://www.wireguard.com/
 Documentation=https://www.wireguard.com/quickstart/
-Documentation=https://git.zx2c4.com/WireGuard/about/src/tools/wg-quick.8
-Documentation=https://git.zx2c4.com/WireGuard/about/src/tools/wg.8
+Documentation=https://git.zx2c4.com/WireGuard/about/src/tools/man/wg-quick.8
+Documentation=https://git.zx2c4.com/WireGuard/about/src/tools/man/wg.8
 
 [Service]
 Type=oneshot
