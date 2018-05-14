@@ -27,19 +27,48 @@ TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools/*.h ../../uapi/*.h ../..
 
 default: qemu
 
-# variable name, tarball project name, version, tarball extension, default URI base
+# variable name, tarball project name, version, tarball extension, default URI base, tarball hash
 define tar_download =
 $(1)_VERSION := $(3)
 $(1)_NAME := $(2)-$$($(1)_VERSION)
 $(1)_TAR := $(DISTFILES_PATH)/$$($(1)_NAME)$(4)
 $(1)_PATH := $(BUILD_PATH)/$$($(1)_NAME)
 $(call file_download,$$($(1)_NAME)$(4),$(5))
+$(call check_hash,$$($(1)_NAME)$(4),$(strip $(6)))
+endef
+
+# variable name, tarball project name, version, tarball extension, default URI base
+define tar_download_nohash =
+$(1)_VERSION := $(3)
+$(1)_NAME := $(2)-$$($(1)_VERSION)
+$(1)_TAR := $(DISTFILES_PATH)/$$($(1)_NAME)$(4)
+$(1)_PATH := $(BUILD_PATH)/$$($(1)_NAME)
+$(call file_download,$$($(1)_NAME)$(4),$(5))
+$(DISTFILES_PATH)/$$($(1)_NAME)$(4): $(DISTFILES_PATH)/$$($(1)_NAME)$(4).unchecked
+	@# Hardlink the tarball to avoid taking up twice the space
+	chmod -w $$<
+	ln $$< $$@
 endef
 
 define file_download =
-$(DISTFILES_PATH)/$(1):
+$(DISTFILES_PATH)/$(1).unchecked:
 	mkdir -p $(DISTFILES_PATH)
 	flock -x $$@.lock -c '[ -f $$@ ] && exit 0; wget -O $$@ $(MIRROR)$(1) || wget -t inf --retry-on-http-error=404 -O $$@ $(2)$(1) || rm -f $$@'
+endef
+
+# filename, hash
+define check_hash =
+$(DISTFILES_PATH)/$(1): $(DISTFILES_PATH)/$(1).unchecked
+	@COMPUTED="$$$$(sha256sum $$< | cut -d' ' -f1)"; \
+		if [ "$$$$COMPUTED" != "$(2)" ]; then \
+			echo "*** Hash mismatch for $(1): ***"; \
+			echo "Computed: $$$$COMPUTED"; \
+			echo "Expected: $(2)"; \
+			return 1; \
+		else \
+			chmod -w $$<; \
+			ln $$< $$@; \
+		fi
 endef
 
 ifeq ($(findstring -rc,$(KERNEL_VERSION)),)
@@ -48,15 +77,23 @@ else
 KERNEL_URL_DIRECTORY := https://git.kernel.org/torvalds/t/
 endif
 
-$(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.gz,$(KERNEL_URL_DIRECTORY)))
-$(eval $(call tar_download,MUSL,musl,1.1.16,.tar.gz,https://www.musl-libc.org/releases/))
-$(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,https://www.netfilter.org/projects/libmnl/files/))
-$(eval $(call tar_download,IPERF,iperf,3.1.7,.tar.gz,http://downloads.es.net/pub/iperf/))
-$(eval $(call tar_download,BASH,bash,4.4.18,.tar.gz,https://ftp.gnu.org/gnu/bash/))
-$(eval $(call tar_download,IPROUTE2,iproute2,4.13.0,.tar.gz,https://www.kernel.org/pub/linux/utils/net/iproute2/))
-$(eval $(call tar_download,IPTABLES,iptables,1.6.1,.tar.bz2,https://www.netfilter.org/projects/iptables/files/))
-$(eval $(call tar_download,NMAP,nmap,7.60,.tar.bz2,https://nmap.org/dist/))
-$(eval $(call tar_download,IPUTILS,iputils,s20161105,.tar.gz,https://github.com/iputils/iputils/archive/s20161105.tar.gz/#))
+$(eval $(call tar_download_nohash,KERNEL,linux,$(KERNEL_VERSION),.tar.gz,$(KERNEL_URL_DIRECTORY)))
+$(eval $(call tar_download,MUSL,musl,1.1.16,.tar.gz,https://www.musl-libc.org/releases/, \
+	937185a5e5d721050306cf106507a006c3f1f86d86cd550024ea7be909071011))
+$(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,https://www.netfilter.org/projects/libmnl/files/, \
+	171f89699f286a5854b72b91d06e8f8e3683064c5901fb09d954a9ab6f551f81))
+$(eval $(call tar_download,IPERF,iperf,3.1.7,.tar.gz,http://downloads.es.net/pub/iperf/, \
+	a4ef73406fe92250602b8da2ae89ec53211f805df97a1d1d629db5a14043734f))
+$(eval $(call tar_download,BASH,bash,4.4.18,.tar.gz,https://ftp.gnu.org/gnu/bash/, \
+	604d9eec5e4ed5fd2180ee44dd756ddca92e0b6aa4217bbab2b6227380317f23))
+$(eval $(call tar_download,IPROUTE2,iproute2,4.13.0,.tar.gz,https://www.kernel.org/pub/linux/utils/net/iproute2/, \
+	f923ed87663d7d53696502aa6d3c196c7324afccb8fe6824d2a51b770b2f612f))
+$(eval $(call tar_download,IPTABLES,iptables,1.6.1,.tar.bz2,https://www.netfilter.org/projects/iptables/files/, \
+	0fc2d7bd5d7be11311726466789d4c65fb4c8e096c9182b56ce97440864f0cf5))
+$(eval $(call tar_download,NMAP,nmap,7.60,.tar.bz2,https://nmap.org/dist/, \
+	a8796ecc4fa6c38aad6139d9515dc8113023a82e9d787e5a5fb5fa1b05516f21))
+$(eval $(call tar_download,IPUTILS,iputils,s20161105,.tar.gz,https://github.com/iputils/iputils/archive/s20161105.tar.gz/#, \
+	f813092f03d17294fd23544b129b95cdb87fe19f7970a51908a6b88509acad8a))
 
 export CFLAGS ?= -O3 -pipe
 export CPPFLAGS := -I$(BUILD_PATH)/include
@@ -307,7 +344,9 @@ $(BASH_PATH)/bash: | $(BASH_PATH)/.installed $(USERSPACE_DEPS)
 	$(STRIP) -s $@
 
 $(eval $(call file_download,271-uapi-libc-compat.h-do-not-rely-on-__GLIBC__.patch,https://raw.githubusercontent.com/lede-project/source/master/package/network/utils/iproute2/patches/))
+$(eval $(call check_hash,271-uapi-libc-compat.h-do-not-rely-on-__GLIBC__.patch,6117f00200bede3ed707c01e49390fb1eed832d11517b76c92ed952ce1089abe))
 $(eval $(call file_download,272-uapi-if_ether.h-prevent-redefinition-of-struct-ethhd.patch,https://raw.githubusercontent.com/lede-project/source/master/package/network/utils/iproute2/patches/))
+$(eval $(call check_hash,272-uapi-if_ether.h-prevent-redefinition-of-struct-ethhd.patch,cbb90dba1ce28f4841445bd5524bfb36954f63be0449706fdca815da57da001b))
 
 $(IPROUTE2_PATH)/.installed: $(IPROUTE2_TAR) | $(DISTFILES_PATH)/271-uapi-libc-compat.h-do-not-rely-on-__GLIBC__.patch $(DISTFILES_PATH)/272-uapi-if_ether.h-prevent-redefinition-of-struct-ethhd.patch
 	mkdir -p $(BUILD_PATH)
