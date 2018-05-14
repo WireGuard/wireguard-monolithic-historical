@@ -7,12 +7,22 @@
 
 #ifdef DEBUG_PRINT_TRIE_GRAPHVIZ
 #include <linux/siphash.h>
+
+static __init void swap_endian_and_apply_cidr(u8 *dst, const u8 *src, u8 bits, u8 cidr)
+{
+	swap_endian(dst, src, bits);
+	memset(dst + (cidr + 7) / 8, 0, bits / 8 - (cidr + 7) / 8);
+	if (cidr)
+		dst[(cidr + 7) / 8 - 1] &= ~0U << ((8 - (cidr % 8)) % 8);
+}
+
 static __init void print_node(struct allowedips_node *node, u8 bits)
 {
 	u32 color = 0;
 	char *style = "dotted";
 	char *fmt_connection = KERN_DEBUG "\t\"%p/%d\" -> \"%p/%d\";\n";
 	char *fmt_declaration = KERN_DEBUG "\t\"%p/%d\"[style=%s, color=\"#%06x\"];\n";
+	u8 ip1[16], ip2[16];
 	if (bits == 32) {
 		fmt_connection = KERN_DEBUG "\t\"%pI4/%d\" -> \"%pI4/%d\";\n";
 		fmt_declaration = KERN_DEBUG "\t\"%pI4/%d\"[style=%s, color=\"#%06x\"];\n";
@@ -26,13 +36,16 @@ static __init void print_node(struct allowedips_node *node, u8 bits)
 		color = hsiphash_1u32(0xdeadbeef, &key) % 200 << 16 | hsiphash_1u32(0xbabecafe, &key) % 200 << 8 | hsiphash_1u32(0xabad1dea, &key) % 200;
 		style = "bold";
 	}
-	printk(fmt_declaration, node->bits, node->cidr, style, color);
+	swap_endian_and_apply_cidr(ip1, node->bits, bits, node->cidr);
+	printk(fmt_declaration, ip1, node->cidr, style, color);
 	if (node->bit[0]) {
-		printk(fmt_connection, node->bits, node->cidr, node->bit[0]->bits, node->bit[0]->cidr);
+		swap_endian_and_apply_cidr(ip2, node->bit[0]->bits, bits, node->cidr);
+		printk(fmt_connection, ip1, node->cidr, ip2, node->bit[0]->cidr);
 		print_node(node->bit[0], bits);
 	}
 	if (node->bit[1]) {
-		printk(fmt_connection, node->bits, node->cidr, node->bit[1]->bits, node->bit[1]->cidr);
+		swap_endian_and_apply_cidr(ip2, node->bit[1]->bits, bits, node->cidr);
+		printk(fmt_connection, ip1, node->cidr, ip2, node->bit[1]->cidr);
 		print_node(node->bit[1], bits);
 	}
 }
