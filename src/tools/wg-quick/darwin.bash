@@ -106,7 +106,7 @@ add_if() {
 }
 
 del_routes() {
-	local todelete=( ) destination netif
+	local todelete=( ) destination gateway netif
 	while read -r destination _ _ _ _ netif _; do
 		[[ $netif == "$REAL_INTERFACE" ]] && todelete+=( "$destination" )
 	done < <(netstat -nr -f inet)
@@ -114,8 +114,8 @@ del_routes() {
 		cmd route -q delete -inet "$destination" >/dev/null || true
 	done
 	todelete=( )
-	while read -r destination _ _ netif; do
-		[[ $netif == "$REAL_INTERFACE" ]] && todelete+=( "$destination" )
+	while read -r destination gateway _ netif; do
+		[[ $netif == "$REAL_INTERFACE" || ( $netif == lo* && $gateway == "$REAL_INTERFACE" ) ]] && todelete+=( "$destination" )
 	done < <(netstat -nr -f inet6)
 	for destination in "${todelete[@]}"; do
 		cmd route -q delete -inet6 "$destination" >/dev/null || true
