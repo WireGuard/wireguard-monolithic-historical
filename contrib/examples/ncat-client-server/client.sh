@@ -5,15 +5,14 @@
 
 set -e
 [[ $UID == 0 ]] || { echo "You must be root to run this."; exit 1; }
-umask 077
-trap 'rm -f /tmp/wg_private_key' EXIT INT TERM
 exec 3<>/dev/tcp/demo.wireguard.com/42912
-wg genkey | tee /tmp/wg_private_key | wg pubkey >&3
+privatekey="$(wg genkey)"
+wg pubkey <<<"$privatekey" >&3
 IFS=: read -r status server_pubkey server_port internal_ip <&3
 [[ $status == OK ]]
 ip link del dev wg0 2>/dev/null || true
 ip link add dev wg0 type wireguard
-wg set wg0 private-key /tmp/wg_private_key peer "$server_pubkey" allowed-ips 0.0.0.0/0 endpoint "demo.wireguard.com:$server_port" persistent-keepalive 25
+wg set wg0 private-key <(echo "$privatekey") peer "$server_pubkey" allowed-ips 0.0.0.0/0 endpoint "demo.wireguard.com:$server_port" persistent-keepalive 25
 ip address add "$internal_ip"/24 dev wg0
 ip link set up dev wg0
 if [ "$1" == "default-route" ]; then
