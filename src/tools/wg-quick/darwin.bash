@@ -100,12 +100,8 @@ get_real_interface() {
 
 add_if() {
 	export WG_DARWIN_UTUN_NAME_FILE="/var/run/wireguard/$INTERFACE.name"
+	mkdir -m 0700 -p "/var/run/wireguard/"
 	cmd wireguard-go utun
-	local i
-	for i in {1..30}; do
-		[[ -f "/var/run/wireguard/$INTERFACE.name" ]] && break
-		sleep 0.1
-	done
 	get_real_interface
 }
 
