@@ -204,12 +204,12 @@ set_endpoint_direct_route() {
 
 	if [[ $remove_all_old -eq 1 ]]; then
 		for endpoint in "${ENDPOINTS[@]}"; do
-			[[ " ${old_endpoints[*]} " == *"$endpoint"* ]] || old_endpoints+=( "$endpoint" )
+			[[ " ${old_endpoints[*]} " == *" $endpoint "* ]] || old_endpoints+=( "$endpoint" )
 		done
 	fi
 
 	for endpoint in "${old_endpoints[@]}"; do
-		[[ $remove_all_old -eq 0 && " ${ENDPOINTS[*]} " == *"$endpoint"* ]] && continue
+		[[ $remove_all_old -eq 0 && " ${ENDPOINTS[*]} " == *" $endpoint "* ]] && continue
 		if [[ $endpoint == *:* ]]; then
 			cmd route -q delete -inet6 "$endpoint" >/dev/null 2>&1 || true
 		else
@@ -218,7 +218,7 @@ set_endpoint_direct_route() {
 	done
 
 	for endpoint in "${ENDPOINTS[@]}"; do
-		if [[ $remove_all_old -eq 0 && " ${old_endpoints[*]} " == *"$endpoint"* ]]; then
+		if [[ $remove_all_old -eq 0 && " ${old_endpoints[*]} " == *" $endpoint "* ]]; then
 			added+=( "$endpoint" )
 			continue
 		fi
@@ -240,9 +240,7 @@ set_dns() {
 	# want DNS via DHCP when setting this back to "empty". Because macOS is
 	# so horrible to deal with here, we'll simply wait for irate users to
 	# provide a patch themselves.
-
 	local service response
-
 	{ read -r _; while read -r service; do
 		[[ $service == "*"* ]] && service="${service:1}"
 		while read -r response; do
@@ -252,6 +250,7 @@ set_dns() {
 }
 
 del_dns() {
+	local service response
 	{ read -r _; while read -r service; do
 		[[ $service == "*"* ]] && service="${service:1}"
 		while read -r response; do
