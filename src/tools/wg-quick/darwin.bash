@@ -9,6 +9,7 @@ shopt -s extglob
 export LC_ALL=C
 
 SELF="${BASH_SOURCE[0]}"
+[[ $SELF == */* ]] || SELF="./$SELF"
 SELF="$(cd "${SELF%/*}" && pwd -P)/${SELF##*/}"
 export PATH="${SELF%/*}:$PATH"
 
@@ -82,7 +83,7 @@ read_bool() {
 }
 
 auto_su() {
-	[[ $UID == 0 ]] || exec sudo -p "$PROGRAM must be run as root. Please enter the password for %u to continue: " "$SELF" "${ARGS[@]}"
+	[[ $UID == 0 ]] || exec sudo -p "$PROGRAM must be run as root. Please enter the password for %u to continue: " -- "$BASH" -- "$SELF" "${ARGS[@]}"
 }
 
 get_real_interface() {
