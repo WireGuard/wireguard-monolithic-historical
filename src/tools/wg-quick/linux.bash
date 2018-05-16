@@ -86,9 +86,9 @@ add_if() {
 	local ret
 	if ! cmd ip link add "$INTERFACE" type wireguard; then
 		ret=$?
-		[[ -e /sys/module/wireguard ]] || ! command -v wireguard-go >/dev/null && return $ret
+		[[ -e /sys/module/wireguard ]] || ! command -v "${WG_QUICK_USERSPACE_IMPLEMENTATION:-wireguard-go}" >/dev/null && exit $ret
 		echo "[!] Missing WireGuard kernel module. Falling back to slow userspace implementation."
-		cmd wireguard-go "$INTERFACE"
+		cmd "${WG_QUICK_USERSPACE_IMPLEMENTATION:-wireguard-go}" "$INTERFACE"
 	fi
 }
 
