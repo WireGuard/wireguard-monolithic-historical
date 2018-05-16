@@ -233,30 +233,42 @@ set_endpoint_direct_route() {
 	ENDPOINTS=( "${added[@]}" )
 }
 
-set_dns() {
-	# TODO: this should use scutil and be slightly more clever. But for now
-	# we simply overwrite any _manually set_ DNS servers for all network
-	# services. This means we get into trouble if the user doesn't actually
-	# want DNS via DHCP when setting this back to "empty". Because macOS is
-	# so horrible to deal with here, we'll simply wait for irate users to
-	# provide a patch themselves.
-	local service response
+declare -A SERVICE_DNS
+collect_new_service_dns() {
+	# TODO: switch to scutil for all DNS modification
+	local service get_response
+	local -A found_services
 	{ read -r _; while read -r service; do
 		[[ $service == "*"* ]] && service="${service:1}"
+		found_services["$service"]=1
+		[[ -n ${SERVICE_DNS["$service"]} ]] && continue
+		get_response="$(cmd networksetup -getdnsservers "$service")"
+		[[ $get_response == *" "* ]] && get_response="Empty"
+		[[ -n $get_response ]] && SERVICE_DNS["$service"]="$get_response"
+	done; } < <(networksetup -listallnetworkservices)
+
+	for service in "${!SERVICE_DNS[@]}"; do
+		[[ ${found_services["$service"]} == 1 ]] || unset SERVICE_DNS["$service"]
+	done
+}
+
+set_dns() {
+	collect_new_service_dns
+	local service response
+	for service in "${!SERVICE_DNS[@]}"; do
 		while read -r response; do
 			[[ $response == *Error* ]] && echo "$response" >&2
 		done < <(cmd networksetup -setdnsservers "$service" "${DNS[@]}")
-	done; } < <(networksetup -listallnetworkservices)
+	done
 }
 
 del_dns() {
 	local service response
-	{ read -r _; while read -r service; do
-		[[ $service == "*"* ]] && service="${service:1}"
+	for service in "${!SERVICE_DNS[@]}"; do
 		while read -r response; do
 			[[ $response == *Error* ]] && echo "$response" >&2
-		done < <(cmd networksetup -setdnsservers "$service" Empty)
-	done; } < <(networksetup -listallnetworkservices)
+		done < <(cmd networksetup -setdnsservers "$service" ${SERVICE_DNS["$service"]} || true)
+	done
 }
 
 monitor_daemon() {
