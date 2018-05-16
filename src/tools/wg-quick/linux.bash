@@ -26,6 +26,16 @@ CONFIG_FILE=""
 PROGRAM="${0##*/}"
 ARGS=( "$@" )
 
+cmd() {
+	echo "[#] $*" >&2
+	"$@"
+}
+
+die() {
+	echo "$PROGRAM: $*" >&2
+	exit 1
+}
+
 parse_options() {
 	local interface_section=0 line key value stripped
 	CONFIG_FILE="$1"
@@ -66,16 +76,6 @@ read_bool() {
 	false) printf -v "$1" 0 ;;
 	*) die "\`$2' is neither true nor false"
 	esac
-}
-
-cmd() {
-	echo "[#] $*" >&2
-	"$@"
-}
-
-die() {
-	echo "$PROGRAM: $*" >&2
-	exit 1
 }
 
 auto_su() {

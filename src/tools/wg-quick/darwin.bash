@@ -1,10 +1,8 @@
-#!/usr/local/bin/bash
+#!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 #
-
-# The shebang is in /usr/local because this requires bash 4.
 
 set -e -o pipefail
 shopt -s extglob
@@ -28,6 +26,18 @@ SAVE_CONFIG=0
 CONFIG_FILE=""
 PROGRAM="${0##*/}"
 ARGS=( "$@" )
+
+cmd() {
+	echo "[#] $*" >&2
+	"$@"
+}
+
+die() {
+	echo "$PROGRAM: $*" >&2
+	exit 1
+}
+
+[[ ${BASH_VERSINFO[0]} -ge 4 ]] || die "Version mismatch: bash ${BASH_VERSINFO[0]} detected, when bash 4+ required"
 
 parse_options() {
 	local interface_section=0 line key value stripped
@@ -69,16 +79,6 @@ read_bool() {
 	false) printf -v "$1" 0 ;;
 	*) die "\`$2' is neither true nor false"
 	esac
-}
-
-cmd() {
-	echo "[#] $*" >&2
-	"$@"
-}
-
-die() {
-	echo "$PROGRAM: $*" >&2
-	exit 1
 }
 
 auto_su() {
