@@ -159,7 +159,7 @@ set_mtu() {
 			break
 		fi
 	done < <(netstat -nr -f inet)
-	[[ -n $defaultif &&  $(ifconfig "$defaultif") =~ mtu\ ([0-9]+) ]] && mtu="${BASH_REMATCH[1]}"
+	[[ -n $defaultif && $(ifconfig "$defaultif") =~ mtu\ ([0-9]+) ]] && mtu="${BASH_REMATCH[1]}"
 	[[ $mtu -gt 0 ]] || mtu=1500
 	mtu=$(( mtu - 80 ))
 	[[ $(ifconfig "$REAL_INTERFACE") =~ mtu\ ([0-9]+) ]] && current_mtu="${BASH_REMATCH[1]}"
@@ -191,6 +191,24 @@ collect_endpoints() {
 		[[ $endpoint =~ ^\[?([a-z0-9:.]+)\]?:[0-9]+$ ]] || continue
 		ENDPOINTS+=( "${BASH_REMATCH[1]}" )
 	done < <(wg show "$REAL_INTERFACE" endpoints)
+}
+
+declare -A SERVICE_DNS
+collect_new_service_dns() {
+	local service get_response
+	local -A found_services
+	{ read -r _ && while read -r service; do
+		[[ $service == "*"* ]] && service="${service:1}"
+		found_services["$service"]=1
+		[[ -n ${SERVICE_DNS["$service"]} ]] && continue
+		get_response="$(cmd networksetup -getdnsservers "$service")"
+		[[ $get_response == *" "* ]] && get_response="Empty"
+		[[ -n $get_response ]] && SERVICE_DNS["$service"]="$get_response"
+	done; } < <(networksetup -listallnetworkservices)
+
+	for service in "${!SERVICE_DNS[@]}"; do
+		[[ ${found_services["$service"]} == 1 ]] || unset SERVICE_DNS["$service"]
+	done
 }
 
 set_endpoint_direct_route() {
@@ -242,24 +260,6 @@ set_endpoint_direct_route() {
 		fi
 	done
 	ENDPOINTS=( "${added[@]}" )
-}
-
-declare -A SERVICE_DNS
-collect_new_service_dns() {
-	local service get_response
-	local -A found_services
-	{ read -r _ && while read -r service; do
-		[[ $service == "*"* ]] && service="${service:1}"
-		found_services["$service"]=1
-		[[ -n ${SERVICE_DNS["$service"]} ]] && continue
-		get_response="$(cmd networksetup -getdnsservers "$service")"
-		[[ $get_response == *" "* ]] && get_response="Empty"
-		[[ -n $get_response ]] && SERVICE_DNS["$service"]="$get_response"
-	done; } < <(networksetup -listallnetworkservices)
-
-	for service in "${!SERVICE_DNS[@]}"; do
-		[[ ${found_services["$service"]} == 1 ]] || unset SERVICE_DNS["$service"]
-	done
 }
 
 set_dns() {
