@@ -211,9 +211,9 @@ set_endpoint_direct_route() {
 
 	for endpoint in "${old_endpoints[@]}"; do
 		[[ $remove_all_old -eq 0 && " ${ENDPOINTS[*]} " == *" $endpoint "* ]] && continue
-		if [[ $endpoint == *:* ]]; then
+		if [[ $endpoint == *:* && $AUTO_ROUTE6 -eq 1 ]]; then
 			cmd route -q delete -inet6 "$endpoint" >/dev/null 2>&1 || true
-		else
+		elif [[ $AUTO_ROUTE4 -eq 1 ]]; then
 			cmd route -q delete -inet "$endpoint" >/dev/null 2>&1 || true
 		fi
 	done
@@ -223,11 +223,21 @@ set_endpoint_direct_route() {
 			added+=( "$endpoint" )
 			continue
 		fi
-		if [[ $endpoint == *:* && -n $GATEWAY6 ]]; then
-			cmd route -q add -inet6 "$endpoint" -gateway "$GATEWAY6" >/dev/null || true
+		if [[ $endpoint == *:* && $AUTO_ROUTE6 -eq 1 ]]; then
+			if [[ -n $GATEWAY6 ]]; then
+				cmd route -q add -inet6 "$endpoint" -gateway "$GATEWAY6" >/dev/null || true
+			else
+				# Prevent routing loop
+				cmd route -q add -inet6 "$endpoint" ::1 -blackhole >/dev/null || true
+			fi
 			added+=( "$endpoint" )
-		elif [[ -n $GATEWAY4 ]]; then
-			cmd route -q add -inet "$endpoint" -gateway "$GATEWAY4" >/dev/null || true
+		elif [[ $AUTO_ROUTE4 -eq 1 ]]; then
+			if [[ -n $GATEWAY4 ]]; then
+				cmd route -q add -inet "$endpoint" -gateway "$GATEWAY4" >/dev/null || true
+			else
+				# Prevent routing loop
+				cmd route -q add -inet "$endpoint" 127.0.0.1 -blackhole >/dev/null || true
+			fi
 			added+=( "$endpoint" )
 		fi
 	done
