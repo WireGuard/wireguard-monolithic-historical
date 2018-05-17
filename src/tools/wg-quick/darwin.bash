@@ -207,7 +207,7 @@ collect_new_service_dns() {
 	done; } < <(networksetup -listallnetworkservices)
 
 	for service in "${!SERVICE_DNS[@]}"; do
-		[[ ${found_services["$service"]} == 1 ]] || unset SERVICE_DNS["$service"]
+		[[ -n ${found_services["$service"]} ]] || unset SERVICE_DNS["$service"]
 	done
 }
 
