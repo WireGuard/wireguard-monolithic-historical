@@ -284,7 +284,7 @@ del_dns() {
 monitor_daemon() {
 	echo "[+] Backgrounding route monitor" >&2
 	(trap 'del_routes; del_dns; exit 0' INT TERM EXIT
-	exec 1>&- 2>&-
+	exec >/dev/null 2>&1
 	local event
 	# TODO: this should also check to see if the endpoint actually changes
 	# in response to incoming packets, and then call set_endpoint_direct_route
