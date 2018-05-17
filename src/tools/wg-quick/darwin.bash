@@ -236,10 +236,9 @@ set_endpoint_direct_route() {
 
 declare -A SERVICE_DNS
 collect_new_service_dns() {
-	# TODO: switch to scutil for all DNS modification
 	local service get_response
 	local -A found_services
-	{ read -r _; while read -r service; do
+	{ read -r _ && while read -r service; do
 		[[ $service == "*"* ]] && service="${service:1}"
 		found_services["$service"]=1
 		[[ -n ${SERVICE_DNS["$service"]} ]] && continue
