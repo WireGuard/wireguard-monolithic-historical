@@ -114,9 +114,6 @@ static void expired_send_persistent_keepalive(struct timer_list *timer)
 /* Should be called after an authenticated data packet is sent. */
 void timers_data_sent(struct wireguard_peer *peer)
 {
-	if (likely(timers_active(peer)))
-		del_timer(&peer->timer_send_keepalive);
-
 	if (likely(timers_active(peer)) && !timer_pending(&peer->timer_new_handshake))
 		mod_timer(&peer->timer_new_handshake, jiffies + KEEPALIVE_TIMEOUT + REKEY_TIMEOUT);
 }
@@ -132,6 +129,13 @@ void timers_data_received(struct wireguard_peer *peer)
 	}
 }
 
+/* Should be called after any type of authenticated packet is sent -- keepalive, data, or handshake. */
+void timers_any_authenticated_packet_sent(struct wireguard_peer *peer)
+{
+	if (likely(timers_active(peer)))
+		del_timer(&peer->timer_send_keepalive);
+}
+
 /* Should be called after any type of authenticated packet is received -- keepalive, data, or handshake. */
 void timers_any_authenticated_packet_received(struct wireguard_peer *peer)
 {
@@ -142,10 +146,8 @@ void timers_any_authenticated_packet_received(struct wireguard_peer *peer)
 /* Should be called after a handshake initiation message is sent. */
 void timers_handshake_initiated(struct wireguard_peer *peer)
 {
-	if (likely(timers_active(peer))) {
-		del_timer(&peer->timer_send_keepalive);
+	if (likely(timers_active(peer)))
 		mod_timer(&peer->timer_retransmit_handshake, jiffies + REKEY_TIMEOUT + prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX));
-	}
 }
 
 /* Should be called after a handshake response message is received and processed or when getting key confirmation via the first data message. */
