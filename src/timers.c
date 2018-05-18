@@ -17,10 +17,10 @@
  * Timer for, if enabled, sending an empty authenticated packet every user-specified seconds
  */
 
-/* This rounds the time down to the closest power of two of the closest quarter second. */
+/* This rounds the time up to the closest power of two of the closest tenth second. */
 static inline unsigned long slack_time(unsigned long time)
 {
-	return time & ~(roundup_pow_of_two(HZ / 4) - 1);
+	return time | roundup_pow_of_two(HZ / 10);
 }
 
 #define peer_get_from_timer(timer_name) \
