@@ -17,12 +17,6 @@
  * Timer for, if enabled, sending an empty authenticated packet every user-specified seconds
  */
 
-/* This rounds the time up to the closest power of two of the closest tenth second. */
-static inline unsigned long slack_time(unsigned long time)
-{
-	return time | roundup_pow_of_two(HZ / 10);
-}
-
 #define peer_get_from_timer(timer_name) \
 	struct wireguard_peer *peer = peer_rcu_get(from_timer(peer, timer, timer_name)); \
 	if (unlikely(!peer)) \
@@ -150,7 +144,7 @@ void timers_handshake_initiated(struct wireguard_peer *peer)
 {
 	if (likely(timers_active(peer))) {
 		del_timer(&peer->timer_send_keepalive);
-		mod_timer(&peer->timer_retransmit_handshake, slack_time(jiffies + REKEY_TIMEOUT + prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX)));
+		mod_timer(&peer->timer_retransmit_handshake, jiffies + REKEY_TIMEOUT + prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX));
 	}
 }
 
@@ -175,7 +169,7 @@ void timers_session_derived(struct wireguard_peer *peer)
 void timers_any_authenticated_packet_traversal(struct wireguard_peer *peer)
 {
 	if (peer->persistent_keepalive_interval && likely(timers_active(peer)))
-		mod_timer(&peer->timer_persistent_keepalive, slack_time(jiffies + peer->persistent_keepalive_interval));
+		mod_timer(&peer->timer_persistent_keepalive, jiffies + peer->persistent_keepalive_interval);
 }
 
 void timers_init(struct wireguard_peer *peer)
