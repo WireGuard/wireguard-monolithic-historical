@@ -132,7 +132,7 @@ void timers_data_received(struct wireguard_peer *peer)
 	}
 }
 
-/* Should be called after any type of authenticated packet is received -- keepalive or data. */
+/* Should be called after any type of authenticated packet is received -- keepalive, data, or handshake. */
 void timers_any_authenticated_packet_received(struct wireguard_peer *peer)
 {
 	if (likely(timers_active(peer)))
@@ -165,7 +165,7 @@ void timers_session_derived(struct wireguard_peer *peer)
 		mod_timer(&peer->timer_zero_key_material, jiffies + (REJECT_AFTER_TIME * 3));
 }
 
-/* Should be called before a packet with authentication -- data, keepalive, either handshake -- is sent, or after one is received. */
+/* Should be called before a packet with authentication -- keepalive, data, or handshake -- is sent, or after one is received. */
 void timers_any_authenticated_packet_traversal(struct wireguard_peer *peer)
 {
 	if (peer->persistent_keepalive_interval && likely(timers_active(peer)))
