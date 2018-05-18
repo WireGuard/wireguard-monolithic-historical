@@ -103,11 +103,8 @@ static void expired_send_persistent_keepalive(struct timer_list *timer)
 {
 	peer_get_from_timer(timer_persistent_keepalive);
 
-	if (likely(peer->persistent_keepalive_interval)) {
-		if (likely(timers_active(peer)))
-			del_timer(&peer->timer_send_keepalive);
+	if (likely(peer->persistent_keepalive_interval))
 		packet_send_keepalive(peer);
-	}
 	peer_put(peer);
 }
 
