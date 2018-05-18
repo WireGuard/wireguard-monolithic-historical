@@ -185,7 +185,7 @@ static int userspace_get_wireguard_interfaces(struct inflatable_buffer *buffer)
 
 	dir = opendir(SOCK_PATH);
 	if (!dir)
-		return errno == ENOENT ? 0 : errno;
+		return errno == ENOENT ? 0 : -errno;
 	while ((ent = readdir(dir))) {
 		len = strlen(ent->d_name);
 		if (len <= strlen(SOCK_SUFFIX))
@@ -964,7 +964,6 @@ char *ipc_list_devices(void)
 cleanup:
 	errno = -ret;
 	if (errno) {
-		perror("Error when trying to get a list of WireGuard interfaces");
 		free(buffer.buffer);
 		return NULL;
 	}

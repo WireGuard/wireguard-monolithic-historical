@@ -390,7 +390,7 @@ int show_main(int argc, char *argv[])
 		char *interfaces = ipc_list_devices(), *interface;
 
 		if (!interfaces) {
-			perror("Unable to get devices");
+			perror("Unable to list interfaces");
 			return 1;
 		}
 		interface = interfaces;
@@ -398,7 +398,7 @@ int show_main(int argc, char *argv[])
 			struct wgdevice *device = NULL;
 
 			if (ipc_get_device(&device, interface) < 0) {
-				perror("Unable to get device");
+				perror("Unable to access interface");
 				continue;
 			}
 			if (argc == 3) {
@@ -424,7 +424,7 @@ int show_main(int argc, char *argv[])
 		}
 		interfaces = ipc_list_devices();
 		if (!interfaces) {
-			perror("Unable to get devices");
+			perror("Unable to list interfaces");
 			return 1;
 		}
 		interface = interfaces;
@@ -437,7 +437,7 @@ int show_main(int argc, char *argv[])
 		struct wgdevice *device = NULL;
 
 		if (ipc_get_device(&device, argv[1]) < 0) {
-			perror("Unable to get device");
+			perror("Unable to access interface");
 			return 1;
 		}
 		if (argc == 3) {

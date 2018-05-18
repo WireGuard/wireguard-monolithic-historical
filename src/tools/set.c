@@ -29,7 +29,7 @@ int set_main(int argc, char *argv[])
 	device->name[IFNAMSIZ - 1] = '\0';
 
 	if (ipc_set_device(device) != 0) {
-		perror("Unable to set device");
+		perror("Unable to modify interface");
 		goto cleanup;
 	}
 
