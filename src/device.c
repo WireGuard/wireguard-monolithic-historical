@@ -219,6 +219,7 @@ static void destruct(struct net_device *dev)
 	mutex_lock(&wg->device_update_lock);
 	wg->incoming_port = 0;
 	socket_reinit(wg, NULL, NULL);
+	allowedips_free(&wg->peer_allowedips, &wg->device_update_lock);
 	peer_remove_all(wg); /* The final references are cleared in the below calls to destroy_workqueue. */
 	destroy_workqueue(wg->handshake_receive_wq);
 	destroy_workqueue(wg->handshake_send_wq);
@@ -226,7 +227,6 @@ static void destruct(struct net_device *dev)
 	packet_queue_free(&wg->encrypt_queue, true);
 	destroy_workqueue(wg->packet_crypt_wq);
 	rcu_barrier_bh(); /* Wait for all the peers to be actually freed. */
-	allowedips_free(&wg->peer_allowedips, &wg->device_update_lock);
 	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
