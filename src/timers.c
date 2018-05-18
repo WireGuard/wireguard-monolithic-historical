@@ -186,6 +186,9 @@ void timers_init(struct wireguard_peer *peer)
 	timer_setup(&peer->timer_zero_key_material, expired_zero_key_material, 0);
 	timer_setup(&peer->timer_persistent_keepalive, expired_send_persistent_keepalive, 0);
 	INIT_WORK(&peer->clear_peer_work, queued_expired_zero_key_material);
+	peer->timer_handshake_attempts = 0;
+	peer->sent_lastminute_handshake = false;
+	peer->timer_need_another_keepalive = false;
 }
 
 void timers_stop(struct wireguard_peer *peer)
