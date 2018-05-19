@@ -279,11 +279,12 @@ void allowedips_init(struct allowedips *table)
 
 void allowedips_free(struct allowedips *table, struct mutex *lock)
 {
+	struct allowedips_node __rcu *old4 = table->root4, *old6 = table->root6;
 	++table->seq;
-	free_root_node(table->root4, lock);
 	rcu_assign_pointer(table->root4, NULL);
-	free_root_node(table->root6, lock);
 	rcu_assign_pointer(table->root6, NULL);
+	free_root_node(old4, lock);
+	free_root_node(old6, lock);
 }
 
 int allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
