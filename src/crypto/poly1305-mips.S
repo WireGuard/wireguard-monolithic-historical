@@ -44,10 +44,14 @@
 #define srclen	$a2
 #define hibit	$a3
 
+/* Location on the Opaque buffer.
+ * R[0..3], S[1..3], CA, H[0..4].
+ * Because S0 is not used we add a -4 offset.
+ */
 #define PTR_POLY1305_R(n) ( 0 + (n*4)) ## ($a0)
-#define PTR_POLY1305_S(n) (16 + (n*4)) ## ($a0)
-#define PTR_POLY1305_CA   (32        ) ## ($a0)
-#define PTR_POLY1305_H(n) (36 + (n*4)) ## ($a0)
+#define PTR_POLY1305_S(n) (16 - 4 + (n*4)) ## ($a0)
+#define PTR_POLY1305_CA   (28        ) ## ($a0)
+#define PTR_POLY1305_H(n) (32 + (n*4)) ## ($a0)
 
 #define POLY1305_BLOCK_SIZE 16
 #define POLY1305_STACK_SIZE 8 * 4
@@ -58,7 +62,7 @@
 .globl poly1305_blocks_mips
 .ent poly1305_blocks_mips
 poly1305_blocks_mips:
-	.frame  $sp,POLY1305_STACK_SIZE,$31
+	.frame $sp, POLY1305_STACK_SIZE, $ra
 	/* srclen &= 0xFFFFFFF0 */
 	ins	srclen, $zero, 0, 4
 
@@ -73,6 +77,7 @@ poly1305_blocks_mips:
 	 */
 	addu	srclen, src
 
+	/* load Rx */
 	lw	R0, PTR_POLY1305_R(0)
 	lw	R1, PTR_POLY1305_R(1)
 	lw	R2, PTR_POLY1305_R(2)
@@ -86,11 +91,10 @@ poly1305_blocks_mips:
 	sw	$s4, 16($sp)
 	sw	$s5, 20($sp)
 
+	/* load Sx, Hx and Carry */
 	lw	S1, PTR_POLY1305_S(1)
 	lw	S2, PTR_POLY1305_S(2)
 	lw	S3, PTR_POLY1305_S(3)
-
-	/* load Hx and Carry */
 	lw	CA, PTR_POLY1305_CA
 	lw	H0, PTR_POLY1305_H(0)
 	lw	H1, PTR_POLY1305_H(1)
@@ -101,6 +105,7 @@ poly1305_blocks_mips:
 	addiu	SC, $zero, 1
 
 .Lpoly1305_loop:
+	/* load src */
 	lwl	O0, 0+MSB(src)
 	lwl	O1, 4+MSB(src)
 	lwl	O2, 8+MSB(src)
