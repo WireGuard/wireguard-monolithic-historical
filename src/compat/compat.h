@@ -124,6 +124,8 @@ static inline void skb_reset_tc(struct sk_buff *skb)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+#include <linux/random.h>
+#ifndef CANARY_MASK
 #include <linux/siphash.h>
 static inline u32 get_random_u32(void)
 {
@@ -140,6 +142,7 @@ static inline u32 get_random_u32(void)
 #endif
 	return siphash_2u32(counter++, get_random_int(), &key);
 }
+#endif
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0) && !defined(ISRHEL7)
