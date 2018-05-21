@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <inttypes.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 #include <net/if.h>
 #include <stdbool.h>
 #include <stddef.h>

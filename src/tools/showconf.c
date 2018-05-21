@@ -5,6 +5,7 @@
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 #include <net/if.h>
 #include <stddef.h>
 #include <stdio.h>
