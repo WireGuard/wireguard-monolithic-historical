@@ -1,0 +1,8 @@
+systemd-resolved(8) support for wg-quick(8)
+===========================================
+
+This is a stop gap solution until systemd 239 comes out with resolvconf
+emulation. Running 'apply.sh` in this directory will insert 'systemd-resolve.bash`
+into the right place in 'wg-quick.bash`. It is recommended that distributions
+who use systemd-resolved by default run this before calling 'make install` in
+their packaging scripts.
