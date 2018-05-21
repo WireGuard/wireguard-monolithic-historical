@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
@@ -19,7 +19,8 @@ IFS=: read -r status server_pubkey server_port internal_ip <&7
 [[ $status == OK ]] || exit 1
 
 echo "[+] Writing config file."
-sudo sh -c 'umask 077; mkdir -p /etc/wireguard; cat > /etc/wireguard/demo.conf' <<_EOF
+[[ $UID -eq 0 ]] || sudo=sudo
+$sudo sh -c 'umask 077; mkdir -p /etc/wireguard; cat > /etc/wireguard/demo.conf' <<_EOF
 [Interface]
 PrivateKey = $privatekey
 Address = $internal_ip/24
