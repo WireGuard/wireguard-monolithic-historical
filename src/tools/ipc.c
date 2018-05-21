@@ -12,6 +12,7 @@
 #include "mnlg.h"
 #endif
 #include <netinet/in.h>
+#include <sys/socket.h>
 #include <net/if.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -26,7 +27,6 @@
 #include <signal.h>
 #include <netdb.h>
 #include <limits.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
