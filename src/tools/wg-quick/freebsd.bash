@@ -1,16 +1,16 @@
-#!/usr/bin/env bash
+#!/usr/local/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 #
 
+# TODO: Are bash process subsitutions acceptable in FreeBSD, or do they create insecure temporary files?
+
 set -e -o pipefail
 shopt -s extglob
 export LC_ALL=C
 
-SELF="${BASH_SOURCE[0]}"
-[[ $SELF == */* ]] || SELF="./$SELF"
-SELF="$(cd "${SELF%/*}" && pwd -P)/${SELF##*/}"
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 export PATH="${SELF%/*}:$PATH"
 
 WG_CONFIG=""
@@ -38,15 +38,13 @@ die() {
 	exit 1
 }
 
-[[ ${BASH_VERSINFO[0]} -ge 4 ]] || die "Version mismatch: bash ${BASH_VERSINFO[0]} detected, when bash 4+ required"
-
 parse_options() {
 	local interface_section=0 line key value stripped
 	CONFIG_FILE="$1"
 	[[ $CONFIG_FILE =~ ^[a-zA-Z0-9_=+.-]{1,15}$ ]] && CONFIG_FILE="/etc/wireguard/$CONFIG_FILE.conf"
 	[[ -e $CONFIG_FILE ]] || die "\`$CONFIG_FILE' does not exist"
 	[[ $CONFIG_FILE =~ (^|/)([a-zA-Z0-9_=+.-]{1,15})\.conf$ ]] || die "The config file must be a valid interface name, followed by .conf"
-	CONFIG_FILE="$(cd "${CONFIG_FILE%/*}" && pwd -P)/${CONFIG_FILE##*/}"
+	CONFIG_FILE="$(readlink -f "$CONFIG_FILE")"
 	((($(stat -f '0%#p' "$CONFIG_FILE") & $(stat -f '0%#p' "${CONFIG_FILE%/*}") & 0007) == 0)) || echo "Warning: \`$CONFIG_FILE' is world accessible" >&2
 	INTERFACE="${BASH_REMATCH[2]}"
 	shopt -s nocasematch
@@ -86,87 +84,70 @@ auto_su() {
 	[[ $UID == 0 ]] || exec sudo -p "$PROGRAM must be run as root. Please enter the password for %u to continue: " -- "$BASH" -- "$SELF" "${ARGS[@]}"
 }
 
-get_real_interface() {
-	local interface diff
-	wg show interfaces >/dev/null
-	[[ -f "/var/run/wireguard/$INTERFACE.name" ]] || return 1
-	interface="$(< "/var/run/wireguard/$INTERFACE.name")"
-	[[ -n $interface && -S "/var/run/wireguard/$interface.sock" ]] || return 1
-	diff=$(( $(stat -f %m "/var/run/wireguard/$interface.sock" 2>/dev/null || echo 200) - $(stat -f %m "/var/run/wireguard/$INTERFACE.name" 2>/dev/null || echo 100) ))
-	[[ $diff -ge 2 || $diff -le -2 ]] && return 1
-	REAL_INTERFACE="$interface"
-	echo "[+] Interface for $INTERFACE is $REAL_INTERFACE" >&2
-	return 0
-}
-
 add_if() {
-	export WG_TUN_NAME_FILE="/var/run/wireguard/$INTERFACE.name"
-	mkdir -m 0700 -p "/var/run/wireguard/"
-	cmd "${WG_QUICK_USERSPACE_IMPLEMENTATION:-wireguard-go}" utun
-	get_real_interface
+	cmd "${WG_QUICK_USERSPACE_IMPLEMENTATION:-wireguard-go}" "$INTERFACE"
 }
 
 del_routes() {
-	[[ -n $REAL_INTERFACE ]] || return 0
 	local todelete=( ) destination gateway netif
 	while read -r destination _ _ _ _ netif _; do
-		[[ $netif == "$REAL_INTERFACE" ]] && todelete+=( "$destination" )
+		[[ $netif == "$INTERFACE" ]] && todelete+=( "$destination" )
 	done < <(netstat -nr -f inet)
 	for destination in "${todelete[@]}"; do
-		cmd route -q -n delete -inet "$destination" >/dev/null || true
+		cmd route -q -n delete -inet "$destination" || true
 	done
 	todelete=( )
 	while read -r destination gateway _ netif; do
-		[[ $netif == "$REAL_INTERFACE" || ( $netif == lo* && $gateway == "$REAL_INTERFACE" ) ]] && todelete+=( "$destination" )
+		[[ $netif == "$INTERFACE" || ( $netif == lo* && $gateway == "$INTERFACE" ) ]] && todelete+=( "$destination" )
 	done < <(netstat -nr -f inet6)
 	for destination in "${todelete[@]}"; do
-		cmd route -q -n delete -inet6 "$destination" >/dev/null || true
+		cmd route -q -n delete -inet6 "$destination" || true
 	done
 	for destination in "${ENDPOINTS[@]}"; do
 		if [[ $destination == *:* ]]; then
-			cmd route -q -n delete -inet6 "$destination" >/dev/null || true
+			cmd route -q -n delete -inet6 "$destination" || true
 		else
-			cmd route -q -n delete -inet "$destination" >/dev/null || true
+			cmd route -q -n delete -inet "$destination" || true
 		fi
 	done
 }
 
 del_if() {
-	[[ -z $REAL_INTERFACE ]] || cmd rm -f "/var/run/wireguard/$REAL_INTERFACE.sock"
-	cmd rm -f "/var/run/wireguard/$INTERFACE.name"
+	[[ $HAVE_SET_DNS -eq 0 ]] || unset_dns
+	cmd rm -f "/var/run/wireguard/$INTERFACE.sock"
 }
 
 up_if() {
-	cmd ifconfig "$REAL_INTERFACE" up
+	cmd ifconfig "$INTERFACE" up
 }
 
 add_addr() {
-	if [[ $1 == *:* ]]; then
-		cmd ifconfig "$REAL_INTERFACE" inet6 "$1"
-	else
-		cmd ifconfig "$REAL_INTERFACE" inet "$1" "${1%%/*}"
-	fi
+	local family=inet
+	[[ $1 == *:* ]] && family=inet6
+	cmd ifconfig "$INTERFACE" "$family" "$1" alias
 }
 
 set_mtu() {
-	# TODO: use better set_mtu algorithm from freebsd.bash
-	local mtu=0 current_mtu=-1 destination netif defaultif
+	local mtu=0 endpoint output family
 	if [[ -n $MTU ]]; then
-		cmd ifconfig "$REAL_INTERFACE" mtu "$MTU"
+		cmd ifconfig "$INTERFACE" mtu "$MTU"
 		return
 	fi
-	while read -r destination _ _ _ _ netif _; do
-		if [[ $destination == default ]]; then
-			defaultif="$netif"
-			break
-		fi
-	done < <(netstat -nr -f inet)
-	[[ -n $defaultif && $(ifconfig "$defaultif") =~ mtu\ ([0-9]+) ]] && mtu="${BASH_REMATCH[1]}"
+	while read -r _ endpoint; do
+		[[ $endpoint =~ ^\[?([a-z0-9:.]+)\]?:[0-9]+$ ]] || continue
+		family=inet
+		[[ ${BASH_REMATCH[1]} == *:* ]] && family=inet6
+		output="$(route -n get "-$family" "${BASH_REMATCH[1]}" || true)"
+		[[ $output =~ interface:\ ([^ ]+)$'\n' && $(ifconfig "${BASH_REMATCH[1]}") =~ mtu\ ([0-9]+) && ${BASH_REMATCH[1]} -gt $mtu ]] && mtu="${BASH_REMATCH[1]}"
+	done < <(wg show "$INTERFACE" endpoints)
+	if [[ $mtu -eq 0 ]]; then
+		read -r output < <(route -n get default || true) || true
+		[[ $output =~ interface:\ ([^ ]+)$'\n' && $(ifconfig "${BASH_REMATCH[1]}") =~ mtu\ ([0-9]+) && ${BASH_REMATCH[1]} -gt $mtu ]] && mtu="${BASH_REMATCH[1]}"
+	fi
 	[[ $mtu -gt 0 ]] || mtu=1500
-	mtu=$(( mtu - 80 ))
-	[[ $(ifconfig "$REAL_INTERFACE") =~ mtu\ ([0-9]+) ]] && current_mtu="${BASH_REMATCH[1]}"
-	[[ $mtu -eq $current_mtu ]] || cmd ifconfig "$REAL_INTERFACE" mtu "$mtu"
+	cmd ifconfig "$INTERFACE" mtu $(( mtu - 80 ))
 }
+
 
 collect_gateways() {
 	local destination gateway
@@ -192,25 +173,7 @@ collect_endpoints() {
 	while read -r _ endpoint; do
 		[[ $endpoint =~ ^\[?([a-z0-9:.]+)\]?:[0-9]+$ ]] || continue
 		ENDPOINTS+=( "${BASH_REMATCH[1]}" )
-	done < <(wg show "$REAL_INTERFACE" endpoints)
-}
-
-declare -A SERVICE_DNS
-collect_new_service_dns() {
-	local service get_response
-	local -A found_services
-	{ read -r _ && while read -r service; do
-		[[ $service == "*"* ]] && service="${service:1}"
-		found_services["$service"]=1
-		[[ -n ${SERVICE_DNS["$service"]} ]] && continue
-		get_response="$(cmd networksetup -getdnsservers "$service")"
-		[[ $get_response == *" "* ]] && get_response="Empty"
-		[[ -n $get_response ]] && SERVICE_DNS["$service"]="$get_response"
-	done; } < <(networksetup -listallnetworkservices)
-
-	for service in "${!SERVICE_DNS[@]}"; do
-		[[ -n ${found_services["$service"]} ]] || unset SERVICE_DNS["$service"]
-	done
+	done < <(wg show "$INTERFACE" endpoints)
 }
 
 set_endpoint_direct_route() {
@@ -232,9 +195,9 @@ set_endpoint_direct_route() {
 	for endpoint in "${old_endpoints[@]}"; do
 		[[ $remove_all_old -eq 0 && " ${ENDPOINTS[*]} " == *" $endpoint "* ]] && continue
 		if [[ $endpoint == *:* && $AUTO_ROUTE6 -eq 1 ]]; then
-			cmd route -q -n delete -inet6 "$endpoint" >/dev/null 2>&1 || true
+			cmd route -q -n delete -inet6 "$endpoint" 2>/dev/null || true
 		elif [[ $AUTO_ROUTE4 -eq 1 ]]; then
-			cmd route -q -n delete -inet "$endpoint" >/dev/null 2>&1 || true
+			cmd route -q -n delete -inet "$endpoint" 2>/dev/null || true
 		fi
 	done
 
@@ -245,18 +208,18 @@ set_endpoint_direct_route() {
 		fi
 		if [[ $endpoint == *:* && $AUTO_ROUTE6 -eq 1 ]]; then
 			if [[ -n $GATEWAY6 ]]; then
-				cmd route -q -n add -inet6 "$endpoint" -gateway "$GATEWAY6" >/dev/null || true
+				cmd route -q -n add -inet6 "$endpoint" -gateway "$GATEWAY6" || true
 			else
 				# Prevent routing loop
-				cmd route -q -n add -inet6 "$endpoint" ::1 -blackhole >/dev/null || true
+				cmd route -q -n add -inet6 "$endpoint" ::1 -blackhole || true
 			fi
 			added+=( "$endpoint" )
 		elif [[ $AUTO_ROUTE4 -eq 1 ]]; then
 			if [[ -n $GATEWAY4 ]]; then
-				cmd route -q -n add -inet "$endpoint" -gateway "$GATEWAY4" >/dev/null || true
+				cmd route -q -n add -inet "$endpoint" -gateway "$GATEWAY4" || true
 			else
 				# Prevent routing loop
-				cmd route -q -n add -inet "$endpoint" 127.0.0.1 -blackhole >/dev/null || true
+				cmd route -q -n add -inet "$endpoint" 127.0.0.1 -blackhole || true
 			fi
 			added+=( "$endpoint" )
 		fi
@@ -264,28 +227,9 @@ set_endpoint_direct_route() {
 	ENDPOINTS=( "${added[@]}" )
 }
 
-set_dns() {
-	collect_new_service_dns
-	local service response
-	for service in "${!SERVICE_DNS[@]}"; do
-		while read -r response; do
-			[[ $response == *Error* ]] && echo "$response" >&2
-		done < <(cmd networksetup -setdnsservers "$service" "${DNS[@]}")
-	done
-}
-
-del_dns() {
-	local service response
-	for service in "${!SERVICE_DNS[@]}"; do
-		while read -r response; do
-			[[ $response == *Error* ]] && echo "$response" >&2
-		done < <(cmd networksetup -setdnsservers "$service" ${SERVICE_DNS["$service"]} || true)
-	done
-}
-
 monitor_daemon() {
 	echo "[+] Backgrounding route monitor" >&2
-	(trap 'del_routes; del_dns; exit 0' INT TERM EXIT
+	(trap 'del_routes; exit 0' INT TERM EXIT
 	exec >/dev/null 2>&1
 	local event
 	# TODO: this should also check to see if the endpoint actually changes
@@ -294,11 +238,22 @@ monitor_daemon() {
 	# endpoints change.
 	while read -r event; do
 		[[ $event == RTM_* ]] || continue
-		ifconfig "$REAL_INTERFACE" >/dev/null 2>&1 || break
+		ifconfig "$INTERFACE" >/dev/null 2>&1 || break
 		[[ $AUTO_ROUTE4 -eq 1 || $AUTO_ROUTE6 -eq 1 ]] && set_endpoint_direct_route
-		[[ -z $MTU ]] && set_mtu
-		[[ ${#DNS[@]} -gt 0 ]] && set_dns
+		# TODO: set the mtu as well, but only if up
 	done < <(route -n monitor)) & disown
+}
+
+HAVE_SET_DNS=0
+set_dns() {
+	[[ ${#DNS[@]} -gt 0 ]] || return 0
+	printf 'nameserver %s\n' "${DNS[@]}" | cmd resolvconf -a "$INTERFACE" -x
+	HAVE_SET_DNS=1
+}
+
+unset_dns() {
+	[[ ${#DNS[@]} -gt 0 ]] || return 0
+	cmd resolvconf -d "$INTERFACE"
 }
 
 add_route() {
@@ -307,37 +262,37 @@ add_route() {
 	local family=inet
 	[[ $1 == *:* ]] && family=inet6
 
-	if [[ $1 == */0 && ( -z $TABLE || $TABLE == auto ) ]]; then
+	if [[ -n $TABLE && $TABLE != auto ]]; then
+		cmd route -q -n add "-$family" -fib "$TABLE" "$1" -interface "$INTERFACE"
+	elif [[ $1 == */0 ]]; then
 		if [[ $1 == *:* ]]; then
 			AUTO_ROUTE6=1
-			cmd route -q -n add -inet6 ::/1 -interface "$REAL_INTERFACE" >/dev/null
-			cmd route -q -n add -inet6 8000::/1 -interface "$REAL_INTERFACE" >/dev/null
+			cmd route -q -n add -inet6 ::/1 -interface "$INTERFACE"
+			cmd route -q -n add -inet6 8000::/1 -interface "$INTERFACE"
 		else
 			AUTO_ROUTE4=1
-			cmd route -q -n add -inet 0.0.0.0/1 -interface "$REAL_INTERFACE" >/dev/null
-			cmd route -q -n add -inet 128.0.0.0/1 -interface "$REAL_INTERFACE" >/dev/null
+			cmd route -q -n add -inet 0.0.0.0/1 -interface "$INTERFACE"
+			cmd route -q -n add -inet 128.0.0.0/1 -interface "$INTERFACE"
 		fi
 	else
-		[[ $TABLE == main || $TABLE == auto || -z $TABLE ]] || die "Darwin only supports TABLE=auto|main|off"
-		[[ $(route -n get "-$family" "$1" 2>/dev/null) =~ interface:\ $REAL_INTERFACE$'\n' ]] || cmd route -q -n add -$family "$1" -interface "$REAL_INTERFACE" >/dev/null
-
+		[[ $(route -n get "-$family" "$1" 2>/dev/null) =~ interface:\ $INTERFACE$'\n' ]] || cmd route -q -n add "-$family" "$1" -interface "$INTERFACE"
 	fi
 }
 
 set_config() {
-	cmd wg setconf "$REAL_INTERFACE" <(echo "$WG_CONFIG")
+	cmd wg setconf "$INTERFACE" <(echo "$WG_CONFIG")
 }
 
 save_config() {
-	# TODO: actually save addresses and DNS by running ifconfig and networksetup
+	# TODO: actually save addresses by running ifconfig
 	local old_umask new_config current_config address cmd
 	new_config=$'[Interface]\n'
 	for address in "${ADDRESSES[@]}"; do
 		new_config+="Address = $address"$'\n'
 	done
-	for address in "${DNS[@]}"; do
-		new_config+="DNS = $address"$'\n'
-	done
+	while read -r address; do
+		[[ $address =~ ^nameserver\ ([a-zA-Z0-9_=+:%.-]+)$ ]] && new_config+="DNS = ${BASH_REMATCH[1]}"$'\n'
+	done < <(resolvconf -l "$INTERFACE" 2>/dev/null)
 	[[ -n $MTU ]] && new_config+="MTU = $MTU"$'\n'
 	[[ -n $TABLE ]] && new_config+="Table = $TABLE"$'\n'
 	[[ $SAVE_CONFIG -eq 0 ]] || new_config+=$'SaveConfig = true\n'
@@ -355,7 +310,7 @@ save_config() {
 	done
 	old_umask="$(umask)"
 	umask 077
-	current_config="$(cmd wg showconf "$REAL_INTERFACE")"
+	current_config="$(cmd wg showconf "$INTERFACE")"
 	trap 'rm -f "$CONFIG_FILE.tmp"; exit' INT TERM EXIT
 	echo "${current_config/\[Interface\]$'\n'/$new_config}" > "$CONFIG_FILE.tmp" || die "Could not write configuration file"
 	sync "$CONFIG_FILE.tmp"
@@ -367,8 +322,7 @@ save_config() {
 execute_hooks() {
 	local hook
 	for hook in "$@"; do
-		hook="${hook//%i/$REAL_INTERFACE}"
-		hook="${hook//%I/$INTERFACE}"
+		hook="${hook//%i/$INTERFACE}"
 		echo "[#] $hook" >&2
 		(eval "$hook")
 	done
@@ -390,8 +344,7 @@ cmd_usage() {
 	  - MTU: an optional MTU for the interface; if unspecified, auto-calculated.
 	  - Table: an optional routing table to which routes will be added; if
 	    unspecified or \`auto', the default table is used. If \`off', no routes
-	    are added. Besides \`auto' and \`off', only \`main' is supported on
-	    this platform.
+	    are added.
 	  - PreUp, PostUp, PreDown, PostDown: script snippets which will be executed
 	    by bash(1) at the corresponding phases of the link, most commonly used
 	    to configure DNS. The string \`%i' is expanded to INTERFACE.
@@ -404,7 +357,7 @@ cmd_usage() {
 
 cmd_up() {
 	local i
-	get_real_interface && die "\`$INTERFACE' already exists as \`$REAL_INTERFACE'"
+	[[ -z $(ifconfig "$INTERFACE" 2>/dev/null) ]] || die "\`$INTERFACE' already exists"
 	trap 'del_if; del_routes; exit' INT TERM EXIT
 	execute_hooks "${PRE_UP[@]}"
 	add_if
@@ -414,30 +367,27 @@ cmd_up() {
 	done
 	set_mtu
 	up_if
-	for i in $(while read -r _ i; do for i in $i; do [[ $i =~ ^[0-9a-z:.]+/[0-9]+$ ]] && echo "$i"; done; done < <(wg show "$REAL_INTERFACE" allowed-ips) | sort -nr -k 2 -t /); do
+	set_dns
+	for i in $(while read -r _ i; do for i in $i; do [[ $i =~ ^[0-9a-z:.]+/[0-9]+$ ]] && echo "$i"; done; done < <(wg show "$INTERFACE" allowed-ips) | sort -nr -k 2 -t /); do
 		add_route "$i"
 	done
 	[[ $AUTO_ROUTE4 -eq 1 || $AUTO_ROUTE6 -eq 1 ]] && set_endpoint_direct_route
-	[[ ${#DNS[@]} -gt 0 ]] && set_dns
 	monitor_daemon
 	execute_hooks "${POST_UP[@]}"
 	trap - INT TERM EXIT
 }
 
 cmd_down() {
-	if ! get_real_interface || [[ " $(wg show interfaces) " != *" $REAL_INTERFACE "* ]]; then
-		die "\`$INTERFACE' is not a WireGuard interface"
-	fi
+	[[ " $(wg show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
 	execute_hooks "${PRE_DOWN[@]}"
 	[[ $SAVE_CONFIG -eq 0 ]] || save_config
 	del_if
+	unset_dns
 	execute_hooks "${POST_DOWN[@]}"
 }
 
 cmd_save() {
-	if ! get_real_interface || [[ " $(wg show interfaces) " != *" $REAL_INTERFACE "* ]]; then
-		die "\`$INTERFACE' is not a WireGuard interface"
-	fi
+	[[ " $(wg show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
 	save_config
 }
 
