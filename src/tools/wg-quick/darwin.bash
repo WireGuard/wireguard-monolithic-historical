@@ -107,6 +107,7 @@ add_if() {
 }
 
 del_routes() {
+	[[ -n $REAL_INTERFACE ]] || return 0
 	local todelete=( ) destination gateway netif
 	while read -r destination _ _ _ _ netif _; do
 		[[ $netif == "$REAL_INTERFACE" ]] && todelete+=( "$destination" )
