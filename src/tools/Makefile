@@ -73,18 +73,18 @@ clean:
 endif
 
 install: wg
-	@install -v -d "$(DESTDIR)$(BINDIR)" && install -m 0755 -v wg "$(DESTDIR)$(BINDIR)/wg"
-	@install -v -d "$(DESTDIR)$(MANDIR)/man8" && install -m 0644 -v man/wg.8 "$(DESTDIR)$(MANDIR)/man8/wg.8"
+	@install -v -d "$(DESTDIR)$(BINDIR)" && install -v -m 0755 wg "$(DESTDIR)$(BINDIR)/wg"
+	@install -v -d "$(DESTDIR)$(MANDIR)/man8" && install -v -m 0644 man/wg.8 "$(DESTDIR)$(MANDIR)/man8/wg.8"
 	@[ "$(WITH_BASHCOMPLETION)" = "yes" ] || exit 0; \
-	install -v -d "$(DESTDIR)$(BASHCOMPDIR)" && install -m 0644 -v completion/wg.bash-completion "$(DESTDIR)$(BASHCOMPDIR)/wg"
+	install -v -d "$(DESTDIR)$(BASHCOMPDIR)" && install -v -m 0644 completion/wg.bash-completion "$(DESTDIR)$(BASHCOMPDIR)/wg"
 	@[ "$(WITH_WGQUICK)" = "yes" ] || exit 0; \
-	install -m 0755 -v wg-quick/$(PLATFORM).bash "$(DESTDIR)$(BINDIR)/wg-quick" && install -m 0700 -v -d "$(DESTDIR)$(SYSCONFDIR)/wireguard"
+	install -v -m 0755 wg-quick/$(PLATFORM).bash "$(DESTDIR)$(BINDIR)/wg-quick" && install -v -m 0700 -d "$(DESTDIR)$(SYSCONFDIR)/wireguard"
 	@[ "$(WITH_WGQUICK)" = "yes" ] || exit 0; \
-	install -m 0644 -v man/wg-quick.8 "$(DESTDIR)$(MANDIR)/man8/wg-quick.8"
+	install -v -m 0644 man/wg-quick.8 "$(DESTDIR)$(MANDIR)/man8/wg-quick.8"
 	@[ "$(WITH_WGQUICK)" = "yes" -a "$(WITH_BASHCOMPLETION)" = "yes" ] || exit 0; \
-	install -m 0644 -v completion/wg-quick.bash-completion "$(DESTDIR)$(BASHCOMPDIR)/wg-quick"
+	install -v -m 0644 completion/wg-quick.bash-completion "$(DESTDIR)$(BASHCOMPDIR)/wg-quick"
 	@[ "$(WITH_WGQUICK)" = "yes" -a "$(WITH_SYSTEMDUNITS)" = "yes" ] || exit 0; \
-	install -v -d "$(DESTDIR)$(SYSTEMDUNITDIR)" && install -m 0644 -v systemd/wg-quick@.service "$(DESTDIR)$(SYSTEMDUNITDIR)/wg-quick@.service"
+	install -v -d "$(DESTDIR)$(SYSTEMDUNITDIR)" && install -v -m 0644 systemd/wg-quick@.service "$(DESTDIR)$(SYSTEMDUNITDIR)/wg-quick@.service"
 
 help:
 	@cat INSTALL
