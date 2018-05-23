@@ -4,8 +4,6 @@
 # Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 #
 
-# TODO: Are bash process subsitutions acceptable in FreeBSD, or do they create insecure temporary files?
-
 set -e -o pipefail
 shopt -s extglob
 export LC_ALL=C
@@ -39,6 +37,26 @@ die() {
 }
 
 CONFIG_SEARCH_PATHS=( /etc/wireguard /usr/local/etc/wireguard )
+
+unset ORIGINAL_TMPDIR
+make_temp() {
+	local old_umask
+
+	[[ -v ORIGINAL_TMPDIR ]] && TMPDIR="$ORIGINAL_TMPDIR"
+	ORIGINAL_TMPDIR="$TMPDIR"
+
+	old_umask="$(umask)"
+	umask 077
+	export TMPDIR="$(mktemp -d)"
+	umask "$old_umask"
+
+	[[ -d $TMPDIR ]] || die "Unable to create safe temporary directory"
+	CLEANUP_TMPDIR="$TMPDIR"
+}
+
+clean_temp() {
+	[[ -n $CLEANUP_TMPDIR ]] && rm -rf "$CLEANUP_TMPDIR"
+}
 
 parse_options() {
 	local interface_section=0 line key value stripped path
@@ -235,7 +253,8 @@ set_endpoint_direct_route() {
 
 monitor_daemon() {
 	echo "[+] Backgrounding route monitor" >&2
-	(trap 'del_routes; exit 0' INT TERM EXIT
+	(make_temp
+	trap 'del_routes; clean_temp; exit 0' INT TERM EXIT
 	exec >/dev/null 2>&1
 	local event
 	# TODO: this should also check to see if the endpoint actually changes
@@ -317,11 +336,11 @@ save_config() {
 	old_umask="$(umask)"
 	umask 077
 	current_config="$(cmd wg showconf "$INTERFACE")"
-	trap 'rm -f "$CONFIG_FILE.tmp"; exit' INT TERM EXIT
+	trap 'rm -f "$CONFIG_FILE.tmp"; clean_temp; exit' INT TERM EXIT
 	echo "${current_config/\[Interface\]$'\n'/$new_config}" > "$CONFIG_FILE.tmp" || die "Could not write configuration file"
 	sync "$CONFIG_FILE.tmp"
 	mv "$CONFIG_FILE.tmp" "$CONFIG_FILE" || die "Could not move configuration file"
-	trap - INT TERM EXIT
+	trap 'clean_temp; exit' INT TERM EXIT
 	umask "$old_umask"
 }
 
@@ -366,7 +385,7 @@ cmd_usage() {
 cmd_up() {
 	local i
 	[[ -z $(ifconfig "$INTERFACE" 2>/dev/null) ]] || die "\`$INTERFACE' already exists"
-	trap 'del_if; del_routes; exit' INT TERM EXIT
+	trap 'del_if; del_routes; clean_temp; exit' INT TERM EXIT
 	execute_hooks "${PRE_UP[@]}"
 	add_if
 	set_config
@@ -382,7 +401,7 @@ cmd_up() {
 	[[ $AUTO_ROUTE4 -eq 1 || $AUTO_ROUTE6 -eq 1 ]] && set_endpoint_direct_route
 	monitor_daemon
 	execute_hooks "${POST_UP[@]}"
-	trap - INT TERM EXIT
+	trap 'clean_temp; exit' INT TERM EXIT
 }
 
 cmd_down() {
@@ -400,6 +419,9 @@ cmd_save() {
 }
 
 # ~~ function override insertion point ~~
+
+make_temp
+trap 'clean_temp; exit' INT TERM EXIT
 
 if [[ $# -eq 1 && ( $1 == --help || $1 == -h || $1 == help ) ]]; then
 	cmd_usage
