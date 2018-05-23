@@ -98,7 +98,7 @@ get_real_interface() {
 
 add_if() {
 	export WG_TUN_NAME_FILE="/var/run/wireguard/$INTERFACE.name"
-	mkdir -m 0700 -p "/var/run/wireguard/"
+	mkdir -p "/var/run/wireguard/"
 	cmd "${WG_QUICK_USERSPACE_IMPLEMENTATION:-wireguard-go}" tun
 	get_real_interface
 }
