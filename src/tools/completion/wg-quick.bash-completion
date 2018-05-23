@@ -2,8 +2,11 @@
 # Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
 _wg_quick_completion() {
-	local p i a search_paths
+	local p i a search_paths old_glob
 	search_paths=( /etc/wireguard )
+
+	old_glob="$(shopt -p nullglob)"
+	shopt -s nullglob
 
 	[[ $OSTYPE == *freebsd* || $OSTYPE == *darwin* ]] && search_paths+=( /usr/local/etc/wireguard )
 
@@ -11,8 +14,6 @@ _wg_quick_completion() {
 		COMPREPLY+=( $(compgen -W "up down" -- "${COMP_WORDS[1]}") )
 	elif [[ $COMP_CWORD -eq 2 ]]; then
 		if [[ ${COMP_WORDS[1]} == up ]]; then
-			local old_glob="$(shopt -p nullglob)"
-			shopt -s nullglob
 			for p in "${search_paths[@]}"; do
 				for i in "$p"/*.conf; do
 					i="${i##*/}"; i="${i%.conf}"
@@ -20,15 +21,23 @@ _wg_quick_completion() {
 					COMPREPLY+=( "${a[@]}" )
 				done
 			done
-			eval "$old_glob"
 			mapfile -t a < <(compgen -f -X '!*.conf' -- "${COMP_WORDS[2]}")
 			COMPREPLY+=( "${a[@]}" )
 			mapfile -t a < <(compgen -d -- "${COMP_WORDS[2]}")
 			COMPREPLY+=( "${a[@]}" )
 		elif [[ ${COMP_WORDS[1]} == down ]]; then
-			COMPREPLY+=( $(compgen -W "$(wg show interfaces)" -- "${COMP_WORDS[2]}") )
+			if [[ $OSTYPE == *openbsd* || $OSTYPE == *darwin* ]]; then
+				for i in /var/run/wireguard/*.name; do
+					i="${i##*/}"; i="${i%.name}"
+					mapfile -t a < <(compgen -W "$i" -- "${COMP_WORDS[2]}")
+					COMPREPLY+=( "${a[@]}" )
+				done
+			else
+				COMPREPLY+=( $(compgen -W "$(wg show interfaces)" -- "${COMP_WORDS[2]}") )
+			fi
 		fi
 	fi
+	eval "$old_glob"
 }
 
 complete -o filenames -o nosort -F _wg_quick_completion wg-quick
