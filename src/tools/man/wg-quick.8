@@ -31,7 +31,8 @@ interface without bringing the interface down.
 
 \fICONFIG_FILE\fP is a configuration file, whose filename is the interface name
 followed by `.conf'. Otherwise, \fIINTERFACE\fP is an interface name, with configuration
-found at `/etc/wireguard/\fIINTERFACE\fP.conf'.
+found at `/etc/wireguard/\fIINTERFACE\fP.conf', searched first, followed by distro-specific
+search paths.
 
 Generally speaking, this utility is just a simple script that wraps invocations to
 .BR wg (8)

@@ -38,10 +38,16 @@ die() {
 	exit 1
 }
 
+CONFIG_SEARCH_PATHS=( /etc/wireguard /usr/local/etc/wireguard )
+
 parse_options() {
-	local interface_section=0 line key value stripped
+	local interface_section=0 line key value stripped path
 	CONFIG_FILE="$1"
-	[[ $CONFIG_FILE =~ ^[a-zA-Z0-9_=+.-]{1,15}$ ]] && CONFIG_FILE="/etc/wireguard/$CONFIG_FILE.conf"
+	if [[ $CONFIG_FILE =~ ^[a-zA-Z0-9_=+.-]{1,15}$ ]]; then
+		for path in "${CONFIG_SEARCH_PATHS[@]}"; do
+			[[ -e $path/$CONFIG_FILE.conf ]] && { CONFIG_FILE="$path/$CONFIG_FILE.conf"; break; }
+		done
+	fi
 	[[ -e $CONFIG_FILE ]] || die "\`$CONFIG_FILE' does not exist"
 	[[ $CONFIG_FILE =~ (^|/)([a-zA-Z0-9_=+.-]{1,15})\.conf$ ]] || die "The config file must be a valid interface name, followed by .conf"
 	CONFIG_FILE="$(readlink -f "$CONFIG_FILE")"
@@ -334,9 +340,11 @@ cmd_usage() {
 
 	  CONFIG_FILE is a configuration file, whose filename is the interface name
 	  followed by \`.conf'. Otherwise, INTERFACE is an interface name, with
-	  configuration found at /etc/wireguard/INTERFACE.conf. It is to be readable
-	  by wg(8)'s \`setconf' sub-command, with the exception of the following additions
-	  to the [Interface] section, which are handled by $PROGRAM:
+	  configuration found at:
+	  ${CONFIG_SEARCH_PATHS[@]/%//INTERFACE.conf}.
+	  It is to be readable by wg(8)'s \`setconf' sub-command, with the exception
+	  of the following additions to the [Interface] section, which are handled
+	  by $PROGRAM:
 
 	  - Address: may be specified one or more times and contains one or more
 	    IP addresses (with an optional CIDR mask) to be set for the interface.
