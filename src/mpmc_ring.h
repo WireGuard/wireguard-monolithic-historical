@@ -35,16 +35,13 @@
 #define CK_CC_FORCE_INLINE __always_inline
 #endif
 
-#ifndef CK_MD_CACHELINE
-#define CK_MD_CACHELINE (64)
-#endif
-
 #include <stdbool.h>
 #include <linux/string.h>
 
 #include <linux/processor.h>
 #include <linux/compiler.h>
 #include <linux/atomic.h>
+#include <linux/cache.h>
 //#define likely(x)   (__builtin_expect(!!(x), 1))
 //#define unlikely(x) (__builtin_expect(!!(x), 0))
 //#define cpu_relax()
@@ -52,7 +49,7 @@
 //#define ck_pr_load_uint(SRC) CK_PR_LOAD_SAFE((SRC), uint)
 
 /* http://concurrencykit.org/doc/ck_pr_load.html */
-#define ck_pr_load_uint(SRC) READ_ONCE(*(SRC))
+#define ck_pr_load_uint(SRC) atomic_read(SRC)
 
 /* http://concurrencykit.org/doc/ck_pr_fence_load.html */
 #define ck_pr_fence_load() smp_rmb()
@@ -64,14 +61,26 @@
 #define ck_pr_stall() cpu_relax()
 
 /* http://concurrencykit.org/doc/ck_pr_fence_store_atomic.html */
-#define ck_pr_fence_store_atomic()
+/* this actually resolves to __asm__ __volatile__("" ::: "memory"); in x86-64 */
+/* so basically a compiler barrier? */
+#define ck_pr_fence_store_atomic() smp_mb__before_atomic() /* TODO: probably overkill? */
 
 /* http://concurrencykit.org/doc/ck_pr_cas.html */
-#define ck_pr_cas_uint_value(A, B, C, D) 1
+/*
+    ck_pr_cas_uint_value(unsigned int *target, unsigned int compare,
+                         unsigned int set, unsigned int *v) {
+    _Bool
+    z; __asm__ __volatile__("lock " "cmpxchg" "l" " %3, %0;" "mov %% " "eax" ", %2;" "setz %1;" : "+m" (*(unsigned int *)target), "=a" (z), "=m" (*(unsigned int *)v) : "q" (set), "a" (compare) : "memory", "cc");
+    return z; }
+*/
+bool ck_pr_cas_uint_value(atomic_t *target, uint old, uint new, uint *v) {
+	uint prev = atomic_cmpxchg(target, old, new);
+	*v = new;
+	return prev != old;
+}
 
 /* http://concurrencykit.org/doc/ck_pr_cas.html */
-// long cas(long *mem, long old, long new);
-#define ck_pr_cas_uint(t, old, new) atomic_cmpxchg(t, old, new)
+#define ck_pr_cas_uint(t, old, new) atomic_cmpxchg(t, old, new) != old
 
 /* http://concurrencykit.org/doc/ck_pr_store.html */
 // TODO: compiler barrier?
@@ -82,15 +91,11 @@
  */
 
 struct ck_ring {
-	//unsigned int c_head;
-	atomic_t c_head;
-	/* TODO: use ____cacheline_aligned_in_smp or someting like that */
-	char pad[CK_MD_CACHELINE - sizeof(unsigned int)];
-	unsigned int p_tail;
-	//unsigned int p_head;
+	/* TODO: is the aligment correct? */
+	atomic_t c_head ____cacheline_aligned_in_smp;
+	atomic_t p_tail ____cacheline_aligned_in_smp;
 	atomic_t p_head;
-	char _pad[CK_MD_CACHELINE - sizeof(unsigned int) * 2];
-	unsigned int size;
+	unsigned int size ____cacheline_aligned_in_smp;
 	unsigned int mask;
 };
 typedef struct ck_ring ck_ring_t;
@@ -103,10 +108,9 @@ typedef struct ck_ring_buffer ck_ring_buffer_t;
 CK_CC_INLINE static void
 ck_ring_init(struct ck_ring *ring, unsigned int size)
 {
-
 	ring->size = size;
 	ring->mask = size - 1;
-	ring->p_tail = 0;
+	atomic_set(&ring->p_tail, 0);
 	atomic_set(&ring->p_head, 0); // TODO: barrier?
 	atomic_set(&ring->c_head, 0);
 	return;
@@ -220,16 +224,13 @@ _ck_ring_trydequeue_mc(struct ck_ring *ring,
     unsigned int size)
 {
 	const unsigned int mask = ring->mask;
-	//unsigned int consumer, producer;
-	unsigned int producer;
-	atomic_t consumer;
+	unsigned int consumer, producer;
 
 	consumer = ck_pr_load_uint(&ring->c_head);
 	ck_pr_fence_load();
 	producer = ck_pr_load_uint(&ring->p_tail);
 
-	if (unlikely(atomic_read(&consumer) == producer))
-	//if (unlikely(consumer == producer))
+	if (unlikely(consumer == producer))
 		return false;
 
 	ck_pr_fence_load();

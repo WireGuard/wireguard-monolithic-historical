@@ -10,13 +10,14 @@
 #include "allowedips.h"
 #include "hashtables.h"
 #include "cookie.h"
+#include "mpmc_ring.h"
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
-#include <linux/ptr_ring.h>
+//#include <linux/ptr_ring.h>
 
 struct wireguard_device;
 
@@ -26,7 +27,9 @@ struct multicore_worker {
 };
 
 struct crypt_queue {
-	struct ptr_ring ring;
+	//struct ptr_ring ring;
+	struct ck_ring ring;
+	struct ck_ring_buffer ring_buffer;
 	union {
 		struct {
 			struct multicore_worker __percpu *worker;
