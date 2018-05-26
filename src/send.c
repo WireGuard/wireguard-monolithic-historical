@@ -224,8 +224,15 @@ void packet_tx_worker(struct work_struct *work)
 	enum packet_state state;
 
 	/*spin_lock_bh(&queue->ring.consumer_lock);*/
-	while ((first = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(first)->state)) != PACKET_STATE_UNCRYPTED) {
-		__ptr_ring_discard_one(&queue->ring);
+	/*while ((first = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(first)->state)) != PACKET_STATE_UNCRYPTED) {*/
+		/*__ptr_ring_discard_one(&queue->ring);*/
+
+	// TODO: this is very wrong
+	while (ck_ring_dequeue_mpmc(&queue->ring, &queue->ring_buffer, &first)) {
+		if ((state = atomic_read(&PACKET_CB(first)->state)) == PACKET_STATE_UNCRYPTED) {
+			ck_ring_enqueue_mpmc(&queue->ring, &queue->ring_buffer, &first); // ignores error
+			continue;
+		}
 
 		peer = PACKET_PEER(first);
 		keypair = PACKET_CB(first)->keypair;
@@ -248,7 +255,7 @@ void packet_encrypt_worker(struct work_struct *work)
 	bool have_simd = chacha20poly1305_init_simd();
 
 	/*while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {*/
-	while ((ck_ring_dequeue_mpmc(&queue->ring, &queue->ring_buffer, &first)) == true) {
+	while (ck_ring_dequeue_mpmc(&queue->ring, &queue->ring_buffer, &first)) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
 		skb_walk_null_queue_safe(first, skb, next) {

@@ -29,6 +29,7 @@ int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool mult
 	/*if (ret)*/
 		/*return ret;*/
 	ck_ring_init(&queue->ring, len);
+	queue->ring_buffer.value = kcalloc(len, sizeof(void *), GFP_KERNEL);
 	if (multicore) {
 		queue->worker = packet_alloc_percpu_multicore_worker(function, queue);
 		if (!queue->worker)
@@ -48,4 +49,5 @@ void packet_queue_free(struct crypt_queue *queue, bool multicore)
 	 * http://concurrencykit.org/doc/ck_ring_trydequeue_spmc.html */
 	/*WARN_ON(!ptr_ring_empty_bh(&queue->ring));*/
 	/*ptr_ring_cleanup(&queue->ring, NULL);*/
+	kfree(queue->ring_buffer.value);
 }

@@ -42,11 +42,6 @@
 #include <linux/compiler.h>
 #include <linux/atomic.h>
 #include <linux/cache.h>
-//#define likely(x)   (__builtin_expect(!!(x), 1))
-//#define unlikely(x) (__builtin_expect(!!(x), 0))
-//#define cpu_relax()
-
-//#define ck_pr_load_uint(SRC) CK_PR_LOAD_SAFE((SRC), uint)
 
 /* http://concurrencykit.org/doc/ck_pr_load.html */
 #define ck_pr_load_uint(SRC) atomic_read(SRC)
@@ -73,6 +68,7 @@
     z; __asm__ __volatile__("lock " "cmpxchg" "l" " %3, %0;" "mov %% " "eax" ", %2;" "setz %1;" : "+m" (*(unsigned int *)target), "=a" (z), "=m" (*(unsigned int *)v) : "q" (set), "a" (compare) : "memory", "cc");
     return z; }
 */
+__always_inline static
 bool ck_pr_cas_uint_value(atomic_t *target, uint old, uint new, uint *v) {
 	uint prev = atomic_cmpxchg(target, old, new);
 	*v = new;

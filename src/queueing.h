@@ -12,8 +12,6 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
-#include "mpmc_ring.h"
-
 struct wireguard_device;
 struct wireguard_peer;
 struct multicore_worker;
