@@ -120,10 +120,10 @@ static inline int queue_enqueue_per_device_and_peer(struct crypt_queue *device_q
 	int cpu;
 
 	atomic_set(&PACKET_CB(skb)->state, PACKET_STATE_UNCRYPTED);
-	if (unlikely(ptr_ring_produce_bh(&peer_queue->ring, skb)))
+	if (unlikely(mpmc_ptr_ring_produce(&peer_queue->ring, skb)))
 		return -ENOSPC;
 	cpu = cpumask_next_online(next_cpu);
-	if (unlikely(ptr_ring_produce_bh(&device_queue->ring, skb)))
+	if (unlikely(mpmc_ptr_ring_produce(&device_queue->ring, skb)))
 		return -EPIPE;
 	queue_work_on(cpu, wq, &per_cpu_ptr(device_queue->worker, cpu)->work);
 	return 0;
