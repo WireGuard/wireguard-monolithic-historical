@@ -148,9 +148,9 @@ up_if() {
 
 add_addr() {
 	if [[ $1 == *:* ]]; then
-		cmd ifconfig "$REAL_INTERFACE" inet6 "$1"
+		cmd ifconfig "$REAL_INTERFACE" inet6 "$1" alias
 	else
-		cmd ifconfig "$REAL_INTERFACE" inet "$1" "${1%%/*}"
+		cmd ifconfig "$REAL_INTERFACE" inet "$1" "${1%%/*}" alias
 	fi
 }
 
