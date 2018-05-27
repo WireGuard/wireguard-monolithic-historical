@@ -335,12 +335,12 @@ set_config() {
 }
 
 save_config() {
-	# TODO: actually save addresses and DNS by running ifconfig and networksetup
 	local old_umask new_config current_config address cmd
 	new_config=$'[Interface]\n'
-	for address in "${ADDRESSES[@]}"; do
-		new_config+="Address = $address"$'\n'
-	done
+	while read -r address; do
+		[[ $address =~ inet6?\ ([^ ]+) ]] && new_config+="Address = ${BASH_REMATCH[1]}"$'\n'
+	done < <(ifconfig "$REAL_INTERFACE")
+	# TODO: actually determine current DNS for interface
 	for address in "${DNS[@]}"; do
 		new_config+="DNS = $address"$'\n'
 	done

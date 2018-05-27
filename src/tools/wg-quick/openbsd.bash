@@ -315,12 +315,12 @@ set_config() {
 }
 
 save_config() {
-	# TODO: actually save addresses by running ifconfig and dnses too
-	local old_umask new_config current_config address cmd
+	local old_umask new_config current_config address network cmd
 	new_config=$'[Interface]\n'
-	for address in "${ADDRESSES[@]}"; do
-		new_config+="Address = $address"$'\n'
-	done
+	{ read -r _; while read -r _ _ network address _; do
+		[[ $network == *Link* ]] || new_config+="Address = $address"$'\n'
+	done } < <(netstat -I "$REAL_INTERFACE" -n -v)
+	# TODO: actually determine current DNS for interface
 	for address in "${DNS[@]}"; do
 		new_config+="DNS = $address"$'\n'
 	done
