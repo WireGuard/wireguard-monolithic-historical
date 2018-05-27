@@ -146,9 +146,11 @@ up_if() {
 }
 
 add_addr() {
-	local family=inet
-	[[ $1 == *:* ]] && family=inet6
-	cmd ifconfig "$INTERFACE" "$family" "$1" alias
+	if [[ $1 == *:* ]]; then
+		cmd ifconfig "$INTERFACE" inet6 "$1" alias
+	else
+		cmd ifconfig "$INTERFACE" inet "$1" "${1%%/*}" alias
+	fi
 }
 
 set_mtu() {
