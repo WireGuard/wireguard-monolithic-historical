@@ -379,8 +379,8 @@ void packet_rx_worker(struct work_struct *work)
 	bool free;
 
 	local_bh_disable();
-	while ((skb = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(skb)->state)) != PACKET_STATE_UNCRYPTED) {
-		__ptr_ring_discard_one(&queue->ring);
+	while ((skb = __mpmc_ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(skb)->state)) != PACKET_STATE_UNCRYPTED) {
+		__mpmc_ptr_ring_discard_one(&queue->ring);
 		peer = PACKET_PEER(skb);
 		keypair = PACKET_CB(skb)->keypair;
 		free = true;
@@ -421,7 +421,7 @@ void packet_decrypt_worker(struct work_struct *work)
 	struct sk_buff *skb;
 	bool have_simd = simd_get();
 
-	while ((skb = ptr_ring_consume_bh(&queue->ring)) != NULL) {
+	while ((skb = mpmc_ptr_ring_consume(&queue->ring)) != NULL) {
 		enum packet_state state = likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving, have_simd)) ? PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
 		queue_enqueue_per_peer(&PACKET_PEER(skb)->rx_queue, skb, state);
 		have_simd = simd_relax(have_simd);
