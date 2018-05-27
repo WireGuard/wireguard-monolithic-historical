@@ -22,14 +22,12 @@ struct multicore_worker __percpu *packet_alloc_percpu_multicore_worker(work_func
 
 int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool multicore, unsigned int len)
 {
-	/*int ret;*/
+	int ret;
 
 	memset(queue, 0, sizeof(*queue));
-	/*ret = ptr_ring_init(&queue->ring, len, GFP_KERNEL);*/
-	/*if (ret)*/
-		/*return ret;*/
-	ck_ring_init(&queue->ring, len);
-	queue->ring_buffer.value = kcalloc(len, sizeof(void *), GFP_KERNEL);
+	ret = ck_ring_init(&queue->ring, len, GFP_KERNEL);
+	if (ret)
+		return ret;
 	if (multicore) {
 		queue->worker = packet_alloc_percpu_multicore_worker(function, queue);
 		if (!queue->worker)
@@ -43,11 +41,6 @@ void packet_queue_free(struct crypt_queue *queue, bool multicore)
 {
 	if (multicore)
 		free_percpu(queue->worker);
-
-	/* TODO: from the ck docs: It is possible for the function to return
-	 * false even if ring is non-empty. See also
-	 * http://concurrencykit.org/doc/ck_ring_trydequeue_spmc.html */
-	/*WARN_ON(!ptr_ring_empty_bh(&queue->ring));*/
-	/*ptr_ring_cleanup(&queue->ring, NULL);*/
-	kfree(queue->ring_buffer.value);
+	WARN_ON(!mpmc_ring_empty(&queue->ring));
+	mpmc_ring_cleanup(&queue->ring);
 }
