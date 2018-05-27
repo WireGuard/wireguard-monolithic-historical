@@ -25,7 +25,7 @@ int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool mult
 	int ret;
 
 	memset(queue, 0, sizeof(*queue));
-	ret = ptr_ring_init(&queue->ring, len, GFP_KERNEL);
+	ret = mpmc_ptr_ring_init(&queue->ring, len, GFP_KERNEL);
 	if (ret)
 		return ret;
 	if (multicore) {
@@ -41,6 +41,6 @@ void packet_queue_free(struct crypt_queue *queue, bool multicore)
 {
 	if (multicore)
 		free_percpu(queue->worker);
-	WARN_ON(!__ptr_ring_empty(&queue->ring));
-	ptr_ring_cleanup(&queue->ring, NULL);
+	WARN_ON(!mpmc_ptr_ring_empty(&queue->ring));
+	mpmc_ptr_ring_cleanup(&queue->ring, NULL);
 }
