@@ -115,9 +115,9 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 
 	for (;;) {
 		mb(); // TODO: check
-		p = atomic_long_read(&r->producer_tail);
-		mb(); // TODO: check
 		c = atomic_long_read(&r->consumer_head);
+		mb(); // TODO: check
+		p = atomic_long_read(&r->producer_tail);
 		mb(); // TODO: check
 
 		/* Is the ring empty? */
