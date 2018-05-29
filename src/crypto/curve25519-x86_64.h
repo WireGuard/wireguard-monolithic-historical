@@ -890,7 +890,7 @@ static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14");
 }
 
-void red_eltfp25519_2w_adx(u64 *const c, const u64 *const a)
+static void red_eltfp25519_2w_adx(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movl    $38, %%edx; "	/* 2*c = 38 = 2^256 */
@@ -956,7 +956,7 @@ void red_eltfp25519_2w_adx(u64 *const c, const u64 *const a)
 		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11");
 }
 
-void red_eltfp25519_2w_bmi2(u64 *const c, const u64 *const a)
+static void red_eltfp25519_2w_bmi2(u64 *const c, const u64 *const a)
 {
 	asm volatile(
 		"movl    $38, %%edx ; "       /* 2*c = 38 = 2^256 */
