@@ -6,6 +6,8 @@
 
 #ifdef DEBUG
 
+#include "../crypto/chacha20poly1305.h"
+
 struct poly1305_testdata {
 	size_t size;
 	const u8 data[1024];
