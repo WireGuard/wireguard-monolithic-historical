@@ -16,8 +16,6 @@ enum chacha20poly1305_lengths {
 	CHACHA20POLY1305_AUTHTAGLEN = 16
 };
 
-void chacha20poly1305_fpu_init(void);
-
 void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			      const u8 *ad, const size_t ad_len,
 			      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN]);
@@ -87,7 +85,6 @@ static inline void chacha20poly1305_deinit_simd(bool was_on)
 
 #ifdef DEBUG
 bool chacha20poly1305_selftest(void);
-bool poly1305_selftest(void);
 #endif
 
 #endif /* _WG_CHACHA20POLY1305_H */

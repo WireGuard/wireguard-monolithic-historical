@@ -1278,19 +1278,18 @@ static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 
 	bool have_simd = chacha20poly1305_init_simd();
 	__le64 len;
 	struct poly1305_ctx poly1305_state;
-	struct chacha20_ctx chacha20_state = {{
-		EXPAND_32_BYTE_K,
-		le32_to_cpuvp(key + 0), le32_to_cpuvp(key + 4), le32_to_cpuvp(key + 8), le32_to_cpuvp(key + 12),
-		le32_to_cpuvp(key + 16), le32_to_cpuvp(key + 20), le32_to_cpuvp(key + 24), le32_to_cpuvp(key + 28),
-		0, le32_to_cpuvp(nonce + 0), le32_to_cpuvp(nonce + 4), le32_to_cpuvp(nonce + 8)
-	}};
-	u8 block0[CHACHA20_BLOCK_SIZE] = { 0 };
+	struct chacha20_ctx chacha20_state;
+	u8 block0[POLY1305_KEY_SIZE] = { 0 };
 
-	chacha20_crypt(&chacha20_state, block0, block0, sizeof(block0), have_simd);
+	chacha20_init(&chacha20_state, key, 0);
+	chacha20_state.counter[1] = le32_to_cpu(*(__le32 *)(nonce + 0));
+	chacha20_state.counter[2] = le32_to_cpu(*(__le32 *)(nonce + 4));
+	chacha20_state.counter[3] = le32_to_cpu(*(__le32 *)(nonce + 8));
+	chacha20(&chacha20_state, block0, block0, sizeof(block0), have_simd);
 	poly1305_init(&poly1305_state, block0, have_simd);
 	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
-	chacha20_crypt(&chacha20_state, dst, src, src_len, have_simd);
+	chacha20(&chacha20_state, dst, src, src_len, have_simd);
 	poly1305_update(&poly1305_state, dst, src_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, have_simd);
 	len = cpu_to_le64(ad_len);
@@ -1304,7 +1303,7 @@ static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 
 static inline void chacha20poly1305_selftest_encrypt(u8 *dst, const u8 *src, const size_t src_len, const u8 *ad, const size_t ad_len, const u8 *nonce, const size_t nonce_len, const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	if (nonce_len == 8)
-		chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpu(*(__force __le64 *)nonce), key);
+		chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpup((__force __le64 *)nonce), key);
 	else if (nonce_len == 12)
 		chacha20poly1305_selftest_encrypt_bignonce(dst, src, src_len, ad, ad_len, nonce, key);
 	else
