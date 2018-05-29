@@ -293,7 +293,8 @@ monitor_daemon() {
 	echo "[+] Backgrounding route monitor" >&2
 	(trap 'del_routes; del_dns; exit 0' INT TERM EXIT
 	exec >/dev/null 2>&1
-	local event
+	local event pid=$BASHPID
+	[[ ${#DNS[@]} -gt 0 ]] && trap set_dns ALRM
 	# TODO: this should also check to see if the endpoint actually changes
 	# in response to incoming packets, and then call set_endpoint_direct_route
 	# then too. That function should be able to gracefully cleanup if the
@@ -303,7 +304,10 @@ monitor_daemon() {
 		ifconfig "$REAL_INTERFACE" >/dev/null 2>&1 || break
 		[[ $AUTO_ROUTE4 -eq 1 || $AUTO_ROUTE6 -eq 1 ]] && set_endpoint_direct_route
 		[[ -z $MTU ]] && set_mtu
-		[[ ${#DNS[@]} -gt 0 ]] && set_dns
+		if [[ ${#DNS[@]} -gt 0 ]]; then
+			set_dns
+			sleep 2 && kill -ALRM $pid 2>/dev/null &
+		fi
 	done < <(route -n monitor)) & disown
 }
 
