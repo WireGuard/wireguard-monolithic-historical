@@ -1559,25 +1559,25 @@ int wg_key_from_base64(wg_key key, const wg_key_b64_string base64)
 {
 	unsigned int i;
 	int val;
+	volatile uint8_t ret = 0;
 
-	errno = EINVAL;
-	if (strlen(base64) != sizeof(wg_key_b64_string) - 1 || base64[sizeof(wg_key_b64_string) - 2] != '=')
+	if (strlen(base64) != sizeof(wg_key_b64_string) - 1 || base64[sizeof(wg_key_b64_string) - 2] != '=') {
+		errno = EINVAL;
 		goto out;
+	}
 
 	for (i = 0; i < 32 / 3; ++i) {
 		val = decode_base64(&base64[i * 4]);
-		if (val < 0)
-			goto out;
+		ret |= (uint32_t)val >> 31;
 		key[i * 3 + 0] = (val >> 16) & 0xff;
 		key[i * 3 + 1] = (val >> 8) & 0xff;
 		key[i * 3 + 2] = val & 0xff;
 	}
 	val = decode_base64((const char[]){ base64[i * 4 + 0], base64[i * 4 + 1], base64[i * 4 + 2], 'A' });
-	if (val < 0 || val & 0xff)
-		goto out;
+	ret |= ((uint32_t)val >> 31) | (val & 0xff);
 	key[i * 3 + 0] = (val >> 16) & 0xff;
 	key[i * 3 + 1] = (val >> 8) & 0xff;
-	errno = 0;
+	errno = EINVAL & ~((ret - 1) >> 8);
 out:
 	return -errno;
 }
