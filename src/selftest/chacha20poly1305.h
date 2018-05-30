@@ -1313,11 +1313,23 @@ static inline void chacha20poly1305_selftest_encrypt(u8 *dst, const u8 *src, con
 		BUG();
 }
 
+enum { MAXIMUM_TEST_BUFFER_LEN = 3000 };
+
 bool __init chacha20poly1305_selftest(void)
 {
 	size_t i;
-	u8 computed_result[3000];
-	bool success = true, ret;
+	u8 computed_result[MAXIMUM_TEST_BUFFER_LEN], *heap_src, *heap_dst;
+	bool success = true, ret, have_simd;
+	struct scatterlist sg_src, sg_dst;
+
+	heap_src = kmalloc(MAXIMUM_TEST_BUFFER_LEN, GFP_KERNEL);
+	heap_dst = kmalloc(MAXIMUM_TEST_BUFFER_LEN, GFP_KERNEL);
+	if (!heap_src || !heap_dst) {
+		kfree(heap_src);
+		kfree(heap_dst);
+		pr_info("chacha20poly1305 self-test malloc: FAIL\n");
+		return false;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
@@ -1327,6 +1339,21 @@ bool __init chacha20poly1305_selftest(void)
 			success = false;
 		}
 	}
+	have_simd = chacha20poly1305_init_simd();
+	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {
+		if (chacha20poly1305_enc_vectors[i].nlen != 8)
+			continue;
+		memset(heap_dst, 0, MAXIMUM_TEST_BUFFER_LEN);
+		memcpy(heap_src, chacha20poly1305_enc_vectors[i].input, chacha20poly1305_enc_vectors[i].ilen);
+		sg_init_one(&sg_src, heap_src, chacha20poly1305_enc_vectors[i].ilen);
+		sg_init_one(&sg_dst, heap_dst, chacha20poly1305_enc_vectors[i].ilen + POLY1305_MAC_SIZE);
+		ret = chacha20poly1305_encrypt_sg(&sg_dst, &sg_src, chacha20poly1305_enc_vectors[i].ilen, chacha20poly1305_enc_vectors[i].assoc, chacha20poly1305_enc_vectors[i].alen, le64_to_cpup((__force __le64 *)chacha20poly1305_enc_vectors[i].nonce), chacha20poly1305_enc_vectors[i].key, have_simd);
+		if (!ret || memcmp(heap_dst, chacha20poly1305_enc_vectors[i].result, chacha20poly1305_enc_vectors[i].ilen + POLY1305_MAC_SIZE)) {
+			pr_info("chacha20poly1305 sg encryption self-test %zu: FAIL\n", i + 1);
+			success = false;
+		}
+	}
+	chacha20poly1305_deinit_simd(have_simd);
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
 		ret = chacha20poly1305_decrypt(computed_result, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpu(*(__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key);
@@ -1335,6 +1362,19 @@ bool __init chacha20poly1305_selftest(void)
 			success = false;
 		}
 	}
+	have_simd = chacha20poly1305_init_simd();
+	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
+		memset(heap_dst, 0, MAXIMUM_TEST_BUFFER_LEN);
+		memcpy(heap_src, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen);
+		sg_init_one(&sg_src, heap_src, chacha20poly1305_dec_vectors[i].ilen);
+		sg_init_one(&sg_dst, heap_dst, chacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE);
+		ret = chacha20poly1305_decrypt_sg(&sg_dst, &sg_src, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpup((__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key, have_simd);
+		if (!ret || memcmp(heap_dst, chacha20poly1305_dec_vectors[i].result, chacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE)) {
+			pr_info("chacha20poly1305 sg decryption self-test %zu: FAIL\n", i + 1);
+			success = false;
+		}
+	}
+	chacha20poly1305_deinit_simd(have_simd);
 	for (i = 0; i < ARRAY_SIZE(xchacha20poly1305_enc_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
 		xchacha20poly1305_encrypt(computed_result, xchacha20poly1305_enc_vectors[i].input, xchacha20poly1305_enc_vectors[i].ilen, xchacha20poly1305_enc_vectors[i].assoc, xchacha20poly1305_enc_vectors[i].alen, xchacha20poly1305_enc_vectors[i].nonce, xchacha20poly1305_enc_vectors[i].key);
@@ -1353,6 +1393,8 @@ bool __init chacha20poly1305_selftest(void)
 	}
 	if (success)
 		pr_info("chacha20poly1305 self-tests: pass\n");
+	kfree(heap_src);
+	kfree(heap_dst);
 	return success;
 }
 #endif
