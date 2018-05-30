@@ -18,6 +18,9 @@ enum poly1305_lengths {
 #define POLY1305_OPAQUE_LEN (10 * sizeof(u32))
 #elif defined(CONFIG_MIPS) && defined(CONFIG_64BIT)
 #define POLY1305_OPAQUE_LEN (6 * sizeof(u64))
+#elif !(defined(CONFIG_X86_64) || defined(CONFIG_ARM) || defined(CONFIG_ARM64) || (defined(CONFIG_MIPS) && (defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2))))
+/* POLY1305 C version */
+#define POLY1305_OPAQUE_LEN (9 * sizeof(u32))
 #else
 /* Default POLY1305_OPAQUE_LEN, can be removed when all lengths are known. */
 #define POLY1305_OPAQUE_LEN (24 * sizeof(u64))
