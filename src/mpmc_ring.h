@@ -141,7 +141,7 @@ _ck_ring_enqueue_mp(struct ck_ring *ring, const void *entry, unsigned int ts,
 		ck_pr_fence_load();
 		consumer = ck_pr_load_uint(&ring->c_head);
 
-		delta = producer + 1;
+		delta = (producer + 1) & mask;
 
 		/*
 		 * Only try to CAS if the producer is not clearly stale (not
@@ -182,7 +182,7 @@ _ck_ring_enqueue_mp(struct ck_ring *ring, const void *entry, unsigned int ts,
 		}
 	}
 
-	buffer = (char *)ring->queue + ts * (producer & mask);
+	buffer = (char *)ring->queue + ts * producer;
 	//pr_err("memcpy(%p, %p, %u)", buffer, entry, ts);
 	memcpy(buffer, entry, ts);
 
@@ -236,11 +236,11 @@ _ck_ring_trydequeue_mc(struct ck_ring *ring,
 
 	ck_pr_fence_load();
 
-	buffer = (const char *)ring->queue + size * (consumer & mask);
+	buffer = (const char *)ring->queue + size * consumer;
 	memcpy(data, buffer, size);
 
 	ck_pr_fence_store_atomic();
-	return ck_pr_cas_uint(&ring->c_head, consumer, consumer + 1);
+	return ck_pr_cas_uint(&ring->c_head, consumer, (consumer + 1) & mask);
 }
 
 CK_CC_FORCE_INLINE static bool
@@ -267,14 +267,14 @@ _ck_ring_dequeue_mc(struct ck_ring *ring,
 
 		ck_pr_fence_load();
 
-		target = (const char *)ring->queue + ts * (consumer & mask);
+		target = (const char *)ring->queue + ts * consumer;
 		memcpy(data, target, ts);
 
 		/* Serialize load with respect to head update. */
 		ck_pr_fence_store_atomic();
 	} while (ck_pr_cas_uint_value(&ring->c_head,
 				      consumer,
-				      consumer + 1,
+				      (consumer + 1) & mask,
 				      &consumer) == false);
 
 	return true;
@@ -324,9 +324,10 @@ static __always_inline bool mpmc_ptr_ring_peek(struct ck_ring *ring, void *data,
 
 static __always_inline void mpmc_ptr_ring_discard(struct ck_ring *ring)
 {
-	smp_mb__before_atomic();
-	atomic_inc(&ring->c_head);
-	smp_mb__after_atomic();
+	const unsigned int mask = ring->mask;
+	unsigned int consumer = consumer = ck_pr_load_uint(&ring->c_head);
+
+	atomic_set(&ring->c_head, (consumer + 1) & mask);
 }
 
 /*
