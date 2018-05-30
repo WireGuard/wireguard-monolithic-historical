@@ -14,17 +14,17 @@
 #include <asm/processor.h>
 #include <asm/intel-family.h>
 asmlinkage void poly1305_init_x86_64(void *ctx, const u8 key[POLY1305_KEY_SIZE]);
-asmlinkage void poly1305_blocks_x86_64(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_blocks_x86_64(void *ctx, const u8 *inp, const size_t len, const u32 padbit);
 asmlinkage void poly1305_emit_x86_64(void *ctx, u8 mac[POLY1305_MAC_SIZE], const u32 nonce[4]);
 #ifdef CONFIG_AS_AVX
 asmlinkage void poly1305_emit_avx(void *ctx, u8 mac[POLY1305_MAC_SIZE], const u32 nonce[4]);
-asmlinkage void poly1305_blocks_avx(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_blocks_avx(void *ctx, const u8 *inp, const size_t len, const u32 padbit);
 #endif
 #ifdef CONFIG_AS_AVX2
-asmlinkage void poly1305_blocks_avx2(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_blocks_avx2(void *ctx, const u8 *inp, const size_t len, const u32 padbit);
 #endif
 #ifdef CONFIG_AS_AVX512
-asmlinkage void poly1305_blocks_avx512(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_blocks_avx512(void *ctx, const u8 *inp, const size_t len, const u32 padbit);
 #endif
 
 static bool poly1305_use_avx __ro_after_init;
@@ -47,13 +47,13 @@ void __init poly1305_fpu_init(void)
 }
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 asmlinkage void poly1305_init_arm(void *ctx, const u8 key[16]);
-asmlinkage void poly1305_blocks_arm(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_blocks_arm(void *ctx, const u8 *inp, const size_t len, const u32 padbit);
 asmlinkage void poly1305_emit_arm(void *ctx, u8 mac[16], const u32 nonce[4]);
 #if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && (!defined(__LINUX_ARM_ARCH__) || __LINUX_ARM_ARCH__ >= 7)
 #define ARM_USE_NEON
 #include <asm/hwcap.h>
 #include <asm/neon.h>
-asmlinkage void poly1305_blocks_neon(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_blocks_neon(void *ctx, const u8 *inp, const size_t len, const u32 padbit);
 asmlinkage void poly1305_emit_neon(void *ctx, u8 mac[16], const u32 nonce[4]);
 #endif
 static bool poly1305_use_neon __ro_after_init;
@@ -67,7 +67,7 @@ void __init poly1305_fpu_init(void)
 }
 #elif defined(CONFIG_MIPS) && (defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2))
 asmlinkage void poly1305_init_mips(void *ctx, const u8 key[16]);
-asmlinkage void poly1305_blocks_mips(void *ctx, const u8 *inp, size_t len, u32 padbit);
+asmlinkage void poly1305_blocks_mips(void *ctx, const u8 *inp, const size_t len, const u32 padbit);
 asmlinkage void poly1305_emit_mips(void *ctx, u8 mac[16], const u32 nonce[4]);
 void __init poly1305_fpu_init(void) { }
 #else
@@ -98,7 +98,7 @@ static void poly1305_init_generic(void *ctx, const u8 key[16])
 	st->r[3] = le32_to_cpup((__le32 *)&key[12]) & 0x0ffffffc;
 }
 
-static void poly1305_blocks_generic(void *ctx, const u8 *inp, size_t len, u32 padbit)
+static void poly1305_blocks_generic(void *ctx, const u8 *inp, size_t len, const u32 padbit)
 {
 #define CONSTANT_TIME_CARRY(a,b) ((a ^ ((a ^ b) | ((a - b) ^ b))) >> (sizeof(a) * 8 - 1))
 	struct poly1305_internal *st = (struct poly1305_internal *)ctx;
@@ -255,7 +255,7 @@ void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], bo
 	ctx->num = 0;
 }
 
-static inline void poly1305_blocks(void *ctx, const u8 *inp, size_t len, u32 padbit, bool have_simd)
+static inline void poly1305_blocks(void *ctx, const u8 *inp, const size_t len, const u32 padbit, bool have_simd)
 {
 #if defined(CONFIG_X86_64)
 #ifdef CONFIG_AS_AVX512

@@ -15,14 +15,14 @@
 #include <asm/intel-family.h>
 #ifdef CONFIG_AS_SSSE3
 asmlinkage void hchacha20_ssse3(u8 *derived_key, const u8 *nonce, const u8 *key);
-asmlinkage void chacha20_ssse3(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void chacha20_ssse3(u8 *out, const u8 *in, const size_t len, const u32 key[8], const u32 counter[4]);
 #endif
 #ifdef CONFIG_AS_AVX2
-asmlinkage void chacha20_avx2(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void chacha20_avx2(u8 *out, const u8 *in, const size_t len, const u32 key[8], const u32 counter[4]);
 #endif
 #ifdef CONFIG_AS_AVX512
-asmlinkage void chacha20_avx512(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
-asmlinkage void chacha20_avx512vl(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void chacha20_avx512(u8 *out, const u8 *in, const size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void chacha20_avx512vl(u8 *out, const u8 *in, const size_t len, const u32 key[8], const u32 counter[4]);
 #endif
 
 static bool chacha20_use_ssse3 __ro_after_init;
@@ -46,12 +46,12 @@ void __init chacha20_fpu_init(void)
 #endif
 }
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
-asmlinkage void chacha20_arm(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void chacha20_arm(u8 *out, const u8 *in, const size_t len, const u32 key[8], const u32 counter[4]);
 #if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && (!defined(__LINUX_ARM_ARCH__) || __LINUX_ARM_ARCH__ >= 7)
 #define ARM_USE_NEON
 #include <asm/hwcap.h>
 #include <asm/neon.h>
-asmlinkage void chacha20_neon(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void chacha20_neon(u8 *out, const u8 *in, const size_t len, const u32 key[8], const u32 counter[4]);
 #endif
 static bool chacha20_use_neon __ro_after_init;
 void __init chacha20_fpu_init(void)
@@ -63,7 +63,7 @@ void __init chacha20_fpu_init(void)
 #endif
 }
 #elif defined(CONFIG_MIPS) && defined(CONFIG_CPU_MIPS32_R2)
-asmlinkage void chacha20_mips(u8 *out, const u8 *in, size_t len, const u32 key[8], const u32 counter[4]);
+asmlinkage void chacha20_mips(u8 *out, const u8 *in, const size_t len, const u32 key[8], const u32 counter[4]);
 void __init chacha20_fpu_init(void) { }
 #else
 void __init chacha20_fpu_init(void) { }

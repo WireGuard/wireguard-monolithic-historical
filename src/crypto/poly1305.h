@@ -24,7 +24,7 @@ struct poly1305_ctx {
 void poly1305_fpu_init(void);
 
 void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], bool have_simd);
-void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len, bool have_simd);
+void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, const size_t len, bool have_simd);
 void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE], bool have_simd);
 
 #ifdef DEBUG
