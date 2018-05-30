@@ -44,10 +44,12 @@
 #define srclen	$a2
 #define hibit	$a3
 
+/* Location in the opaque buffer
+ * R[0..3], CA, H[0..4]
+ */
 #define PTR_POLY1305_R(n) ( 0 + (n*4)) ## ($a0)
-#define PTR_POLY1305_S(n) (16 + (n*4)) ## ($a0)
-#define PTR_POLY1305_CA   (32        ) ## ($a0)
-#define PTR_POLY1305_H(n) (36 + (n*4)) ## ($a0)
+#define PTR_POLY1305_CA   (16        ) ## ($a0)
+#define PTR_POLY1305_H(n) (20 + (n*4)) ## ($a0)
 
 #define POLY1305_BLOCK_SIZE 16
 #define POLY1305_STACK_SIZE 8 * 4
@@ -86,10 +88,6 @@ poly1305_blocks_mips:
 	sw	$s4, 16($sp)
 	sw	$s5, 20($sp)
 
-	lw	S1, PTR_POLY1305_S(1)
-	lw	S2, PTR_POLY1305_S(2)
-	lw	S3, PTR_POLY1305_S(3)
-
 	/* load Hx and Carry */
 	lw	CA, PTR_POLY1305_CA
 	lw	H0, PTR_POLY1305_H(0)
@@ -97,6 +95,14 @@ poly1305_blocks_mips:
 	lw	H2, PTR_POLY1305_H(2)
 	lw	H3, PTR_POLY1305_H(3)
 	lw	H4, PTR_POLY1305_H(4)
+
+	/* Sx = Rx + (Rx >> 2) */
+	srl	S1, R1, 2
+	srl	S2, R2, 2
+	srl	S3, R3, 2
+	addu	S1, R1
+	addu	S2, R2
+	addu	S3, R3
 
 	addiu	SC, $zero, 1
 
@@ -352,9 +358,6 @@ poly1305_emit_mips:
 #define PR2 $t2
 #define PR3 $t3
 #define PT0 $t4
-#define PS1 $t5
-#define PS2 $t6
-#define PS3 $t7
 
 /* Input arguments CTX=$a0, KEY=$a1 */
 
@@ -371,6 +374,14 @@ poly1305_init_mips:
 	lwr	PR2, 8+LSB($a1)
 	lwr	PR3,12+LSB($a1)
 
+	/* store Hx and Carry */
+	sw	$zero, PTR_POLY1305_CA
+	sw	$zero, PTR_POLY1305_H(0)
+	sw	$zero, PTR_POLY1305_H(1)
+	sw	$zero, PTR_POLY1305_H(2)
+	sw	$zero, PTR_POLY1305_H(3)
+	sw	$zero, PTR_POLY1305_H(4)
+
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	wsbh	PR0
 	wsbh	PR1
@@ -381,14 +392,6 @@ poly1305_init_mips:
 	rotr	PR2, 16
 	rotr	PR3, 16
 #endif
-
-	/* store Hx and Carry */
-	sw	$zero, PTR_POLY1305_CA
-	sw	$zero, PTR_POLY1305_H(0)
-	sw	$zero, PTR_POLY1305_H(1)
-	sw	$zero, PTR_POLY1305_H(2)
-	sw	$zero, PTR_POLY1305_H(3)
-	sw	$zero, PTR_POLY1305_H(4)
 
 	lui	PT0, 0x0FFF
 	ori	PT0, 0xFFFC
@@ -401,26 +404,14 @@ poly1305_init_mips:
 	and	PR2, PT0
 	and	PR3, PT0
 
-	srl	PS1, PR1, 2
-	srl	PS2, PR2, 2
-	srl	PS3, PR3, 2
-	addu	PS1, PR1
-	addu	PS2, PR2
-	addu	PS3, PR3
-
 	/* store Rx */
 	sw	PR0, PTR_POLY1305_R(0)
 	sw	PR1, PTR_POLY1305_R(1)
 	sw	PR2, PTR_POLY1305_R(2)
-	sw	PR3, PTR_POLY1305_R(3)
-
-	/* store Sx */
-	sw	PS1, PTR_POLY1305_S(1)
-	sw	PS2, PTR_POLY1305_S(2)
 
 	.set noreorder
 	/* Jump Back  */
 	jr	$ra
-	sw	PS3, PTR_POLY1305_S(3)
+	sw	PR3, PTR_POLY1305_R(3)
 	.set reorder
 .end poly1305_init_mips
