@@ -14,8 +14,14 @@ enum poly1305_lengths {
 	POLY1305_MAC_SIZE = 16
 };
 
+
+#if !defined(POLY1305_OPAQUE_LEN)
+/* Default POLY1305_OPAQUE_LEN, can be removed when all lengths are known. */
+#define POLY1305_OPAQUE_LEN (24 * sizeof(u64))
+#endif
+
 struct poly1305_ctx {
-	u8 opaque[24 * sizeof(u64)];
+	u8 opaque[POLY1305_OPAQUE_LEN];
 	u32 nonce[4];
 	u8 data[POLY1305_BLOCK_SIZE];
 	size_t num;
