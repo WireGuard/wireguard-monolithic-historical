@@ -120,16 +120,16 @@ void __init blake2s_fpu_init(void)
 #endif
 }
 #ifdef CONFIG_AS_AVX
-asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 *block, size_t nblocks, u32 inc);
+asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 *block, const size_t nblocks, const u32 inc);
 #endif
 #ifdef CONFIG_AS_AVX512
-asmlinkage void blake2s_compress_avx512(struct blake2s_state *state, const u8 *block, size_t nblocks, u32 inc);
+asmlinkage void blake2s_compress_avx512(struct blake2s_state *state, const u8 *block, const size_t nblocks, const u32 inc);
 #endif
 #else
 void __init blake2s_fpu_init(void) { }
 #endif
 
-static inline void blake2s_compress(struct blake2s_state *state, const u8 *block, size_t nblocks, u32 inc)
+static inline void blake2s_compress(struct blake2s_state *state, const u8 *block, size_t nblocks, const u32 inc)
 {
 	u32 m[16];
 	u32 v[16];
