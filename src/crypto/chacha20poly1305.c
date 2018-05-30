@@ -30,15 +30,16 @@ static inline void __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size
 					      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 					      bool have_simd)
 {
-	__le64 len;
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
-	u8 block0[POLY1305_KEY_SIZE] = { 0 };
+	union {
+		u8 block0[POLY1305_KEY_SIZE];
+		__le64 lens[2];
+	} b = {{ 0 }};
 
 	chacha20_init(&chacha20_state, key, nonce);
-	chacha20(&chacha20_state, block0, block0, sizeof(block0), have_simd);
-	poly1305_init(&poly1305_state, block0, have_simd);
-	memzero_explicit(block0, sizeof(block0));
+	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0), have_simd);
+	poly1305_init(&poly1305_state, b.block0, have_simd);
 
 	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
@@ -48,15 +49,14 @@ static inline void __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size
 	poly1305_update(&poly1305_state, dst, src_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, have_simd);
 
-	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
-
-	len = cpu_to_le64(src_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
+	b.lens[0] = cpu_to_le64(ad_len);
+	b.lens[1] = cpu_to_le64(src_len);
+	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens), have_simd);
 
 	poly1305_finish(&poly1305_state, dst + src_len, have_simd);
 
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
+	memzero_explicit(&b, sizeof(b));
 }
 
 void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
@@ -75,18 +75,19 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 				 bool have_simd)
 {
-	__le64 len;
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
 	int ret = 0;
 	struct blkcipher_walk walk;
-	u8 block0[POLY1305_KEY_SIZE] = { 0 };
-	u8 mac[POLY1305_MAC_SIZE];
+	union {
+		u8 block0[POLY1305_KEY_SIZE];
+		u8 mac[POLY1305_MAC_SIZE];
+		__le64 lens[2];
+	} b = {{ 0 }};
 
 	chacha20_init(&chacha20_state, key, nonce);
-	chacha20(&chacha20_state, block0, block0, sizeof(block0), have_simd);
-	poly1305_init(&poly1305_state, block0, have_simd);
-	memzero_explicit(block0, sizeof(block0));
+	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0), have_simd);
+	poly1305_init(&poly1305_state, b.block0, have_simd);
 
 	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
@@ -112,17 +113,15 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 
 	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, have_simd);
 
-	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
+	b.lens[0] = cpu_to_le64(ad_len);
+	b.lens[1] = cpu_to_le64(src_len);
+	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens), have_simd);
 
-	len = cpu_to_le64(src_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
-
-	poly1305_finish(&poly1305_state, mac, have_simd);
-	scatterwalk_map_and_copy(mac, dst, src_len, sizeof(mac), 1);
+	poly1305_finish(&poly1305_state, b.mac, have_simd);
+	scatterwalk_map_and_copy(b.mac, dst, src_len, sizeof(b.mac), 1);
 err:
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
-	memzero_explicit(mac, sizeof(mac));
+	memzero_explicit(&b, sizeof(b));
 	return !ret;
 }
 
@@ -131,21 +130,22 @@ static inline bool __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size
 					      const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 					      bool have_simd)
 {
-	__le64 len;
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
 	int ret;
-	u8 block0[POLY1305_KEY_SIZE] = { 0 };
-	u8 mac[POLY1305_MAC_SIZE];
 	size_t dst_len;
+	union {
+		u8 block0[POLY1305_KEY_SIZE];
+		u8 mac[POLY1305_MAC_SIZE];
+		__le64 lens[2];
+	} b = {{ 0 }};
 
 	if (unlikely(src_len < POLY1305_MAC_SIZE))
 		return false;
 
 	chacha20_init(&chacha20_state, key, nonce);
-	chacha20(&chacha20_state, block0, block0, sizeof(block0), have_simd);
-	poly1305_init(&poly1305_state, block0, have_simd);
-	memzero_explicit(block0, sizeof(block0));
+	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0), have_simd);
+	poly1305_init(&poly1305_state, b.block0, have_simd);
 
 	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
@@ -154,20 +154,18 @@ static inline bool __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size
 	poly1305_update(&poly1305_state, src, dst_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - dst_len) & 0xf, have_simd);
 
-	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
+	b.lens[0] = cpu_to_le64(ad_len);
+	b.lens[1] = cpu_to_le64(dst_len);
+	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens), have_simd);
 
-	len = cpu_to_le64(dst_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
+	poly1305_finish(&poly1305_state, b.mac, have_simd);
 
-	poly1305_finish(&poly1305_state, mac, have_simd);
-
-	ret = crypto_memneq(mac, src + dst_len, POLY1305_MAC_SIZE);
-	memzero_explicit(mac, POLY1305_MAC_SIZE);
+	ret = crypto_memneq(b.mac, src + dst_len, POLY1305_MAC_SIZE);
 	if (likely(!ret))
 		chacha20(&chacha20_state, dst, src, dst_len, have_simd);
 
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
+	memzero_explicit(&b, sizeof(b));
 
 	return !ret;
 }
@@ -189,22 +187,26 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
 				 bool have_simd)
 {
-	__le64 len;
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
 	struct blkcipher_walk walk;
 	int ret = 0;
-	u8 block0[POLY1305_KEY_SIZE] = { 0 };
-	u8 read_mac[POLY1305_MAC_SIZE], computed_mac[POLY1305_MAC_SIZE];
 	size_t dst_len;
+	union {
+		u8 block0[POLY1305_KEY_SIZE];
+		struct {
+			u8 read_mac[POLY1305_MAC_SIZE];
+			u8 computed_mac[POLY1305_MAC_SIZE];
+		};
+		__le64 lens[2];
+	} b = {{ 0 }};
 
 	if (unlikely(src_len < POLY1305_MAC_SIZE))
 		return false;
 
 	chacha20_init(&chacha20_state, key, nonce);
-	chacha20(&chacha20_state, block0, block0, sizeof(block0), have_simd);
-	poly1305_init(&poly1305_state, block0, have_simd);
-	memzero_explicit(block0, sizeof(block0));
+	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0), have_simd);
+	poly1305_init(&poly1305_state, b.block0, have_simd);
 
 	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
@@ -231,20 +233,17 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 
 	poly1305_update(&poly1305_state, pad0, (0x10 - dst_len) & 0xf, have_simd);
 
-	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
+	b.lens[0] = cpu_to_le64(ad_len);
+	b.lens[1] = cpu_to_le64(dst_len);
+	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens), have_simd);
 
-	len = cpu_to_le64(dst_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
+	poly1305_finish(&poly1305_state, b.computed_mac, have_simd);
 
-	poly1305_finish(&poly1305_state, computed_mac, have_simd);
-
-	scatterwalk_map_and_copy(read_mac, src, dst_len, POLY1305_MAC_SIZE, 0);
-	ret = crypto_memneq(read_mac, computed_mac, POLY1305_MAC_SIZE);
+	scatterwalk_map_and_copy(b.read_mac, src, dst_len, POLY1305_MAC_SIZE, 0);
+	ret = crypto_memneq(b.read_mac, b.computed_mac, POLY1305_MAC_SIZE);
 err:
-	memzero_explicit(read_mac, POLY1305_MAC_SIZE);
-	memzero_explicit(computed_mac, POLY1305_MAC_SIZE);
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
+	memzero_explicit(&b, sizeof(b));
 	return !ret;
 }
 
