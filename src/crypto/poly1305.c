@@ -355,6 +355,24 @@ void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len, bool h
 	ctx->num = rem;
 }
 
+void poly1305_update_pad_fb(struct poly1305_ctx *ctx, const u8 *inp, size_t len, bool have_simd)
+{
+	size_t rem;
+
+	rem = len & -(POLY1305_BLOCK_SIZE);
+	if (rem) {
+		poly1305_blocks(ctx->opaque, inp, rem, 1, have_simd);
+		inp += rem;
+	}
+
+	rem = len & (POLY1305_BLOCK_SIZE-1);
+	if (rem) {
+		memset(ctx->data, 0, POLY1305_BLOCK_SIZE);
+		memcpy(ctx->data, inp, rem);
+		poly1305_blocks(ctx->opaque, ctx->data, POLY1305_BLOCK_SIZE, 1, have_simd);
+	}
+}
+
 void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE], bool have_simd)
 {
 	size_t num = ctx->num % POLY1305_BLOCK_SIZE;
