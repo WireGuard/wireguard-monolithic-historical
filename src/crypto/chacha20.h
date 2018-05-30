@@ -23,7 +23,7 @@ struct chacha20_ctx {
 
 void chacha20_fpu_init(void);
 
-static inline void chacha20_init(struct chacha20_ctx *state, const u8 key[CHACHA20_KEY_SIZE], u64 nonce)
+static inline void chacha20_init(struct chacha20_ctx *state, const u8 key[CHACHA20_KEY_SIZE], const u64 nonce)
 {
 	__le32 *le_key = (__le32 *)key;
 	state->key[0] = le32_to_cpu(le_key[0]);
