@@ -1276,28 +1276,31 @@ static const struct chacha20poly1305_testvec xchacha20poly1305_dec_vectors[] __i
 static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 *src, const size_t src_len, const u8 *ad, const size_t ad_len, const u8 nonce[12], const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	bool have_simd = chacha20poly1305_init_simd();
-	__le64 len;
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
-	u8 block0[POLY1305_KEY_SIZE] = { 0 };
+	union {
+		u8 block0[POLY1305_KEY_SIZE];
+		__le64 lens[2];
+	} b = {{ 0 }};
 
 	chacha20_init(&chacha20_state, key, 0);
 	chacha20_state.counter[1] = le32_to_cpu(*(__le32 *)(nonce + 0));
 	chacha20_state.counter[2] = le32_to_cpu(*(__le32 *)(nonce + 4));
 	chacha20_state.counter[3] = le32_to_cpu(*(__le32 *)(nonce + 8));
-	chacha20(&chacha20_state, block0, block0, sizeof(block0), have_simd);
-	poly1305_init(&poly1305_state, block0, have_simd);
+	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0), have_simd);
+	poly1305_init(&poly1305_state, b.block0, have_simd);
 	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
 	chacha20(&chacha20_state, dst, src, src_len, have_simd);
 	poly1305_update(&poly1305_state, dst, src_len, have_simd);
 	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, have_simd);
-	len = cpu_to_le64(ad_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
-	len = cpu_to_le64(src_len);
-	poly1305_update(&poly1305_state, (u8 *)&len, sizeof(len), have_simd);
+	b.lens[0] = cpu_to_le64(ad_len);
+	b.lens[1] = cpu_to_le64(src_len);
+	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens), have_simd);
 	poly1305_finish(&poly1305_state, dst + src_len, have_simd);
 	chacha20poly1305_deinit_simd(have_simd);
+	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
+	memzero_explicit(&b, sizeof(b));
 }
 
 static inline void chacha20poly1305_selftest_encrypt(u8 *dst, const u8 *src, const size_t src_len, const u8 *ad, const size_t ad_len, const u8 *nonce, const size_t nonce_len, const u8 key[CHACHA20POLY1305_KEYLEN])
