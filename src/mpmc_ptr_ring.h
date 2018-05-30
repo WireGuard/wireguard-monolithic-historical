@@ -39,14 +39,12 @@ struct mpmc_ptr_ring {
 	void **queue;
 	size_t size;
 
-	/* consumer_head: updated in dequeue; read in enqueue */
+	/* consumer_head: updated in _consume; read in _produce */
 	atomic_t consumer_head ____cacheline_aligned_in_smp;
 
-	/* producer_head: read and updated in enqueue */
+	/* producer_{head,tail}: updated in _produce */
 	atomic_t producer_head ____cacheline_aligned_in_smp;
-
-	/* producer_tail: updated in enqueue, read in dequeue */
-	atomic_t producer_tail ____cacheline_aligned_in_smp;
+	atomic_t producer_tail;
 };
 
 static inline bool mpmc_ptr_ring_empty(struct mpmc_ptr_ring *r)
