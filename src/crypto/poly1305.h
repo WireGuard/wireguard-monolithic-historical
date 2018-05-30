@@ -14,8 +14,9 @@ enum poly1305_lengths {
 	POLY1305_MAC_SIZE = 16
 };
 
-
-#if !defined(POLY1305_OPAQUE_LEN)
+#if defined(CONFIG_MIPS) && defined(CONFIG_CPU_MIPS32_R2)
+#define POLY1305_OPAQUE_LEN (10 * sizeof(u32))
+#else
 /* Default POLY1305_OPAQUE_LEN, can be removed when all lengths are known. */
 #define POLY1305_OPAQUE_LEN (24 * sizeof(u64))
 #endif
