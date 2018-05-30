@@ -143,7 +143,7 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_peer;
 	}
 
-	mtu = dst_mtu(skb_dst(skb));
+	mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
 	__skb_queue_head_init(&packets);
 	if (!skb_is_gso(skb))
