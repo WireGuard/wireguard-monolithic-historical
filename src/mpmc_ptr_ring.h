@@ -40,13 +40,13 @@ struct mpmc_ptr_ring {
 	size_t size;
 
 	/* consumer_head: updated in dequeue; read in enqueue */
-	atomic_long_t consumer_head ____cacheline_aligned_in_smp;
+	atomic_t consumer_head ____cacheline_aligned_in_smp;
 
 	/* producer_head: read and updated in enqueue */
-	atomic_long_t producer_head ____cacheline_aligned_in_smp;
+	atomic_t producer_head ____cacheline_aligned_in_smp;
 
 	/* producer_tail: updated in enqueue, read in dequeue */
-	atomic_long_t producer_tail ____cacheline_aligned_in_smp;
+	atomic_t producer_tail ____cacheline_aligned_in_smp;
 };
 
 static inline bool mpmc_ptr_ring_empty(struct mpmc_ptr_ring *r)
@@ -56,8 +56,8 @@ static inline bool mpmc_ptr_ring_empty(struct mpmc_ptr_ring *r)
 	/* Order the following reads against earlier stuff */
 	rmb();
 
-	ptail = atomic_long_read(&r->producer_tail);
-	chead = atomic_long_read(&r->consumer_head);
+	ptail = atomic_read(&r->producer_tail);
+	chead = atomic_read(&r->consumer_head);
 
 	return chead == ptail;
 }
@@ -67,20 +67,20 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 	size_t p, c;
 	size_t mask = r->size - 1;
 
-	p = atomic_long_read(&r->producer_head);
+	p = atomic_read(&r->producer_head);
 
 	for (;;) {
 		rmb();	 /* TODO */
-		c = atomic_long_read(&r->consumer_head);
+		c = atomic_read(&r->consumer_head);
 
 		if ((p - c) < mask) { /* fast path */
-			if (atomic_long_cmpxchg(&r->producer_head, p, p + 1) == p)
+			if (atomic_cmpxchg(&r->producer_head, p, p + 1) == p)
 				break;
 		} else {
 			size_t new_p;
 
 			rmb();
-			new_p = atomic_long_read(&r->producer_head);
+			new_p = atomic_read(&r->producer_head);
 
 			if (new_p == p)
 				return -ENOSPC;
@@ -92,7 +92,7 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 	WRITE_ONCE(r->queue[p & mask], ptr);
 
 	/* Wait until it's our term to update the producer tail pointer */
-	while(atomic_long_read(&r->producer_tail) != p)
+	while(atomic_read(&r->producer_tail) != p)
 		cpu_relax();
 
 	/*
@@ -100,7 +100,7 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 	 * is updated.
 	 */
 	wmb();
-	atomic_long_set(&r->producer_tail, p + 1);
+	atomic_set(&r->producer_tail, p + 1);
 
 	return 0;
 }
@@ -112,12 +112,12 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 	size_t mask = r->size - 1;
 
 	for (;;) {
-		c = atomic_long_read(&r->consumer_head);
+		c = atomic_read(&r->consumer_head);
 
 		/* Fetch consumer_head first. */
 		rmb();
 
-		p = atomic_long_read(&r->producer_tail);
+		p = atomic_read(&r->producer_tail);
 
 		/* Is the ring empty? */
 		if (p == c)
@@ -128,7 +128,7 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 		/* TODO: Why? */
 		rmb();
 
-		old_c = atomic_long_cmpxchg(&r->consumer_head, c, c + 1);
+		old_c = atomic_cmpxchg(&r->consumer_head, c, c + 1);
 		if (old_c == c)
 			break;
 	}
@@ -142,9 +142,9 @@ static inline int mpmc_ptr_ring_init(struct mpmc_ptr_ring *r, int size, gfp_t gf
 		return -EINVAL;
 
 	r->size = size;
-	atomic_long_set(&r->consumer_head, 0);
-	atomic_long_set(&r->producer_head, 0);
-	atomic_long_set(&r->producer_tail, 0);
+	atomic_set(&r->consumer_head, 0);
+	atomic_set(&r->producer_head, 0);
+	atomic_set(&r->producer_tail, 0);
 
 	r->queue = kcalloc(size, sizeof(r->queue[0]), gfp);
 	if (!r->queue)
@@ -176,12 +176,12 @@ static inline void *__mpmc_ptr_ring_peek(struct mpmc_ptr_ring *r)
 	size_t mask = r->size - 1;
 	void *element;
 
-	c = atomic_long_read(&r->consumer_head);
+	c = atomic_read(&r->consumer_head);
 
 	/* Fetch consumer_head first */
 	rmb();
 
-	p = atomic_long_read(&r->producer_tail);
+	p = atomic_read(&r->producer_tail);
 
 	if (c == p)
 		return NULL;
@@ -204,5 +204,5 @@ static inline void *__mpmc_ptr_ring_peek(struct mpmc_ptr_ring *r)
 static inline void __mpmc_ptr_ring_discard_one(struct mpmc_ptr_ring *r)
 {
 	smp_mb__before_atomic();
-	atomic_long_inc(&r->consumer_head);
+	atomic_inc(&r->consumer_head);
 }
