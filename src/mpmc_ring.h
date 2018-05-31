@@ -69,14 +69,14 @@ static inline int ck_ring_init(struct ck_ring *ring, uint size, gfp_t gfp)
 	return 0;
 }
 
-__always_inline static bool
+__always_inline static int
 _ck_ring_enqueue_mp(struct ck_ring *ring, const void *entry, unsigned int ts,
     unsigned int *size)
 {
 	const unsigned int mask = ring->mask;
 	unsigned int producer, consumer, delta;
 	void *buffer;
-	bool r = true;
+	int ret = 0;
 
 	producer = atomic_read(&ring->p_head);
 
@@ -118,7 +118,7 @@ _ck_ring_enqueue_mp(struct ck_ring *ring, const void *entry, unsigned int ts,
 			 * during this iteration).
 			 */
 			if (producer == new_producer) {
-				r = false;
+				ret = -ENOSPC;
 				goto leave;
 			}
 
@@ -150,19 +150,19 @@ leave:
 	if (size != NULL)
 		*size = (producer - consumer) & mask;
 
-	return r;
+	return ret;
 }
 
-__always_inline static bool
+__always_inline static int
 _ck_ring_enqueue_mp_size(struct ck_ring *ring, const void *entry,
     unsigned int ts, unsigned int *size)
 {
 	unsigned int sz;
-	bool r;
+	int ret;
 
-	r = _ck_ring_enqueue_mp(ring, entry, ts, &sz);
+	ret = _ck_ring_enqueue_mp(ring, entry, ts, &sz);
 	*size = sz;
-	return r;
+	return ret;
 }
 
 __always_inline static bool
@@ -360,13 +360,13 @@ static __always_inline void mpmc_ptr_ring_discard(struct ck_ring *ring)
  * ring buffer containing pointers. Correctness is provided for any number of
  * producers and consumers.
  */
-inline static bool
+inline static int
 ck_ring_enqueue_mpmc(struct ck_ring *ring, const void *entry)
 {
 	return _ck_ring_enqueue_mp(ring, &entry, sizeof(entry), NULL);
 }
 
-inline static bool
+inline static int
 ck_ring_enqueue_mpmc_size(struct ck_ring *ring, const void *entry,
     unsigned int *size)
 {
