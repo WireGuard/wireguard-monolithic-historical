@@ -134,6 +134,9 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 	return element;
 }
 
+/*
+ * Warning: size must be greater than the number of concurrent consumers
+ */
 static inline int mpmc_ptr_ring_init(struct mpmc_ptr_ring *r, int size, gfp_t gfp)
 {
 	if (WARN_ONCE(!is_power_of_2(size), "size must be a power of two"))

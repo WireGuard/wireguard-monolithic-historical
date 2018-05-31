@@ -52,7 +52,12 @@ enum limits {
 	MAX_TIMER_HANDSHAKES = (90 * HZ) / REKEY_TIMEOUT,
 	MAX_QUEUED_INCOMING_HANDSHAKES = 4096, /* TODO: replace this with DQL */
 	MAX_STAGED_PACKETS = 128,
-	MAX_QUEUED_PACKETS = 1024 /* TODO: replace this with DQL */
+	/* TODO: replace this with DQL */
+	MAX_QUEUED_PACKETS_DEFAULT = 1024,
+	/* The lock-free MPMC queue implementation requires that there are more queue slots than consumers*/
+	MAX_QUEUED_PACKETS = (MAX_QUEUED_PACKETS_DEFAULT > CONFIG_NR_CPUS)?
+		MAX_QUEUED_PACKETS_DEFAULT :
+		roundup_pow_of_two(CONFIG_NR_CPUS + 1),
 };
 
 enum message_type {
