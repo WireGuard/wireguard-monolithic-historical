@@ -280,7 +280,11 @@ static void up_if(unsigned int *netid, const char *iface)
 	cndc("interface setcfg %s up", iface);
 	cndc("network create %u vpn 1 1", *netid);
 	cndc("network interface add %u %s", *netid, iface);
-	cndc("network users add %u 0-99999", *netid);
+}
+
+static void set_users(unsigned int netid)
+{
+	cndc("network users add %u 0-99999", netid);
 }
 
 static void set_dnses(unsigned int netid, const char *dnses)
@@ -510,6 +514,7 @@ static void cmd_up(const char *iface, const char *config, unsigned int mtu, cons
 	set_dnses(netid, dnses);
 	set_routes(iface, netid);
 	set_mtu(iface, mtu);
+	set_users(netid);
 	broadcast_change();
 
 	free(cleanup_iface);
