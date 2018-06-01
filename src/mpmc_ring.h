@@ -70,12 +70,10 @@ static inline int ck_ring_init(struct ck_ring *ring, uint size, gfp_t gfp)
 }
 
 __always_inline static int
-_ck_ring_enqueue_mp(struct ck_ring *ring, const void *entry, unsigned int ts,
-    unsigned int *size)
+_ck_ring_enqueue_mp(struct ck_ring *ring, const void *entry, uint *size)
 {
 	const unsigned int mask = ring->mask;
 	unsigned int producer, consumer, delta;
-	void *buffer;
 	int ret = 0;
 
 	producer = atomic_read(&ring->p_head);
@@ -129,8 +127,7 @@ _ck_ring_enqueue_mp(struct ck_ring *ring, const void *entry, unsigned int ts,
 		}
 	}
 
-	buffer = (char *)ring->queue + ts * producer;
-	memcpy(buffer, entry, ts);
+	WRITE_ONCE(ring->queue[producer], entry);
 
 	/*
 	 * Wait until all concurrent producers have completed writing
@@ -154,54 +151,50 @@ leave:
 }
 
 __always_inline static int
-_ck_ring_enqueue_mp_size(struct ck_ring *ring, const void *entry,
-    unsigned int ts, unsigned int *size)
+_ck_ring_enqueue_mp_size(struct ck_ring *ring, const void *entry, uint *size)
 {
 	unsigned int sz;
 	int ret;
 
-	ret = _ck_ring_enqueue_mp(ring, entry, ts, &sz);
+	ret = _ck_ring_enqueue_mp(ring, entry, &sz);
 	*size = sz;
 	return ret;
 }
 
-__always_inline static bool
-_ck_ring_trydequeue_mc(struct ck_ring *ring,
-    void *data, unsigned int size)
+__always_inline static void *ck_ring_trydequeue_mpmc(struct ck_ring *ring)
 {
 	const unsigned int mask = ring->mask;
 	unsigned int consumer, producer;
-	const void *buffer;
+	void *target;
 
 	consumer = atomic_read(&ring->c_head);
 	smp_rmb();
 	producer = atomic_read(&ring->p_tail);
 
 	if (unlikely(consumer == producer))
-		return false;
+		return NULL;
 
 	smp_rmb();
 
-	buffer = (const char *)ring->queue + size * consumer;
-	memcpy(data, buffer, size);
+	target = READ_ONCE(ring->queue[consumer]);
 
 	ck_pr_fence_store_atomic();
-	return atomic_cmpxchg(&ring->c_head, consumer, (consumer + 1) & mask) == consumer;
+	if (atomic_cmpxchg(&ring->c_head, consumer, (consumer + 1) & mask) == consumer)
+		return target;
+
+	return NULL;
 }
 
-__always_inline static bool
-_ck_ring_dequeue_mc(struct ck_ring *ring,
-    void *data, unsigned int ts)
+__always_inline static void *ck_ring_dequeue_mpmc(struct ck_ring *ring)
 {
 	const unsigned int mask = ring->mask;
 	unsigned int consumer, producer, delta;
+	void *target;
 	bool cmp;
 
 	consumer = atomic_read(&ring->c_head);
 
 	do {
-		const char *target;
-
 		/*
 		 * Producer counter must represent state relative to
 		 * our latest consumer snapshot.
@@ -210,12 +203,11 @@ _ck_ring_dequeue_mc(struct ck_ring *ring,
 		producer = atomic_read(&ring->p_tail);
 
 		if (unlikely(consumer == producer))
-			return false;
+			return NULL;
 
 		smp_rmb();
 
-		target = (const char *)ring->queue + ts * consumer;
-		memcpy(data, target, ts);
+		target = READ_ONCE(ring->queue[consumer]);
 
 		/* Serialize load with respect to head update. */
 		ck_pr_fence_store_atomic();
@@ -225,7 +217,7 @@ _ck_ring_dequeue_mc(struct ck_ring *ring,
 		consumer = delta;
 	} while (!cmp);
 
-	return true;
+	return target;
 }
 
 __always_inline static bool
@@ -363,26 +355,14 @@ static __always_inline void mpmc_ptr_ring_discard(struct ck_ring *ring)
 inline static int
 ck_ring_enqueue_mpmc(struct ck_ring *ring, const void *entry)
 {
-	return _ck_ring_enqueue_mp(ring, &entry, sizeof(entry), NULL);
+	return _ck_ring_enqueue_mp(ring, entry, NULL);
 }
 
 inline static int
 ck_ring_enqueue_mpmc_size(struct ck_ring *ring, const void *entry,
     unsigned int *size)
 {
-	return _ck_ring_enqueue_mp_size(ring, &entry, sizeof(entry), size);
-}
-
-inline static bool
-ck_ring_trydequeue_mpmc(struct ck_ring *ring, void *data)
-{
-	return _ck_ring_trydequeue_mc(ring, (void **)data, sizeof(void *));
-}
-
-inline static bool
-ck_ring_dequeue_mpmc(struct ck_ring *ring, void *data)
-{
-	return _ck_ring_dequeue_mc(ring, (void **)data, sizeof(void *));
+	return _ck_ring_enqueue_mp_size(ring, entry, size);
 }
 
 #endif /* _WG_MPMC_RING_H */

@@ -244,7 +244,7 @@ void packet_encrypt_worker(struct work_struct *work)
 	struct sk_buff *first, *skb, *next;
 	bool have_simd = chacha20poly1305_init_simd();
 
-	while (ck_ring_dequeue_mpmc(&queue->ring, &first)) {
+	while ((first = ck_ring_dequeue_mpmc(&queue->ring)) != NULL) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
 		skb_walk_null_queue_safe(first, skb, next) {

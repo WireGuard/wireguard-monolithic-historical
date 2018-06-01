@@ -414,7 +414,7 @@ void packet_decrypt_worker(struct work_struct *work)
 	struct sk_buff *skb;
 	bool have_simd = chacha20poly1305_init_simd();
 
-	while (ck_ring_dequeue_mpmc(&queue->ring, &skb)) {
+	while ((skb = ck_ring_dequeue_mpmc(&queue->ring)) != NULL) {
 		enum packet_state state = likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving, have_simd)) ? PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
 
 		queue_enqueue_per_peer(&PACKET_PEER(skb)->rx_queue, skb, state);
