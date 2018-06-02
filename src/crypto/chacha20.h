@@ -6,6 +6,7 @@
 #ifndef _WG_CHACHA20_H
 #define _WG_CHACHA20_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 
 enum {
