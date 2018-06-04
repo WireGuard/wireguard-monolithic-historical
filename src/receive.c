@@ -378,7 +378,7 @@ void packet_rx_worker(struct work_struct *work)
 	bool free;
 
 	local_bh_disable();
-	while (mpmc_ptr_ring_peek(&queue->ring, &skb, sizeof(struct sk_buff*)) && (state = atomic_read(&PACKET_CB(skb)->state)) != PACKET_STATE_UNCRYPTED) {
+	while ((skb = mpmc_ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(skb)->state)) != PACKET_STATE_UNCRYPTED) {
 		mpmc_ptr_ring_discard(&queue->ring);
 		peer = PACKET_PEER(skb);
 		keypair = PACKET_CB(skb)->keypair;

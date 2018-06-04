@@ -38,7 +38,7 @@
 /* http://concurrencykit.org/doc/ck_pr_fence_store_atomic.html */
 /* this actually resolves to __asm__ __volatile__("" ::: "memory"); in x86-64 */
 /* so basically a compiler barrier? */
-#define ck_pr_fence_store_atomic() smp_mb__before_atomic() /* TODO: probably overkill? */
+#define ck_pr_fence_store_atomic() /*smp_mb__before_atomic()*/ /* TODO: probably overkill? */
 
 /*
  * Concurrent ring buffer.
@@ -174,7 +174,7 @@ __always_inline static void *ck_ring_trydequeue_mpmc(struct ck_ring *ring)
 	if (unlikely(consumer == producer))
 		return NULL;
 
-	smp_rmb();
+	//smp_rmb();
 
 	target = READ_ONCE(ring->queue[consumer]);
 
@@ -205,7 +205,7 @@ __always_inline static void *ck_ring_dequeue_mpmc(struct ck_ring *ring)
 		if (unlikely(consumer == producer))
 			return NULL;
 
-		smp_rmb();
+		//smp_rmb();
 
 		target = READ_ONCE(ring->queue[consumer]);
 
@@ -305,7 +305,7 @@ static __always_inline bool mpmc_ring_empty(struct ck_ring *ring)
 	smp_rmb();
 	producer = atomic_read(&ring->p_tail);
 
-	smp_rmb();
+	//smp_rmb();
 
 	return producer == consumer;
 }
@@ -315,28 +315,20 @@ static __always_inline void mpmc_ring_cleanup(struct ck_ring *ring)
 	kfree(ring->queue);
 }
 
-static __always_inline bool mpmc_ptr_ring_peek(struct ck_ring *ring, void *data,
-		uint size)
+static __always_inline void *mpmc_ptr_ring_peek(struct ck_ring *ring)
 {
 	uint producer, consumer;
-	const unsigned int mask = ring->mask;
-	void *buffer;
 
 	consumer = atomic_read(&ring->c_head);
 	smp_rmb();
 	producer = atomic_read(&ring->p_tail);
 
-	smp_rmb();
+	//smp_rmb();
 
-	if (unlikely(producer == consumer)) {
-		data = NULL;
-		return false;
-	}
+	if (unlikely(producer == consumer))
+		return NULL;
 
-	buffer = (char *)ring->queue + size * (consumer & mask);
-	memcpy(data, buffer, size);
-
-	return true;
+	return ring->queue[consumer];
 }
 
 static __always_inline void mpmc_ptr_ring_discard(struct ck_ring *ring)
