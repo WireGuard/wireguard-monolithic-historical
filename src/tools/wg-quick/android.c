@@ -455,7 +455,7 @@ static void broadcast_change(void)
 	const char *pkg = getenv("CALLING_PACKAGE");
 
 	if (!pkg || strcmp(pkg, "com.wireguard.android"))
-		cmd("am broadcast -a com.wireguard.android.WGQUICK_CHANGE com.wireguard.android");
+		cmd("am broadcast -a com.wireguard.android.action.REFRESH_TUNNEL_STATES com.wireguard.android");
 }
 
 static void print_search_paths(FILE *file, const char *prefix)
