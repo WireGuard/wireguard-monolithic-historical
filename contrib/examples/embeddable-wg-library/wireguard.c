@@ -1514,7 +1514,7 @@ void wg_free_device(wg_device *dev)
 	free(dev);
 }
 
-static void encode_base64(char dest[4], const uint8_t src[3])
+static void encode_base64(char dest[static 4], const uint8_t src[static 3])
 {
 	const uint8_t input[] = { (src[0] >> 2) & 63, ((src[0] << 4) | (src[1] >> 4)) & 63, ((src[1] << 2) | (src[2] >> 6)) & 63, src[2] & 63 };
 	unsigned int i;
@@ -1539,7 +1539,7 @@ void wg_key_to_base64(wg_key_b64_string base64, const wg_key key)
 	base64[sizeof(wg_key_b64_string) - 1] = '\0';
 }
 
-static int decode_base64(const char src[4])
+static int decode_base64(const char src[static 4])
 {
 	int val = 0;
 	unsigned int i;

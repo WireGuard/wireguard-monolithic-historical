@@ -8,7 +8,7 @@
 #include <string.h>
 #include "encoding.h"
 
-static inline void encode_base64(char dest[4], const uint8_t src[3])
+static inline void encode_base64(char dest[static 4], const uint8_t src[static 3])
 {
 	const uint8_t input[] = { (src[0] >> 2) & 63, ((src[0] << 4) | (src[1] >> 4)) & 63, ((src[1] << 2) | (src[2] >> 6)) & 63, src[2] & 63 };
 
@@ -32,7 +32,7 @@ void key_to_base64(char base64[static WG_KEY_LEN_BASE64], const uint8_t key[stat
 	base64[WG_KEY_LEN_BASE64 - 1] = '\0';
 }
 
-static inline int decode_base64(const char src[4])
+static inline int decode_base64(const char src[static 4])
 {
 	int val = 0;
 

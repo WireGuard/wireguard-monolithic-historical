@@ -72,7 +72,7 @@ EMSCRIPTEN_KEEPALIVE void curve25519_generate_private(u8 private[static 32])
 	normalize_secret(private);
 }
 
-static inline void encode_base64(char dest[4], const u8 src[3])
+static inline void encode_base64(char dest[static 4], const u8 src[static 3])
 {
 	const u8 input[] = { (src[0] >> 2) & 63, ((src[0] << 4) | (src[1] >> 4)) & 63, ((src[1] << 2) | (src[2] >> 6)) & 63, src[2] & 63 };
 
