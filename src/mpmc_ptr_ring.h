@@ -42,6 +42,7 @@ struct mpmc_ptr_ring {
 	/* Read-mostly data */
 	void **queue;
 	unsigned int size;
+	unsigned int mask;
 
 	/* consumer_head: updated in _consume; read in _produce */
 	atomic_t consumer_head ____cacheline_aligned_in_smp;
@@ -67,7 +68,7 @@ static inline bool mpmc_ptr_ring_empty(struct mpmc_ptr_ring *r)
 static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 {
 	unsigned int p, c;
-	unsigned int mask = r->size - 1;
+	unsigned int mask = r->mask;
 
 	p = atomic_read(&r->producer_head);
 
@@ -110,8 +111,8 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 {
 	unsigned int c, p, old_c;
+	unsigned int mask = r->mask;
 	void *element;
-	unsigned int mask = r->size - 1;
 
 	for (;;) {
 		c = atomic_read(&r->consumer_head);
@@ -147,6 +148,7 @@ static inline int mpmc_ptr_ring_init(struct mpmc_ptr_ring *r, unsigned int size,
 		return -EINVAL;
 
 	r->size = size;
+	r->mask = size - 1;
 	atomic_set(&r->consumer_head, 0);
 	atomic_set(&r->producer_head, 0);
 	atomic_set(&r->producer_tail, 0);
@@ -178,7 +180,7 @@ static inline void mpmc_ptr_ring_cleanup(struct mpmc_ptr_ring *r, void (*destroy
 static inline void *__mpmc_ptr_ring_peek(struct mpmc_ptr_ring *r)
 {
 	unsigned int c, p;
-	unsigned int mask = r->size - 1;
+	unsigned int mask = r->mask;
 	void *element;
 
 	c = atomic_read(&r->consumer_head);
