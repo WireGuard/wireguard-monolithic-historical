@@ -44,3 +44,5 @@ void packet_queue_free(struct crypt_queue *queue, bool multicore)
 	WARN_ON(!mpmc_ptr_ring_empty(&queue->ring));
 	mpmc_ptr_ring_cleanup(&queue->ring, NULL);
 }
+
+#include "selftest/mpmc_ring.h"

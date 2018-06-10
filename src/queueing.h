@@ -140,6 +140,7 @@ static inline void queue_enqueue_per_peer(struct crypt_queue *queue, struct sk_b
 
 #ifdef DEBUG
 bool packet_counter_selftest(void);
+bool mpmc_ring_selftest(void);
 #endif
 
 #endif /* _WG_QUEUEING_H */
