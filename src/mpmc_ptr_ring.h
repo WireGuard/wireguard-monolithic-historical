@@ -38,6 +38,17 @@
  * [1]: https://github.com/concurrencykit/ck/blob/master/include/ck_ring.h
  */
 
+#include <asm/barrier.h>
+#include <linux/atomic.h>
+#include <linux/cache.h>
+#include <linux/compiler.h>
+#include <linux/errno.h>
+#include <linux/log2.h>
+#include <linux/processor.h>
+#include <linux/slab.h>
+#include <linux/stddef.h>
+
+
 struct mpmc_ptr_ring {
 	/* Read-mostly data */
 	void **queue;
