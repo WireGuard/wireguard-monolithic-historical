@@ -40,7 +40,7 @@ static void producer_function(struct work_struct *work)
 	uintptr_t count = (td->thread_num * PER_PRODUCER) + 1;
 
 	for (; count <= (td->thread_num + 1) * PER_PRODUCER; ++count) {
-		while (mpmc_ptr_ring_produce(ring, (const void *) count))
+		while (mpmc_ptr_ring_produce(ring, (void *) count))
 			schedule();
 	}
 }
