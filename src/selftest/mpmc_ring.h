@@ -52,6 +52,7 @@ static void consumer_function(struct work_struct *work)
 
 	for (i = 0; i < PER_CONSUMER; ++i) {
 		uintptr_t value;
+
 		while (!(value = (uintptr_t) mpmc_ptr_ring_consume(ring)))
 			schedule();
 
