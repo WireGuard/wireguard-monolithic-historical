@@ -95,7 +95,7 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 	WRITE_ONCE(r->queue[p & mask], ptr);
 
 	/* Wait until it's our term to update the producer tail pointer */
-	while(atomic_read(&r->producer_tail) != p)
+	while (atomic_read(&r->producer_tail) != p)
 		cpu_relax();
 
 	/*
