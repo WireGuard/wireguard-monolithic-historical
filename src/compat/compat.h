@@ -591,6 +591,17 @@ static inline void *skb_put_data(struct sk_buff *skb, const void *data, unsigned
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+#include <linux/skbuff.h>
+static inline void __wgcompat_ipvs_reset(struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_IP_VS)
+	skb->ipvs_property = 0;
+#endif
+}
+#define ipvs_reset __wgcompat_ipvs_reset
+#endif
+
 /* https://lkml.org/lkml/2017/6/23/790 */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
