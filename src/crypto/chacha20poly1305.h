@@ -60,7 +60,7 @@ static inline bool chacha20poly1305_init_simd(void)
 	have_simd = irq_fpu_usable();
 	if (have_simd)
 		kernel_fpu_begin();
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_PREEMPT_RT_BASE)
 #if defined(CONFIG_ARM64)
 	have_simd = true; /* ARM64 supports NEON in any context. */
 #elif defined(CONFIG_ARM)
