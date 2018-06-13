@@ -41,6 +41,6 @@ void packet_queue_free(struct crypt_queue *queue, bool multicore)
 {
 	if (multicore)
 		free_percpu(queue->worker);
-	WARN_ON(!ptr_ring_empty_bh(&queue->ring));
+	WARN_ON(!__ptr_ring_empty(&queue->ring));
 	ptr_ring_cleanup(&queue->ring, NULL);
 }

@@ -65,7 +65,7 @@ static inline __be16 skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
 static inline void skb_reset(struct sk_buff *skb)
 {
 	const int pfmemalloc = skb->pfmemalloc;
-	skb_scrub_packet(skb, true);
+	skb_scrub_packet(skb, false);
 	memset(&skb->headers_start, 0, offsetof(struct sk_buff, headers_end) - offsetof(struct sk_buff, headers_start));
 	skb->pfmemalloc = pfmemalloc;
 	skb->queue_mapping = 0;
@@ -77,6 +77,7 @@ static inline void skb_reset(struct sk_buff *skb)
 	skb->tc_index = 0;
 	skb_reset_tc(skb);
 #endif
+	ipvs_reset(skb);
 	skb->hdr_len = skb_headroom(skb);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);

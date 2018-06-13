@@ -204,6 +204,7 @@ static void packet_create_data_done(struct sk_buff *first, struct wireguard_peer
 	timers_any_authenticated_packet_traversal(peer);
 	timers_any_authenticated_packet_sent(peer);
 	skb_walk_null_queue_safe(first, skb, next) {
+		skb_orphan(skb);
 		is_keepalive = skb->len == message_data_len(0);
 		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
 			data_sent = true;
@@ -223,7 +224,6 @@ void packet_tx_worker(struct work_struct *work)
 	struct sk_buff *first;
 	enum packet_state state;
 
-	spin_lock_bh(&queue->ring.consumer_lock);
 	while ((first = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(first)->state)) != PACKET_STATE_UNCRYPTED) {
 		__ptr_ring_discard_one(&queue->ring);
 		peer = PACKET_PEER(first);
@@ -237,7 +237,6 @@ void packet_tx_worker(struct work_struct *work)
 		noise_keypair_put(keypair);
 		peer_put(peer);
 	}
-	spin_unlock_bh(&queue->ring.consumer_lock);
 }
 
 void packet_encrypt_worker(struct work_struct *work)
