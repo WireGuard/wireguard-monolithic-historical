@@ -10,9 +10,9 @@
 #include <linux/workqueue.h>
 #include <linux/wait.h>
 
-#define THREADS_PRODUCER 16
-#define THREADS_CONSUMER 16
-#define ELEMENT_COUNT 1000000LL /* divisible by threads_{consumer,producer} */
+#define THREADS_PRODUCER 2
+#define THREADS_CONSUMER 2
+#define ELEMENT_COUNT 100000000LL /* divisible by threads_{consumer,producer} */
 #define QUEUE_SIZE 1024
 
 #define EXPECTED_TOTAL ((ELEMENT_COUNT * (ELEMENT_COUNT + 1)) / 2)
@@ -40,8 +40,10 @@ static __init void producer_function(struct work_struct *work)
 	uintptr_t count = (td->thread_num * PER_PRODUCER) + 1;
 
 	for (; count <= (td->thread_num + 1) * PER_PRODUCER; ++count) {
-		while (mpmc_ptr_ring_produce(ring, (void *) count))
+		while (mpmc_ptr_ring_produce(ring, (void *) count)) {
 			schedule();
+			/*pr_info("We have awoken (producer)");*/
+		}
 	}
 }
 
@@ -52,9 +54,11 @@ static __init void consumer_function(struct work_struct *work)
 
 	for (i = 0; i < PER_CONSUMER; ++i) {
 		uintptr_t value;
-
-		while (!(value = (uintptr_t) mpmc_ptr_ring_consume(ring)))
+		while (!(value = (uintptr_t) mpmc_ptr_ring_consume(ring))) {
 			schedule();
+			/*cpu_relax();*/
+			/*pr_info("We have awoken (consumer)");*/
+		}
 
 		td->total += value;
 		++(td->count);
