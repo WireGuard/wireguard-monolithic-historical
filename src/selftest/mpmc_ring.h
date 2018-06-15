@@ -12,7 +12,7 @@
 
 #define THREADS_PRODUCER 16
 #define THREADS_CONSUMER 16
-#define ELEMENT_COUNT 1000000L /* divisible by threads_{consumer,producer} */
+#define ELEMENT_COUNT 1000000LL /* divisible by threads_{consumer,producer} */
 #define QUEUE_SIZE 1024
 
 #define EXPECTED_TOTAL ((ELEMENT_COUNT * (ELEMENT_COUNT + 1)) / 2)
@@ -30,8 +30,8 @@ struct worker_producer {
 struct worker_consumer {
 	struct work_struct work;
 	int thread_num;
-	long total;
-	long count;
+	int64_t total;
+	int64_t count;
 };
 
 static __init void producer_function(struct work_struct *work)
@@ -66,7 +66,7 @@ bool __init mpmc_ring_selftest(void)
 	struct workqueue_struct *wq;
 	struct worker_producer *producers;
 	struct worker_consumer *consumers;
-	long total = 0, count = 0;
+	int64_t total = 0, count = 0;
 	int i;
 
 	producers = kmalloc_array(THREADS_PRODUCER, sizeof(*producers), GFP_KERNEL);
@@ -113,8 +113,8 @@ bool __init mpmc_ring_selftest(void)
 	}
 
 	pr_info("mpmc_ring self-test failed:");
-	pr_info("Count: %lu, expected: %lu", count, ELEMENT_COUNT);
-	pr_info("Total: %lu, expected: %lu", total, EXPECTED_TOTAL);
+	pr_info("Count: %lld, expected: %lld", count, ELEMENT_COUNT);
+	pr_info("Total: %lld, expected: %lld", total, EXPECTED_TOTAL);
 
 	return false;
 }
