@@ -1286,7 +1286,7 @@ static const struct chacha20poly1305_testvec xchacha20poly1305_dec_vectors[] __i
 
 static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 *src, const size_t src_len, const u8 *ad, const size_t ad_len, const u8 nonce[12], const u8 key[CHACHA20POLY1305_KEYLEN])
 {
-	bool have_simd = chacha20poly1305_init_simd();
+	bool have_simd = simd_get();
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
 	union {
@@ -1309,7 +1309,7 @@ static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 
 	b.lens[1] = cpu_to_le64(src_len);
 	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens), have_simd);
 	poly1305_finish(&poly1305_state, dst + src_len, have_simd);
-	chacha20poly1305_deinit_simd(have_simd);
+	simd_put(have_simd);
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 	memzero_explicit(&b, sizeof(b));
 }
@@ -1357,7 +1357,7 @@ bool __init chacha20poly1305_selftest(void)
 			success = false;
 		}
 	}
-	have_simd = chacha20poly1305_init_simd();
+	have_simd = simd_get();
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {
 		if (chacha20poly1305_enc_vectors[i].nlen != 8)
 			continue;
@@ -1371,7 +1371,7 @@ bool __init chacha20poly1305_selftest(void)
 			success = false;
 		}
 	}
-	chacha20poly1305_deinit_simd(have_simd);
+	simd_put(have_simd);
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
 		ret = chacha20poly1305_decrypt(computed_result, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpu(*(__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key);
@@ -1380,7 +1380,7 @@ bool __init chacha20poly1305_selftest(void)
 			success = false;
 		}
 	}
-	have_simd = chacha20poly1305_init_simd();
+	have_simd = simd_get();
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
 		memset(heap_dst, 0, MAXIMUM_TEST_BUFFER_LEN);
 		memcpy(heap_src, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen);
@@ -1392,7 +1392,7 @@ bool __init chacha20poly1305_selftest(void)
 			success = false;
 		}
 	}
-	chacha20poly1305_deinit_simd(have_simd);
+	simd_put(have_simd);
 	for (i = 0; i < ARRAY_SIZE(xchacha20poly1305_enc_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
 		xchacha20poly1305_encrypt(computed_result, xchacha20poly1305_enc_vectors[i].input, xchacha20poly1305_enc_vectors[i].ilen, xchacha20poly1305_enc_vectors[i].assoc, xchacha20poly1305_enc_vectors[i].alen, xchacha20poly1305_enc_vectors[i].nonce, xchacha20poly1305_enc_vectors[i].key);

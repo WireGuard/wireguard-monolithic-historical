@@ -10,6 +10,7 @@
 #include "socket.h"
 #include "messages.h"
 #include "cookie.h"
+#include "crypto/simd.h"
 
 #include <linux/uio.h>
 #include <linux/inetdevice.h>
@@ -242,7 +243,7 @@ void packet_encrypt_worker(struct work_struct *work)
 {
 	struct crypt_queue *queue = container_of(work, struct multicore_worker, work)->ptr;
 	struct sk_buff *first, *skb, *next;
-	bool have_simd = chacha20poly1305_init_simd();
+	bool have_simd = simd_get();
 
 	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
@@ -257,13 +258,9 @@ void packet_encrypt_worker(struct work_struct *work)
 		}
 		queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first, state);
 
-		/* Don't totally kill scheduling latency by keeping preemption disabled forever. */
-		if (have_simd && need_resched()) {
-			chacha20poly1305_deinit_simd(have_simd);
-			have_simd = chacha20poly1305_init_simd();
-		}
+		have_simd = simd_relax(have_simd);
 	}
-	chacha20poly1305_deinit_simd(have_simd);
+	simd_put(have_simd);
 }
 
 static void packet_create_data(struct sk_buff *first)

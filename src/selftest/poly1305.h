@@ -7,6 +7,7 @@
 #ifdef DEBUG
 
 #include "../crypto/chacha20poly1305.h"
+#include "../crypto/simd.h"
 
 struct poly1305_testdata {
 	size_t size;
@@ -1489,7 +1490,7 @@ static const struct poly1305_testvec poly1305_testvecs[] = {
 
 bool __init poly1305_selftest(void)
 {
-	bool have_simd = chacha20poly1305_init_simd();
+	bool have_simd = simd_get();
 	bool success = true;
 	size_t i;
 
@@ -1558,7 +1559,7 @@ bool __init poly1305_selftest(void)
 			}
 		}
 	}
-	chacha20poly1305_deinit_simd(have_simd);
+	simd_put(have_simd);
 
 	if (success)
 		pr_info("poly1305 self-tests: pass\n");

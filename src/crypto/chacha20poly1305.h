@@ -44,45 +44,6 @@ bool __must_check xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t
 					    const u8 nonce[XCHACHA20POLY1305_NONCELEN],
 					    const u8 key[CHACHA20POLY1305_KEYLEN]);
 
-#if defined(CONFIG_X86_64)
-#include <linux/version.h>
-#include <asm/fpu/api.h>
-#include <asm/simd.h>
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
-#include <asm/neon.h>
-#include <asm/simd.h>
-#endif
-
-static inline bool chacha20poly1305_init_simd(void)
-{
-	bool have_simd = false;
-#if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
-	have_simd = irq_fpu_usable();
-	if (have_simd)
-		kernel_fpu_begin();
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_PREEMPT_RT_BASE)
-#if defined(CONFIG_ARM64)
-	have_simd = true; /* ARM64 supports NEON in any context. */
-#elif defined(CONFIG_ARM)
-	have_simd = may_use_simd(); /* ARM doesn't support NEON in interrupt context. */
-#endif
-	if (have_simd)
-		kernel_neon_begin();
-#endif
-	return have_simd;
-}
-
-static inline void chacha20poly1305_deinit_simd(bool was_on)
-{
-#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
-	if (was_on)
-		kernel_fpu_end();
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
-	if (was_on)
-		kernel_neon_end();
-#endif
-}
-
 #ifdef DEBUG
 bool chacha20poly1305_selftest(void);
 #endif

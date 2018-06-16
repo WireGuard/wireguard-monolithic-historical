@@ -10,6 +10,7 @@
 #include "messages.h"
 #include "cookie.h"
 #include "socket.h"
+#include "crypto/simd.h"
 
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -418,21 +419,15 @@ void packet_decrypt_worker(struct work_struct *work)
 {
 	struct crypt_queue *queue = container_of(work, struct multicore_worker, work)->ptr;
 	struct sk_buff *skb;
-	bool have_simd = chacha20poly1305_init_simd();
+	bool have_simd = simd_get();
 
 	while ((skb = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving, have_simd)) ? PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
-
 		queue_enqueue_per_peer(&PACKET_PEER(skb)->rx_queue, skb, state);
-
-		/* Don't totally kill scheduling latency by keeping preemption disabled forever. */
-		if (have_simd && need_resched()) {
-			chacha20poly1305_deinit_simd(have_simd);
-			have_simd = chacha20poly1305_init_simd();
-		}
+		have_simd = simd_relax(have_simd);
 	}
 
-	chacha20poly1305_deinit_simd(have_simd);
+	simd_put(have_simd);
 }
 
 static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb)
