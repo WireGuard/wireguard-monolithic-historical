@@ -47,10 +47,12 @@ static inline void simd_put(bool was_on)
 
 static inline bool simd_relax(bool was_on)
 {
+#ifdef CONFIG_PREEMPT
 	if (was_on && need_resched()) {
 		simd_put(true);
 		return simd_get();
 	}
+#endif
 	return was_on;
 }
 
