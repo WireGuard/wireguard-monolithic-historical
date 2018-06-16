@@ -404,6 +404,12 @@ next:
 		peer_put(peer);
 		if (unlikely(free))
 			dev_kfree_skb(skb);
+
+		/* Don't totally kill scheduling latency by keeping preemption disabled forever. */
+		if (need_resched()) {
+			local_bh_enable();
+			local_bh_disable();
+		}
 	}
 	local_bh_enable();
 }
@@ -418,6 +424,12 @@ void packet_decrypt_worker(struct work_struct *work)
 		enum packet_state state = likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving, have_simd)) ? PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
 
 		queue_enqueue_per_peer(&PACKET_PEER(skb)->rx_queue, skb, state);
+
+		/* Don't totally kill scheduling latency by keeping preemption disabled forever. */
+		if (have_simd && need_resched()) {
+			chacha20poly1305_deinit_simd(have_simd);
+			have_simd = chacha20poly1305_init_simd();
+		}
 	}
 
 	chacha20poly1305_deinit_simd(have_simd);

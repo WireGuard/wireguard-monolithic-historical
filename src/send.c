@@ -256,6 +256,12 @@ void packet_encrypt_worker(struct work_struct *work)
 			}
 		}
 		queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first, state);
+
+		/* Don't totally kill scheduling latency by keeping preemption disabled forever. */
+		if (have_simd && need_resched()) {
+			chacha20poly1305_deinit_simd(have_simd);
+			have_simd = chacha20poly1305_init_simd();
+		}
 	}
 	chacha20poly1305_deinit_simd(have_simd);
 }
