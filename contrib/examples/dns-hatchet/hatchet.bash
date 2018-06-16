@@ -17,9 +17,11 @@ set_dns() {
 		printf 'nameserver %s\n' "${DNS[@]}"
 		} | unshare -m --propagation shared bash -c "$(cat <<-_EOF
 			set -e
+			context="\$(stat -c %C /etc/resolv.conf 2>/dev/null)" || unset context
 			mount --make-private /dev/shm
 			mount -t tmpfs none /dev/shm
 			cat > /dev/shm/resolv.conf
+			[[ -z \$context || \$context == "?" ]] || chcon "\$context" /dev/shm/resolv.conf 2>/dev/null || true
 			mount -o remount,ro /dev/shm
 			mount -o bind,ro /dev/shm/resolv.conf /etc/resolv.conf
 		_EOF
