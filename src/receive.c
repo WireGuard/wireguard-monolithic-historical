@@ -378,7 +378,6 @@ void packet_rx_worker(struct work_struct *work)
 	bool free;
 
 	local_bh_disable();
-	spin_lock_bh(&queue->ring.consumer_lock);
 	while ((skb = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(skb)->state)) != PACKET_STATE_UNCRYPTED) {
 		__ptr_ring_discard_one(&queue->ring);
 		peer = PACKET_PEER(skb);
@@ -406,7 +405,6 @@ next:
 		if (unlikely(free))
 			dev_kfree_skb(skb);
 	}
-	spin_unlock_bh(&queue->ring.consumer_lock);
 	local_bh_enable();
 }
 
