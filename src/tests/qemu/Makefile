@@ -14,7 +14,7 @@ endif
 ARCH := $(firstword $(subst -, ,$(CBUILD)))
 
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.16.13
+KERNEL_VERSION ?= 4.17.2
 BUILD_PATH ?= $(PWD)/../../../qemu-build/$(ARCH)
 DISTFILES_PATH ?= $(PWD)/distfiles
 DEBUG_KERNEL ?= no
