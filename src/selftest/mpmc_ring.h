@@ -8,7 +8,6 @@
 
 #include "../mpmc_ptr_ring.h"
 #include <linux/kthread.h>
-#include <linux/ptr_ring.h>
 
 #define THREADS_PRODUCER 20
 #define THREADS_CONSUMER 20
@@ -21,13 +20,13 @@
 #define THREADS_TOTAL (THREADS_PRODUCER + THREADS_CONSUMER)
 
 struct worker_producer {
-	struct ptr_ring *ring;
+	struct mpmc_ptr_ring *ring;
 	struct completion completion;
 	int thread_num;
 };
 
 struct worker_consumer {
-	struct ptr_ring *ring;
+	struct mpmc_ptr_ring *ring;
 	struct completion completion;
 	uint64_t total;
 	uint64_t count;
@@ -39,7 +38,7 @@ static __init int producer_function(void *data)
 	uint64_t i;
 
 	for (i = td->thread_num * PER_PRODUCER + 1; i <= (td->thread_num + 1) * PER_PRODUCER; ++i) {
-		while (ptr_ring_produce(td->ring, (void *)i)) {
+		while (mpmc_ptr_ring_produce(td->ring, (void *)i)) {
 			if (need_resched())
 				schedule();
 		}
@@ -55,7 +54,7 @@ static __init int consumer_function(void *data)
 
 	for (i = 0; i < PER_CONSUMER; ++i) {
 		uintptr_t value;
-		while (!(value = (uintptr_t)ptr_ring_consume(td->ring))) {
+		while (!(value = (uintptr_t)mpmc_ptr_ring_consume(td->ring))) {
 			if (need_resched())
 				schedule();
 		}
@@ -71,7 +70,7 @@ bool __init mpmc_ring_selftest(void)
 {
 	struct worker_producer *producers;
 	struct worker_consumer *consumers;
-	struct ptr_ring ring;
+	struct mpmc_ptr_ring ring;
 	int64_t total = 0, count = 0;
 	int i;
 
@@ -79,7 +78,7 @@ bool __init mpmc_ring_selftest(void)
 	consumers = kmalloc_array(THREADS_CONSUMER, sizeof(*consumers), GFP_KERNEL);
 
 	BUG_ON(!producers || !consumers);
-	BUG_ON(ptr_ring_init(&ring, QUEUE_SIZE, GFP_KERNEL));
+	BUG_ON(mpmc_ptr_ring_init(&ring, QUEUE_SIZE, GFP_KERNEL));
 
 	for (i = 0; i < THREADS_PRODUCER; ++i) {
 		producers[i].ring = &ring;
@@ -101,8 +100,8 @@ bool __init mpmc_ring_selftest(void)
 	for (i = 0; i < THREADS_CONSUMER; ++i)
 		wait_for_completion(&consumers[i].completion);
 
-	BUG_ON(!ptr_ring_empty(&ring));
-	ptr_ring_cleanup(&ring, NULL);
+	BUG_ON(!mpmc_ptr_ring_empty(&ring));
+	mpmc_ptr_ring_cleanup(&ring, NULL);
 
 	for (i = 0; i < THREADS_CONSUMER; ++i) {
 		total += consumers[i].total;
