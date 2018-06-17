@@ -133,9 +133,9 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 	unsigned int mask = r->mask;
 	void *element;
 
-	for (;;) {
-		c = atomic_read(&r->consumer_head);
+	c = atomic_read(&r->consumer_head);
 
+	for (;;) {
 		/* Fetch consumer_head first. */
 		smp_rmb();
 
