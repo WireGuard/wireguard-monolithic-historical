@@ -120,6 +120,7 @@ static void fclosep(FILE **f)
 }
 #define _cleanup_free_ _cleanup_(freep)
 #define _cleanup_fclose_ _cleanup_(fclosep)
+#define _cleanup_regfree_ _cleanup_(regfree)
 
 #define DEFINE_CMD(name) _cleanup_(free_command_buffer) struct command_buffer name = { 0 };
 
@@ -250,7 +251,7 @@ static void add_if(const char *iface)
 static void del_if(const char *iface)
 {
 	DEFINE_CMD(c);
-	regex_t reg;
+	_cleanup_regfree_ regex_t reg = { 0 };
 	regmatch_t matches[2];
 	char *netid = NULL;
 	_cleanup_free_ char *regex = concat("0xc([0-9a-f]+)/0xcffff lookup ", iface, NULL);
@@ -346,7 +347,7 @@ static int get_route_mtu(const char *endpoint)
 	DEFINE_CMD(c_route);
 	DEFINE_CMD(c_dev);
 	regmatch_t matches[2];
-	regex_t regex_mtu, regex_dev;
+	_cleanup_regfree_ regex_t regex_mtu = { 0 }, regex_dev = { 0 };
 	char *route, *mtu, *dev;
 
 	xregcomp(&regex_mtu, "mtu ([0-9]+)", REG_EXTENDED);
@@ -380,7 +381,7 @@ static int get_route_mtu(const char *endpoint)
 static void set_mtu(const char *iface, unsigned int mtu)
 {
 	DEFINE_CMD(c_endpoints);
-	regex_t regex_endpoint;
+	_cleanup_regfree_ regex_t regex_endpoint = { 0 };
 	regmatch_t matches[2];
 	int endpoint_mtu, next_mtu;
 
@@ -466,7 +467,7 @@ set_back_down:
 static void maybe_unblock_ipv6(const char *iface)
 {
 	regmatch_t matches[2];
-	regex_t reg;
+	_cleanup_regfree_ regex_t reg = { 0 };
 	_cleanup_free_ char *regex = concat("^-A (.* --comment \"wireguard rule ", iface, "\"[^\n]*)\n*$", NULL);
 	DEFINE_CMD(c);
 
@@ -605,7 +606,7 @@ static void parse_options(char **iface, char **config, unsigned int *mtu, char *
 	_cleanup_free_ char *line = NULL;
 	_cleanup_free_ char *filename = NULL;
 	_cleanup_free_ char *paths = strdup(WG_CONFIG_SEARCH_PATHS);
-	regex_t regex_iface, regex_conf;
+	_cleanup_regfree_ regex_t regex_iface = { 0 }, regex_conf = { 0 };
 	regmatch_t matches[2];
 	struct stat sbuf;
 	size_t n = 0;
