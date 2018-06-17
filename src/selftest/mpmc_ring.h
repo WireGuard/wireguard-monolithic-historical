@@ -7,10 +7,7 @@
 #ifdef DEBUG
 
 #include "../mpmc_ptr_ring.h"
-#include "../queueing.h"
 #include <linux/kthread.h>
-#include <linux/workqueue.h>
-#include <linux/wait.h>
 
 #define THREADS_PRODUCER 20
 #define THREADS_CONSUMER 20
@@ -23,92 +20,80 @@
 #define THREADS_TOTAL (THREADS_PRODUCER + THREADS_CONSUMER)
 
 struct worker_producer {
-	struct work_struct work;
-	struct workqueue_struct *wq;
 	struct mpmc_ptr_ring *ring;
-	uint64_t i;
 	int thread_num;
 };
 
 struct worker_consumer {
-	struct work_struct work;
-	struct workqueue_struct *wq;
 	struct mpmc_ptr_ring *ring;
 	uint64_t total;
 	uint64_t count;
-	uint64_t i;
 };
 
-static __init void producer_function(struct work_struct *work)
+static __init int producer_function(void *data)
 {
-	struct worker_producer *td = container_of(work, struct worker_producer, work);
+	struct worker_producer *td = data;
+	uint64_t i;
 
-	if (!td->i)
-		td->i = td->thread_num * PER_PRODUCER + 1;
-
-	for (; td->i <= (td->thread_num + 1) * PER_PRODUCER; ++td->i) {
-		if (mpmc_ptr_ring_produce(td->ring, (void *)td->i)) {
-			queue_work_on(smp_processor_id(), td->wq, work);
-			return;
+	for (i = td->thread_num * PER_PRODUCER + 1; i <= (td->thread_num + 1) * PER_PRODUCER; ++i) {
+		while (mpmc_ptr_ring_produce(td->ring, (void *)i)) {
+			if (need_resched())
+				schedule();
 		}
 	}
+	return 0;
 }
 
-static __init void consumer_function(struct work_struct *work)
+static __init int consumer_function(void *data)
 {
-	struct worker_consumer *td = container_of(work, struct worker_consumer, work);
+	struct worker_consumer *td = data;
+	uint64_t i;
 
-	for (td->i = 0; td->i < PER_CONSUMER; ++td->i) {
+	for (i = 0; i < PER_CONSUMER; ++i) {
 		uintptr_t value;
-		if (!(value = (uintptr_t)mpmc_ptr_ring_consume(td->ring))) {
-			queue_work_on(smp_processor_id(), td->wq, work);
-			return;
+		while (!(value = (uintptr_t)mpmc_ptr_ring_consume(td->ring))) {
+			if (need_resched())
+				schedule();
 		}
 
 		td->total += value;
 		++td->count;
 	}
+	return 0;
 }
 
 bool __init mpmc_ring_selftest(void)
 {
-	struct workqueue_struct *wq;
 	struct worker_producer *producers;
 	struct worker_consumer *consumers;
+	struct task_struct **threads;
 	struct mpmc_ptr_ring ring;
 	int64_t total = 0, count = 0;
-	int i;
-	int cpu = 0;
+	int i, j = 0;
 
 	producers = kmalloc_array(THREADS_PRODUCER, sizeof(*producers), GFP_KERNEL);
 	consumers = kmalloc_array(THREADS_CONSUMER, sizeof(*consumers), GFP_KERNEL);
+	threads = kmalloc_array(THREADS_CONSUMER + THREADS_PRODUCER, sizeof(*threads), GFP_KERNEL);
 
-	BUG_ON(!producers || !consumers);
+	BUG_ON(!producers || !consumers || !threads);
 	BUG_ON(mpmc_ptr_ring_init(&ring, QUEUE_SIZE, GFP_KERNEL));
-
-	wq = alloc_workqueue("mpmc_ring_selftest", WQ_UNBOUND, 0);
-	BUG_ON(!wq);
 
 	for (i = 0; i < THREADS_PRODUCER; ++i) {
 		producers[i].ring = &ring;
-		producers[i].wq = wq;
 		producers[i].thread_num = i;
-		producers[i].i = 0;
-		INIT_WORK(&producers[i].work, producer_function);
-		queue_work_on(cpumask_next_online(&cpu), wq, &producers[i].work);
+		threads[j++] = kthread_run(producer_function, &producers[i], "producer %d", i);
 	}
 
 	for (i = 0; i < THREADS_CONSUMER; ++i) {
 		consumers[i].ring = &ring;
-		consumers[i].wq = wq;
 		consumers[i].total = 0;
 		consumers[i].count = 0;
-		consumers[i].i = 0;
-		INIT_WORK(&consumers[i].work, consumer_function);
-		queue_work_on(cpumask_next_online(&cpu), wq, &consumers[i].work);
+		threads[j++] = kthread_run(consumer_function, &consumers[i], "consumer %d", i);
 	}
 
-	destroy_workqueue(wq);
+	for (j = 0; j < THREADS_CONSUMER + THREADS_PRODUCER; ++j)
+		kthread_stop(threads[j]);
+
 	BUG_ON(!mpmc_ptr_ring_empty(&ring));
 	mpmc_ptr_ring_cleanup(&ring, NULL);
 
@@ -119,6 +104,7 @@ bool __init mpmc_ring_selftest(void)
 
 	kfree(producers);
 	kfree(consumers);
+	kfree(threads);
 
 	if (count == ELEMENT_COUNT && total == EXPECTED_TOTAL) {
 		pr_info("mpmc_ring self-tests: pass");
