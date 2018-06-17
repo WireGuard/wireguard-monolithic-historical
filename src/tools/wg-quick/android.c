@@ -13,6 +13,7 @@
 #include <string.h>
 #include <strings.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <ctype.h>
 #include <time.h>
 #include <unistd.h>
@@ -428,6 +429,56 @@ static void set_routes(const char *iface, unsigned int netid)
 	}
 }
 
+static void maybe_block_ipv6(const char *iface)
+{
+	DEFINE_CMD(c_endpoints);
+	DEFINE_CMD(c_listenport);
+	bool has_ipv6 = false, has_all_none = true;
+	char *value;
+	unsigned long listenport;
+
+	for (char *endpoint = cmd_ret(&c_endpoints, "wg show %s endpoints", iface); endpoint; endpoint = cmd_ret(&c_endpoints, NULL)) {
+		char *start = strchr(endpoint, '\t');
+
+		if (!start)
+			continue;
+		++start;
+		if (start[0] != '(')
+			has_all_none = false;
+		if (start[0] == '[')
+			has_ipv6 = true;
+	}
+	if (has_ipv6 || has_all_none)
+		return;
+
+	cmd("ip link set up dev %s", iface);
+	value = cmd_ret(&c_listenport, "wg show %s listen-port", iface);
+	if (!value)
+		goto set_back_down;
+	listenport = strtoul(value, NULL, 10);
+	if (listenport > UINT16_MAX || !listenport)
+		goto set_back_down;
+	cmd("ip6tables -I INPUT 1 -p udp --dport %lu -j DROP -m comment --comment \"wireguard rule %s\"", listenport, iface);
+set_back_down:
+	cmd("ip link set down dev %s", iface);
+}
+
+static void maybe_unblock_ipv6(const char *iface)
+{
+	regmatch_t matches[2];
+	regex_t reg;
+	_cleanup_free_ char *regex = concat("^-A (.* --comment \"wireguard rule ", iface, "\"[^\n]*)\n*$", NULL);
+	DEFINE_CMD(c);
+
+	xregcomp(&reg, regex, REG_EXTENDED);
+	for (char *rule = cmd_ret(&c, "ip6tables-save"); rule; rule = cmd_ret(&c, NULL)) {
+		if (!regexec(&reg, rule, ARRAY_SIZE(matches), matches, 0)) {
+			rule[matches[1].rm_eo] = '\0';
+			cmd("ip6tables -D %s", &rule[matches[1].rm_so]);
+		}
+	}
+}
+
 static void set_config(const char *iface, const char *config)
 {
 	FILE *config_writer;
@@ -509,6 +560,7 @@ static void cmd_up(const char *iface, const char *config, unsigned int mtu, cons
 
 	add_if(iface);
 	set_config(iface, config);
+	maybe_block_ipv6(iface);
 	set_addr(iface, addrs);
 	up_if(&netid, iface);
 	set_dnses(netid, dnses);
@@ -542,6 +594,7 @@ static void cmd_down(const char *iface)
 	}
 
 	del_if(iface);
+	maybe_unblock_ipv6(iface);
 	broadcast_change();
 	exit(EXIT_SUCCESS);
 }
@@ -601,7 +654,7 @@ static void parse_options(char **iface, char **config, unsigned int *mtu, char *
 	if (sbuf.st_mode & 0007)
 		fprintf(stderr, "Warning: `%s' is world accessible\n", filename);
 
-	filename[matches[1].rm_eo] = 0;
+	filename[matches[1].rm_eo] = '\0';
 	*iface = xstrdup(&filename[matches[1].rm_so]);
 
 	while (getline(&line, &n, file) >= 0) {
