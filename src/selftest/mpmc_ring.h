@@ -21,13 +21,13 @@
 
 struct worker_producer {
 	struct mpmc_ptr_ring *ring;
-	struct completion completion;
+	struct rw_semaphore *sem;
 	int thread_num;
 };
 
 struct worker_consumer {
 	struct mpmc_ptr_ring *ring;
-	struct completion completion;
+	struct rw_semaphore *sem;
 	uint64_t total;
 	uint64_t count;
 };
@@ -43,7 +43,7 @@ static __init int producer_function(void *data)
 				schedule();
 		}
 	}
-	complete_all(&td->completion);
+	up_read(td->sem);
 	return 0;
 }
 
@@ -62,7 +62,7 @@ static __init int consumer_function(void *data)
 		td->total += value;
 		++td->count;
 	}
-	complete_all(&td->completion);
+	up_read(td->sem);
 	return 0;
 }
 
@@ -71,6 +71,7 @@ bool __init mpmc_ring_selftest(void)
 	struct worker_producer *producers;
 	struct worker_consumer *consumers;
 	struct mpmc_ptr_ring ring;
+	DECLARE_RWSEM(threads_done);
 	int64_t total = 0, count = 0;
 	int i;
 
@@ -83,7 +84,8 @@ bool __init mpmc_ring_selftest(void)
 	for (i = 0; i < THREADS_PRODUCER; ++i) {
 		producers[i].ring = &ring;
 		producers[i].thread_num = i;
-		init_completion(&producers[i].completion);
+		producers[i].sem = &threads_done;
+		down_read(producers[i].sem);
 		kthread_run(producer_function, &producers[i], "producer %d", i);
 	}
 
@@ -91,14 +93,12 @@ bool __init mpmc_ring_selftest(void)
 		consumers[i].ring = &ring;
 		consumers[i].total = 0;
 		consumers[i].count = 0;
-		init_completion(&consumers[i].completion);
+		consumers[i].sem = &threads_done;
+		down_read(consumers[i].sem);
 		kthread_run(consumer_function, &consumers[i], "consumer %d", i);
 	}
 
-	for (i = 0; i < THREADS_PRODUCER; ++i)
-		wait_for_completion(&producers[i].completion);
-	for (i = 0; i < THREADS_CONSUMER; ++i)
-		wait_for_completion(&consumers[i].completion);
+	down_write(&threads_done);
 
 	BUG_ON(!mpmc_ptr_ring_empty(&ring));
 	mpmc_ptr_ring_cleanup(&ring, NULL);
