@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
  * Copyright (C) 2018 Thomas Gschwantner <tharre3@gmail.com>. All Rights Reserved.
+ * Copyright (C) 2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
 #ifdef DEBUG
 
 #include "../mpmc_ptr_ring.h"
+#include "../queueing.h"
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>
@@ -73,6 +75,7 @@ bool __init mpmc_ring_selftest(void)
 	struct mpmc_ptr_ring ring;
 	int64_t total = 0, count = 0;
 	int i;
+	int cpu = 0;
 
 	producers = kmalloc_array(THREADS_PRODUCER, sizeof(*producers), GFP_KERNEL);
 	consumers = kmalloc_array(THREADS_CONSUMER, sizeof(*consumers), GFP_KERNEL);
@@ -86,7 +89,7 @@ bool __init mpmc_ring_selftest(void)
 		producers[i].ring = &ring;
 		producers[i].thread_num = i;
 		INIT_WORK(&producers[i].work, producer_function);
-		queue_work(wq, &producers[i].work);
+		queue_work_on(cpumask_next_online(&cpu), wq, &producers[i].work);
 	}
 
 	for (i = 0; i < THREADS_CONSUMER; ++i) {
@@ -95,7 +98,7 @@ bool __init mpmc_ring_selftest(void)
 		consumers[i].total = 0;
 		consumers[i].count = 0;
 		INIT_WORK(&consumers[i].work, consumer_function);
-		queue_work(wq, &consumers[i].work);
+		queue_work_on(cpumask_next_online(&cpu), wq, &consumers[i].work);
 	}
 
 	destroy_workqueue(wq);
