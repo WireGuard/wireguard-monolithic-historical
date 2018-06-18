@@ -37,9 +37,9 @@ static void precompute_key(u8 key[NOISE_SYMMETRIC_KEY_LEN], const u8 pubkey[NOIS
 	blake2s_final(&blake, key, NOISE_SYMMETRIC_KEY_LEN);
 }
 
+/* Must hold peer->handshake.static_identity->lock */
 void cookie_checker_precompute_device_keys(struct cookie_checker *checker)
 {
-	down_read(&checker->device->static_identity.lock);
 	if (likely(checker->device->static_identity.has_identity)) {
 		precompute_key(checker->cookie_encryption_key, checker->device->static_identity.static_public, cookie_key_label);
 		precompute_key(checker->message_mac1_key, checker->device->static_identity.static_public, mac1_key_label);
@@ -47,7 +47,6 @@ void cookie_checker_precompute_device_keys(struct cookie_checker *checker)
 		memset(checker->cookie_encryption_key, 0, NOISE_SYMMETRIC_KEY_LEN);
 		memset(checker->message_mac1_key, 0, NOISE_SYMMETRIC_KEY_LEN);
 	}
-	up_read(&checker->device->static_identity.lock);
 }
 
 void cookie_checker_precompute_peer_keys(struct wireguard_peer *peer)
