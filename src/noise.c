@@ -44,10 +44,16 @@ void __init noise_init(void)
 
 bool noise_precompute_static_static(struct wireguard_peer *peer)
 {
+	bool ret = true;
+	down_read(&peer->handshake.static_identity->lock);
+	down_write(&peer->handshake.lock);
 	if (peer->handshake.static_identity->has_identity)
-		return curve25519(peer->handshake.precomputed_static_static, peer->handshake.static_identity->static_private, peer->handshake.remote_static);
-	memset(peer->handshake.precomputed_static_static, 0, NOISE_PUBLIC_KEY_LEN);
-	return true;
+		ret = curve25519(peer->handshake.precomputed_static_static, peer->handshake.static_identity->static_private, peer->handshake.remote_static);
+	else
+		memset(peer->handshake.precomputed_static_static, 0, NOISE_PUBLIC_KEY_LEN);
+	up_write(&peer->handshake.lock);
+	up_read(&peer->handshake.static_identity->lock);
+	return ret;
 }
 
 bool noise_handshake_init(struct noise_handshake *handshake, struct noise_static_identity *static_identity, const u8 peer_public_key[NOISE_PUBLIC_KEY_LEN], const u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN], struct wireguard_peer *peer)
