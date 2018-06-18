@@ -370,6 +370,11 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	bool ret = false;
 
+	/* We need to wait for crng _before_ taking any locks, since curve25519_generate_secret
+	 * uses get_random_bytes_wait.
+	 */
+	wait_for_random_bytes();
+
 	down_read(&handshake->static_identity->lock);
 	down_write(&handshake->lock);
 
@@ -487,6 +492,11 @@ bool noise_handshake_create_response(struct message_handshake_response *dst, str
 {
 	bool ret = false;
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
+
+	/* We need to wait for crng _before_ taking any locks, since curve25519_generate_secret
+	 * uses get_random_bytes_wait.
+	 */
+	wait_for_random_bytes();
 
 	down_read(&handshake->static_identity->lock);
 	down_write(&handshake->lock);
