@@ -81,6 +81,8 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 	int p, c;
 	unsigned int mask = r->mask;
 
+	preempt_disable();
+
 	p = atomic_read(&r->producer_head);
 
 	for (;;) {
@@ -104,8 +106,10 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 			smp_rmb();
 			new_p = atomic_read(&r->producer_head);
 
-			if (new_p == p)
+			if (new_p == p) {
+				preempt_enable();
 				return -ENOSPC;
+			}
 
 			p = new_p;
 		}
@@ -124,6 +128,7 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 	smp_wmb();
 	atomic_set(&r->producer_tail, p + 1);
 
+	preempt_enable();
 	return 0;
 }
 
@@ -132,6 +137,8 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 	int c, p;
 	unsigned int mask = r->mask;
 	void *element;
+
+	preempt_disable();
 
 	c = atomic_read(&r->consumer_head);
 
@@ -142,8 +149,10 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 		p = atomic_read(&r->producer_tail);
 
 		/* Is the ring empty? */
-		if (unlikely(p == c))
+		if (unlikely(p == c)) {
+			preempt_enable();
 			return NULL;
+		}
 
 		element = READ_ONCE(r->queue[c & mask]);
 
@@ -153,6 +162,7 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 		 */
 	} while (!atomic_try_cmpxchg_release(&r->consumer_head, &c, c + 1));
 
+	preempt_enable();
 	return element;
 }
 
@@ -199,6 +209,8 @@ static inline void *__mpmc_ptr_ring_peek(struct mpmc_ptr_ring *r)
 	unsigned int mask = r->mask;
 	void *element;
 
+	preempt_disable();
+
 	c = atomic_read(&r->consumer_head);
 
 	/* Fetch consumer_head first */
@@ -206,14 +218,17 @@ static inline void *__mpmc_ptr_ring_peek(struct mpmc_ptr_ring *r)
 
 	p = atomic_read(&r->producer_tail);
 
-	if (c == p)
+	if (c == p) {
+		preempt_enable();
 		return NULL;
+	}
 
 	/* TODO */
 	smp_rmb();
 
 	element = READ_ONCE(r->queue[c & mask]);
 
+	preempt_enable();
 	return element;
 }
 
