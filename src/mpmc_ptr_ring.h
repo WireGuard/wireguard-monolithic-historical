@@ -2,6 +2,7 @@
  *
  * Copyright (C) 2018 Jonathan Neuschäfer
  * Copyright (C) 2018 Thomas Gschwantner <tharre3@gmail.com>. All Rights Reserved.
+ * Copyright (C) 2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
 #ifndef MPMC_RING_PTR_H
@@ -52,7 +53,6 @@
 struct mpmc_ptr_ring {
 	/* Read-mostly data */
 	void **queue;
-	unsigned int size;
 	unsigned int mask;
 
 	/* consumer_head: updated in _consume; read in _produce */
@@ -95,7 +95,7 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 			if (atomic_try_cmpxchg_relaxed(&r->producer_head, &p, p + 1))
 				break;
 		} else {
-			unsigned int new_p;
+			int new_p;
 
 			/*
 			 * Either the buffer is full or our copy of
@@ -135,7 +135,7 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 
 	c = atomic_read(&r->consumer_head);
 
-	for (;;) {
+	do {
 		/* Fetch consumer_head first. */
 		smp_rmb();
 
@@ -151,9 +151,7 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 		 * Stores to consumer head must be completed before we update
 		 * the head, so we use *_release.
 		 */
-		if (atomic_try_cmpxchg_release(&r->consumer_head, &c, c + 1))
-			break;
-	}
+	} while (!atomic_try_cmpxchg_release(&r->consumer_head, &c, c + 1));
 
 	return element;
 }
@@ -166,7 +164,6 @@ static inline int mpmc_ptr_ring_init(struct mpmc_ptr_ring *r, unsigned int size,
 	if (WARN_ONCE(!is_power_of_2(size), "size must be a power of two"))
 		return -EINVAL;
 
-	r->size = size;
 	r->mask = size - 1;
 	atomic_set(&r->consumer_head, 0);
 	atomic_set(&r->producer_head, 0);
