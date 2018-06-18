@@ -11,7 +11,7 @@
 
 #define THREADS_PRODUCER 20
 #define THREADS_CONSUMER 20
-#define ELEMENT_COUNT 100000000LL /* divisible by threads_{consumer,producer} */
+#define ELEMENT_COUNT 1000000LL /* divisible by threads_{consumer,producer} */
 #define QUEUE_SIZE 1024
 
 #define EXPECTED_TOTAL ((ELEMENT_COUNT * (ELEMENT_COUNT + 1)) / 2)
