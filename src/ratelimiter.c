@@ -12,6 +12,7 @@
 static struct kmem_cache *entry_cache;
 static hsiphash_key_t key;
 static spinlock_t table_lock = __SPIN_LOCK_UNLOCKED("ratelimiter_table_lock");
+static DEFINE_MUTEX(init_lock);
 static atomic64_t refcnt = ATOMIC64_INIT(0);
 static atomic_t total_entries = ATOMIC_INIT(0);
 static unsigned int max_entries, table_size;
@@ -146,6 +147,7 @@ int ratelimiter_init(void)
 	if (atomic64_inc_return(&refcnt) != 1)
 		return 0;
 
+	mutex_lock(&init_lock);
 	entry_cache = KMEM_CACHE(ratelimiter_entry, 0);
 	if (!entry_cache)
 		goto err;
@@ -172,12 +174,14 @@ int ratelimiter_init(void)
 
 	queue_delayed_work(system_power_efficient_wq, &gc_work, HZ);
 	get_random_bytes(&key, sizeof(key));
+	mutex_unlock(&init_lock);
 	return 0;
 
 err_kmemcache:
 	kmem_cache_destroy(entry_cache);
 err:
 	atomic64_dec(&refcnt);
+	mutex_unlock(&init_lock);
 	return -ENOMEM;
 }
 
@@ -186,6 +190,7 @@ void ratelimiter_uninit(void)
 	if (atomic64_dec_if_positive(&refcnt))
 		return;
 
+	mutex_lock(&init_lock);
 	cancel_delayed_work_sync(&gc_work);
 	gc_entries(NULL);
 	rcu_barrier();
@@ -194,6 +199,7 @@ void ratelimiter_uninit(void)
 	kvfree(table_v6);
 #endif
 	kmem_cache_destroy(entry_cache);
+	mutex_unlock(&init_lock);
 }
 
 #include "selftest/ratelimiter.h"
