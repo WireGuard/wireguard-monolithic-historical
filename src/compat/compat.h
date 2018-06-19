@@ -591,7 +591,7 @@ static inline void *skb_put_data(struct sk_buff *skb, const void *data, unsigned
 }
 #endif
 
-/* https://lkml.org/lkml/2017/6/23/790 */
+/* https://lkml.kernel.org/r/20170624021727.17835-1-Jason@zx2c4.com */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
 #include <linux/icmpv6.h>
@@ -623,7 +623,7 @@ static inline void new_icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 
 #define icmpv6_send(a,b,c,d) new_icmpv6_send(a,b,c,d)
 #endif
 
-/* https://lkml.org/lkml/2018/6/18/1361 */
+/* https://lkml.kernel.org/r/20180618234347.13282-1-Jason@zx2c4.com */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
 #include <linux/random.h>
 #include <linux/slab.h>
