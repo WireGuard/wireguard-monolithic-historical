@@ -146,6 +146,8 @@ err_nofree:
 	ratelimiter_uninit();
 	ratelimiter_uninit();
 	ratelimiter_uninit();
+	/* Uninit one extra time to check underflow detection. */
+	ratelimiter_uninit();
 out:
 	if (ret)
 		pr_info("ratelimiter self-tests: pass\n");

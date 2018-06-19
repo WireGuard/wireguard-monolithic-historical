@@ -183,7 +183,7 @@ err:
 
 void ratelimiter_uninit(void)
 {
-	if (atomic64_dec_return(&refcnt))
+	if (atomic64_dec_if_positive(&refcnt))
 		return;
 
 	cancel_delayed_work_sync(&gc_work);
