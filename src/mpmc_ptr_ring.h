@@ -78,7 +78,7 @@ static inline bool mpmc_ptr_ring_empty(struct mpmc_ptr_ring *r)
 
 static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 {
-	unsigned int p, c;
+	int p, c;
 	unsigned int mask = r->mask;
 
 	p = atomic_read(&r->producer_head);
@@ -88,10 +88,10 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 		c = atomic_read(&r->consumer_head);
 
 		if ((p - c) < mask) { /* fast path */
-			if (atomic_cmpxchg(&r->producer_head, p, p + 1) == p)
+			if (atomic_try_cmpxchg_relaxed(&r->producer_head, &p, p + 1))
 				break;
 		} else {
-			unsigned int new_p;
+			int new_p;
 
 			smp_rmb();
 			new_p = atomic_read(&r->producer_head);
@@ -121,11 +121,11 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 
 static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 {
-	unsigned int c, p, old_c;
+	int c, p;
 	unsigned int mask = r->mask;
 	void *element;
 
-	for (;;) {
+	do {
 		c = atomic_read(&r->consumer_head);
 
 		/* Fetch consumer_head first. */
@@ -139,13 +139,11 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 
 		element = READ_ONCE(r->queue[c & mask]);
 
-		/* TODO: Why? */
-		smp_rmb();
-
-		old_c = atomic_cmpxchg(&r->consumer_head, c, c + 1);
-		if (old_c == c)
-			break;
-	}
+		/*
+		 * Stores to consumer_head must be completed before we update
+		 * the head, so we use *_release.
+		 */
+	} while (!atomic_try_cmpxchg_release(&r->consumer_head, &c, c + 1));
 
 	return element;
 }
