@@ -7,6 +7,7 @@
 #include "poly1305.h"
 
 #include <linux/kernel.h>
+#include <linux/string.h>
 
 #if defined(CONFIG_X86_64)
 #include <asm/fpu/api.h>
