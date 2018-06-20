@@ -44,7 +44,7 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/log2.h>
-#include <linux/processor.h>
+//#include <linux/processor.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
 
@@ -84,7 +84,11 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 	p = atomic_read(&r->producer_head);
 
 	for (;;) {
-		smp_rmb();	 /* TODO */
+		/*
+		 * The snapshot of the producer must be up to date with respect
+		 * to the consumer.
+		 */
+		smp_rmb();
 		c = atomic_read(&r->consumer_head);
 
 		if (likely((p - c) < mask)) {
@@ -93,6 +97,10 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 		} else {
 			int new_p;
 
+			/*
+			 * Either the buffer is full or our copy of
+			 * producer_head is stale.
+			 */
 			smp_rmb();
 			new_p = atomic_read(&r->producer_head);
 
@@ -125,9 +133,9 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 	unsigned int mask = r->mask;
 	void *element;
 
-	do {
-		c = atomic_read(&r->consumer_head);
+	c = atomic_read(&r->consumer_head);
 
+	do {
 		/* Fetch consumer_head first. */
 		smp_rmb();
 
@@ -203,7 +211,7 @@ static inline void *__mpmc_ptr_ring_peek(struct mpmc_ptr_ring *r)
 		return NULL;
 
 	/* TODO */
-	smp_rmb();
+	/*smp_rmb();*/
 
 	element = READ_ONCE(r->queue[c & mask]);
 
@@ -219,7 +227,7 @@ static inline void *__mpmc_ptr_ring_peek(struct mpmc_ptr_ring *r)
  */
 static inline void __mpmc_ptr_ring_discard_one(struct mpmc_ptr_ring *r)
 {
-	smp_mb__before_atomic();
+	/*smp_mb__before_atomic();*/
 	atomic_inc(&r->consumer_head);
 }
 

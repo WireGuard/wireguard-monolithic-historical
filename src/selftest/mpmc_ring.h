@@ -10,9 +10,9 @@
 #include <linux/workqueue.h>
 #include <linux/wait.h>
 
-#define THREADS_PRODUCER 16
-#define THREADS_CONSUMER 16
-#define ELEMENT_COUNT 1000000L /* divisible by threads_{consumer,producer} */
+#define THREADS_PRODUCER 2
+#define THREADS_CONSUMER 2
+#define ELEMENT_COUNT 100000000L /* divisible by threads_{consumer,producer} */
 #define QUEUE_SIZE 1024
 
 #define EXPECTED_TOTAL ((ELEMENT_COUNT * (ELEMENT_COUNT + 1)) / 2)

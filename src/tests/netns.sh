@@ -118,7 +118,10 @@ tests() {
 	# TCP over IPv4
 	n2 iperf3 -s -1 -B 192.168.241.2 &
 	waitiperf $netns2
-	n1 iperf3 -Z -t 3 -c 192.168.241.2
+	n1 iperf3 -Z -t 120 -c 192.168.241.2
+
+	sleep 10
+	exit
 
 	# TCP over IPv6
 	n1 iperf3 -s -1 -B fd00::1 &
