@@ -87,7 +87,7 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 		smp_rmb();	 /* TODO */
 		c = atomic_read(&r->consumer_head);
 
-		if ((p - c) < mask) { /* fast path */
+		if (likely((p - c) < mask)) {
 			if (atomic_try_cmpxchg_relaxed(&r->producer_head, &p, p + 1))
 				break;
 		} else {
@@ -134,7 +134,7 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 		p = atomic_read(&r->producer_tail);
 
 		/* Is the ring empty? */
-		if (p == c)
+		if (unlikely(p == c))
 			return NULL;
 
 		element = READ_ONCE(r->queue[c & mask]);
@@ -199,7 +199,7 @@ static inline void *__mpmc_ptr_ring_peek(struct mpmc_ptr_ring *r)
 
 	p = atomic_read(&r->producer_tail);
 
-	if (c == p)
+	if (unlikely(c == p))
 		return NULL;
 
 	/* TODO */
