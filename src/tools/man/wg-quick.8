@@ -112,25 +112,25 @@ and a more complete description may be found there. Bold lines below are for opt
 The following might be used for connecting as a client to a VPN gateway for tunneling all
 traffic:
 
-    [Interface] 
+    [Interface]
 .br
     \fBAddress = 10.200.100.8/24\fP
 .br
     \fBDNS = 10.200.100.1\fP
 .br
-    PrivateKey = oK56DE9Ue9zK76rAc8pBl6opph+1v36lm7cXXsQKrQM= 
+    PrivateKey = oK56DE9Ue9zK76rAc8pBl6opph+1v36lm7cXXsQKrQM=
 .br
-     
+
 .br
-    [Peer] 
+    [Peer]
 .br
-    PublicKey = GtL7fZc/bLnqZldpVofMCD6hDjrK28SsdLxevJ+qtKU= 
+    PublicKey = GtL7fZc/bLnqZldpVofMCD6hDjrK28SsdLxevJ+qtKU=
 .br
-    PresharedKey = /UwcSPg38hW/D9Y3tcS1FOV0K1wuURMbS0sesJEP5ak= 
+    PresharedKey = /UwcSPg38hW/D9Y3tcS1FOV0K1wuURMbS0sesJEP5ak=
 .br
-    AllowedIPs = 0.0.0.0/0 
+    AllowedIPs = 0.0.0.0/0
 .br
-    Endpoint = demo.wireguard.com:51820 
+    Endpoint = demo.wireguard.com:51820
 .br
 
 The `Address` field is added here in order to set up the address for the interface. The `DNS` field
@@ -164,7 +164,7 @@ Or, perhaps it is desirable to store private keys in encrypted form, such as thr
 .br
 
 For use on a server, the following is a more complicated example involving multiple peers:
-    
+
     [Interface]
 .br
     \fBAddress = 10.192.122.1/24\fP
@@ -173,31 +173,31 @@ For use on a server, the following is a more complicated example involving multi
 .br
     \fBSaveConfig = true\fP
 .br
-    PrivateKey = yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk= 
+    PrivateKey = yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=
 .br
-    ListenPort = 51820 
+    ListenPort = 51820
 .br
-     
+
 .br
-    [Peer] 
+    [Peer]
 .br
-    PublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg= 
+    PublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=
 .br
-    AllowedIPs = 10.192.122.3/32, 10.192.124.1/24 
+    AllowedIPs = 10.192.122.3/32, 10.192.124.1/24
 .br
-     
+
 .br
-    [Peer] 
+    [Peer]
 .br
-    PublicKey = TrMvSoP4jYQlY6RIzBgbssQqY3vxI2Pi+y71lOWWXX0= 
+    PublicKey = TrMvSoP4jYQlY6RIzBgbssQqY3vxI2Pi+y71lOWWXX0=
 .br
-    AllowedIPs = 10.192.122.4/32, 192.168.0.0/16 
+    AllowedIPs = 10.192.122.4/32, 192.168.0.0/16
 .br
-     
+
 .br
-    [Peer] 
+    [Peer]
 .br
-    PublicKey = gN65BkIKy1eCE9pP1wdc8ROUtkHLF2PfAqYdyYBz6EA= 
+    PublicKey = gN65BkIKy1eCE9pP1wdc8ROUtkHLF2PfAqYdyYBz6EA=
 .br
     AllowedIPs = 10.10.10.230/32
 
