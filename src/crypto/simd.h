@@ -6,6 +6,7 @@
 #ifndef _WG_SIMD_H
 #define _WG_SIMD_H
 
+#include <linux/sched.h>
 #if defined(CONFIG_X86_64)
 #include <linux/version.h>
 #include <asm/fpu/api.h>
