@@ -405,12 +405,6 @@ next:
 		peer_put(peer);
 		if (unlikely(free))
 			dev_kfree_skb(skb);
-
-		/* Don't totally kill scheduling latency by keeping preemption disabled forever. */
-		if (need_resched()) {
-			local_bh_enable();
-			local_bh_disable();
-		}
 	}
 	local_bh_enable();
 }
