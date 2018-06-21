@@ -7,7 +7,7 @@
 
 #include <linux/linkage.h>
 
-.section .rodata.cst192.Lconst, "aM", @progbits, 32
+.section .rodata.cst192.Lconst, "aM", @progbits, 192
 .align	64
 .Lconst:
 .long	0x0ffffff,0,0x0ffffff,0,0x0ffffff,0,0x0ffffff,0
