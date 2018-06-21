@@ -434,7 +434,7 @@ bool config_read_line(struct config_ctx *ctx, const char *input)
 	char *line, *comment;
 	bool ret = true;
 
-	/* This is what strchrnull is for, but that isn't portable. */
+	/* This is what strchrnul is for, but that isn't portable. */
 	comment = strchr(input, COMMENT_CHAR);
 	if (comment)
 		len = comment - input;
