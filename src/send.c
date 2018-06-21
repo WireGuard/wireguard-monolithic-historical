@@ -337,7 +337,7 @@ out_nokey:
 	skb_queue_walk(&packets, skb)
 		skb_orphan(skb);
 	/* Then we put them back on the top of the queue. We're not too concerned about
-	 * accidently getting things a little out of order if packets are being added
+	 * accidentally getting things a little out of order if packets are being added
 	 * really fast, because this queue is for before packets can even be sent and
 	 * it's small anyway.
 	 */
