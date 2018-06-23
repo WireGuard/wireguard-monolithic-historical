@@ -15,7 +15,6 @@
 #include <linux/uio.h>
 #include <linux/inetdevice.h>
 #include <linux/socket.h>
-#include <linux/jiffies.h>
 #include <net/ip_tunnels.h>
 #include <net/udp.h>
 #include <net/sock.h>
@@ -25,11 +24,11 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 	struct message_handshake_initiation packet;
 
 	down_write(&peer->handshake.lock);
-	if (!time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT)) {
+	if (!has_expired(peer->last_sent_handshake, REKEY_TIMEOUT)) {
 		up_write(&peer->handshake.lock);
 		return; /* This function is rate limited. */
 	}
-	peer->last_sent_handshake = get_jiffies_64();
+	peer->last_sent_handshake = ktime_get_boottime();
 	up_write(&peer->handshake.lock);
 
 	net_dbg_ratelimited("%s: Sending handshake initiation to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
@@ -59,7 +58,7 @@ void packet_send_queued_handshake_initiation(struct wireguard_peer *peer, bool i
 	/* First checking the timestamp here is just an optimization; it will
 	 * be caught while properly locked inside the actual work queue.
 	 */
-	if (!time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT))
+	if (!has_expired(peer->last_sent_handshake, REKEY_TIMEOUT))
 		return;
 
 	peer = peer_rcu_get(peer);
@@ -73,7 +72,7 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 	struct message_handshake_response packet;
 
 	net_dbg_ratelimited("%s: Sending handshake response to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
-	peer->last_sent_handshake = get_jiffies_64();
+	peer->last_sent_handshake = ktime_get_boottime();
 
 	if (noise_handshake_create_response(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
@@ -104,7 +103,7 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 	keypair = rcu_dereference_bh(peer->keypairs.current_keypair);
 	if (likely(keypair && keypair->sending.is_valid) &&
 	   (unlikely(atomic64_read(&keypair->sending.counter.counter) > REKEY_AFTER_MESSAGES) ||
-	   (keypair->i_am_the_initiator && unlikely(time_is_before_eq_jiffies64(keypair->sending.birthdate + REKEY_AFTER_TIME)))))
+	   (keypair->i_am_the_initiator && unlikely(has_expired(keypair->sending.birthdate, REKEY_AFTER_TIME)))))
 		send = true;
 	rcu_read_unlock_bh();
 
@@ -306,7 +305,7 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 	key = &keypair->sending;
 	if (unlikely(!key || !key->is_valid))
 		goto out_nokey;
-	if (unlikely(time_is_before_eq_jiffies64(key->birthdate + REJECT_AFTER_TIME)))
+	if (unlikely(has_expired(key->birthdate, REJECT_AFTER_TIME)))
 		goto out_invalid;
 
 	/* After we know we have a somewhat valid key, we now try to assign nonces to

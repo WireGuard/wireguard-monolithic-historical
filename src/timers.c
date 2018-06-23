@@ -45,10 +45,10 @@ static void expired_retransmit_handshake(struct timer_list *timer)
 		 * of a partial exchange.
 		 */
 		if (likely(timers_active(peer)) && !timer_pending(&peer->timer_zero_key_material))
-			mod_timer(&peer->timer_zero_key_material, jiffies + (REJECT_AFTER_TIME * 3));
+			mod_timer(&peer->timer_zero_key_material, jiffies + REJECT_AFTER_TIME * 3 * HZ);
 	} else {
 		++peer->timer_handshake_attempts;
-		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d seconds, retrying (try %d)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, REKEY_TIMEOUT / HZ, peer->timer_handshake_attempts + 1);
+		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d seconds, retrying (try %d)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, REKEY_TIMEOUT, peer->timer_handshake_attempts + 1);
 
 		/* We clear the endpoint address src address, in case this is the cause of trouble. */
 		socket_clear_peer_endpoint_src(peer);
@@ -66,7 +66,7 @@ static void expired_send_keepalive(struct timer_list *timer)
 	if (peer->timer_need_another_keepalive) {
 		peer->timer_need_another_keepalive = false;
 		if (likely(timers_active(peer)))
-			mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
+			mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT * HZ);
 	}
 	peer_put(peer);
 }
@@ -75,7 +75,7 @@ static void expired_new_handshake(struct timer_list *timer)
 {
 	peer_get_from_timer(timer_new_handshake);
 
-	pr_debug("%s: Retrying handshake with peer %llu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) / HZ);
+	pr_debug("%s: Retrying handshake with peer %llu (%pISpfsc) because we stopped hearing back after %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, KEEPALIVE_TIMEOUT + REKEY_TIMEOUT);
 	/* We clear the endpoint address src address, in case this is the cause of trouble. */
 	socket_clear_peer_endpoint_src(peer);
 	packet_send_queued_handshake_initiation(peer, false);
@@ -93,7 +93,7 @@ static void queued_expired_zero_key_material(struct work_struct *work)
 {
 	struct wireguard_peer *peer = container_of(work, struct wireguard_peer, clear_peer_work);
 
-	pr_debug("%s: Zeroing out all keys for peer %llu (%pISpfsc), since we haven't received a new one in %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, (REJECT_AFTER_TIME * 3) / HZ);
+	pr_debug("%s: Zeroing out all keys for peer %llu (%pISpfsc), since we haven't received a new one in %d seconds\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr, REJECT_AFTER_TIME * 3);
 	noise_handshake_clear(&peer->handshake);
 	noise_keypairs_clear(&peer->keypairs);
 	peer_put(peer);
@@ -112,7 +112,7 @@ static void expired_send_persistent_keepalive(struct timer_list *timer)
 void timers_data_sent(struct wireguard_peer *peer)
 {
 	if (likely(timers_active(peer)) && !timer_pending(&peer->timer_new_handshake))
-		mod_timer(&peer->timer_new_handshake, jiffies + KEEPALIVE_TIMEOUT + REKEY_TIMEOUT);
+		mod_timer(&peer->timer_new_handshake, jiffies + (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) * HZ);
 }
 
 /* Should be called after an authenticated data packet is received. */
@@ -120,7 +120,7 @@ void timers_data_received(struct wireguard_peer *peer)
 {
 	if (likely(timers_active(peer))) {
 		if (!timer_pending(&peer->timer_send_keepalive))
-			mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT);
+			mod_timer(&peer->timer_send_keepalive, jiffies + KEEPALIVE_TIMEOUT * HZ);
 		else
 			peer->timer_need_another_keepalive = true;
 	}
@@ -144,7 +144,7 @@ void timers_any_authenticated_packet_received(struct wireguard_peer *peer)
 void timers_handshake_initiated(struct wireguard_peer *peer)
 {
 	if (likely(timers_active(peer)))
-		mod_timer(&peer->timer_retransmit_handshake, jiffies + REKEY_TIMEOUT + prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX));
+		mod_timer(&peer->timer_retransmit_handshake, jiffies + REKEY_TIMEOUT * HZ + prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX_JIFFIES));
 }
 
 /* Should be called after a handshake response message is received and processed or when getting key confirmation via the first data message. */
@@ -161,14 +161,14 @@ void timers_handshake_complete(struct wireguard_peer *peer)
 void timers_session_derived(struct wireguard_peer *peer)
 {
 	if (likely(timers_active(peer)))
-		mod_timer(&peer->timer_zero_key_material, jiffies + (REJECT_AFTER_TIME * 3));
+		mod_timer(&peer->timer_zero_key_material, jiffies + REJECT_AFTER_TIME * 3 * HZ);
 }
 
 /* Should be called before a packet with authentication -- keepalive, data, or handshake -- is sent, or after one is received. */
 void timers_any_authenticated_packet_traversal(struct wireguard_peer *peer)
 {
 	if (peer->persistent_keepalive_interval && likely(timers_active(peer)))
-		mod_timer(&peer->timer_persistent_keepalive, jiffies + peer->persistent_keepalive_interval);
+		mod_timer(&peer->timer_persistent_keepalive, jiffies + peer->persistent_keepalive_interval * HZ);
 }
 
 void timers_init(struct wireguard_peer *peer)

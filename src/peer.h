@@ -43,14 +43,14 @@ struct wireguard_peer {
 	struct dst_cache endpoint_cache;
 	rwlock_t endpoint_lock;
 	struct noise_handshake handshake;
-	u64 last_sent_handshake;
+	ktime_t last_sent_handshake;
 	struct work_struct transmit_handshake_work, clear_peer_work;
 	struct cookie latest_cookie;
 	struct hlist_node pubkey_hash;
 	u64 rx_bytes, tx_bytes;
 	struct timer_list timer_retransmit_handshake, timer_send_keepalive, timer_new_handshake, timer_zero_key_material, timer_persistent_keepalive;
 	unsigned int timer_handshake_attempts;
-	unsigned long persistent_keepalive_interval;
+	u16 persistent_keepalive_interval;
 	bool timers_enabled, timer_need_another_keepalive, sent_lastminute_handshake;
 	struct timespec walltime_last_handshake;
 	struct kref refcount;

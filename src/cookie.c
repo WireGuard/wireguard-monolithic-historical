@@ -8,17 +8,17 @@
 #include "device.h"
 #include "messages.h"
 #include "ratelimiter.h"
+#include "timers.h"
 #include "crypto/blake2s.h"
 #include "crypto/chacha20poly1305.h"
 
-#include <linux/jiffies.h>
 #include <net/ipv6.h>
 #include <crypto/algapi.h>
 
 void cookie_checker_init(struct cookie_checker *checker, struct wireguard_device *wg)
 {
 	init_rwsem(&checker->secret_lock);
-	checker->secret_birthdate = get_jiffies_64();
+	checker->secret_birthdate = ktime_get_boottime();
 	get_random_bytes(checker->secret, NOISE_HASH_LEN);
 	checker->device = wg;
 }
@@ -77,9 +77,9 @@ static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb, struct cooki
 {
 	struct blake2s_state state;
 
-	if (!time_is_after_jiffies64(checker->secret_birthdate + COOKIE_SECRET_MAX_AGE)) {
+	if (has_expired(checker->secret_birthdate, COOKIE_SECRET_MAX_AGE)) {
 		down_write(&checker->secret_lock);
-		checker->secret_birthdate = get_jiffies_64();
+		checker->secret_birthdate = ktime_get_boottime();
 		get_random_bytes(checker->secret, NOISE_HASH_LEN);
 		up_write(&checker->secret_lock);
 	}
@@ -141,7 +141,7 @@ void cookie_add_mac_to_packet(void *message, size_t len, struct wireguard_peer *
 	up_write(&peer->latest_cookie.lock);
 
 	down_read(&peer->latest_cookie.lock);
-	if (peer->latest_cookie.is_valid && time_is_after_jiffies64(peer->latest_cookie.birthdate + COOKIE_SECRET_MAX_AGE - COOKIE_SECRET_LATENCY))
+	if (peer->latest_cookie.is_valid && !has_expired(peer->latest_cookie.birthdate, COOKIE_SECRET_MAX_AGE - COOKIE_SECRET_LATENCY))
 		compute_mac2(macs->mac2, message, len, peer->latest_cookie.cookie);
 	else
 		memset(macs->mac2, 0, COOKIE_LEN);
@@ -182,7 +182,7 @@ void cookie_message_consume(struct message_handshake_cookie *src, struct wiregua
 	if (ret) {
 		down_write(&entry->peer->latest_cookie.lock);
 		memcpy(entry->peer->latest_cookie.cookie, cookie, COOKIE_LEN);
-		entry->peer->latest_cookie.birthdate = get_jiffies_64();
+		entry->peer->latest_cookie.birthdate = ktime_get_boottime();
 		entry->peer->latest_cookie.is_valid = true;
 		entry->peer->latest_cookie.have_sent_mac1 = false;
 		up_write(&entry->peer->latest_cookie.lock);

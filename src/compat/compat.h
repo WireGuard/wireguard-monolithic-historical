@@ -84,13 +84,6 @@
 #define IP6_ECN_set_ce(a, b) IP6_ECN_set_ce(b)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0)
-#define time_is_before_jiffies64(a) time_after64(get_jiffies_64(), a)
-#define time_is_after_jiffies64(a) time_before64(get_jiffies_64(), a)
-#define time_is_before_eq_jiffies64(a) time_after_eq64(get_jiffies_64(), a)
-#define time_is_after_eq_jiffies64(a) time_before_eq64(get_jiffies_64(), a)
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) && IS_ENABLED(CONFIG_IPV6) && !defined(ISRHEL7)
 #include <net/ipv6.h>
 struct ipv6_stub_type {
@@ -335,9 +328,17 @@ static inline int get_random_bytes_wait(void *buf, int nbytes)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0) && !defined(ISRHEL7)
 #include <linux/ktime.h>
-static inline u64 ktime_get_ns(void)
+static inline u64 ktime_get_boot_ns(void)
 {
-	return ktime_to_ns(ktime_get());
+	return ktime_to_ns(ktime_get_boottime());
+}
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0) && !defined(ISRHEL7)
+#include <linux/ktime.h>
+static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
+{
+	return ktime_compare(cmp1, cmp2) > 0;
 }
 #endif
 

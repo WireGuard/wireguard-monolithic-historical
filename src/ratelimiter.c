@@ -57,7 +57,7 @@ static void gc_entries(struct work_struct *work)
 	unsigned int i;
 	struct ratelimiter_entry *entry;
 	struct hlist_node *temp;
-	const u64 now = ktime_get_ns();
+	const u64 now = ktime_get_boot_ns();
 
 	for (i = 0; i < table_size; ++i) {
 		spin_lock(&table_lock);
@@ -107,7 +107,7 @@ bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 			 * tokens, rather than as part of the rate.
 			 */
 			spin_lock(&entry->lock);
-			now = ktime_get_ns();
+			now = ktime_get_boot_ns();
 			tokens = min_t(u64, TOKEN_MAX, entry->tokens + now - entry->last_time_ns);
 			entry->last_time_ns = now;
 			ret = tokens >= PACKET_COST;
@@ -130,7 +130,7 @@ bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 	entry->ip = data.ip;
 	INIT_HLIST_NODE(&entry->hash);
 	spin_lock_init(&entry->lock);
-	entry->last_time_ns = ktime_get_ns();
+	entry->last_time_ns = ktime_get_boot_ns();
 	entry->tokens = TOKEN_MAX - PACKET_COST;
 	spin_lock(&table_lock);
 	hlist_add_head_rcu(&entry->hash, bucket);

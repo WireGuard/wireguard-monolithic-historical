@@ -80,7 +80,7 @@ static inline int skb_prepare_header(struct sk_buff *skb, struct wireguard_devic
 
 static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff *skb)
 {
-	static u64 last_under_load; /* Yes this is global, so that our load calculation applies to the whole system. */
+	static ktime_t last_under_load; /* Yes this is global, so that our load calculation applies to the whole system. */
 	struct wireguard_peer *peer = NULL;
 	bool under_load;
 	enum cookie_mac_state mac_state;
@@ -94,9 +94,9 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 
 	under_load = skb_queue_len(&wg->incoming_handshakes) >= MAX_QUEUED_INCOMING_HANDSHAKES / 8;
 	if (under_load)
-		last_under_load = get_jiffies_64();
-	else if (last_under_load)
-		under_load = time_is_after_jiffies64(last_under_load + HZ);
+		last_under_load = ktime_get_boottime();
+	else if (ktime_to_ns(last_under_load))
+		under_load = !has_expired(last_under_load, 1);
 	mac_state = cookie_validate_packet(&wg->cookie_checker, skb, under_load);
 	if ((under_load && mac_state == VALID_MAC_WITH_COOKIE) || (!under_load && mac_state == VALID_MAC_BUT_NO_COOKIE))
 		packet_needs_cookie = false;
@@ -190,7 +190,7 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 	rcu_read_lock_bh();
 	keypair = rcu_dereference_bh(peer->keypairs.current_keypair);
 	if (likely(keypair && keypair->sending.is_valid) && keypair->i_am_the_initiator &&
-	    unlikely(time_is_before_eq_jiffies64(keypair->sending.birthdate + REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - REKEY_TIMEOUT)))
+	    unlikely(has_expired(keypair->sending.birthdate, REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - REKEY_TIMEOUT)))
 		send = true;
 	rcu_read_unlock_bh();
 
@@ -210,7 +210,7 @@ static inline bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *
 	if (unlikely(!key))
 		return false;
 
-	if (unlikely(!key->is_valid || time_is_before_eq_jiffies64(key->birthdate + REJECT_AFTER_TIME) || key->counter.receive.counter >= REJECT_AFTER_MESSAGES)) {
+	if (unlikely(!key->is_valid || has_expired(key->birthdate, REJECT_AFTER_TIME) || key->counter.receive.counter >= REJECT_AFTER_MESSAGES)) {
 		key->is_valid = false;
 		return false;
 	}

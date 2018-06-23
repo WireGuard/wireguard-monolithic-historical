@@ -16,7 +16,7 @@
 #include <linux/atomic.h>
 #include <linux/rwsem.h>
 #include <linux/mutex.h>
-#include <linux/jiffies.h>
+#include <linux/ktime.h>
 #include <linux/kref.h>
 
 union noise_counter {
@@ -31,7 +31,7 @@ union noise_counter {
 struct noise_symmetric_key {
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	union noise_counter counter;
-	u64 birthdate;
+	ktime_t birthdate;
 	bool is_valid;
 };
 
@@ -72,7 +72,7 @@ struct noise_handshake {
 	struct index_hashtable_entry entry;
 
 	enum noise_handshake_state state;
-	u64 last_initiation_consumption;
+	ktime_t last_initiation_consumption;
 
 	struct noise_static_identity *static_identity;
 

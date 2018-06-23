@@ -284,7 +284,7 @@ static void symmetric_key_init(struct noise_symmetric_key *key)
 	spin_lock_init(&key->counter.receive.lock);
 	atomic64_set(&key->counter.counter, 0);
 	memset(key->counter.receive.backtrack, 0, sizeof(key->counter.receive.backtrack));
-	key->birthdate = get_jiffies_64();
+	key->birthdate = ktime_get_boottime();
 	key->is_valid = true;
 }
 
@@ -461,7 +461,7 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 
 	down_read(&handshake->lock);
 	replay_attack = memcmp(t, handshake->latest_timestamp, NOISE_TIMESTAMP_LEN) <= 0;
-	flood_attack = !time_is_before_jiffies64(handshake->last_initiation_consumption + INITIATIONS_PER_SECOND);
+	flood_attack = ktime_after(ktime_add_ns(handshake->last_initiation_consumption, NSEC_PER_SEC / INITIATIONS_PER_SECOND), ktime_get_boottime());
 	up_read(&handshake->lock);
 	if (replay_attack || flood_attack) {
 		peer_put(wg_peer);
@@ -476,7 +476,7 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	memcpy(handshake->hash, hash, NOISE_HASH_LEN);
 	memcpy(handshake->chaining_key, chaining_key, NOISE_HASH_LEN);
 	handshake->remote_index = src->sender_index;
-	handshake->last_initiation_consumption = get_jiffies_64();
+	handshake->last_initiation_consumption = ktime_get_boottime();
 	handshake->state = HANDSHAKE_CONSUMED_INITIATION;
 	up_write(&handshake->lock);
 

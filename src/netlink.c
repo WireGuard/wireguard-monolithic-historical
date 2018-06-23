@@ -110,7 +110,7 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index, struct allo
 		if (fail)
 			goto err;
 
-		if (nla_put(skb, WGPEER_A_LAST_HANDSHAKE_TIME, sizeof(struct timespec), &peer->walltime_last_handshake) || nla_put_u16(skb, WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL, peer->persistent_keepalive_interval / HZ) ||
+		if (nla_put(skb, WGPEER_A_LAST_HANDSHAKE_TIME, sizeof(struct timespec), &peer->walltime_last_handshake) || nla_put_u16(skb, WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL, peer->persistent_keepalive_interval) ||
 				nla_put_u64_64bit(skb, WGPEER_A_TX_BYTES, peer->tx_bytes, WGPEER_A_UNSPEC) || nla_put_u64_64bit(skb, WGPEER_A_RX_BYTES, peer->rx_bytes, WGPEER_A_UNSPEC))
 			goto err;
 
@@ -376,7 +376,7 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 		const u16 persistent_keepalive_interval = nla_get_u16(attrs[WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL]);
 		const bool send_keepalive = !peer->persistent_keepalive_interval && persistent_keepalive_interval && netif_running(wg->dev);
 
-		peer->persistent_keepalive_interval = (unsigned long)persistent_keepalive_interval * HZ;
+		peer->persistent_keepalive_interval = persistent_keepalive_interval;
 		if (send_keepalive)
 			packet_send_keepalive(peer);
 	}
