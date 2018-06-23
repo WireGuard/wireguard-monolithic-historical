@@ -18,7 +18,7 @@
 void cookie_checker_init(struct cookie_checker *checker, struct wireguard_device *wg)
 {
 	init_rwsem(&checker->secret_lock);
-	checker->secret_birthdate = ktime_get_boottime();
+	checker->secret_birthdate = ktime_get_boot_fast_ns();
 	get_random_bytes(checker->secret, NOISE_HASH_LEN);
 	checker->device = wg;
 }
@@ -79,7 +79,7 @@ static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb, struct cooki
 
 	if (has_expired(checker->secret_birthdate, COOKIE_SECRET_MAX_AGE)) {
 		down_write(&checker->secret_lock);
-		checker->secret_birthdate = ktime_get_boottime();
+		checker->secret_birthdate = ktime_get_boot_fast_ns();
 		get_random_bytes(checker->secret, NOISE_HASH_LEN);
 		up_write(&checker->secret_lock);
 	}
@@ -182,7 +182,7 @@ void cookie_message_consume(struct message_handshake_cookie *src, struct wiregua
 	if (ret) {
 		down_write(&entry->peer->latest_cookie.lock);
 		memcpy(entry->peer->latest_cookie.cookie, cookie, COOKIE_LEN);
-		entry->peer->latest_cookie.birthdate = ktime_get_boottime();
+		entry->peer->latest_cookie.birthdate = ktime_get_boot_fast_ns();
 		entry->peer->latest_cookie.is_valid = true;
 		entry->peer->latest_cookie.have_sent_mac1 = false;
 		up_write(&entry->peer->latest_cookie.lock);

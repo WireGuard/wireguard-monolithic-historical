@@ -19,9 +19,9 @@ void timers_handshake_complete(struct wireguard_peer *peer);
 void timers_session_derived(struct wireguard_peer *peer);
 void timers_any_authenticated_packet_traversal(struct wireguard_peer *peer);
 
-static inline bool has_expired(ktime_t birthday, u64 expiration_seconds)
+static inline bool has_expired(u64 birthday_nanoseconds, u64 expiration_seconds)
 {
-	return !ktime_after(ktime_add_ns(birthday, expiration_seconds * NSEC_PER_SEC), ktime_get_boottime());
+	return (s64)(birthday_nanoseconds + expiration_seconds * NSEC_PER_SEC) <= (s64)ktime_get_boot_fast_ns();
 }
 
 #endif /* _WG_TIMERS_H */

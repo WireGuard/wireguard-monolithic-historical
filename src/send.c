@@ -28,7 +28,7 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 		up_write(&peer->handshake.lock);
 		return; /* This function is rate limited. */
 	}
-	peer->last_sent_handshake = ktime_get_boottime();
+	peer->last_sent_handshake = ktime_get_boot_fast_ns();
 	up_write(&peer->handshake.lock);
 
 	net_dbg_ratelimited("%s: Sending handshake initiation to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
@@ -72,7 +72,7 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 	struct message_handshake_response packet;
 
 	net_dbg_ratelimited("%s: Sending handshake response to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
-	peer->last_sent_handshake = ktime_get_boottime();
+	peer->last_sent_handshake = ktime_get_boot_fast_ns();
 
 	if (noise_handshake_create_response(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);

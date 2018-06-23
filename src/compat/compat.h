@@ -334,11 +334,11 @@ static inline u64 ktime_get_boot_ns(void)
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0) && !defined(ISRHEL7)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 #include <linux/ktime.h>
-static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
+static inline u64 ktime_get_boot_fast_ns(void)
 {
-	return ktime_compare(cmp1, cmp2) > 0;
+	return ktime_get_boot_ns();
 }
 #endif
 

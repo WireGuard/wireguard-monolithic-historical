@@ -80,7 +80,7 @@ static inline int skb_prepare_header(struct sk_buff *skb, struct wireguard_devic
 
 static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff *skb)
 {
-	static ktime_t last_under_load; /* Yes this is global, so that our load calculation applies to the whole system. */
+	static u64 last_under_load; /* Yes this is global, so that our load calculation applies to the whole system. */
 	struct wireguard_peer *peer = NULL;
 	bool under_load;
 	enum cookie_mac_state mac_state;
@@ -94,8 +94,8 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 
 	under_load = skb_queue_len(&wg->incoming_handshakes) >= MAX_QUEUED_INCOMING_HANDSHAKES / 8;
 	if (under_load)
-		last_under_load = ktime_get_boottime();
-	else if (ktime_to_ns(last_under_load))
+		last_under_load = ktime_get_boot_fast_ns();
+	else if (last_under_load)
 		under_load = !has_expired(last_under_load, 1);
 	mac_state = cookie_validate_packet(&wg->cookie_checker, skb, under_load);
 	if ((under_load && mac_state == VALID_MAC_WITH_COOKIE) || (!under_load && mac_state == VALID_MAC_BUT_NO_COOKIE))

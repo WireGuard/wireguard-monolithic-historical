@@ -15,13 +15,13 @@ struct cookie_checker {
 	u8 secret[NOISE_HASH_LEN];
 	u8 cookie_encryption_key[NOISE_SYMMETRIC_KEY_LEN];
 	u8 message_mac1_key[NOISE_SYMMETRIC_KEY_LEN];
-	ktime_t secret_birthdate;
+	u64 secret_birthdate;
 	struct rw_semaphore secret_lock;
 	struct wireguard_device *device;
 };
 
 struct cookie {
-	ktime_t birthdate;
+	u64 birthdate;
 	bool is_valid;
 	u8 cookie[COOKIE_LEN];
 	bool have_sent_mac1;

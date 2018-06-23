@@ -31,7 +31,7 @@ union noise_counter {
 struct noise_symmetric_key {
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	union noise_counter counter;
-	ktime_t birthdate;
+	u64 birthdate;
 	bool is_valid;
 };
 
@@ -72,7 +72,7 @@ struct noise_handshake {
 	struct index_hashtable_entry entry;
 
 	enum noise_handshake_state state;
-	ktime_t last_initiation_consumption;
+	u64 last_initiation_consumption;
 
 	struct noise_static_identity *static_identity;
 
