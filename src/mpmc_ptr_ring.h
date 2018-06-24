@@ -82,6 +82,7 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 	unsigned int mask = r->mask;
 
 	p = atomic_read(&r->producer_head);
+	preempt_disable();
 
 	for (;;) {
 		/*
@@ -104,8 +105,10 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 			smp_rmb();
 			new_p = atomic_read(&r->producer_head);
 
-			if (new_p == p)
+			if (new_p == p) {
+				preempt_enable_no_resched();
 				return -ENOSPC;
+			}
 
 			p = new_p;
 		}
@@ -124,6 +127,7 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 	smp_wmb();
 	atomic_set(&r->producer_tail, p + 1);
 
+	preempt_enable_no_resched();
 	return 0;
 }
 
