@@ -327,7 +327,7 @@ static inline int get_random_bytes_wait(void *buf, int nbytes)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0) && !defined(ISRHEL7)
-#include <linux/ktime.h>
+#include <linux/hrtimer.h>
 static inline u64 ktime_get_boot_ns(void)
 {
 	return ktime_to_ns(ktime_get_boottime());
@@ -335,11 +335,16 @@ static inline u64 ktime_get_boot_ns(void)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
-#include <linux/ktime.h>
-static inline u64 ktime_get_boot_fast_ns(void)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+#include <linux/hrtimer.h>
+#else
+#include <linux/timekeeping.h>
+#endif
+static inline u64 __wgcompat_ktime_get_boot_fast_ns(void)
 {
 	return ktime_get_boot_ns();
 }
+#define ktime_get_boot_fast_ns __wgcompat_ktime_get_boot_fast_ns
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
