@@ -304,56 +304,28 @@ static struct sk_buff **gro_receive(struct sock *sk,
 					  struct sk_buff **head,
 					  struct sk_buff *skb)
 {
-	struct wireguard_device *wg;
+    struct wireguard_peer *peer, *peer2;
 	struct sk_buff *p, **pp = NULL;
-	struct vxlanhdr *vh, *vh2;
-	unsigned int hlen, off_vx;
 	int flush = 1;
-	struct vxlan_sock *vs = rcu_dereference_sk_user_data(sk);
-	__be32 flags;
 	struct gro_remcsum grc;
 
+	peer = PACKET_PEER(skb);
 
-	wg = sk->sk_user_data;
-    // TODO: Check this key?
-    //pubkey_hashtable_init(&wg->peer_hashtable);
-	skb_gro_remcsum_init(&grc);
-
-	off_vx = skb_gro_offset(skb);
-	hlen = off_vx + sizeof(*vh);
-	vh   = skb_gro_header_fast(skb, off_vx);
-	if (skb_gro_header_hard(skb, hlen)) {
-		vh = skb_gro_header_slow(skb, hlen, off_vx);
-		if (unlikely(!vh))
-			goto out;
-	}
-
-	skb_gro_postpull_rcsum(skb, vh, sizeof(struct vxlanhdr));
-
-	flags = vh->vx_flags;
-
-	if ((flags & VXLAN_HF_RCO) && (vs->flags & VXLAN_F_REMCSUM_RX)) {
-		vh = vxlan_gro_remcsum(skb, off_vx, vh, sizeof(struct vxlanhdr),
-				       vh->vx_vni, &grc,
-				       !!(vs->flags &
-					  VXLAN_F_REMCSUM_NOPARTIAL));
-
-		if (!vh)
-			goto out;
-	}
-
-	skb_gro_pull(skb, sizeof(struct vxlanhdr)); /* pull vxlan header */
-
-	for (p = *head; p; p = p->next) {
+    for (p = *head; p; p = p->next) {
 		if (!NAPI_GRO_CB(p)->same_flow)
 			continue;
 
-		vh2 = (struct vxlanhdr *)(p->data + off_vx);
-		if (vh->vx_flags != vh2->vx_flags ||
-		    vh->vx_vni != vh2->vx_vni) {
+		/* In WireGuard only the key have to be the same across
+         * packets to be considered for aggregation.
+		 */
+	    peer2 = PACKET_PEER(skb);
+
+		if (peer2->pubkey_hash != peer->pubkey_hash) {
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
+        
+
 	}
 
 	pp = call_gro_receive(eth_gro_receive, head, skb);
