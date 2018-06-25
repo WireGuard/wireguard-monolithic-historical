@@ -258,6 +258,8 @@ static void del_if(const char *iface)
 
 	xregcomp(&reg, regex, REG_EXTENDED);
 
+	cmd("iptables -D OUTPUT -m mark --mark 0x20000 -j ACCEPT -m comment --comment \"wireguard rule %s\"", iface);
+	cmd("ip6tables -D OUTPUT -m mark --mark 0x20000 -j ACCEPT -m comment --comment \"wireguard rule %s\"", iface);
 	cmd("ip link del %s", iface);
 	for (char *ret = cmd_ret(&c, "ip rule show"); ret; ret = cmd_ret(&c, NULL)) {
 		if (!regexec(&reg, ret, ARRAY_SIZE(matches), matches, 0)) {
@@ -279,6 +281,8 @@ static void up_if(unsigned int *netid, const char *iface)
 		*netid = random() & 0xfffe;
 
 	cmd("wg set %s fwmark 0x20000", iface);
+	cmd("iptables -I OUTPUT 1 -m mark --mark 0x20000 -j ACCEPT -m comment --comment \"wireguard rule %s\"", iface);
+	cmd("ip6tables -I OUTPUT 1 -m mark --mark 0x20000 -j ACCEPT -m comment --comment \"wireguard rule %s\"", iface);
 	cndc("interface setcfg %s up", iface);
 	cndc("network create %u vpn 1 1", *netid);
 	cndc("network interface add %u %s", *netid, iface);
