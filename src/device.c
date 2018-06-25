@@ -67,31 +67,44 @@ static int open(struct net_device *dev)
 	return 0;
 }
 
-#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
+#ifdef CONFIG_PM_SLEEP
+static DECLARE_COMPLETION(pm_awake);
+void device_wait_for_awake(void)
+{
+	wait_for_completion(&pm_awake);
+}
 static int pm_notification(struct notifier_block *nb, unsigned long action, void *data)
 {
-	struct wireguard_device *wg;
-	struct wireguard_peer *peer;
-
-	if (action != PM_HIBERNATION_PREPARE && action != PM_SUSPEND_PREPARE)
-		return 0;
-
-	rtnl_lock();
-	list_for_each_entry(wg, &device_list, device_list) {
-		mutex_lock(&wg->device_update_lock);
-		list_for_each_entry(peer, &wg->peer_list, peer_list) {
-			noise_handshake_clear(&peer->handshake);
-			noise_keypairs_clear(&peer->keypairs);
-			if (peer->timers_enabled)
-				del_timer(&peer->timer_zero_key_material);
+	switch (action) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE: {
+#ifndef CONFIG_ANDROID
+		struct wireguard_device *wg;
+		struct wireguard_peer *peer;
+		rtnl_lock();
+		list_for_each_entry(wg, &device_list, device_list) {
+			mutex_lock(&wg->device_update_lock);
+			list_for_each_entry(peer, &wg->peer_list, peer_list) {
+				noise_handshake_clear(&peer->handshake);
+				noise_keypairs_clear(&peer->keypairs);
+				if (peer->timers_enabled)
+					del_timer(&peer->timer_zero_key_material);
+			}
+			mutex_unlock(&wg->device_update_lock);
 		}
-		mutex_unlock(&wg->device_update_lock);
+		rtnl_unlock();
+		rcu_barrier_bh();
+#endif
+		reinit_completion(&pm_awake);
 	}
-	rtnl_unlock();
-	rcu_barrier_bh();
+	case PM_POST_HIBERNATION:
+	case PM_POST_SUSPEND:
+		complete_all(&pm_awake);
+	}
+
 	return 0;
 }
-static struct notifier_block pm_notifier = { .notifier_call = pm_notification };
+static struct notifier_block pm_notifier = { .notifier_call = pm_notification, .priority = INT_MIN };
 #endif
 
 static int stop(struct net_device *dev)
@@ -390,7 +403,8 @@ int __init device_init(void)
 {
 	int ret;
 
-#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
+#ifdef CONFIG_PM_SLEEP
+	complete_all(&pm_awake);
 	ret = register_pm_notifier(&pm_notifier);
 	if (ret)
 		return ret;
@@ -409,7 +423,7 @@ int __init device_init(void)
 error_netdevice:
 	unregister_netdevice_notifier(&netdevice_notifier);
 error_pm:
-#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
+#ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&pm_notifier);
 #endif
 	return ret;
@@ -419,7 +433,7 @@ void device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
 	unregister_netdevice_notifier(&netdevice_notifier);
-#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
+#ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&pm_notifier);
 #endif
 	rcu_barrier_bh();

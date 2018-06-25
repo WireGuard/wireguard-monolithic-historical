@@ -31,6 +31,8 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 	peer->last_sent_handshake = ktime_get_boot_fast_ns();
 	up_write(&peer->handshake.lock);
 
+	device_wait_for_awake();
+
 	net_dbg_ratelimited("%s: Sending handshake initiation to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 
 	if (noise_handshake_create_initiation(&packet, &peer->handshake)) {
@@ -71,6 +73,8 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 {
 	struct message_handshake_response packet;
 
+	device_wait_for_awake();
+
 	net_dbg_ratelimited("%s: Sending handshake response to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	peer->last_sent_handshake = ktime_get_boot_fast_ns();
 
@@ -88,6 +92,8 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 void packet_send_handshake_cookie(struct wireguard_device *wg, struct sk_buff *initiating_skb, __le32 sender_index)
 {
 	struct message_handshake_cookie packet;
+
+	device_wait_for_awake();
 
 	net_dbg_skb_ratelimited("%s: Sending cookie response for denied handshake message for %pISpfsc\n", wg->dev->name, initiating_skb);
 	cookie_message_create(&packet, initiating_skb, sender_index, &wg->cookie_checker);

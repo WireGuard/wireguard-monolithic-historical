@@ -60,5 +60,10 @@ struct wireguard_device {
 
 int device_init(void);
 void device_uninit(void);
+#if defined(CONFIG_PM_SLEEP)
+void device_wait_for_awake(void);
+#else
+static inline void device_wait_for_awake(void) { }
+#endif
 
 #endif /* _WG_DEVICE_H */
