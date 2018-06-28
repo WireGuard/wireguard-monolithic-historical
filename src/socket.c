@@ -305,10 +305,10 @@ static struct sk_buff **gro_receive(struct sock *sk,
 					  struct sk_buff *skb)
 {
     struct wireguard_peer *peer, *peer2;
-	struct sk_buff *p, **pp = NULL;
-	int flush = 1;
+	struct sk_buff *p = NULL;
 	struct gro_remcsum grc;
 
+    rcu_read_lock();
 	peer = PACKET_PEER(skb);
 
     for (p = *head; p; p = p->next) {
@@ -328,15 +328,17 @@ static struct sk_buff **gro_receive(struct sock *sk,
 
 	}
 
-	pp = call_gro_receive(eth_gro_receive, head, skb);
-	flush = 0;
 
-out:
+    rcu_read_unlock();
 	skb_gro_remcsum_cleanup(skb, &grc);
 	skb->remcsum_offload = 0;
-	NAPI_GRO_CB(skb)->flush |= flush;
+	NAPI_GRO_CB(skb)->flush |= 0;
 
-	return pp;
+    /* GRO does indeed concatenate packets but returning -EINPROGRESS makes us
+     * go to
+     * https://elixir.bootlin.com/linux/latest/source/net/core/dev.c#L4998,
+     * so that our packets don't get concatenated */
+	return -EINPROGRESS;
 }
 
 static int gro_complete(struct sock *sk, struct sk_buff *skb, int nhoff)
