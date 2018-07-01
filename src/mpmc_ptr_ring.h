@@ -41,7 +41,7 @@
 struct mpmc_ptr_ring {
 	/* Read-mostly data */
 	void **queue;
-	size_t size;
+	unsigned int size;
 
 	/* consumer_head: updated in _consume; read in _produce */
 	atomic_t consumer_head ____cacheline_aligned_in_smp;
@@ -53,7 +53,7 @@ struct mpmc_ptr_ring {
 
 static inline bool mpmc_ptr_ring_empty(struct mpmc_ptr_ring *r)
 {
-	size_t ptail, chead;
+	unsigned int ptail, chead;
 
 	/* Order the following reads against earlier stuff */
 	smp_rmb();
@@ -66,8 +66,8 @@ static inline bool mpmc_ptr_ring_empty(struct mpmc_ptr_ring *r)
 
 static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 {
-	size_t p, c;
-	size_t mask = r->size - 1;
+	unsigned int p, c;
+	unsigned int mask = r->size - 1;
 
 	p = atomic_read(&r->producer_head);
 
@@ -79,7 +79,7 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 			if (atomic_cmpxchg(&r->producer_head, p, p + 1) == p)
 				break;
 		} else {
-			size_t new_p;
+			unsigned int new_p;
 
 			smp_rmb();
 			new_p = atomic_read(&r->producer_head);
@@ -109,9 +109,9 @@ static inline int mpmc_ptr_ring_produce(struct mpmc_ptr_ring *r, void *ptr)
 
 static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 {
-	size_t c, p, old_c;
+	unsigned int c, p, old_c;
 	void *element;
-	size_t mask = r->size - 1;
+	unsigned int mask = r->size - 1;
 
 	for (;;) {
 		c = atomic_read(&r->consumer_head);
@@ -141,7 +141,7 @@ static inline void *mpmc_ptr_ring_consume(struct mpmc_ptr_ring *r)
 /*
  * Warning: size must be greater than the number of concurrent consumers
  */
-static inline int mpmc_ptr_ring_init(struct mpmc_ptr_ring *r, int size, gfp_t gfp)
+static inline int mpmc_ptr_ring_init(struct mpmc_ptr_ring *r, unsigned int size, gfp_t gfp)
 {
 	if (WARN_ONCE(!is_power_of_2(size), "size must be a power of two"))
 		return -EINVAL;
@@ -177,8 +177,8 @@ static inline void mpmc_ptr_ring_cleanup(struct mpmc_ptr_ring *r, void (*destroy
  */
 static inline void *__mpmc_ptr_ring_peek(struct mpmc_ptr_ring *r)
 {
-	size_t c, p;
-	size_t mask = r->size - 1;
+	unsigned int c, p;
+	unsigned int mask = r->size - 1;
 	void *element;
 
 	c = atomic_read(&r->consumer_head);
