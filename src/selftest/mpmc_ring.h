@@ -20,7 +20,7 @@
 #define PER_CONSUMER (ELEMENT_COUNT/THREADS_CONSUMER)
 #define THREADS_TOTAL (THREADS_PRODUCER + THREADS_CONSUMER)
 
-struct mpmc_ptr_ring *ring;
+struct mpmc_ptr_ring *ring __initdata;
 
 struct worker_producer {
 	struct work_struct work;
@@ -34,7 +34,7 @@ struct worker_consumer {
 	long count;
 };
 
-static void producer_function(struct work_struct *work)
+static __init void producer_function(struct work_struct *work)
 {
 	struct worker_producer *td = container_of(work, struct worker_producer, work);
 	uintptr_t count = (td->thread_num * PER_PRODUCER) + 1;
@@ -45,7 +45,7 @@ static void producer_function(struct work_struct *work)
 	}
 }
 
-static void consumer_function(struct work_struct *work)
+static __init void consumer_function(struct work_struct *work)
 {
 	struct worker_consumer *td = container_of(work, struct worker_consumer, work);
 	int i;
