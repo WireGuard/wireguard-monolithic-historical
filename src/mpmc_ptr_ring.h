@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
  * Copyright (C) 2018 Jonathan Neuschäfer
+ * Copyright (C) 2018 Thomas Gschwantner <tharre3@gmail.com>. All Rights Reserved.
  */
+
+#ifndef MPMC_RING_PTR_H
+#define MPMC_RING_PTR_H
 
 /*
  * This is an implementation of a Multi-Producer/Multi-Consumer (MPMC) queue,
@@ -207,3 +211,5 @@ static inline void __mpmc_ptr_ring_discard_one(struct mpmc_ptr_ring *r)
 	smp_mb__before_atomic();
 	atomic_inc(&r->consumer_head);
 }
+
+#endif /* MPMC_RING_PTR_H */
