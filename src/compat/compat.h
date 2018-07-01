@@ -597,6 +597,11 @@ static inline void *skb_put_data(struct sk_buff *skb, const void *data, unsigned
 }
 #endif
 
+#include <linux/atomic.h>
+#if !defined(atomic_try_cmpxchg)
+#include "atomic/atomic.h"
+#endif
+
 /* https://lkml.kernel.org/r/20170624021727.17835-1-Jason@zx2c4.com */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
