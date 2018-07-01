@@ -223,8 +223,8 @@ void packet_tx_worker(struct work_struct *work)
 	struct sk_buff *first;
 	enum packet_state state;
 
-	while ((first = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(first)->state)) != PACKET_STATE_UNCRYPTED) {
-		__ptr_ring_discard_one(&queue->ring);
+	while ((first = __mpmc_ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(first)->state)) != PACKET_STATE_UNCRYPTED) {
+		__mpmc_ptr_ring_discard_one(&queue->ring);
 		peer = PACKET_PEER(first);
 		keypair = PACKET_CB(first)->keypair;
 
@@ -244,7 +244,7 @@ void packet_encrypt_worker(struct work_struct *work)
 	struct sk_buff *first, *skb, *next;
 	bool have_simd = simd_get();
 
-	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
+	while ((first = mpmc_ptr_ring_consume(&queue->ring)) != NULL) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
 		skb_walk_null_queue_safe(first, skb, next) {
