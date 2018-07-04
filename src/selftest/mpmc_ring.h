@@ -30,8 +30,8 @@ struct worker_producer {
 struct worker_consumer {
 	struct work_struct work;
 	int thread_num;
-	long total;
-	long count;
+	uint64_t total;
+	uint64_t count;
 };
 
 static __init void producer_function(struct work_struct *work)
@@ -41,7 +41,8 @@ static __init void producer_function(struct work_struct *work)
 
 	for (; count <= (td->thread_num + 1) * PER_PRODUCER; ++count) {
 		while (mpmc_ptr_ring_produce(ring, (void *) count))
-			schedule();
+			if (need_resched())
+				schedule();
 	}
 }
 
@@ -54,7 +55,8 @@ static __init void consumer_function(struct work_struct *work)
 		uintptr_t value;
 
 		while (!(value = (uintptr_t) mpmc_ptr_ring_consume(ring)))
-			schedule();
+			if (need_resched())
+				schedule();
 
 		td->total += value;
 		++(td->count);
@@ -113,8 +115,8 @@ bool __init mpmc_ring_selftest(void)
 	}
 
 	pr_info("mpmc_ring self-test failed:");
-	pr_info("Count: %lu, expected: %lu", count, ELEMENT_COUNT);
-	pr_info("Total: %lu, expected: %lu", total, EXPECTED_TOTAL);
+	pr_info("Count: %llu, expected: %llu", count, ELEMENT_COUNT);
+	pr_info("Total: %llu, expected: %llu", total, EXPECTED_TOTAL);
 
 	return false;
 }
