@@ -132,7 +132,10 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	peer = allowedips_lookup_dst(&wg->peer_allowedips, skb);
 	if (unlikely(!peer)) {
 		ret = -ENOKEY;
-		net_dbg_skb_ratelimited("%s: No peer is configured for %pISc\n", dev->name, skb);
+		if (skb->protocol == htons(ETH_P_IP))
+			net_dbg_ratelimited("%s: No peer has allowed IPs matching %pI4\n", dev->name, &ip_hdr(skb)->daddr);
+		else if (skb->protocol == htons(ETH_P_IPV6))
+			net_dbg_ratelimited("%s: No peer has allowed IPs matching %pI6\n", dev->name, &ipv6_hdr(skb)->daddr);
 		goto err;
 	}
 
