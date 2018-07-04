@@ -57,7 +57,7 @@ static inline int skb_prepare_header(struct sk_buff *skb, struct wireguard_devic
 	udp = udp_hdr(skb);
 	data_offset = (u8 *)udp - skb->data;
 	if (unlikely(data_offset > U16_MAX || data_offset + sizeof(struct udphdr) > skb->len))
-		return -EINVAL;  /* Packet has offset at impossible location or isn't big enough to have UDP fields*/
+		return -EINVAL;  /* Packet has offset at impossible location or isn't big enough to have UDP fields */
 	data_len = ntohs(udp->len);
 	if (unlikely(data_len < sizeof(struct udphdr) || data_len > skb->len - data_offset))
 		return -EINVAL;  /* UDP packet is reporting too small of a size or lying about its size */
