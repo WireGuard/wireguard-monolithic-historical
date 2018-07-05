@@ -51,11 +51,13 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	rwlock_init(&peer->endpoint_lock);
 	kref_init(&peer->refcount);
 	packet_queue_init(&peer->tx_queue, packet_tx_worker, false, MAX_QUEUED_PACKETS);
-	packet_queue_init(&peer->rx_queue, packet_rx_worker, false, MAX_QUEUED_PACKETS);
+	packet_queue_init(&peer->rx_queue, NULL, false, MAX_QUEUED_PACKETS);
 	skb_queue_head_init(&peer->staged_packet_queue);
 	list_add_tail(&peer->peer_list, &wg->peer_list);
 	pubkey_hashtable_add(&wg->peer_hashtable, peer);
 	peer->last_sent_handshake = ktime_get_boot_fast_ns() - (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC;
+	netif_napi_add(wg->dev, &peer->napi, packet_rx_poll, NAPI_POLL_WEIGHT);
+	napi_enable(&peer->napi);
 	pr_debug("%s: Peer %llu created\n", wg->dev->name, peer->internal_id);
 	return peer;
 }
@@ -92,9 +94,11 @@ void peer_remove(struct wireguard_peer *peer)
 	noise_keypairs_clear(&peer->keypairs);
 	list_del_init(&peer->peer_list);
 	timers_stop(peer);
-	flush_workqueue(peer->device->packet_crypt_wq); /* The first flush is for encrypt/decrypt step. */
-	flush_workqueue(peer->device->packet_crypt_wq); /* The second flush is for send/receive step. */
+	flush_workqueue(peer->device->packet_crypt_wq); /* The first flush is for encrypt/decrypt. */
+	flush_workqueue(peer->device->packet_crypt_wq); /* The second.1 flush is for send (but not receive, since that's napi). */
+	napi_disable(&peer->napi); /* The second.2 flush is for receive (but not send, since that's wq). */
 	flush_workqueue(peer->device->handshake_send_wq);
+	netif_napi_del(&peer->napi);
 	--peer->device->num_peers;
 	peer_put(peer);
 }

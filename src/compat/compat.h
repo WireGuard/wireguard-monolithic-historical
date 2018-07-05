@@ -597,6 +597,10 @@ static inline void *skb_put_data(struct sk_buff *skb, const void *data, unsigned
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0) && !defined(ISRHEL7)
+#define napi_complete_done(n, work_done) napi_complete(n)
+#endif
+
 /* https://lkml.kernel.org/r/20170624021727.17835-1-Jason@zx2c4.com */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>

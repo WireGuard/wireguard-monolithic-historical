@@ -368,17 +368,17 @@ packet_processed:
 	dev_kfree_skb(skb);
 }
 
-void packet_rx_worker(struct work_struct *work)
+int packet_rx_poll(struct napi_struct *napi, int budget)
 {
-	struct crypt_queue *queue = container_of(work, struct crypt_queue, work);
-	struct wireguard_peer *peer;
+	struct wireguard_peer *peer = container_of(napi, struct wireguard_peer, napi);
+	struct crypt_queue *queue = &peer->rx_queue;
 	struct noise_keypair *keypair;
 	struct sk_buff *skb;
 	struct endpoint endpoint;
 	enum packet_state state;
+	int work_done = 0;
 	bool free;
 
-	local_bh_disable();
 	while ((skb = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(skb)->state)) != PACKET_STATE_UNCRYPTED) {
 		__ptr_ring_discard_one(&queue->ring);
 		peer = PACKET_PEER(skb);
@@ -405,8 +405,15 @@ next:
 		peer_put(peer);
 		if (unlikely(free))
 			dev_kfree_skb(skb);
+
+		if (++work_done >= budget)
+			break;
 	}
-	local_bh_enable();
+
+	if (work_done < budget)
+		napi_complete_done(napi, work_done);
+
+	return work_done;
 }
 
 void packet_decrypt_worker(struct work_struct *work)
@@ -417,7 +424,7 @@ void packet_decrypt_worker(struct work_struct *work)
 
 	while ((skb = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving, have_simd)) ? PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
-		queue_enqueue_per_peer(&PACKET_PEER(skb)->rx_queue, skb, state);
+		queue_enqueue_per_peer_napi(&PACKET_PEER(skb)->rx_queue, skb, state);
 		have_simd = simd_relax(have_simd);
 	}
 

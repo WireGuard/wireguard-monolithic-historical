@@ -28,12 +28,14 @@ int packet_queue_init(struct crypt_queue *queue, work_func_t function, bool mult
 	ret = ptr_ring_init(&queue->ring, len, GFP_KERNEL);
 	if (ret)
 		return ret;
-	if (multicore) {
-		queue->worker = packet_alloc_percpu_multicore_worker(function, queue);
-		if (!queue->worker)
-			return -ENOMEM;
-	} else
-		INIT_WORK(&queue->work, function);
+	if (function) {
+		if (multicore) {
+			queue->worker = packet_alloc_percpu_multicore_worker(function, queue);
+			if (!queue->worker)
+				return -ENOMEM;
+		} else
+			INIT_WORK(&queue->work, function);
+	}
 	return 0;
 }
 
