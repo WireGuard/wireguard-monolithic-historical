@@ -34,12 +34,30 @@
 
 static bool is_exiting = false;
 
+/* TODO: remove this once the NDK supports it. */
+static char *strchrnul(const char *s, int c)
+{
+	char *x = strchr(s, c);
+	if (!x)
+		return (char *)s + strlen(s);
+	return x;
+}
+
 static void *xmalloc(size_t size)
 {
 	void *ret = malloc(size);
 	if (ret)
 		return ret;
 	perror("Error: malloc");
+	exit(errno);
+}
+
+static void *xcalloc(size_t nmemb, size_t size)
+{
+	void *ret = calloc(nmemb, size);
+	if (ret)
+		return ret;
+	perror("Error: calloc");
 	exit(errno);
 }
 
@@ -288,9 +306,79 @@ static void up_if(unsigned int *netid, const char *iface)
 	cndc("network interface add %u %s", *netid, iface);
 }
 
-static void set_users(unsigned int netid)
+static int compare_uid(const void *a, const void *b)
 {
-	cndc("network users add %u 0-99999", netid);
+	return *(const uid_t *)a - *(const uid_t *)b;
+}
+
+static uid_t *get_uid_list(const char *selected_applications)
+{
+	_cleanup_fclose_ FILE *package_list = NULL;
+	_cleanup_free_ char *line = NULL;
+	uid_t package_uid;
+	size_t line_len = 0, i;
+	const char *comma, *start;
+	uid_t *uid_list;
+
+	if (!selected_applications)
+		return xcalloc(1, sizeof(*uid_list));
+
+	for (i = 1, comma = selected_applications; comma; comma = strchr(comma + 1, ','), ++i);
+	uid_list = xcalloc(i, sizeof(*uid_list));
+	i = 0;
+
+	package_list = fopen("/data/system/packages.list", "r");
+	if (!package_list) {
+		perror("Error: Unable to open package list");
+		exit(errno);
+	}
+
+	while (getline(&line, &line_len, package_list) >= 0) {
+		char *package_name, *package_uid_str, *endptr;
+
+		package_name = line;
+		package_uid_str = strchr(package_name, ' ');
+		if (!package_uid_str)
+			continue;
+		*package_uid_str++ = '\0';
+		*strchrnul(package_uid_str, ' ') = '\0';
+		package_uid = strtoul(package_uid_str, &endptr, 10);
+		if (!package_uid || !*package_uid_str || *endptr)
+			continue;
+
+		for (start = selected_applications; comma = strchrnul(start, ','), *start; start = comma + 1) {
+			ptrdiff_t token_len = comma - start;
+
+			if (token_len && strlen(package_name) == token_len && !strncmp(start, package_name, token_len))
+				uid_list[i++] = package_uid;
+		}
+	}
+	qsort(uid_list, i, sizeof(*uid_list), compare_uid);
+	return uid_list;
+}
+
+static void set_users(unsigned int netid, const char *excluded_applications)
+{
+	_cleanup_free_ uid_t *excluded_uids = get_uid_list(excluded_applications);
+	_cleanup_free_ char *ranges = NULL;
+	char range[22];
+	uid_t start;
+
+	for (start = 0; *excluded_uids; start = *excluded_uids + 1, ++excluded_uids) {
+		if (start > *excluded_uids - 1)
+			continue;
+		else if (start == *excluded_uids - 1)
+			snprintf(range, sizeof(range), "%u", start);
+		else
+			snprintf(range, sizeof(range), "%u-%u", start, *excluded_uids - 1);
+		ranges = concat_and_free(ranges, " ", range);
+	}
+	if (start < 99999) {
+		snprintf(range, sizeof(range), "%u-99999", start);
+		ranges = concat_and_free(ranges, " ", range);
+	}
+
+	cndc("network users add %u %s", netid, ranges);
 }
 
 static void set_dnses(unsigned int netid, const char *dnses)
@@ -536,7 +624,8 @@ static void cmd_usage(const char *program)
 		"  - Address: may be specified one or more times and contains one or more\n"
 		"    IP addresses (with an optional CIDR mask) to be set for the interface.\n"
 		"  - MTU: an optional MTU for the interface; if unspecified, auto-calculated.\n"
-		"  - DNS: an optional DNS server to use while the device is up.\n\n"
+		"  - DNS: an optional DNS server to use while the device is up.\n"
+		"  - ExcludedApplications: optional applications to exclude from the tunnel.\n\n"
 		"  See wg-quick(8) for more info and examples.\n");
 }
 
@@ -550,7 +639,7 @@ static void cmd_up_cleanup(void)
 	free(cleanup_iface);
 }
 
-static void cmd_up(const char *iface, const char *config, unsigned int mtu, const char *addrs, const char *dnses)
+static void cmd_up(const char *iface, const char *config, unsigned int mtu, const char *addrs, const char *dnses, const char *excluded_applications)
 {
 	DEFINE_CMD(c);
 	unsigned int netid = 0;
@@ -571,7 +660,7 @@ static void cmd_up(const char *iface, const char *config, unsigned int mtu, cons
 	set_dnses(netid, dnses);
 	set_routes(iface, netid);
 	set_mtu(iface, mtu);
-	set_users(netid);
+	set_users(netid, excluded_applications);
 	broadcast_change();
 
 	free(cleanup_iface);
@@ -604,7 +693,7 @@ static void cmd_down(const char *iface)
 	exit(EXIT_SUCCESS);
 }
 
-static void parse_options(char **iface, char **config, unsigned int *mtu, char **addrs, char **dnses, const char *arg)
+static void parse_options(char **iface, char **config, unsigned int *mtu, char **addrs, char **dnses, char **excluded_applications, const char *arg)
 {
 	_cleanup_fclose_ FILE *file = NULL;
 	_cleanup_free_ char *line = NULL;
@@ -685,6 +774,9 @@ static void parse_options(char **iface, char **config, unsigned int *mtu, char *
 			} else if (!strncasecmp(clean, "DNS=", 4) && j > 4) {
 				*dnses = concat_and_free(*dnses, ",", clean + 4);
 				continue;
+			} else if (!strncasecmp(clean, "ExcludedApplications=", 21) && j > 4) {
+				*excluded_applications = concat_and_free(*excluded_applications, ",", clean + 21);
+				continue;
 			} else if (!strncasecmp(clean, "MTU=", 4) && j > 4) {
 				*mtu = atoi(clean + 4);
 				continue;
@@ -709,17 +801,18 @@ int main(int argc, char *argv[])
 	_cleanup_free_ char *config = NULL;
 	_cleanup_free_ char *addrs = NULL;
 	_cleanup_free_ char *dnses = NULL;
+	_cleanup_free_ char *excluded_applications = NULL;
 	unsigned int mtu;
 
 	if (argc == 2 && (!strcmp(argv[1], "help") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")))
 		cmd_usage(argv[0]);
 	else if (argc == 3 && !strcmp(argv[1], "up")) {
 		auto_su(argc, argv);
-		parse_options(&iface, &config, &mtu, &addrs, &dnses, argv[2]);
-		cmd_up(iface, config, mtu, addrs, dnses);
+		parse_options(&iface, &config, &mtu, &addrs, &dnses, &excluded_applications, argv[2]);
+		cmd_up(iface, config, mtu, addrs, dnses, excluded_applications);
 	} else if (argc == 3 && !strcmp(argv[1], "down")) {
 		auto_su(argc, argv);
-		parse_options(&iface, &config, &mtu, &addrs, &dnses, argv[2]);
+		parse_options(&iface, &config, &mtu, &addrs, &dnses, &excluded_applications, argv[2]);
 		cmd_down(iface);
 	} else {
 		cmd_usage(argv[0]);
