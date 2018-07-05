@@ -121,6 +121,8 @@ restart:
 #endif
 	}
 
+	tries = 0;
+restart2:
 	gc_entries(NULL);
 	rcu_barrier();
 
@@ -130,8 +132,11 @@ restart:
 
 	for (i = 0; i <= max_entries; ++i) {
 		hdr4->saddr = htonl(i);
-		if (ratelimiter_allow(skb4, &init_net) != (i != max_entries))
+		if (ratelimiter_allow(skb4, &init_net) != (i != max_entries)) {
+			if (++tries < 5000)
+				goto restart2;
 			goto err;
+		}
 		++test;
 	}
 
