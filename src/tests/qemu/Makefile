@@ -15,9 +15,9 @@ ARCH := $(firstword $(subst -, ,$(CBUILD)))
 
 # Set these from the environment to override
 KERNEL_VERSION ?= 4.17.4
+KERNEL_VERSION := $(KERNEL_VERSION)$(if $(DEBUG_KERNEL),$(if $(findstring -debug,$(KERNEL_VERSION)),,-debug),)
 BUILD_PATH ?= $(PWD)/../../../qemu-build/$(ARCH)
 DISTFILES_PATH ?= $(PWD)/distfiles
-DEBUG_KERNEL ?= no
 NR_CPUS ?= 4
 
 MIRROR := https://download.wireguard.com/qemu-test/distfiles/
@@ -31,9 +31,9 @@ default: qemu
 define tar_download =
 $(1)_VERSION := $(3)
 $(1)_NAME := $(2)-$$($(1)_VERSION)
-$(1)_TAR := $(DISTFILES_PATH)/$$($(1)_NAME)$(4)
+$(1)_TAR := $(DISTFILES_PATH)/$$($(1)_NAME:-debug=)$(4)
 $(1)_PATH := $(BUILD_PATH)/$$($(1)_NAME)
-$(call file_download,$$($(1)_NAME)$(4),$(5))
+$(call file_download,$$($(1)_NAME:-debug=)$(4),$(5))
 endef
 
 define file_download =
@@ -43,7 +43,7 @@ $(DISTFILES_PATH)/$(1):
 endef
 
 ifeq ($(findstring -rc,$(KERNEL_VERSION)),)
-KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v$(firstword $(subst ., ,$(KERNEL_VERSION))).x/
+KERNEL_URL_DIRECTORY := https://cdn.kernel.org/pub/linux/kernel/v$(firstword $(subst ., ,$(KERNEL_VERSION:-debug=))).x/
 else
 KERNEL_URL_DIRECTORY := https://git.kernel.org/torvalds/t/
 endif
@@ -216,8 +216,8 @@ $(BUILD_PATH)/init-cpio-spec.txt:
 	echo "slink /lib/ld-linux.so.1 libc.so 777 0 0" >> $@
 
 $(KERNEL_PATH)/.installed: $(KERNEL_TAR)
-	mkdir -p $(BUILD_PATH)
-	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
+	mkdir -p $(KERNEL_PATH)
+	flock -s $<.lock tar --strip-components=1 -C $(KERNEL_PATH) -xf $<
 	sed -i "/^if INET\$$/a source \"net/wireguard/Kconfig\"" $(KERNEL_PATH)/net/Kconfig
 	sed -i "/^obj-\$$(CONFIG_NETFILTER).*+=/a obj-\$$(CONFIG_WIREGUARD) += wireguard/" $(KERNEL_PATH)/net/Makefile
 	ln -sfT $(shell readlink -f ../..) $(KERNEL_PATH)/net/wireguard
@@ -228,8 +228,8 @@ $(KERNEL_PATH)/.config: kernel.config arch/$(QEMU_ARCH).config | $(KERNEL_PATH)/
 	printf 'CONFIG_NR_CPUS=$(NR_CPUS)\nCONFIG_INITRAMFS_SOURCE="$(BUILD_PATH)/init-cpio-spec.txt"\n' >> $(KERNEL_PATH)/minimal.config
 	cat arch/$(QEMU_ARCH).config >> $(KERNEL_PATH)/minimal.config
 	$(MAKE) -C $(KERNEL_PATH) ARCH=$(KERNEL_ARCH) allnoconfig
-	export ARCH=$(KERNEL_ARCH); cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config minimal.config
-	[ "$(DEBUG_KERNEL)" != "yes" ] || ( export ARCH=$(KERNEL_ARCH); cd $(KERNEL_PATH) && scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config )
+	cd $(KERNEL_PATH) && ARCH=$(KERNEL_ARCH) scripts/kconfig/merge_config.sh -n .config minimal.config
+	$(if $(findstring -debug,$(KERNEL_VERSION)),cd $(KERNEL_PATH) && sed -i 's/^EXTRAVERSION =.*/EXTRAVERSION = -debug/' Makefile && ARCH=$(KERNEL_ARCH) scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config,)
 
 $(KERNEL_BZIMAGE): $(KERNEL_PATH)/.config $(BUILD_PATH)/init-cpio-spec.txt $(MUSL_PATH)/lib/libc.so $(IPERF_PATH)/src/iperf3 $(BUILD_PATH)/tools/wg $(IPUTILS_PATH)/ping $(BASH_PATH)/bash $(IPROUTE2_PATH)/misc/ss $(IPROUTE2_PATH)/ip/ip $(IPTABLES_PATH)/iptables/xtables-multi $(NMAP_PATH)/ncat/ncat $(BUILD_PATH)/init ../netns.sh $(WIREGUARD_SOURCES) $(TOOLS_SOURCES)
 	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(CROSS_COMPILE) CC="$(NOPIE_GCC)"
