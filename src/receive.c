@@ -379,6 +379,9 @@ int packet_rx_poll(struct napi_struct *napi, int budget)
 	int work_done = 0;
 	bool free;
 
+	if (unlikely(budget <= 0))
+		return 0;
+
 	while ((skb = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(skb)->state)) != PACKET_STATE_UNCRYPTED) {
 		__ptr_ring_discard_one(&queue->ring);
 		peer = PACKET_PEER(skb);
