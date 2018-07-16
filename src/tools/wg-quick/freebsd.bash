@@ -188,7 +188,6 @@ collect_gateways() {
 	GATEWAY6=""
 	while read -r destination gateway _; do
 		[[ $destination == default ]] || continue
-		[[ $gateway == fe80:* ]] && continue
 		GATEWAY6="$gateway"
 		break
 	done < <(netstat -nr -f inet6)
