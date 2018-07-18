@@ -38,7 +38,8 @@ struct crypt_queue {
 
 struct wireguard_device {
 	struct net_device *dev;
-	struct crypt_queue encrypt_queue, decrypt_queue;
+	struct crypt_queue encrypt_queue, decrypt_queue, tx_queue, rx_queue;
+	struct napi_struct napi;
 	struct sock __rcu *sock4, *sock6;
 	struct net *creating_net;
 	struct noise_static_identity static_identity;

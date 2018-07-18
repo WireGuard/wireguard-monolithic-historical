@@ -227,9 +227,13 @@ static void destruct(struct net_device *dev)
 	destroy_workqueue(wg->handshake_receive_wq);
 	destroy_workqueue(wg->handshake_send_wq);
 	destroy_workqueue(wg->packet_crypt_wq);
+	napi_disable(&wg->napi);
+	packet_queue_free(&wg->rx_queue, false);
+	packet_queue_free(&wg->tx_queue, false);
 	packet_queue_free(&wg->decrypt_queue, true);
 	packet_queue_free(&wg->encrypt_queue, true);
 	rcu_barrier_bh(); /* Wait for all the peers to be actually freed. */
+	netif_napi_del(&wg->napi);
 	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
@@ -322,13 +326,21 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (packet_queue_init(&wg->decrypt_queue, packet_decrypt_worker, true, MAX_QUEUED_PACKETS) < 0)
 		goto error_7;
 
-	ret = ratelimiter_init();
-	if (ret < 0)
+	if (packet_queue_init(&wg->tx_queue, packet_tx_worker, false, MAX_QUEUED_PACKETS) < 0)
 		goto error_8;
 
+	if (packet_queue_init(&wg->rx_queue, NULL, false, MAX_QUEUED_PACKETS) < 0)
+		goto error_9;
+
+	ret = ratelimiter_init();
+	if (ret < 0)
+		goto error_10;
+
+	netif_napi_add(dev, &wg->napi, packet_rx_poll, NAPI_POLL_WEIGHT);
+	napi_enable(&wg->napi);
 	ret = register_netdevice(dev);
 	if (ret < 0)
-		goto error_9;
+		goto error_11;
 
 	list_add(&wg->device_list, &device_list);
 
@@ -340,8 +352,13 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	pr_debug("%s: Interface created\n", dev->name);
 	return ret;
 
-error_9:
+error_11:
+	netif_napi_del(&wg->napi);
 	ratelimiter_uninit();
+error_10:
+	packet_queue_free(&wg->rx_queue, false);
+error_9:
+	packet_queue_free(&wg->tx_queue, false);
 error_8:
 	packet_queue_free(&wg->decrypt_queue, true);
 error_7:

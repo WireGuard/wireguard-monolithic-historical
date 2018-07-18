@@ -35,7 +35,6 @@ struct endpoint {
 
 struct wireguard_peer {
 	struct wireguard_device *device;
-	struct crypt_queue tx_queue, rx_queue;
 	struct sk_buff_head staged_packet_queue;
 	int serial_work_cpu;
 	struct noise_keypairs keypairs;
@@ -57,7 +56,6 @@ struct wireguard_peer {
 	struct rcu_head rcu;
 	struct list_head peer_list;
 	u64 internal_id;
-	struct napi_struct napi;
 };
 
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN], const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN]);

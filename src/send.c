@@ -255,7 +255,7 @@ void packet_encrypt_worker(struct work_struct *work)
 				break;
 			}
 		}
-		queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first, state);
+		queue_enqueue_per_peer(&PACKET_PEER(first)->device->tx_queue, first, state);
 
 		have_simd = simd_relax(have_simd);
 	}
@@ -268,12 +268,12 @@ static void packet_create_data(struct sk_buff *first)
 	struct wireguard_device *wg = peer->device;
 	int ret;
 
-	ret = queue_enqueue_per_device_and_peer(&wg->encrypt_queue, &peer->tx_queue, first, wg->packet_crypt_wq, &wg->encrypt_queue.last_cpu);
+	ret = queue_enqueue_per_device_and_peer(&wg->encrypt_queue, &wg->tx_queue, first, wg->packet_crypt_wq, &wg->encrypt_queue.last_cpu);
 	if (likely(!ret))
 		return; /* Successful. No need to fall through to drop references below. */
 
 	if (ret == -EPIPE)
-		queue_enqueue_per_peer(&peer->tx_queue, first, PACKET_STATE_DEAD);
+		queue_enqueue_per_peer(&wg->tx_queue, first, PACKET_STATE_DEAD);
 	else {
 		peer_put(peer);
 		noise_keypair_put(PACKET_CB(first)->keypair);

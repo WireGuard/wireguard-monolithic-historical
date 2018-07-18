@@ -342,7 +342,7 @@ static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpo
 	if (unlikely(routed_peer != peer))
 		goto dishonest_packet_peer;
 
-	if (unlikely(napi_gro_receive(&peer->napi, skb) == NET_RX_DROP)) {
+	if (unlikely(napi_gro_receive(&peer->device->napi, skb) == NET_RX_DROP)) {
 		++dev->stats.rx_dropped;
 		net_dbg_ratelimited("%s: Failed to give packet to userspace from peer %llu (%pISpfsc)\n", dev->name, peer->internal_id, &peer->endpoint.addr);
 	} else
@@ -370,9 +370,10 @@ packet_processed:
 
 int packet_rx_poll(struct napi_struct *napi, int budget)
 {
-	struct wireguard_peer *peer = container_of(napi, struct wireguard_peer, napi);
-	struct crypt_queue *queue = &peer->rx_queue;
+	struct wireguard_device *wg = container_of(napi, struct wireguard_device, napi);
+	struct crypt_queue *queue = &wg->rx_queue;
 	struct noise_keypair *keypair;
+	struct wireguard_peer *peer;
 	struct sk_buff *skb;
 	struct endpoint endpoint;
 	enum packet_state state;
@@ -392,7 +393,7 @@ int packet_rx_poll(struct napi_struct *napi, int budget)
 			goto next;
 
 		if (unlikely(!counter_validate(&keypair->receiving.counter, PACKET_CB(skb)->nonce))) {
-			net_dbg_ratelimited("%s: Packet has invalid nonce %llu (max %llu)\n", peer->device->dev->name, PACKET_CB(skb)->nonce, keypair->receiving.counter.receive.counter);
+			net_dbg_ratelimited("%s: Packet has invalid nonce %llu (max %llu)\n", wg->dev->name, PACKET_CB(skb)->nonce, keypair->receiving.counter.receive.counter);
 			goto next;
 		}
 
@@ -427,7 +428,7 @@ void packet_decrypt_worker(struct work_struct *work)
 
 	while ((skb = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = likely(skb_decrypt(skb, &PACKET_CB(skb)->keypair->receiving, have_simd)) ? PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
-		queue_enqueue_per_peer_napi(&PACKET_PEER(skb)->rx_queue, skb, state);
+		queue_enqueue_per_device_napi(&PACKET_PEER(skb)->device->rx_queue, skb, state);
 		have_simd = simd_relax(have_simd);
 	}
 
@@ -443,25 +444,29 @@ static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb
 	rcu_read_lock_bh();
 	PACKET_CB(skb)->keypair = noise_keypair_get((struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx));
 	rcu_read_unlock_bh();
-	if (unlikely(!PACKET_CB(skb)->keypair)) {
-		dev_kfree_skb(skb);
-		return;
-	}
+	if (unlikely(!PACKET_CB(skb)->keypair))
+		goto err_keypair;
 
 	/* The call to index_hashtable_lookup gives us a reference to its underlying peer, so we don't need to call peer_rcu_get(). */
 	peer = PACKET_PEER(skb);
+	/* If elsewhere has called peer_remove, we should not queue up more packets, so that eventually the reference count goes to zero. */
+	if (unlikely(list_empty(&peer->peer_list)))
+		goto err_peer;
 
-	ret = queue_enqueue_per_device_and_peer(&wg->decrypt_queue, &peer->rx_queue, skb, wg->packet_crypt_wq, &wg->decrypt_queue.last_cpu);
+	ret = queue_enqueue_per_device_and_peer(&wg->decrypt_queue, &wg->rx_queue, skb, wg->packet_crypt_wq, &wg->decrypt_queue.last_cpu);
 	if (likely(!ret))
 		return; /* Successful. No need to drop references below. */
 
-	if (ret == -EPIPE)
-		queue_enqueue_per_peer(&peer->rx_queue, skb, PACKET_STATE_DEAD);
-	else {
-		peer_put(peer);
-		noise_keypair_put(PACKET_CB(skb)->keypair);
-		dev_kfree_skb(skb);
+	if (ret == -EPIPE) {
+		queue_enqueue_per_peer(&wg->rx_queue, skb, PACKET_STATE_DEAD);
+		return;
 	}
+
+err_peer:
+	peer_put(peer);
+	noise_keypair_put(PACKET_CB(skb)->keypair);
+err_keypair:
+	dev_kfree_skb(skb);
 }
 
 void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)

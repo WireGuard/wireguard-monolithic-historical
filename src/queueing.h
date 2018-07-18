@@ -139,12 +139,12 @@ static inline void queue_enqueue_per_peer(struct crypt_queue *queue, struct sk_b
 	peer_put(peer);
 }
 
-static inline void queue_enqueue_per_peer_napi(struct crypt_queue *queue, struct sk_buff *skb, enum packet_state state)
+static inline void queue_enqueue_per_device_napi(struct crypt_queue *queue, struct sk_buff *skb, enum packet_state state)
 {
 	struct wireguard_peer *peer = peer_rcu_get(PACKET_PEER(skb));
 
 	atomic_set(&PACKET_CB(skb)->state, state);
-	napi_schedule(&peer->napi);
+	napi_schedule(&peer->device->napi);
 	peer_put(peer);
 }
 
