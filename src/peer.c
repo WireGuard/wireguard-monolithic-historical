@@ -56,6 +56,7 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	list_add_tail(&peer->peer_list, &wg->peer_list);
 	pubkey_hashtable_add(&wg->peer_hashtable, peer);
 	peer->last_sent_handshake = ktime_get_boot_fast_ns() - (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC;
+	set_bit(NAPI_STATE_NO_BUSY_POLL, &peer->napi.state);
 	netif_napi_add(wg->dev, &peer->napi, packet_rx_poll, NAPI_POLL_WEIGHT);
 	napi_enable(&peer->napi);
 	pr_debug("%s: Peer %llu created\n", wg->dev->name, peer->internal_id);

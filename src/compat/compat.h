@@ -601,6 +601,15 @@ static inline void *skb_put_data(struct sk_buff *skb, const void *data, unsigned
 #define napi_complete_done(n, work_done) napi_complete(n)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
+#include <linux/netdevice.h>
+/* NAPI_STATE_SCHED gets set by netif_napi_add anyway, so this is safe.
+ * Also, kernels without NAPI_STATE_NO_BUSY_POLL don't have a call to
+ * napi_hash_add inside of netif_napi_add.
+ */
+#define NAPI_STATE_NO_BUSY_POLL NAPI_STATE_SCHED
+#endif
+
 /* https://lkml.kernel.org/r/20170624021727.17835-1-Jason@zx2c4.com */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
