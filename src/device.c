@@ -226,9 +226,9 @@ static void destruct(struct net_device *dev)
 	peer_remove_all(wg); /* The final references are cleared in the below calls to destroy_workqueue. */
 	destroy_workqueue(wg->handshake_receive_wq);
 	destroy_workqueue(wg->handshake_send_wq);
+	destroy_workqueue(wg->packet_crypt_wq);
 	packet_queue_free(&wg->decrypt_queue, true);
 	packet_queue_free(&wg->encrypt_queue, true);
-	destroy_workqueue(wg->packet_crypt_wq);
 	rcu_barrier_bh(); /* Wait for all the peers to be actually freed. */
 	ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
