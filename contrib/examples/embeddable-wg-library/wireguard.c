@@ -1593,16 +1593,11 @@ static __attribute__((noinline)) void memzero_explicit(void *s, size_t count)
 static void carry(fe o)
 {
 	int i;
-	int64_t c;
 
 	for (i = 0; i < 16; ++i) {
-		o[i] += (1LL << 16);
-		c = o[i] >> 16;
-		o[(i + 1) * (i < 15)] += c - 1 + 37 * (c - 1) * (i == 15);
-		o[i] -= c << 16;
+		o[(i + 1) % 16] += (i == 15 ? 38 : 1) * (o[i] >> 16);
+		o[i] &= 0xffff;
 	}
-
-	memzero_explicit(&c, sizeof(c));
 }
 
 static void cswap(fe p, fe q, int b)
