@@ -14,7 +14,7 @@ endif
 ARCH := $(firstword $(subst -, ,$(CBUILD)))
 
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.17.4
+KERNEL_VERSION ?= 4.17.9
 KERNEL_VERSION := $(KERNEL_VERSION)$(if $(DEBUG_KERNEL),$(if $(findstring -debug,$(KERNEL_VERSION)),,-debug),)
 BUILD_PATH ?= $(PWD)/../../../qemu-build/$(ARCH)
 DISTFILES_PATH ?= $(PWD)/distfiles
@@ -49,7 +49,7 @@ KERNEL_URL_DIRECTORY := https://git.kernel.org/torvalds/t/
 endif
 
 $(eval $(call tar_download,KERNEL,linux,$(KERNEL_VERSION),.tar.gz,$(KERNEL_URL_DIRECTORY)))
-$(eval $(call tar_download,MUSL,musl,1.1.16,.tar.gz,https://www.musl-libc.org/releases/))
+$(eval $(call tar_download,MUSL,musl,1.1.19,.tar.gz,https://www.musl-libc.org/releases/))
 $(eval $(call tar_download,LIBMNL,libmnl,1.0.4,.tar.bz2,https://www.netfilter.org/projects/libmnl/files/))
 $(eval $(call tar_download,IPERF,iperf,3.1.7,.tar.gz,http://downloads.es.net/pub/iperf/))
 $(eval $(call tar_download,BASH,bash,4.4.18,.tar.gz,https://ftp.gnu.org/gnu/bash/))
