@@ -15,20 +15,17 @@
 struct wireguard_peer;
 
 struct pubkey_hashtable {
-	/* TODO: move to rhashtable */
-	DECLARE_HASHTABLE(hashtable, 11);
-	siphash_key_t key;
-	struct mutex lock;
+	struct rhashtable hashtable;
 };
 
-void pubkey_hashtable_init(struct pubkey_hashtable *table);
+int pubkey_hashtable_init(struct pubkey_hashtable *table);
+void pubkey_hashtable_cleanup(struct pubkey_hashtable *table);
 void pubkey_hashtable_add(struct pubkey_hashtable *table, struct wireguard_peer *peer);
 void pubkey_hashtable_remove(struct pubkey_hashtable *table, struct wireguard_peer *peer);
 struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, const u8 pubkey[NOISE_PUBLIC_KEY_LEN]);
 
 struct index_hashtable {
-	/* TODO: move to rhashtable */
-	DECLARE_HASHTABLE(hashtable, 13);
+	struct rhashtable hashtable;
 	spinlock_t lock;
 };
 
@@ -39,11 +36,12 @@ enum index_hashtable_type {
 
 struct index_hashtable_entry {
 	struct wireguard_peer *peer;
-	struct hlist_node index_hash;
+	struct rhash_head index_hash;
 	enum index_hashtable_type type;
 	__le32 index;
 };
-void index_hashtable_init(struct index_hashtable *table);
+int index_hashtable_init(struct index_hashtable *table);
+void index_hashtable_cleanup(struct index_hashtable *table);
 __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashtable_entry *entry);
 bool index_hashtable_replace(struct index_hashtable *table, struct index_hashtable_entry *old, struct index_hashtable_entry *new);
 void index_hashtable_remove(struct index_hashtable *table, struct index_hashtable_entry *entry);

@@ -235,6 +235,8 @@ static void destruct(struct net_device *dev)
 	skb_queue_purge(&wg->incoming_handshakes);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
+	pubkey_hashtable_cleanup(&wg->peer_hashtable);
+	index_hashtable_cleanup(&wg->index_hashtable);
 	if (wg->have_creating_net_ref)
 		put_net(wg->creating_net);
 	mutex_unlock(&wg->device_update_lock);
@@ -289,46 +291,52 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	mutex_init(&wg->socket_update_lock);
 	mutex_init(&wg->device_update_lock);
 	skb_queue_head_init(&wg->incoming_handshakes);
-	pubkey_hashtable_init(&wg->peer_hashtable);
-	index_hashtable_init(&wg->index_hashtable);
 	allowedips_init(&wg->peer_allowedips);
 	cookie_checker_init(&wg->cookie_checker, wg);
 	INIT_LIST_HEAD(&wg->peer_list);
 	wg->device_update_gen = 1;
 
+	ret = pubkey_hashtable_init(&wg->peer_hashtable);
+	if (ret)
+		goto error_1;
+
+	ret = index_hashtable_init(&wg->index_hashtable);
+	if (ret)
+		goto error_2;
+
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		goto error_1;
+		goto error_3;
 
 	wg->incoming_handshakes_worker = packet_alloc_percpu_multicore_worker(packet_handshake_receive_worker, wg);
 	if (!wg->incoming_handshakes_worker)
-		goto error_2;
+		goto error_4;
 
 	wg->handshake_receive_wq = alloc_workqueue("wg-kex-%s", WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
 	if (!wg->handshake_receive_wq)
-		goto error_3;
+		goto error_5;
 
 	wg->handshake_send_wq = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
 	if (!wg->handshake_send_wq)
-		goto error_4;
+		goto error_6;
 
 	wg->packet_crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
 	if (!wg->packet_crypt_wq)
-		goto error_5;
+		goto error_7;
 
 	if (packet_queue_init(&wg->encrypt_queue, packet_encrypt_worker, true, MAX_QUEUED_PACKETS) < 0)
-		goto error_6;
+		goto error_8;
 
 	if (packet_queue_init(&wg->decrypt_queue, packet_decrypt_worker, true, MAX_QUEUED_PACKETS) < 0)
-		goto error_7;
+		goto error_9;
 
 	ret = ratelimiter_init();
 	if (ret < 0)
-		goto error_8;
+		goto error_10;
 
 	ret = register_netdevice(dev);
 	if (ret < 0)
-		goto error_9;
+		goto error_11;
 
 	list_add(&wg->device_list, &device_list);
 
@@ -340,22 +348,26 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	pr_debug("%s: Interface created\n", dev->name);
 	return ret;
 
-error_9:
+error_11:
 	ratelimiter_uninit();
-error_8:
+error_10:
 	packet_queue_free(&wg->decrypt_queue, true);
-error_7:
+error_9:
 	packet_queue_free(&wg->encrypt_queue, true);
-error_6:
+error_8:
 	destroy_workqueue(wg->packet_crypt_wq);
-error_5:
+error_7:
 	destroy_workqueue(wg->handshake_send_wq);
-error_4:
+error_6:
 	destroy_workqueue(wg->handshake_receive_wq);
-error_3:
+error_5:
 	free_percpu(wg->incoming_handshakes_worker);
-error_2:
+error_4:
 	free_percpu(dev->tstats);
+error_3:
+	index_hashtable_cleanup(&wg->index_hashtable);
+error_2:
+	pubkey_hashtable_cleanup(&wg->peer_hashtable);
 error_1:
 	return ret;
 }

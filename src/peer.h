@@ -46,7 +46,7 @@ struct wireguard_peer {
 	u64 last_sent_handshake;
 	struct work_struct transmit_handshake_work, clear_peer_work;
 	struct cookie latest_cookie;
-	struct hlist_node pubkey_hash;
+	struct rhash_head pubkey_hash;
 	u64 rx_bytes, tx_bytes;
 	struct timer_list timer_retransmit_handshake, timer_send_keepalive, timer_new_handshake, timer_zero_key_material, timer_persistent_keepalive;
 	unsigned int timer_handshake_attempts;
