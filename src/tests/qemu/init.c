@@ -111,17 +111,23 @@ static void enable_logging(void)
 	int fd;
 	pretty_message("[+] Enabling logging...");
 	fd = open("/proc/sys/kernel/printk", O_WRONLY);
-	if (fd < 0)
-		panic("open(printk)");
-	if (write(fd, "9\n", 2) != 2)
-		panic("write(printk)");
-	close(fd);
+	if (fd >= 0) {
+		if (write(fd, "9\n", 2) != 2)
+			panic("write(printk)");
+		close(fd);
+	}
+	fd = open("/proc/sys/debug/exception-trace", O_WRONLY);
+	if (fd >= 0) {
+		if (write(fd, "1\n", 2) != 2)
+			panic("write(exception-trace)");
+		close(fd);
+	}
 	fd = open("/proc/sys/kernel/panic_on_warn", O_WRONLY);
-	if (fd < 0)
-		return; /* < 3.18 doesn't have it */
-	if (write(fd, "1\n", 2) != 2)
-		panic("write(panic_on_warn)");
-	close(fd);
+	if (fd >= 0) {
+		if (write(fd, "1\n", 2) != 2)
+			panic("write(panic_on_warn)");
+		close(fd);
+	}
 }
 
 static void kmod_selftests(void)
