@@ -38,16 +38,6 @@
 
 static bool is_exiting = false;
 
-#if defined(__ANDROID_API__) && __ANDROID_API__ < 24
-static char *strchrnul(const char *s, int c)
-{
-	char *x = strchr(s, c);
-	if (!x)
-		return (char *)s + strlen(s);
-	return x;
-}
-#endif
-
 static void *xmalloc(size_t size)
 {
 	void *ret = malloc(size);
