@@ -1,4 +1,4 @@
-<script src="curve25519_generate.js" onError='document.write("<h3>Did you forget to run \"make\" to compile curve25519_generate.js?</h3><!--");'></script>
+<script src="wireguard.js"></script>
 <script>
 /* SPDX-License-Identifier: GPL-2.0
  *
@@ -26,7 +26,7 @@ function sendPubkeyToServer(pubkey, username, password)
 
 function downloadNewConfiguration()
 {
-	var keypair = WireGuard.generateKeypair();
+	var keypair = wireguard.generateKeypair();
 	var serverResponse = sendPubkeyToServer(keypair.publicKey, "zx2c4", "supersecretpassword");
 
 	var config = [];

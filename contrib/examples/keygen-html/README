@@ -17,11 +17,3 @@ introduces interesting side-channel attacks.
 Secrets aren't zerored after use. Maybe you can get around this with
 some tricks taking advantage of browser allocator behavior and different
 processes, but it seems pretty hard.
-
-Building
---------
-
-In order to use the example `keygen.html` file, you must first build
-the C sources using emscripten. Simply run:
-
-    $ make
