@@ -1493,9 +1493,9 @@ static __always_inline void mul_a24_eltfp25519_1w(u64 *const c, const u64 *const
 		/**************************/
 		"adcq    $0, %%rcx ;"
 		"movl   $38, %%edx ;" /* 2*c = 38 = 2^256 mod 2^255-19*/
-		"mulx %%rcx, %%rax, %%rcx ;"
-		"addq %%rax,  %%r8 ;"
-		"adcq %%rcx,  %%r9 ;"
+		"imul %%rdx, %%rcx ;"
+		"addq %%rcx,  %%r8 ;"
+		"adcq    $0,  %%r9 ;"
 		"movq  %%r9,  8(%0) ;"
 		"adcq    $0, %%r10 ;"
 		"movq %%r10, 16(%0) ;"
