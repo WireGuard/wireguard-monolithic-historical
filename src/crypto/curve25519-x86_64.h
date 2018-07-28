@@ -1609,48 +1609,34 @@ static void inv_eltfp25519_1w_bmi2(u64 *const c, const u64 *const a)
  */
 static __always_inline void fred_eltfp25519_1w(u64 *const c)
 {
+	u64 tmp0, tmp1;
 	asm volatile(
-		/* First, obtains a number less than 2^255. */
-		"btrq   $63, 24(%0) ;"
-		"sbbl %%ecx, %%ecx  ;"
-		"andq   $19, %%rcx  ;"
-		"addq %%rcx,   (%0) ;"
-		"adcq    $0,  8(%0) ;"
-		"adcq    $0, 16(%0) ;"
-		"adcq    $0, 24(%0) ;"
+		"movl   $19,   %k5 ;"
+		"movl   $38,   %k4 ;"
 
-		"btrq   $63, 24(%0) ;"
-		"sbbl %%ecx, %%ecx  ;"
-		"andq   $19, %%rcx  ;"
-		"addq %%rcx,   (%0) ;"
-		"adcq    $0,  8(%0) ;"
-		"adcq    $0, 16(%0) ;"
-		"adcq    $0, 24(%0) ;"
+		"btrq   $63,    %3 ;" /* Put bit 255 in carry flag and clear */
+		"cmovncl %k5,   %k4 ;" /* c[255] ? 38 : 19 */
 
-		/* Then, in case the number fall into [2^255-19, 2^255-1] */
-		"cmpq $-19,   (%0)   ;"
-		"setaeb %%al         ;"
-		"cmpq  $-1,  8(%0)   ;"
-		"setzb %%bl          ;"
-		"cmpq  $-1, 16(%0)   ;"
-		"setzb %%cl          ;"
-		"movq 24(%0), %%rdx  ;"
-		"addq   $1, %%rdx    ;"
-		"shrq  $63, %%rdx    ;"
-		"andb %%bl, %%al     ;"
-		"andb %%dl, %%cl     ;"
-		"test %%cl, %%al     ;"
-		"movl  $0, %%eax     ;"
-		"movl $19, %%ecx     ;"
-		"cmovnz %%rcx, %%rax ;"
-		"addq %%rax,   (%0)  ;"
-		"adcq    $0,  8(%0)  ;"
-		"adcq    $0, 16(%0)  ;"
-		"adcq    $0, 24(%0)  ;"
-		"btrq   $63, 24(%0)  ;"
+		/* Add either 19 or 38 to c */
+		"addq    %4,   %0 ;"
+		"adcq    $0,   %1 ;"
+		"adcq    $0,   %2 ;"
+		"adcq    $0,   %3 ;"
+
+		/* Test for bit 255 again; only triggered on overflow modulo 2^255-19 */
+		"movl    $0,  %k4 ;"
+		"cmovnsl %k5,  %k4 ;" /* c[255] ? 0 : 19 */
+		"btrq   $63,   %3 ;" /* Clear bit 255 */
+
+		/* Subtract 19 if necessary */
+		"subq    %4,   %0 ;"
+		"sbbq    $0,   %1 ;"
+		"sbbq    $0,   %2 ;"
+		"sbbq    $0,   %3 ;"
+
+		: "+r"(c[0]), "+r"(c[1]), "+r"(c[2]), "+r"(c[3]), "=r"(tmp0), "=r"(tmp1)
 		:
-		: "r"(c)
-		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx");
+		: "memory", "cc");
 }
 
 static __always_inline void cswap(u8 bit, u64 *const px, u64 *const py)
