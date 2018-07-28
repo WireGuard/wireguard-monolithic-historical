@@ -909,10 +909,9 @@ static void red_eltfp25519_2w_adx(u64 *const c, const u64 *const a)
 		/***************************************/
 		"adcx %%rbx, %%rcx ;"
 		"adox  %%rbx, %%rcx ;"
-		"clc ;"
-		"mulx %%rcx, %%rax, %%rcx ; " /* c*C[4] */
-		"adcx %%rax,  %%r8 ;"
-		"adcx %%rcx,  %%r9 ;"
+		"imul %%rdx, %%rcx ;" /* c*C[4], cf=0, of=0 */
+		"adcx %%rcx,  %%r8 ;"
+		"adcx %%rbx,  %%r9 ;"
 		"movq  %%r9,  8(%0) ;"
 		"adcx %%rbx, %%r10 ;"
 		"movq %%r10, 16(%0) ;"
@@ -938,10 +937,9 @@ static void red_eltfp25519_2w_adx(u64 *const c, const u64 *const a)
 		/****************************************/
 		"adcx %%rbx, %%rcx ;"
 		"adox  %%rbx, %%rcx ;"
-		"clc ;"
-		"mulx %%rcx, %%rax, %%rcx ; " /* c*C[4] */
-		"adcx %%rax,  %%r8 ;"
-		"adcx %%rcx,  %%r9 ;"
+		"imul %%rdx, %%rcx ;" /* c*C[4], cf=0, of=0 */
+		"adcx %%rcx,  %%r8 ;"
+		"adcx %%rbx,  %%r9 ;"
 		"movq  %%r9, 40(%0) ;"
 		"adcx %%rbx, %%r10 ;"
 		"movq %%r10, 48(%0) ;"
@@ -974,9 +972,9 @@ static void red_eltfp25519_2w_bmi2(u64 *const c, const u64 *const a)
 		"adcq 16(%1), %%r10 ;"
 		"adcq 24(%1), %%r11 ;"
 		"adcq     $0, %%rcx ;"
-		"mulx %%rcx, %%rax, %%rcx ;" /* c*C[4] */
-		"addq %%rax,  %%r8 ;"
-		"adcq %%rcx,  %%r9 ;"
+		"imul %%rdx, %%rcx ;" /* c*C[4], cf=0 */
+		"addq %%rcx,  %%r8 ;"
+		"adcq    $0,  %%r9 ;"
 		"movq  %%r9,  8(%0) ;"
 		"adcq    $0, %%r10 ;"
 		"movq %%r10, 16(%0) ;"
@@ -1001,9 +999,9 @@ static void red_eltfp25519_2w_bmi2(u64 *const c, const u64 *const a)
 		"adcq 80(%1), %%r10 ;"
 		"adcq 88(%1), %%r11 ;"
 		"adcq     $0, %%rcx ;"
-		"mulx %%rcx, %%rax, %%rcx ;" /* c*C[4] */
-		"addq %%rax,  %%r8 ;"
-		"adcq %%rcx,  %%r9 ;"
+		"imul %%rdx, %%rcx ;" /* c*C[4], cf=0 */
+		"addq %%rcx,  %%r8 ;"
+		"adcq    $0,  %%r9 ;"
 		"movq  %%r9, 40(%0) ;"
 		"adcq    $0, %%r10 ;"
 		"movq %%r10, 48(%0) ;"
@@ -1333,10 +1331,9 @@ static void red_eltfp25519_1w_adx(u64 *const c, const u64 *const a)
 		/***************************************/
 		"adcx %%rbx, %%rcx ;"
 		"adox  %%rbx, %%rcx ;"
-		"clc ;"
-		"mulx %%rcx, %%rax, %%rcx ;" /* c*C[4] */
-		"adcx %%rax,  %%r8 ;"
-		"adcx %%rcx,  %%r9 ;"
+		"imul %%rdx, %%rcx ;" /* c*C[4], cf=0, of=0 */
+		"adcx %%rcx,  %%r8 ;"
+		"adcx %%rbx,  %%r9 ;"
 		"movq  %%r9,  8(%0) ;"
 		"adcx %%rbx, %%r10 ;"
 		"movq %%r10, 16(%0) ;"
@@ -1369,9 +1366,9 @@ static void red_eltfp25519_1w_bmi2(u64 *const c, const u64 *const a)
 		"adcq 16(%1), %%r10 ;"
 		"adcq 24(%1), %%r11 ;"
 		"adcq     $0, %%rcx ;"
-		"mulx %%rcx, %%rax, %%rcx ;" /* c*C[4] */
-		"addq %%rax,  %%r8 ;"
-		"adcq %%rcx,  %%r9 ;"
+		"imul %%rdx, %%rcx ;" /* c*C[4], cf=0 */
+		"addq %%rcx,  %%r8 ;"
+		"adcq    $0,  %%r9 ;"
 		"movq  %%r9,  8(%0) ;"
 		"adcq    $0, %%r10 ;"
 		"movq %%r10, 16(%0) ;"
