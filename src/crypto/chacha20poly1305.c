@@ -248,7 +248,6 @@ err:
 	return !ret;
 }
 
-
 void xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			       const u8 *ad, const size_t ad_len,
 			       const u8 nonce[XCHACHA20POLY1305_NONCELEN],

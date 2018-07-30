@@ -9,6 +9,7 @@
 #include "queueing.h"
 #include "ratelimiter.h"
 #include "netlink.h"
+#include "crypto/chacha20poly1305.h"
 #include "crypto/chacha20.h"
 #include "crypto/poly1305.h"
 #include "crypto/blake2s.h"
@@ -64,7 +65,7 @@ static void __exit mod_exit(void)
 module_init(mod_init);
 module_exit(mod_exit);
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Fast, secure, and modern VPN tunnel");
+MODULE_DESCRIPTION("Fast, modern, and secure VPN tunnel");
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 MODULE_VERSION(WIREGUARD_VERSION);
 MODULE_ALIAS_RTNL_LINK(KBUILD_MODNAME);
