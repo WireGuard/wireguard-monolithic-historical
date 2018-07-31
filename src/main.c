@@ -38,7 +38,7 @@ static int __init mod_init(void)
 
 	ret = device_init();
 	if (ret < 0)
-		goto err_packet;
+		goto err_device;
 
 	ret = genetlink_init();
 	if (ret < 0)
@@ -51,7 +51,7 @@ static int __init mod_init(void)
 
 err_netlink:
 	device_uninit();
-err_packet:
+err_device:
 	return ret;
 }
 
