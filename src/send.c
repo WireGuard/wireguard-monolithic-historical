@@ -303,7 +303,7 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 	if (unlikely(!keypair))
 		goto out_nokey;
 	key = &keypair->sending;
-	if (unlikely(!key || !key->is_valid))
+	if (unlikely(!key->is_valid))
 		goto out_nokey;
 	if (unlikely(has_expired(key->birthdate, REJECT_AFTER_TIME)))
 		goto out_invalid;
