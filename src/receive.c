@@ -448,7 +448,7 @@ static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb
 		return;
 	}
 
-	/* The call to index_hashtable_lookup gives us a reference to its underlying peer, so we don't need to call peer_rcu_get(). */
+	/* The call to index_hashtable_lookup gives us a reference to its underlying peer, so we don't need to call peer_get(). */
 	peer = PACKET_PEER(skb);
 
 	ret = queue_enqueue_per_device_and_peer(&wg->decrypt_queue, &peer->rx_queue, skb, wg->packet_crypt_wq, &wg->decrypt_queue.last_cpu);

@@ -20,7 +20,10 @@
  */
 
 #define peer_get_from_timer(timer_name) \
-	struct wireguard_peer *peer = peer_rcu_get(from_timer(peer, timer, timer_name)); \
+	struct wireguard_peer *peer; \
+	rcu_read_lock_bh(); \
+	peer = peer_get_maybe_zero(from_timer(peer, timer, timer_name)); \
+	rcu_read_unlock_bh(); \
 	if (unlikely(!peer)) \
 		return;
 

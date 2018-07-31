@@ -63,19 +63,11 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	return peer;
 }
 
-struct wireguard_peer *peer_get(struct wireguard_peer *peer)
+struct wireguard_peer *peer_get_maybe_zero(struct wireguard_peer *peer)
 {
 	RCU_LOCKDEP_WARN(!rcu_read_lock_bh_held(), "Taking peer reference without holding the RCU read lock");
 	if (unlikely(!peer || !kref_get_unless_zero(&peer->refcount)))
 		return NULL;
-	return peer;
-}
-
-struct wireguard_peer *peer_rcu_get(struct wireguard_peer *peer)
-{
-	rcu_read_lock_bh();
-	peer = peer_get(peer);
-	rcu_read_unlock_bh();
 	return peer;
 }
 

@@ -61,7 +61,7 @@ void packet_send_queued_handshake_initiation(struct wireguard_peer *peer, bool i
 	if (!has_expired(peer->last_sent_handshake, REKEY_TIMEOUT))
 		return;
 
-	peer = peer_rcu_get(peer);
+	peer_get(peer);
 	/* Queues up calling packet_send_queued_handshakes(peer), where we do a peer_put(peer) after: */
 	if (!queue_work(peer->device->handshake_send_wq, &peer->transmit_handshake_work))
 		peer_put(peer); /* If the work was already queued, we want to drop the extra reference */
@@ -320,7 +320,7 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 	}
 
 	packets.prev->next = NULL;
-	peer_rcu_get(keypair->entry.peer);
+	peer_get(keypair->entry.peer);
 	PACKET_CB(packets.next)->keypair = keypair;
 	packet_create_data(packets.next);
 	return;

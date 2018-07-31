@@ -182,7 +182,7 @@ static __always_inline struct wireguard_peer *lookup(struct allowedips_node __rc
 	rcu_read_lock_bh();
 	node = find_node(rcu_dereference_bh(root), bits, ip);
 	if (node)
-		peer = peer_get(node->peer);
+		peer = peer_get_maybe_zero(node->peer);
 	rcu_read_unlock_bh();
 	return peer;
 }

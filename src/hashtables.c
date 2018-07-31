@@ -48,7 +48,7 @@ struct wireguard_peer *pubkey_hashtable_lookup(struct pubkey_hashtable *table, c
 			break;
 		}
 	}
-	peer = peer_get(peer);
+	peer = peer_get_maybe_zero(peer);
 	rcu_read_unlock_bh();
 	return peer;
 }
@@ -159,7 +159,7 @@ struct index_hashtable_entry *index_hashtable_lookup(struct index_hashtable *tab
 		}
 	}
 	if (likely(entry)) {
-		entry->peer = peer_get(entry->peer);
+		entry->peer = peer_get_maybe_zero(entry->peer);
 		if (unlikely(!entry->peer))
 			entry = NULL;
 	}

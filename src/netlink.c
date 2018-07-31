@@ -221,8 +221,8 @@ static int get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 out:
 	peer_put(last_peer_cursor);
-	if (!ret && !done)
-		next_peer_cursor = peer_rcu_get(next_peer_cursor);
+	if (!ret && !done && next_peer_cursor)
+		peer_get(next_peer_cursor);
 	mutex_unlock(&wg->device_update_lock);
 	rtnl_unlock();
 
@@ -326,9 +326,11 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 		up_read(&wg->static_identity.lock);
 
 		ret = -ENOMEM;
-		peer = peer_rcu_get(peer_create(wg, public_key, preshared_key));
+		peer = peer_create(wg, public_key, preshared_key);
 		if (!peer)
 			goto out;
+		/* Take additional reference, as though we've just been looked up. */
+		peer_get(peer);
 	}
 
 	ret = 0;
