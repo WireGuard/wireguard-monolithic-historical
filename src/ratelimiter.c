@@ -144,10 +144,10 @@ err_oom:
 
 int ratelimiter_init(void)
 {
-	if (atomic64_inc_return(&refcnt) != 1)
-		return 0;
-
 	mutex_lock(&init_lock);
+	if (atomic64_inc_return(&refcnt) != 1)
+		goto out;
+
 	entry_cache = KMEM_CACHE(ratelimiter_entry, 0);
 	if (!entry_cache)
 		goto err;
@@ -174,6 +174,7 @@ int ratelimiter_init(void)
 
 	queue_delayed_work(system_power_efficient_wq, &gc_work, HZ);
 	get_random_bytes(&key, sizeof(key));
+out:
 	mutex_unlock(&init_lock);
 	return 0;
 
@@ -187,10 +188,10 @@ err:
 
 void ratelimiter_uninit(void)
 {
-	if (atomic64_dec_if_positive(&refcnt))
-		return;
-
 	mutex_lock(&init_lock);
+	if (atomic64_dec_if_positive(&refcnt))
+		goto out;
+
 	cancel_delayed_work_sync(&gc_work);
 	gc_entries(NULL);
 	rcu_barrier();
@@ -199,6 +200,7 @@ void ratelimiter_uninit(void)
 	kvfree(table_v6);
 #endif
 	kmem_cache_destroy(entry_cache);
+out:
 	mutex_unlock(&init_lock);
 }
 
