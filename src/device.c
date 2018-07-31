@@ -37,7 +37,7 @@ static int open(struct net_device *dev)
 	struct in_device *dev_v4 = __in_dev_get_rtnl(dev);
 
 	if (dev_v4) {
-		/* TODO: when we merge to mainline, put this check near the ip_rt_send_redirect
+		/* TODO: at some point we might put this check near the ip_rt_send_redirect
 		 * call of ip_forward in net/ipv4/ip_forward.c, similar to the current secpath
 		 * check, rather than turning it off like this. This is just a stop gap solution
 		 * while we're an out of tree module.
