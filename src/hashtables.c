@@ -133,6 +133,12 @@ bool index_hashtable_replace(struct index_hashtable *table, struct index_hashtab
 	spin_lock_bh(&table->lock);
 	new->index = old->index;
 	hlist_replace_rcu(&old->index_hash, &new->index_hash);
+
+	/* Calling init here NULLs out index_hash, and in fact after this function returns,
+	 * it's theoretically possible for this to get reinserted elsewhere. That means
+	 * the RCU lookup below might either terminate early or jump between buckets, in which
+	 * case the packet simply gets dropped, which isn't terrible.
+	 */
 	INIT_HLIST_NODE(&old->index_hash);
 	spin_unlock_bh(&table->lock);
 	return true;
