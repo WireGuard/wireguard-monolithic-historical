@@ -49,17 +49,17 @@ static void node_free_rcu(struct rcu_head *rcu)
 #define push(stack, p, len) ({ \
 	if (rcu_access_pointer(p)) { \
 		BUG_ON(len >= 128); \
-		stack[len++] = rcu_dereference_protected(p, lockdep_is_held(lock)); \
+		stack[len++] = rcu_dereference_raw(p); \
 	} \
 	true; \
 })
-static void free_root_node(struct allowedips_node __rcu *top, struct mutex *lock)
+static void root_free_rcu(struct rcu_head *rcu)
 {
-	struct allowedips_node *stack[128], *node;
-	unsigned int len;
+	struct allowedips_node *node, *stack[128] = { container_of(rcu, struct allowedips_node, rcu) };
+	unsigned int len = 1;
 
-	for (len = 0, push(stack, top, len); len > 0 && (node = stack[--len]) && push(stack, node->bit[0], len) && push(stack, node->bit[1], len);)
-		call_rcu_bh(&node->rcu, node_free_rcu);
+	while (len > 0 && (node = stack[--len]) && push(stack, node->bit[0], len) && push(stack, node->bit[1], len))
+		kfree(node);
 }
 
 static int walk_by_peer(struct allowedips_node __rcu *top, u8 bits, struct allowedips_cursor *cursor, struct wireguard_peer *peer, int (*func)(void *ctx, const u8 *ip, u8 cidr, int family), void *ctx, struct mutex *lock)
@@ -287,8 +287,10 @@ void allowedips_free(struct allowedips *table, struct mutex *lock)
 	++table->seq;
 	RCU_INIT_POINTER(table->root4, NULL);
 	RCU_INIT_POINTER(table->root6, NULL);
-	free_root_node(old4, lock);
-	free_root_node(old6, lock);
+	if (rcu_access_pointer(old4))
+		call_rcu_bh(&rcu_dereference_protected(old4, lockdep_is_held(lock))->rcu, root_free_rcu);
+	if (rcu_access_pointer(old6))
+		call_rcu_bh(&rcu_dereference_protected(old6, lockdep_is_held(lock))->rcu, root_free_rcu);
 }
 
 int allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip, u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
