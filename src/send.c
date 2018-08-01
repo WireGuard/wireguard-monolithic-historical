@@ -223,7 +223,7 @@ void packet_tx_worker(struct work_struct *work)
 	struct sk_buff *first;
 	enum packet_state state;
 
-	while ((first = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read(&PACKET_CB(first)->state)) != PACKET_STATE_UNCRYPTED) {
+	while ((first = __ptr_ring_peek(&queue->ring)) != NULL && (state = atomic_read_acquire(&PACKET_CB(first)->state)) != PACKET_STATE_UNCRYPTED) {
 		__ptr_ring_discard_one(&queue->ring);
 		peer = PACKET_PEER(first);
 		keypair = PACKET_CB(first)->keypair;

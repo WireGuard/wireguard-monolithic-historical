@@ -610,6 +610,34 @@ static inline void *skb_put_data(struct sk_buff *skb, const void *data, unsigned
 #define NAPI_STATE_NO_BUSY_POLL NAPI_STATE_SCHED
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+#ifndef smp_store_release
+#define smp_store_release(p, v) \
+do { \
+	smp_mb(); \
+	ACCESS_ONCE(*p) = (v); \
+} while (0)
+#endif
+#ifndef smp_load_acquire
+#define smp_load_acquire(p) \
+({ \
+	typeof(*p) ___p1 = ACCESS_ONCE(*p); \
+	smp_mb(); \
+	___p1; \
+})
+#endif
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
+#include <linux/atomic.h>
+#ifndef atomic_read_acquire
+#define atomic_read_acquire(v) smp_load_acquire(&(v)->counter)
+#endif
+#ifndef atomic_set_release
+#define atomic_set_release(v, i) smp_store_release(&(v)->counter, (i))
+#endif
+#endif
+
 /* https://lkml.kernel.org/r/20170624021727.17835-1-Jason@zx2c4.com */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
