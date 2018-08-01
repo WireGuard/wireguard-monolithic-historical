@@ -58,6 +58,7 @@ struct wireguard_peer {
 	struct list_head peer_list;
 	u64 internal_id;
 	struct napi_struct napi;
+	bool is_dead;
 };
 
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN], const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN]);

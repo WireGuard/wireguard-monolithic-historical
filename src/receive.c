@@ -282,9 +282,9 @@ out:
 }
 #include "selftest/counter.h"
 
-static void packet_consume_data_done(struct sk_buff *skb, struct endpoint *endpoint)
+static void packet_consume_data_done(struct wireguard_peer *peer, struct sk_buff *skb, struct endpoint *endpoint)
 {
-	struct wireguard_peer *peer = PACKET_PEER(skb), *routed_peer;
+	struct wireguard_peer *routed_peer;
 	struct net_device *dev = peer->device->dev;
 	unsigned int len, len_before_trim;
 
@@ -400,11 +400,11 @@ int packet_rx_poll(struct napi_struct *napi, int budget)
 			goto next;
 
 		skb_reset(skb);
-		packet_consume_data_done(skb, &endpoint);
+		packet_consume_data_done(peer, skb, &endpoint);
 		free = false;
 
 next:
-		noise_keypair_put(keypair);
+		noise_keypair_put(keypair, false);
 		peer_put(peer);
 		if (unlikely(free))
 			dev_kfree_skb(skb);
@@ -436,32 +436,31 @@ void packet_decrypt_worker(struct work_struct *work)
 
 static void packet_consume_data(struct wireguard_device *wg, struct sk_buff *skb)
 {
-	struct wireguard_peer *peer;
+	struct wireguard_peer *peer = NULL;
 	__le32 idx = ((struct message_data *)skb->data)->key_idx;
 	int ret;
 
 	rcu_read_lock_bh();
-	PACKET_CB(skb)->keypair = noise_keypair_get((struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx));
-	rcu_read_unlock_bh();
-	if (unlikely(!PACKET_CB(skb)->keypair)) {
-		dev_kfree_skb(skb);
-		return;
-	}
+	PACKET_CB(skb)->keypair = (struct noise_keypair *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx, &peer);
+	if (unlikely(!noise_keypair_get(PACKET_CB(skb)->keypair)))
+		goto err_keypair;
 
-	/* The call to index_hashtable_lookup gives us a reference to its underlying peer, so we don't need to call peer_get(). */
-	peer = PACKET_PEER(skb);
+	if (unlikely(peer->is_dead))
+		goto err;
 
 	ret = queue_enqueue_per_device_and_peer(&wg->decrypt_queue, &peer->rx_queue, skb, wg->packet_crypt_wq, &wg->decrypt_queue.last_cpu);
-	if (likely(!ret))
-		return; /* Successful. No need to drop references below. */
-
-	if (ret == -EPIPE)
+	if (unlikely(ret == -EPIPE))
 		queue_enqueue_per_peer(&peer->rx_queue, skb, PACKET_STATE_DEAD);
-	else {
-		peer_put(peer);
-		noise_keypair_put(PACKET_CB(skb)->keypair);
-		dev_kfree_skb(skb);
+	if (likely(!ret || ret == -EPIPE)) {
+		rcu_read_unlock_bh();
+		return;
 	}
+err:
+	noise_keypair_put(PACKET_CB(skb)->keypair, false);
+err_keypair:
+	rcu_read_unlock_bh();
+	peer_put(peer);
+	dev_kfree_skb(skb);
 }
 
 void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)

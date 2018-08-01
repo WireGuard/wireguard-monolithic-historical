@@ -86,18 +86,40 @@ void peer_remove(struct wireguard_peer *peer)
 	if (unlikely(!peer))
 		return;
 	lockdep_assert_held(&peer->device->device_update_lock);
+
+	/* Remove from configuration-time lookup structures so new packets can't enter. */
+	list_del_init(&peer->peer_list);
 	allowedips_remove_by_peer(&peer->device->peer_allowedips, peer, &peer->device->device_update_lock);
 	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
-	skb_queue_purge(&peer->staged_packet_queue);
-	noise_handshake_clear(&peer->handshake);
+
+	/* Mark as dead, so that we don't allow jumping contexts after. */
+	WRITE_ONCE(peer->is_dead, true);
+	synchronize_rcu_bh();
+
+	/* Now that no more keypairs can be created for this peer, we destroy existing ones. */
 	noise_keypairs_clear(&peer->keypairs);
-	list_del_init(&peer->peer_list);
+
+	/* Destroy all ongoing timers that were in-flight at the beginning of this function. */
 	timers_stop(peer);
-	flush_workqueue(peer->device->packet_crypt_wq); /* The first flush is for encrypt/decrypt. */
-	flush_workqueue(peer->device->packet_crypt_wq); /* The second.1 flush is for send (but not receive, since that's napi). */
-	napi_disable(&peer->napi); /* The second.2 flush is for receive (but not send, since that's wq). */
-	flush_workqueue(peer->device->handshake_send_wq);
+
+	/* The transition between packet encryption/decryption queues isn't guarded
+	 * by is_dead, but each reference's life is strictly bounded by two
+	 * generations: once for parallel crypto and once for serial ingestion,
+	 * so we can simply flush twice, and be sure that we no longer have references
+	 * inside these queues.
+	 *
+	 * a) For encrypt/decrypt. */
+	flush_workqueue(peer->device->packet_crypt_wq);
+	/* b.1) For send (but not receive, since that's napi). */
+	flush_workqueue(peer->device->packet_crypt_wq);
+	/* b.2.1) For receive (but not send, since that's wq). */
+	napi_disable(&peer->napi);
+	/* b.2.1) It's now safe to remove the napi struct, which must be done here from process context. */
 	netif_napi_del(&peer->napi);
+
+	/* Ensure any workstructs we own (like transmit_handshake_work or clear_peer_work) no longer are in use. */
+	flush_workqueue(peer->device->handshake_send_wq);
+
 	--peer->device->num_peers;
 	peer_put(peer);
 }
@@ -105,8 +127,6 @@ void peer_remove(struct wireguard_peer *peer)
 static void rcu_release(struct rcu_head *rcu)
 {
 	struct wireguard_peer *peer = container_of(rcu, struct wireguard_peer, rcu);
-
-	pr_debug("%s: Peer %llu (%pISpfsc) destroyed\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	dst_cache_destroy(&peer->endpoint_cache);
 	packet_queue_free(&peer->rx_queue, false);
 	packet_queue_free(&peer->tx_queue, false);
@@ -116,9 +136,12 @@ static void rcu_release(struct rcu_head *rcu)
 static void kref_release(struct kref *refcount)
 {
 	struct wireguard_peer *peer = container_of(refcount, struct wireguard_peer, refcount);
-
+	pr_debug("%s: Peer %llu (%pISpfsc) destroyed\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+	/* Remove ourself from dynamic runtime lookup structures, now that the last reference is gone. */
 	index_hashtable_remove(&peer->device->index_hashtable, &peer->handshake.entry);
+	/* Remove any lingering packets that didn't have a chance to be transmitted. */
 	skb_queue_purge(&peer->staged_packet_queue);
+	/* Free the memory used. */
 	call_rcu_bh(&peer->rcu, rcu_release);
 }
 

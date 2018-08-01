@@ -165,15 +165,9 @@ void cookie_message_consume(struct message_handshake_cookie *src, struct wiregua
 {
 	u8 cookie[COOKIE_LEN];
 	struct wireguard_peer *peer = NULL;
-	struct index_hashtable_entry *entry;
 	bool ret;
 
-	rcu_read_lock_bh();
-	entry = index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_HANDSHAKE | INDEX_HASHTABLE_KEYPAIR, src->receiver_index);
-	if (likely(entry))
-		peer = entry->peer;
-	rcu_read_unlock_bh();
-	if (unlikely(!peer))
+	if (unlikely(!index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_HANDSHAKE | INDEX_HASHTABLE_KEYPAIR, src->receiver_index, &peer)))
 		return;
 
 	down_read(&peer->latest_cookie.lock);

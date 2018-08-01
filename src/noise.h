@@ -95,7 +95,7 @@ struct wireguard_device;
 void noise_init(void);
 bool noise_handshake_init(struct noise_handshake *handshake, struct noise_static_identity *static_identity, const u8 peer_public_key[NOISE_PUBLIC_KEY_LEN], const u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN], struct wireguard_peer *peer);
 void noise_handshake_clear(struct noise_handshake *handshake);
-void noise_keypair_put(struct noise_keypair *keypair);
+void noise_keypair_put(struct noise_keypair *keypair, bool unreference_now);
 struct noise_keypair *noise_keypair_get(struct noise_keypair *keypair);
 void noise_keypairs_clear(struct noise_keypairs *keypairs);
 bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_keypair *received_keypair);

@@ -58,13 +58,16 @@ void packet_send_queued_handshake_initiation(struct wireguard_peer *peer, bool i
 	/* First checking the timestamp here is just an optimization; it will
 	 * be caught while properly locked inside the actual work queue.
 	 */
-	if (!has_expired(peer->last_sent_handshake, REKEY_TIMEOUT))
-		return;
+	rcu_read_lock_bh();
+	if (!has_expired(peer->last_sent_handshake, REKEY_TIMEOUT) || unlikely(peer->is_dead))
+		goto out;
 
 	peer_get(peer);
 	/* Queues up calling packet_send_queued_handshakes(peer), where we do a peer_put(peer) after: */
 	if (!queue_work(peer->device->handshake_send_wq, &peer->transmit_handshake_work))
 		peer_put(peer); /* If the work was already queued, we want to drop the extra reference */
+out:
+	rcu_read_unlock_bh();
 }
 
 void packet_send_handshake_response(struct wireguard_peer *peer)
@@ -233,7 +236,7 @@ void packet_tx_worker(struct work_struct *work)
 		else
 			skb_free_null_queue(first);
 
-		noise_keypair_put(keypair);
+		noise_keypair_put(keypair, false);
 		peer_put(peer);
 	}
 }
@@ -266,19 +269,22 @@ static void packet_create_data(struct sk_buff *first)
 {
 	struct wireguard_peer *peer = PACKET_PEER(first);
 	struct wireguard_device *wg = peer->device;
-	int ret;
+	int ret = -EINVAL;
+
+	rcu_read_lock_bh();
+	if (unlikely(peer->is_dead))
+		goto err;
 
 	ret = queue_enqueue_per_device_and_peer(&wg->encrypt_queue, &peer->tx_queue, first, wg->packet_crypt_wq, &wg->encrypt_queue.last_cpu);
-	if (likely(!ret))
-		return; /* Successful. No need to fall through to drop references below. */
-
-	if (ret == -EPIPE)
+	if (unlikely(ret == -EPIPE))
 		queue_enqueue_per_peer(&peer->tx_queue, first, PACKET_STATE_DEAD);
-	else {
-		peer_put(peer);
-		noise_keypair_put(PACKET_CB(first)->keypair);
-		skb_free_null_queue(first);
-	}
+err:
+	rcu_read_unlock_bh();
+	if (likely(!ret || ret == -EPIPE))
+		return;
+	noise_keypair_put(PACKET_CB(first)->keypair, false);
+	peer_put(peer);
+	skb_free_null_queue(first);
 }
 
 void packet_send_staged_packets(struct wireguard_peer *peer)
@@ -328,7 +334,7 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 out_invalid:
 	key->is_valid = false;
 out_nokey:
-	noise_keypair_put(keypair);
+	noise_keypair_put(keypair, false);
 
 	/* We orphan the packets if we're waiting on a handshake, so that they
 	 * don't block a socket's pool.

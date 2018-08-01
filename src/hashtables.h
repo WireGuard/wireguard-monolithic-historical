@@ -47,6 +47,6 @@ void index_hashtable_init(struct index_hashtable *table);
 __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashtable_entry *entry);
 bool index_hashtable_replace(struct index_hashtable *table, struct index_hashtable_entry *old, struct index_hashtable_entry *new);
 void index_hashtable_remove(struct index_hashtable *table, struct index_hashtable_entry *entry);
-struct index_hashtable_entry *index_hashtable_lookup(struct index_hashtable *table, const enum index_hashtable_type type_mask, const __le32 index);
+struct index_hashtable_entry *index_hashtable_lookup(struct index_hashtable *table, const enum index_hashtable_type type_mask, const __le32 index, struct wireguard_peer **peer);
 
 #endif /* _WG_HASHTABLES_H */
