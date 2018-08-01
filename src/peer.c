@@ -25,42 +25,48 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 
 	if (wg->num_peers >= MAX_PEERS_PER_DEVICE)
 		return NULL;
-	++wg->num_peers;
 
 	peer = kzalloc(sizeof(struct wireguard_peer), GFP_KERNEL);
 	if (!peer)
 		return NULL;
 	peer->device = wg;
 
-	if (dst_cache_init(&peer->endpoint_cache, GFP_KERNEL)) {
-		kfree(peer);
-		return NULL;
-	}
+	if (!noise_handshake_init(&peer->handshake, &wg->static_identity, public_key, preshared_key, peer))
+		goto err_1;
+	if (dst_cache_init(&peer->endpoint_cache, GFP_KERNEL))
+		goto err_1;
+	if (packet_queue_init(&peer->tx_queue, packet_tx_worker, false, MAX_QUEUED_PACKETS))
+		goto err_2;
+	if (packet_queue_init(&peer->rx_queue, NULL, false, MAX_QUEUED_PACKETS))
+		goto err_3;
 
 	peer->internal_id = atomic64_inc_return(&peer_counter);
 	peer->serial_work_cpu = nr_cpumask_bits;
 	cookie_init(&peer->latest_cookie);
-	if (!noise_handshake_init(&peer->handshake, &wg->static_identity, public_key, preshared_key, peer)) {
-		kfree(peer);
-		return NULL;
-	}
 	timers_init(peer);
 	cookie_checker_precompute_peer_keys(peer);
 	spin_lock_init(&peer->keypairs.keypair_update_lock);
 	INIT_WORK(&peer->transmit_handshake_work, packet_handshake_send_worker);
 	rwlock_init(&peer->endpoint_lock);
 	kref_init(&peer->refcount);
-	packet_queue_init(&peer->tx_queue, packet_tx_worker, false, MAX_QUEUED_PACKETS);
-	packet_queue_init(&peer->rx_queue, NULL, false, MAX_QUEUED_PACKETS);
 	skb_queue_head_init(&peer->staged_packet_queue);
-	list_add_tail(&peer->peer_list, &wg->peer_list);
-	pubkey_hashtable_add(&wg->peer_hashtable, peer);
 	peer->last_sent_handshake = ktime_get_boot_fast_ns() - (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC;
 	set_bit(NAPI_STATE_NO_BUSY_POLL, &peer->napi.state);
 	netif_napi_add(wg->dev, &peer->napi, packet_rx_poll, NAPI_POLL_WEIGHT);
 	napi_enable(&peer->napi);
+	list_add_tail(&peer->peer_list, &wg->peer_list);
+	pubkey_hashtable_add(&wg->peer_hashtable, peer);
+	++wg->num_peers;
 	pr_debug("%s: Peer %llu created\n", wg->dev->name, peer->internal_id);
 	return peer;
+
+err_3:
+	packet_queue_free(&peer->tx_queue, false);
+err_2:
+	dst_cache_destroy(&peer->endpoint_cache);
+err_1:
+	kfree(peer);
+	return NULL;
 }
 
 struct wireguard_peer *peer_get_maybe_zero(struct wireguard_peer *peer)
