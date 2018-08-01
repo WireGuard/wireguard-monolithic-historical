@@ -180,9 +180,13 @@ static __always_inline struct wireguard_peer *lookup(struct allowedips_node __rc
 	swap_endian(ip, be_ip, bits);
 
 	rcu_read_lock_bh();
+retry:
 	node = find_node(rcu_dereference_bh(root), bits, ip);
-	if (node)
+	if (node) {
 		peer = peer_get_maybe_zero(rcu_dereference_bh(node->peer));
+		if (!peer)
+			goto retry;
+	}
 	rcu_read_unlock_bh();
 	return peer;
 }
