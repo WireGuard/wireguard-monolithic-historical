@@ -138,13 +138,13 @@ void noise_keypairs_clear(struct noise_keypairs *keypairs)
 
 	spin_lock_bh(&keypairs->keypair_update_lock);
 	old = rcu_dereference_protected(keypairs->previous_keypair, lockdep_is_held(&keypairs->keypair_update_lock));
-	rcu_assign_pointer(keypairs->previous_keypair, NULL);
+	RCU_INIT_POINTER(keypairs->previous_keypair, NULL);
 	noise_keypair_put(old);
 	old = rcu_dereference_protected(keypairs->next_keypair, lockdep_is_held(&keypairs->keypair_update_lock));
-	rcu_assign_pointer(keypairs->next_keypair, NULL);
+	RCU_INIT_POINTER(keypairs->next_keypair, NULL);
 	noise_keypair_put(old);
 	old = rcu_dereference_protected(keypairs->current_keypair, lockdep_is_held(&keypairs->keypair_update_lock));
-	rcu_assign_pointer(keypairs->current_keypair, NULL);
+	RCU_INIT_POINTER(keypairs->current_keypair, NULL);
 	noise_keypair_put(old);
 	spin_unlock_bh(&keypairs->keypair_update_lock);
 }
@@ -169,7 +169,7 @@ static void add_new_keypair(struct noise_keypairs *keypairs, struct noise_keypai
 			 * next keypair instead of putting it in the previous slot, but this
 			 * might be a bit less robust. Something to think about and decide on.
 			 */
-			rcu_assign_pointer(keypairs->next_keypair, NULL);
+			RCU_INIT_POINTER(keypairs->next_keypair, NULL);
 			rcu_assign_pointer(keypairs->previous_keypair, next_keypair);
 			noise_keypair_put(current_keypair);
 		} else	/* If there wasn't an existing next keypair, we replace the
@@ -189,7 +189,7 @@ static void add_new_keypair(struct noise_keypairs *keypairs, struct noise_keypai
 		 */
 		rcu_assign_pointer(keypairs->next_keypair, new_keypair);
 		noise_keypair_put(next_keypair);
-		rcu_assign_pointer(keypairs->previous_keypair, NULL);
+		RCU_INIT_POINTER(keypairs->previous_keypair, NULL);
 		noise_keypair_put(previous_keypair);
 	}
 	spin_unlock_bh(&keypairs->keypair_update_lock);
@@ -220,7 +220,7 @@ bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_k
 	rcu_assign_pointer(keypairs->previous_keypair, rcu_dereference_protected(keypairs->current_keypair, lockdep_is_held(&keypairs->keypair_update_lock)));
 	noise_keypair_put(old_keypair);
 	rcu_assign_pointer(keypairs->current_keypair, received_keypair);
-	rcu_assign_pointer(keypairs->next_keypair, NULL);
+	RCU_INIT_POINTER(keypairs->next_keypair, NULL);
 
 	spin_unlock_bh(&keypairs->keypair_update_lock);
 	return true;
