@@ -164,31 +164,36 @@ void cookie_message_create(struct message_handshake_cookie *dst, struct sk_buff 
 void cookie_message_consume(struct message_handshake_cookie *src, struct wireguard_device *wg)
 {
 	u8 cookie[COOKIE_LEN];
+	struct wireguard_peer *peer = NULL;
 	struct index_hashtable_entry *entry;
 	bool ret;
 
+	rcu_read_lock_bh();
 	entry = index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_HANDSHAKE | INDEX_HASHTABLE_KEYPAIR, src->receiver_index);
-	if (unlikely(!entry))
+	if (likely(entry))
+		peer = entry->peer;
+	rcu_read_unlock_bh();
+	if (unlikely(!peer))
 		return;
 
-	down_read(&entry->peer->latest_cookie.lock);
-	if (unlikely(!entry->peer->latest_cookie.have_sent_mac1)) {
-		up_read(&entry->peer->latest_cookie.lock);
+	down_read(&peer->latest_cookie.lock);
+	if (unlikely(!peer->latest_cookie.have_sent_mac1)) {
+		up_read(&peer->latest_cookie.lock);
 		goto out;
 	}
-	ret = xchacha20poly1305_decrypt(cookie, src->encrypted_cookie, sizeof(src->encrypted_cookie), entry->peer->latest_cookie.last_mac1_sent, COOKIE_LEN, src->nonce, entry->peer->latest_cookie.cookie_decryption_key);
-	up_read(&entry->peer->latest_cookie.lock);
+	ret = xchacha20poly1305_decrypt(cookie, src->encrypted_cookie, sizeof(src->encrypted_cookie), peer->latest_cookie.last_mac1_sent, COOKIE_LEN, src->nonce, peer->latest_cookie.cookie_decryption_key);
+	up_read(&peer->latest_cookie.lock);
 
 	if (ret) {
-		down_write(&entry->peer->latest_cookie.lock);
-		memcpy(entry->peer->latest_cookie.cookie, cookie, COOKIE_LEN);
-		entry->peer->latest_cookie.birthdate = ktime_get_boot_fast_ns();
-		entry->peer->latest_cookie.is_valid = true;
-		entry->peer->latest_cookie.have_sent_mac1 = false;
-		up_write(&entry->peer->latest_cookie.lock);
+		down_write(&peer->latest_cookie.lock);
+		memcpy(peer->latest_cookie.cookie, cookie, COOKIE_LEN);
+		peer->latest_cookie.birthdate = ktime_get_boot_fast_ns();
+		peer->latest_cookie.is_valid = true;
+		peer->latest_cookie.have_sent_mac1 = false;
+		up_write(&peer->latest_cookie.lock);
 	} else
 		net_dbg_ratelimited("%s: Could not decrypt invalid cookie response\n", wg->dev->name);
 
 out:
-	peer_put(entry->peer);
+	peer_put(peer);
 }

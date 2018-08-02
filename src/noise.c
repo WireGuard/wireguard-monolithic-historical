@@ -637,7 +637,7 @@ bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noi
 
 	handshake_zero(handshake);
 	add_new_keypair(keypairs, new_keypair);
-	net_dbg_ratelimited("%s: Keypair %llu created for peer %llu\n", new_keypair->entry.peer->device->dev->name, new_keypair->internal_id, new_keypair->entry.peer->internal_id);
+	net_dbg_ratelimited("%s: Keypair %llu created for peer %llu\n", handshake->entry.peer->device->dev->name, new_keypair->internal_id, handshake->entry.peer->internal_id);
 	WARN_ON(!index_hashtable_replace(&handshake->entry.peer->device->index_hashtable, &handshake->entry, &new_keypair->entry));
 	up_write(&handshake->lock);
 
