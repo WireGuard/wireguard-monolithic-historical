@@ -424,7 +424,7 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	u8 e[NOISE_PUBLIC_KEY_LEN];
 	u8 t[NOISE_TIMESTAMP_LEN];
 	struct noise_handshake *handshake;
-	struct wireguard_peer *wg_peer = NULL;
+	struct wireguard_peer *peer = NULL, *ret_peer = NULL;
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	u8 hash[NOISE_HASH_LEN];
 	u8 chaining_key[NOISE_HASH_LEN];
@@ -447,10 +447,10 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 		goto out;
 
 	/* Lookup which peer we're actually talking to */
-	wg_peer = pubkey_hashtable_lookup(&wg->peer_hashtable, s);
-	if (!wg_peer)
+	peer = pubkey_hashtable_lookup(&wg->peer_hashtable, s);
+	if (!peer)
 		goto out;
-	handshake = &wg_peer->handshake;
+	handshake = &peer->handshake;
 
 	/* ss */
 	kdf(chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, chaining_key);
@@ -463,11 +463,8 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	replay_attack = memcmp(t, handshake->latest_timestamp, NOISE_TIMESTAMP_LEN) <= 0;
 	flood_attack = handshake->last_initiation_consumption + NSEC_PER_SEC / INITIATIONS_PER_SECOND > ktime_get_boot_fast_ns();
 	up_read(&handshake->lock);
-	if (replay_attack || flood_attack) {
-		peer_put(wg_peer);
-		wg_peer = NULL;
+	if (replay_attack || flood_attack)
 		goto out;
-	}
 
 	/* Success! Copy everything to peer */
 	down_write(&handshake->lock);
@@ -479,13 +476,16 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	handshake->last_initiation_consumption = ktime_get_boot_fast_ns();
 	handshake->state = HANDSHAKE_CONSUMED_INITIATION;
 	up_write(&handshake->lock);
+	ret_peer = peer;
 
 out:
 	memzero_explicit(key, NOISE_SYMMETRIC_KEY_LEN);
 	memzero_explicit(hash, NOISE_HASH_LEN);
 	memzero_explicit(chaining_key, NOISE_HASH_LEN);
 	up_read(&wg->static_identity.lock);
-	return wg_peer;
+	if (!ret_peer)
+		peer_put(peer);
+	return ret_peer;
 }
 
 bool noise_handshake_create_response(struct message_handshake_response *dst, struct noise_handshake *handshake)
@@ -575,11 +575,11 @@ struct wireguard_peer *noise_handshake_consume_response(struct message_handshake
 
 	/* ee */
 	if (!mix_dh(chaining_key, NULL, ephemeral_private, e))
-		goto out;
+		goto fail;
 
 	/* se */
 	if (!mix_dh(chaining_key, NULL, wg->static_identity.static_private, e))
-		goto out;
+		goto fail;
 
 	/* psk */
 	mix_psk(chaining_key, hash, key, handshake->preshared_key);
