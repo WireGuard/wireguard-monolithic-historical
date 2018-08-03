@@ -46,7 +46,7 @@ static void node_free_rcu(struct rcu_head *rcu)
 	kfree(container_of(rcu, struct allowedips_node, rcu));
 }
 
-#define push(stack, p, len) ({ \
+#define push_rcu(stack, p, len) ({ \
 	if (rcu_access_pointer(p)) { \
 		BUG_ON(len >= 128); \
 		stack[len++] = rcu_dereference_raw(p); \
@@ -58,7 +58,7 @@ static void root_free_rcu(struct rcu_head *rcu)
 	struct allowedips_node *node, *stack[128] = { container_of(rcu, struct allowedips_node, rcu) };
 	unsigned int len = 1;
 
-	while (len > 0 && (node = stack[--len]) && push(stack, node->bit[0], len) && push(stack, node->bit[1], len))
+	while (len > 0 && (node = stack[--len]) && push_rcu(stack, node->bit[0], len) && push_rcu(stack, node->bit[1], len))
 		kfree(node);
 }
 
@@ -72,9 +72,9 @@ static int walk_by_peer(struct allowedips_node __rcu *top, u8 bits, struct allow
 		return 0;
 
 	if (!cursor->len)
-		push(cursor->stack, top, cursor->len);
+		push_rcu(cursor->stack, top, cursor->len);
 
-	for (; cursor->len > 0 && (node = cursor->stack[cursor->len - 1]); --cursor->len, push(cursor->stack, node->bit[0], cursor->len), push(cursor->stack, node->bit[1], cursor->len)) {
+	for (; cursor->len > 0 && (node = cursor->stack[cursor->len - 1]); --cursor->len, push_rcu(cursor->stack, node->bit[0], cursor->len), push_rcu(cursor->stack, node->bit[1], cursor->len)) {
 		if (rcu_dereference_protected(node->peer, lockdep_is_held(lock)) != peer)
 			continue;
 
@@ -89,7 +89,7 @@ static int walk_by_peer(struct allowedips_node __rcu *top, u8 bits, struct allow
 	}
 	return 0;
 }
-#undef push
+#undef push_rcu
 
 #define ref(p) rcu_access_pointer(p)
 #define deref(p) rcu_dereference_protected(*p, lockdep_is_held(lock))
