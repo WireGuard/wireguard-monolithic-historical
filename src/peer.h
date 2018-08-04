@@ -43,7 +43,7 @@ struct wireguard_peer {
 	struct dst_cache endpoint_cache;
 	rwlock_t endpoint_lock;
 	struct noise_handshake handshake;
-	u64 last_sent_handshake;
+	atomic64_t last_sent_handshake;
 	struct work_struct transmit_handshake_work, clear_peer_work;
 	struct cookie latest_cookie;
 	struct hlist_node pubkey_hash;

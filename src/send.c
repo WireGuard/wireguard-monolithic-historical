@@ -23,20 +23,17 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 {
 	struct message_handshake_initiation packet;
 
-	down_write(&peer->handshake.lock);
-	if (!has_expired(peer->last_sent_handshake, REKEY_TIMEOUT)) {
-		up_write(&peer->handshake.lock);
+	if (!has_expired(atomic64_read(&peer->last_sent_handshake), REKEY_TIMEOUT))
 		return; /* This function is rate limited. */
-	}
-	peer->last_sent_handshake = ktime_get_boot_fast_ns();
-	up_write(&peer->handshake.lock);
 
+	atomic64_set(&peer->last_sent_handshake, ktime_get_boot_fast_ns());
 	net_dbg_ratelimited("%s: Sending handshake initiation to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 
 	if (noise_handshake_create_initiation(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
 		timers_any_authenticated_packet_traversal(peer);
 		timers_any_authenticated_packet_sent(peer);
+		atomic64_set(&peer->last_sent_handshake, ktime_get_boot_fast_ns());
 		socket_send_buffer_to_peer(peer, &packet, sizeof(struct message_handshake_initiation), HANDSHAKE_DSCP);
 		timers_handshake_initiated(peer);
 	}
@@ -55,11 +52,11 @@ void packet_send_queued_handshake_initiation(struct wireguard_peer *peer, bool i
 	if (!is_retry)
 		peer->timer_handshake_attempts = 0;
 
-	/* First checking the timestamp here is just an optimization; it will
-	 * be caught while properly locked inside the actual work queue.
-	 */
 	rcu_read_lock_bh();
-	if (!has_expired(peer->last_sent_handshake, REKEY_TIMEOUT) || unlikely(peer->is_dead))
+	/* We check last_sent_handshake here in addition to the actual function we're queueing
+	 * up, so that we don't queue things if not strictly necessary.
+	 */
+	if (!has_expired(atomic64_read(&peer->last_sent_handshake), REKEY_TIMEOUT) || unlikely(peer->is_dead))
 		goto out;
 
 	peer_get(peer);
@@ -74,8 +71,8 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 {
 	struct message_handshake_response packet;
 
+	atomic64_set(&peer->last_sent_handshake, ktime_get_boot_fast_ns());
 	net_dbg_ratelimited("%s: Sending handshake response to peer %llu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
-	peer->last_sent_handshake = ktime_get_boot_fast_ns();
 
 	if (noise_handshake_create_response(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
@@ -83,6 +80,7 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 			timers_session_derived(peer);
 			timers_any_authenticated_packet_traversal(peer);
 			timers_any_authenticated_packet_sent(peer);
+			atomic64_set(&peer->last_sent_handshake, ktime_get_boot_fast_ns());
 			socket_send_buffer_to_peer(peer, &packet, sizeof(struct message_handshake_response), HANDSHAKE_DSCP);
 		}
 	}

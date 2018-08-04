@@ -105,7 +105,7 @@ static int stop(struct net_device *dev)
 		timers_stop(peer);
 		noise_handshake_clear(&peer->handshake);
 		noise_keypairs_clear(&peer->keypairs);
-		peer->last_sent_handshake = ktime_get_boot_fast_ns() - (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC;
+		atomic64_set(&peer->last_sent_handshake, ktime_get_boot_fast_ns() - (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC);
 	}
 	mutex_unlock(&wg->device_update_lock);
 	skb_queue_purge(&wg->incoming_handshakes);

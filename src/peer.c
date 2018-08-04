@@ -50,7 +50,7 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	rwlock_init(&peer->endpoint_lock);
 	kref_init(&peer->refcount);
 	skb_queue_head_init(&peer->staged_packet_queue);
-	peer->last_sent_handshake = ktime_get_boot_fast_ns() - (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC;
+	atomic64_set(&peer->last_sent_handshake, ktime_get_boot_fast_ns() - (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC);
 	set_bit(NAPI_STATE_NO_BUSY_POLL, &peer->napi.state);
 	netif_napi_add(wg->dev, &peer->napi, packet_rx_poll, NAPI_POLL_WEIGHT);
 	napi_enable(&peer->napi);
