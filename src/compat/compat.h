@@ -52,7 +52,11 @@
 #define READ_ONCE ACCESS_ONCE
 #endif
 #ifndef WRITE_ONCE
+#ifdef ACCESS_ONCE_RW
+#define WRITE_ONCE(p, v) (ACCESS_ONCE_RW(p) = (v))
+#else
 #define WRITE_ONCE(p, v) (ACCESS_ONCE(p) = (v))
+#endif
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
@@ -614,24 +618,14 @@ static inline void *skb_put_data(struct sk_buff *skb, const void *data, unsigned
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
-#ifndef smp_store_release
-#define smp_store_release(p, v) \
-do { \
-	smp_mb(); \
-	ACCESS_ONCE(*p) = (v); \
-} while (0)
+#include <linux/atomic.h>
+#ifndef atomic_read_acquire
+#define atomic_read_acquire(v) ({ int ___p1 = atomic_read(v); smp_rmb(); ___p1; })
 #endif
-#ifndef smp_load_acquire
-#define smp_load_acquire(p) \
-({ \
-	typeof(*p) ___p1 = ACCESS_ONCE(*p); \
-	smp_mb(); \
-	___p1; \
-})
+#ifndef atomic_set_release
+#define atomic_set_release(v, i) ({ smp_wmb(); atomic_set(v, i); })
 #endif
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
 #include <linux/atomic.h>
 #ifndef atomic_read_acquire
 #define atomic_read_acquire(v) smp_load_acquire(&(v)->counter)
