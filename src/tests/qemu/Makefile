@@ -14,7 +14,7 @@ endif
 ARCH := $(firstword $(subst -, ,$(CBUILD)))
 
 # Set these from the environment to override
-KERNEL_VERSION ?= 4.17.9
+KERNEL_VERSION ?= 4.17.12
 KERNEL_VERSION := $(KERNEL_VERSION)$(if $(DEBUG_KERNEL),$(if $(findstring -debug,$(KERNEL_VERSION)),,-debug),)
 BUILD_PATH ?= $(PWD)/../../../qemu-build/$(ARCH)
 DISTFILES_PATH ?= $(PWD)/distfiles
@@ -215,6 +215,7 @@ $(BUILD_PATH)/init-cpio-spec.txt:
 	echo "file /lib/libc.so $(MUSL_PATH)/lib/libc.so 755 0 0" >> $@
 	echo "slink /lib/ld-linux.so.1 libc.so 777 0 0" >> $@
 
+ifeq ($(findstring -git,$(KERNEL_VERSION)),)
 $(KERNEL_PATH)/.installed: $(KERNEL_TAR)
 	mkdir -p $(KERNEL_PATH)
 	flock -s $<.lock tar --strip-components=1 -C $(KERNEL_PATH) -xf $<
@@ -222,6 +223,12 @@ $(KERNEL_PATH)/.installed: $(KERNEL_TAR)
 	sed -i "/^obj-\$$(CONFIG_NETFILTER).*+=/a obj-\$$(CONFIG_WIREGUARD) += wireguard/" $(KERNEL_PATH)/net/Makefile
 	ln -sfT $(shell readlink -f ../..) $(KERNEL_PATH)/net/wireguard
 	touch $@
+else
+$(KERNEL_PATH)/.installed:
+	mkdir -p $(dir $(KERNEL_PATH))
+	flock -s $(dir $(KERNEL_TAR))/$(KERNEL_VERSION).lock git clone $(GIT_URI_$(patsubst %-git,%,$(patsubst %-debug,%,$(KERNEL_VERSION)))) $(KERNEL_PATH)
+	touch $@
+endif
 
 $(KERNEL_PATH)/.config: kernel.config arch/$(QEMU_ARCH).config | $(KERNEL_PATH)/.installed
 	cp kernel.config $(KERNEL_PATH)/minimal.config
