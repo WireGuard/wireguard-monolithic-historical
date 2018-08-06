@@ -6,6 +6,7 @@
 #ifndef _WG_CHACHA20_H
 #define _WG_CHACHA20_H
 
+#include "simd.h"
 #include <linux/kernel.h>
 #include <linux/types.h>
 
@@ -39,8 +40,8 @@ static inline void chacha20_init(struct chacha20_ctx *state, const u8 key[CHACHA
 	state->counter[2] = nonce & U32_MAX;
 	state->counter[3] = nonce >> 32;
 }
-void chacha20(struct chacha20_ctx *state, u8 *dst, const u8 *src, u32 len, bool have_simd);
+void chacha20(struct chacha20_ctx *state, u8 *dst, const u8 *src, u32 len, simd_context_t simd_context);
 
-void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE], const u8 nonce[HCHACHA20_NONCE_SIZE], const u8 key[HCHACHA20_KEY_SIZE], bool have_simd);
+void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE], const u8 nonce[HCHACHA20_NONCE_SIZE], const u8 key[HCHACHA20_KEY_SIZE], simd_context_t simd_context);
 
 #endif /* _WG_CHACHA20_H */

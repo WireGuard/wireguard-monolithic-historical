@@ -16,7 +16,12 @@
 #include <asm/simd.h>
 #endif
 
-static inline bool simd_get(void)
+typedef enum {
+	HAVE_NO_SIMD,
+	HAVE_FULL_SIMD
+} simd_context_t;
+
+static inline simd_context_t simd_get(void)
 {
 	bool have_simd = false;
 #if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
@@ -32,29 +37,29 @@ static inline bool simd_get(void)
 	if (have_simd)
 		kernel_neon_begin();
 #endif
-	return have_simd;
+	return have_simd ? HAVE_FULL_SIMD : HAVE_NO_SIMD;
 }
 
-static inline void simd_put(bool was_on)
+static inline void simd_put(simd_context_t prior_context)
 {
 #if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
-	if (was_on)
+	if (prior_context != HAVE_NO_SIMD)
 		kernel_fpu_end();
 #elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_PREEMPT_RT_BASE)
-	if (was_on)
+	if (prior_context != HAVE_NO_SIMD)
 		kernel_neon_end();
 #endif
 }
 
-static inline bool simd_relax(bool was_on)
+static inline simd_context_t simd_relax(simd_context_t prior_context)
 {
 #ifdef CONFIG_PREEMPT
-	if (was_on && need_resched()) {
-		simd_put(true);
+	if (prior_context != HAVE_NO_SIMD && need_resched()) {
+		simd_put(prior_context);
 		return simd_get();
 	}
 #endif
-	return was_on;
+	return prior_context;
 }
 
 #endif /* _WG_SIMD_H */

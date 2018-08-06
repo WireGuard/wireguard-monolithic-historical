@@ -151,9 +151,9 @@ static void chacha20_generic(u8 *out, const u8 *in, u32 len, const u32 key[8], c
 	}
 }
 
-void chacha20(struct chacha20_ctx *state, u8 *dst, const u8 *src, u32 len, bool have_simd)
+void chacha20(struct chacha20_ctx *state, u8 *dst, const u8 *src, u32 len, simd_context_t simd_context)
 {
-	if (!have_simd
+	if (simd_context != HAVE_FULL_SIMD
 #if defined(CONFIG_X86_64)
 		|| !chacha20_use_ssse3
 
@@ -227,10 +227,10 @@ static void hchacha20_generic(u8 derived_key[CHACHA20_KEY_SIZE], const u8 nonce[
 	out[7] = cpu_to_le32(x[15]);
 }
 
-void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE], const u8 nonce[HCHACHA20_NONCE_SIZE], const u8 key[HCHACHA20_KEY_SIZE], bool have_simd)
+void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE], const u8 nonce[HCHACHA20_NONCE_SIZE], const u8 key[HCHACHA20_KEY_SIZE], simd_context_t simd_context)
 {
 #if defined(CONFIG_X86_64) && defined(CONFIG_AS_SSSE3)
-	if (have_simd && chacha20_use_ssse3) {
+	if (simd_context == HAVE_FULL_SIMD && chacha20_use_ssse3) {
 		hchacha20_ssse3(derived_key, nonce, key);
 		return;
 	}

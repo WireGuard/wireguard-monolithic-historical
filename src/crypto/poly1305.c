@@ -5,6 +5,7 @@
  */
 
 #include "poly1305.h"
+#include "simd.h"
 
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -237,7 +238,7 @@ static void poly1305_emit_generic(void *ctx, u8 mac[16], const u32 nonce[4])
 }
 #endif
 
-void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], bool have_simd)
+void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], simd_context_t simd_context)
 {
 	ctx->nonce[0] = le32_to_cpup((__le32 *)&key[16]);
 	ctx->nonce[1] = le32_to_cpup((__le32 *)&key[20]);
@@ -256,28 +257,28 @@ void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], bo
 	ctx->num = 0;
 }
 
-static inline void poly1305_blocks(void *ctx, const u8 *inp, const size_t len, const u32 padbit, bool have_simd)
+static inline void poly1305_blocks(void *ctx, const u8 *inp, const size_t len, const u32 padbit, simd_context_t simd_context)
 {
 #if defined(CONFIG_X86_64)
 #ifdef CONFIG_AS_AVX512
-	if (poly1305_use_avx512 && have_simd)
+	if (poly1305_use_avx512 && simd_context == HAVE_FULL_SIMD)
 		poly1305_blocks_avx512(ctx, inp, len, padbit);
 	else
 #endif
 #ifdef CONFIG_AS_AVX2
-	if (poly1305_use_avx2 && have_simd)
+	if (poly1305_use_avx2 && simd_context == HAVE_FULL_SIMD)
 		poly1305_blocks_avx2(ctx, inp, len, padbit);
 	else
 #endif
 #ifdef CONFIG_AS_AVX
-	if (poly1305_use_avx && have_simd)
+	if (poly1305_use_avx && simd_context == HAVE_FULL_SIMD)
 		poly1305_blocks_avx(ctx, inp, len, padbit);
 	else
 #endif
 		poly1305_blocks_x86_64(ctx, inp, len, padbit);
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 #if defined(ARM_USE_NEON)
-	if (poly1305_use_neon && have_simd)
+	if (poly1305_use_neon && simd_context == HAVE_FULL_SIMD)
 		poly1305_blocks_neon(ctx, inp, len, padbit);
 	else
 #endif
@@ -289,28 +290,28 @@ static inline void poly1305_blocks(void *ctx, const u8 *inp, const size_t len, c
 #endif
 }
 
-static inline void poly1305_emit(void *ctx, u8 mac[POLY1305_KEY_SIZE], const u32 nonce[4], bool have_simd)
+static inline void poly1305_emit(void *ctx, u8 mac[POLY1305_KEY_SIZE], const u32 nonce[4], simd_context_t simd_context)
 {
 #if defined(CONFIG_X86_64)
 #ifdef CONFIG_AS_AVX512
-	if (poly1305_use_avx512 && have_simd)
+	if (poly1305_use_avx512 && simd_context == HAVE_FULL_SIMD)
 		poly1305_emit_avx(ctx, mac, nonce);
 	else
 #endif
 #ifdef CONFIG_AS_AVX2
-	if (poly1305_use_avx2 && have_simd)
+	if (poly1305_use_avx2 && simd_context == HAVE_FULL_SIMD)
 		poly1305_emit_avx(ctx, mac, nonce);
 	else
 #endif
 #ifdef CONFIG_AS_AVX
-	if (poly1305_use_avx && have_simd)
+	if (poly1305_use_avx && simd_context == HAVE_FULL_SIMD)
 		poly1305_emit_avx(ctx, mac, nonce);
 	else
 #endif
 		poly1305_emit_x86_64(ctx, mac, nonce);
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 #if defined(ARM_USE_NEON)
-	if (poly1305_use_neon && have_simd)
+	if (poly1305_use_neon && simd_context == HAVE_FULL_SIMD)
 		poly1305_emit_neon(ctx, mac, nonce);
 	else
 #endif
@@ -322,7 +323,7 @@ static inline void poly1305_emit(void *ctx, u8 mac[POLY1305_KEY_SIZE], const u32
 #endif
 }
 
-void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len, bool have_simd)
+void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len, simd_context_t simd_context)
 {
 	const size_t num = ctx->num % POLY1305_BLOCK_SIZE;
 	size_t rem;
@@ -331,7 +332,7 @@ void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len, bool h
 		rem = POLY1305_BLOCK_SIZE - num;
 		if (len >= rem) {
 			memcpy(ctx->data + num, inp, rem);
-			poly1305_blocks(ctx->opaque, ctx->data, POLY1305_BLOCK_SIZE, 1, have_simd);
+			poly1305_blocks(ctx->opaque, ctx->data, POLY1305_BLOCK_SIZE, 1, simd_context);
 			inp += rem;
 			len -= rem;
 		} else {
@@ -346,7 +347,7 @@ void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len, bool h
 	len -= rem;
 
 	if (len >= POLY1305_BLOCK_SIZE) {
-		poly1305_blocks(ctx->opaque, inp, len, 1, have_simd);
+		poly1305_blocks(ctx->opaque, inp, len, 1, simd_context);
 		inp += len;
 	}
 
@@ -356,7 +357,7 @@ void poly1305_update(struct poly1305_ctx *ctx, const u8 *inp, size_t len, bool h
 	ctx->num = rem;
 }
 
-void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE], bool have_simd)
+void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE], simd_context_t simd_context)
 {
 	size_t num = ctx->num % POLY1305_BLOCK_SIZE;
 
@@ -364,10 +365,10 @@ void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE], bool h
 		ctx->data[num++] = 1;   /* pad bit */
 		while (num < POLY1305_BLOCK_SIZE)
 			ctx->data[num++] = 0;
-		poly1305_blocks(ctx->opaque, ctx->data, POLY1305_BLOCK_SIZE, 0, have_simd);
+		poly1305_blocks(ctx->opaque, ctx->data, POLY1305_BLOCK_SIZE, 0, simd_context);
 	}
 
-	poly1305_emit(ctx->opaque, mac, ctx->nonce, have_simd);
+	poly1305_emit(ctx->opaque, mac, ctx->nonce, simd_context);
 
 	/* zero out the state */
 	memzero_explicit(ctx, sizeof(*ctx));

@@ -1427,7 +1427,7 @@ static const struct chacha20poly1305_testvec xchacha20poly1305_dec_vectors[] __i
 
 static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 *src, const size_t src_len, const u8 *ad, const size_t ad_len, const u8 nonce[12], const u8 key[CHACHA20POLY1305_KEYLEN])
 {
-	bool have_simd = simd_get();
+	simd_context_t simd_context = simd_get();
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
 	union {
@@ -1439,18 +1439,18 @@ static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 
 	chacha20_state.counter[1] = le32_to_cpu(*(__le32 *)(nonce + 0));
 	chacha20_state.counter[2] = le32_to_cpu(*(__le32 *)(nonce + 4));
 	chacha20_state.counter[3] = le32_to_cpu(*(__le32 *)(nonce + 8));
-	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0), have_simd);
-	poly1305_init(&poly1305_state, b.block0, have_simd);
-	poly1305_update(&poly1305_state, ad, ad_len, have_simd);
-	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, have_simd);
-	chacha20(&chacha20_state, dst, src, src_len, have_simd);
-	poly1305_update(&poly1305_state, dst, src_len, have_simd);
-	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, have_simd);
+	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0), simd_context);
+	poly1305_init(&poly1305_state, b.block0, simd_context);
+	poly1305_update(&poly1305_state, ad, ad_len, simd_context);
+	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf, simd_context);
+	chacha20(&chacha20_state, dst, src, src_len, simd_context);
+	poly1305_update(&poly1305_state, dst, src_len, simd_context);
+	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf, simd_context);
 	b.lens[0] = cpu_to_le64(ad_len);
 	b.lens[1] = cpu_to_le64(src_len);
-	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens), have_simd);
-	poly1305_finish(&poly1305_state, dst + src_len, have_simd);
-	simd_put(have_simd);
+	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens), simd_context);
+	poly1305_finish(&poly1305_state, dst + src_len, simd_context);
+	simd_put(simd_context);
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 	memzero_explicit(&b, sizeof(b));
 }
@@ -1478,7 +1478,7 @@ bool __init chacha20poly1305_selftest(void)
 {
 	size_t i;
 	u8 computed_result[MAXIMUM_TEST_BUFFER_LEN], *heap_src, *heap_dst;
-	bool success = true, ret, have_simd;
+	bool success = true, ret, simd_context;
 	struct scatterlist sg_src, sg_dst;
 
 	heap_src = kmalloc(MAXIMUM_TEST_BUFFER_LEN, GFP_KERNEL);
@@ -1498,7 +1498,7 @@ bool __init chacha20poly1305_selftest(void)
 			success = false;
 		}
 	}
-	have_simd = simd_get();
+	simd_context = simd_get();
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {
 		if (chacha20poly1305_enc_vectors[i].nlen != 8)
 			continue;
@@ -1506,13 +1506,13 @@ bool __init chacha20poly1305_selftest(void)
 		memcpy(heap_src, chacha20poly1305_enc_vectors[i].input, chacha20poly1305_enc_vectors[i].ilen);
 		sg_init_one(&sg_src, heap_src, chacha20poly1305_enc_vectors[i].ilen);
 		sg_init_one(&sg_dst, heap_dst, chacha20poly1305_enc_vectors[i].ilen + POLY1305_MAC_SIZE);
-		ret = chacha20poly1305_encrypt_sg(&sg_dst, &sg_src, chacha20poly1305_enc_vectors[i].ilen, chacha20poly1305_enc_vectors[i].assoc, chacha20poly1305_enc_vectors[i].alen, le64_to_cpup((__force __le64 *)chacha20poly1305_enc_vectors[i].nonce), chacha20poly1305_enc_vectors[i].key, have_simd);
+		ret = chacha20poly1305_encrypt_sg(&sg_dst, &sg_src, chacha20poly1305_enc_vectors[i].ilen, chacha20poly1305_enc_vectors[i].assoc, chacha20poly1305_enc_vectors[i].alen, le64_to_cpup((__force __le64 *)chacha20poly1305_enc_vectors[i].nonce), chacha20poly1305_enc_vectors[i].key, simd_context);
 		if (!ret || memcmp(heap_dst, chacha20poly1305_enc_vectors[i].result, chacha20poly1305_enc_vectors[i].ilen + POLY1305_MAC_SIZE)) {
 			pr_info("chacha20poly1305 sg encryption self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
 	}
-	simd_put(have_simd);
+	simd_put(simd_context);
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
 		ret = chacha20poly1305_decrypt(computed_result, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpu(*(__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key);
@@ -1521,19 +1521,19 @@ bool __init chacha20poly1305_selftest(void)
 			success = false;
 		}
 	}
-	have_simd = simd_get();
+	simd_context = simd_get();
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
 		memset(heap_dst, 0, MAXIMUM_TEST_BUFFER_LEN);
 		memcpy(heap_src, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen);
 		sg_init_one(&sg_src, heap_src, chacha20poly1305_dec_vectors[i].ilen);
 		sg_init_one(&sg_dst, heap_dst, chacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE);
-		ret = chacha20poly1305_decrypt_sg(&sg_dst, &sg_src, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpup((__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key, have_simd);
+		ret = chacha20poly1305_decrypt_sg(&sg_dst, &sg_src, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpup((__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key, simd_context);
 		if (!decryption_success(ret, chacha20poly1305_dec_vectors[i].failure, memcmp(heap_dst, chacha20poly1305_dec_vectors[i].result, chacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE))) {
 			pr_info("chacha20poly1305 sg decryption self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
 	}
-	simd_put(have_simd);
+	simd_put(simd_context);
 	for (i = 0; i < ARRAY_SIZE(xchacha20poly1305_enc_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
 		xchacha20poly1305_encrypt(computed_result, xchacha20poly1305_enc_vectors[i].input, xchacha20poly1305_enc_vectors[i].ilen, xchacha20poly1305_enc_vectors[i].assoc, xchacha20poly1305_enc_vectors[i].alen, xchacha20poly1305_enc_vectors[i].nonce, xchacha20poly1305_enc_vectors[i].key);
