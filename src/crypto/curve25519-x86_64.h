@@ -350,11 +350,11 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 	asm volatile(
 		"xorl %%r14d, %%r14d ;"
 		"movq   (%1), %%rdx; "	/* A[0] */
-		"mulx   (%2),  %%r8, %%r12; " /* A[0]*B[0] */
+		"mulx   (%2),  %%r8, %%r15; " /* A[0]*B[0] */
 		"xorl %%r10d, %%r10d ;"
 		"movq %%r8, (%0) ;"
 		"mulx  8(%2), %%r10, %%rax; " /* A[0]*B[1] */
-		"adox %%r10, %%r12 ;"
+		"adox %%r10, %%r15 ;"
 		"mulx 16(%2),  %%r8, %%rbx; " /* A[0]*B[2] */
 		"adox  %%r8, %%rax ;"
 		"mulx 24(%2), %%r10, %%rcx; " /* A[0]*B[3] */
@@ -364,7 +364,7 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 
 		"movq  8(%1), %%rdx; "	/* A[1] */
 		"mulx   (%2),  %%r8,  %%r9; " /* A[1]*B[0] */
-		"adox %%r12,  %%r8 ;"
+		"adox %%r15,  %%r8 ;"
 		"movq  %%r8, 8(%0) ;"
 		"mulx  8(%2), %%r10, %%r11; " /* A[1]*B[1] */
 		"adox %%r10,  %%r9 ;"
@@ -372,12 +372,12 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 		"mulx 16(%2),  %%r8, %%r13; " /* A[1]*B[2] */
 		"adox  %%r8, %%r11 ;"
 		"adcx %%r11, %%rbx ;"
-		"mulx 24(%2), %%r10, %%r12; " /* A[1]*B[3] */
+		"mulx 24(%2), %%r10, %%r15; " /* A[1]*B[3] */
 		"adox %%r10, %%r13 ;"
 		"adcx %%r13, %%rcx ;"
 		/******************************************/
-		"adox %%r14, %%r12 ;"
-		"adcx %%r14, %%r12 ;"
+		"adox %%r14, %%r15 ;"
+		"adcx %%r14, %%r15 ;"
 
 		"movq 16(%1), %%rdx; " /* A[2] */
 		"xorl %%r10d, %%r10d ;"
@@ -392,7 +392,7 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 		"adcx %%r11, %%rcx ;"
 		"mulx 24(%2), %%r10, %%rax; " /* A[2]*B[3] */
 		"adox %%r10, %%r13 ;"
-		"adcx %%r13, %%r12 ;"
+		"adcx %%r13, %%r15 ;"
 		/******************************************/
 		"adox %%r14, %%rax ;"
 		"adcx %%r14, %%rax ;"
@@ -408,8 +408,8 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 		"movq %%rcx, 32(%0) ;"
 		"mulx 16(%2),  %%r8, %%r13; " /* A[3]*B[2] */
 		"adox  %%r8, %%r11 ;"
-		"adcx %%r11, %%r12 ;"
-		"movq %%r12, 40(%0) ;"
+		"adcx %%r11, %%r15 ;"
+		"movq %%r15, 40(%0) ;"
 		"mulx 24(%2), %%r10, %%rbx; " /* A[3]*B[3] */
 		"adox %%r10, %%r13 ;"
 		"adcx %%r13, %%rax ;"
@@ -420,11 +420,11 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 		"movq %%rbx, 56(%0) ;"
 
 		"movq 32(%1), %%rdx; "	/* C[0] */
-		"mulx 32(%2),  %%r8, %%r12; " /* C[0]*D[0] */
+		"mulx 32(%2),  %%r8, %%r15; " /* C[0]*D[0] */
 		"xorl %%r10d, %%r10d ;"
 		"movq %%r8, 64(%0);"
 		"mulx 40(%2), %%r10, %%rax; " /* C[0]*D[1] */
-		"adox %%r10, %%r12 ;"
+		"adox %%r10, %%r15 ;"
 		"mulx 48(%2),  %%r8, %%rbx; " /* C[0]*D[2] */
 		"adox  %%r8, %%rax ;"
 		"mulx 56(%2), %%r10, %%rcx; " /* C[0]*D[3] */
@@ -435,7 +435,7 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 		"movq 40(%1), %%rdx; " /* C[1] */
 		"xorl %%r10d, %%r10d ;"
 		"mulx 32(%2),  %%r8,  %%r9; " /* C[1]*D[0] */
-		"adox %%r12,  %%r8 ;"
+		"adox %%r15,  %%r8 ;"
 		"movq  %%r8, 72(%0);"
 		"mulx 40(%2), %%r10, %%r11; " /* C[1]*D[1] */
 		"adox %%r10,  %%r9 ;"
@@ -443,12 +443,12 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 		"mulx 48(%2),  %%r8, %%r13; " /* C[1]*D[2] */
 		"adox  %%r8, %%r11 ;"
 		"adcx %%r11, %%rbx ;"
-		"mulx 56(%2), %%r10, %%r12; " /* C[1]*D[3] */
+		"mulx 56(%2), %%r10, %%r15; " /* C[1]*D[3] */
 		"adox %%r10, %%r13 ;"
 		"adcx %%r13, %%rcx ;"
 		/******************************************/
-		"adox %%r14, %%r12 ;"
-		"adcx %%r14, %%r12 ;"
+		"adox %%r14, %%r15 ;"
+		"adcx %%r14, %%r15 ;"
 
 		"movq 48(%1), %%rdx; " /* C[2] */
 		"xorl %%r10d, %%r10d ;"
@@ -463,7 +463,7 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 		"adcx %%r11, %%rcx ;"
 		"mulx 56(%2), %%r10, %%rax; " /* C[2]*D[3] */
 		"adox %%r10, %%r13 ;"
-		"adcx %%r13, %%r12 ;"
+		"adcx %%r13, %%r15 ;"
 		/******************************************/
 		"adox %%r14, %%rax ;"
 		"adcx %%r14, %%rax ;"
@@ -479,8 +479,8 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 		"movq %%rcx,  96(%0) ;"
 		"mulx 48(%2),  %%r8, %%r13; " /* C[3]*D[2] */
 		"adox  %%r8, %%r11 ;"
-		"adcx %%r11, %%r12 ;"
-		"movq %%r12, 104(%0) ;"
+		"adcx %%r11, %%r15 ;"
+		"movq %%r15, 104(%0) ;"
 		"mulx 56(%2), %%r10, %%rbx; " /* C[3]*D[3] */
 		"adox %%r10, %%r13 ;"
 		"adcx %%r13, %%rax ;"
@@ -491,17 +491,17 @@ static void mul2_256x256_integer_adx(u64 *const c, const u64 *const a, const u64
 		"movq %%rbx, 120(%0) ;"
 		:
 		: "r"(c), "r"(a), "r"(b)
-		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14");
+		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r13", "%r14", "%r15");
 }
 
 static void mul2_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u64 *const b)
 {
 	asm volatile(
 		"movq   (%1), %%rdx; "	/* A[0] */
-		"mulx   (%2),  %%r8, %%r12; " /* A[0]*B[0] */
+		"mulx   (%2),  %%r8, %%r15; " /* A[0]*B[0] */
 		"movq %%r8,  (%0) ;"
 		"mulx  8(%2), %%r10, %%rax; " /* A[0]*B[1] */
-		"addq %%r10, %%r12 ;"
+		"addq %%r10, %%r15 ;"
 		"mulx 16(%2),  %%r8, %%rbx; " /* A[0]*B[2] */
 		"adcq  %%r8, %%rax ;"
 		"mulx 24(%2), %%r10, %%rcx; " /* A[0]*B[3] */
@@ -511,21 +511,21 @@ static void mul2_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u6
 
 		"movq  8(%1), %%rdx; "	/* A[1] */
 		"mulx   (%2),  %%r8,  %%r9; " /* A[1]*B[0] */
-		"addq %%r12,  %%r8 ;"
+		"addq %%r15,  %%r8 ;"
 		"movq %%r8, 8(%0) ;"
 		"mulx  8(%2), %%r10, %%r11; " /* A[1]*B[1] */
 		"adcq %%r10,  %%r9 ;"
 		"mulx 16(%2),  %%r8, %%r13; " /* A[1]*B[2] */
 		"adcq  %%r8, %%r11 ;"
-		"mulx 24(%2), %%r10, %%r12; " /* A[1]*B[3] */
+		"mulx 24(%2), %%r10, %%r15; " /* A[1]*B[3] */
 		"adcq %%r10, %%r13 ;"
 		/******************************************/
-		"adcq    $0, %%r12 ;"
+		"adcq    $0, %%r15 ;"
 
 		"addq  %%r9, %%rax ;"
 		"adcq %%r11, %%rbx ;"
 		"adcq %%r13, %%rcx ;"
-		"adcq    $0, %%r12 ;"
+		"adcq    $0, %%r15 ;"
 
 		"movq 16(%1), %%rdx; "	/* A[2] */
 		"mulx   (%2),  %%r8,  %%r9; " /* A[2]*B[0] */
@@ -542,7 +542,7 @@ static void mul2_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u6
 
 		"addq  %%r9, %%rbx ;"
 		"adcq %%r11, %%rcx ;"
-		"adcq %%r13, %%r12 ;"
+		"adcq %%r13, %%r15 ;"
 		"adcq    $0, %%rax ;"
 
 		"movq 24(%1), %%rdx; "	/* A[3] */
@@ -560,18 +560,18 @@ static void mul2_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u6
 
 		"addq  %%r9, %%rcx ;"
 		"movq %%rcx, 32(%0) ;"
-		"adcq %%r11, %%r12 ;"
-		"movq %%r12, 40(%0) ;"
+		"adcq %%r11, %%r15 ;"
+		"movq %%r15, 40(%0) ;"
 		"adcq %%r13, %%rax ;"
 		"movq %%rax, 48(%0) ;"
 		"adcq    $0, %%rbx ;"
 		"movq %%rbx, 56(%0) ;"
 
 		"movq 32(%1), %%rdx; "	/* C[0] */
-		"mulx 32(%2),  %%r8, %%r12; " /* C[0]*D[0] */
+		"mulx 32(%2),  %%r8, %%r15; " /* C[0]*D[0] */
 		"movq %%r8, 64(%0) ;"
 		"mulx 40(%2), %%r10, %%rax; " /* C[0]*D[1] */
-		"addq %%r10, %%r12 ;"
+		"addq %%r10, %%r15 ;"
 		"mulx 48(%2),  %%r8, %%rbx; " /* C[0]*D[2] */
 		"adcq  %%r8, %%rax ;"
 		"mulx 56(%2), %%r10, %%rcx; " /* C[0]*D[3] */
@@ -581,21 +581,21 @@ static void mul2_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u6
 
 		"movq 40(%1), %%rdx; "	/* C[1] */
 		"mulx 32(%2),  %%r8,  %%r9; " /* C[1]*D[0] */
-		"addq %%r12,  %%r8 ;"
+		"addq %%r15,  %%r8 ;"
 		"movq %%r8, 72(%0) ;"
 		"mulx 40(%2), %%r10, %%r11; " /* C[1]*D[1] */
 		"adcq %%r10,  %%r9 ;"
 		"mulx 48(%2),  %%r8, %%r13; " /* C[1]*D[2] */
 		"adcq  %%r8, %%r11 ;"
-		"mulx 56(%2), %%r10, %%r12; " /* C[1]*D[3] */
+		"mulx 56(%2), %%r10, %%r15; " /* C[1]*D[3] */
 		"adcq %%r10, %%r13 ;"
 		/******************************************/
-		"adcq    $0, %%r12 ;"
+		"adcq    $0, %%r15 ;"
 
 		"addq  %%r9, %%rax ;"
 		"adcq %%r11, %%rbx ;"
 		"adcq %%r13, %%rcx ;"
-		"adcq    $0, %%r12 ;"
+		"adcq    $0, %%r15 ;"
 
 		"movq 48(%1), %%rdx; "	/* C[2] */
 		"mulx 32(%2),  %%r8,  %%r9; " /* C[2]*D[0] */
@@ -612,7 +612,7 @@ static void mul2_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u6
 
 		"addq  %%r9, %%rbx ;"
 		"adcq %%r11, %%rcx ;"
-		"adcq %%r13, %%r12 ;"
+		"adcq %%r13, %%r15 ;"
 		"adcq    $0, %%rax ;"
 
 		"movq 56(%1), %%rdx; "	/* C[3] */
@@ -630,15 +630,15 @@ static void mul2_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u6
 
 		"addq  %%r9, %%rcx ;"
 		"movq %%rcx,  96(%0) ;"
-		"adcq %%r11, %%r12 ;"
-		"movq %%r12, 104(%0) ;"
+		"adcq %%r11, %%r15 ;"
+		"movq %%r15, 104(%0) ;"
 		"adcq %%r13, %%rax ;"
 		"movq %%rax, 112(%0) ;"
 		"adcq    $0, %%rbx ;"
 		"movq %%rbx, 120(%0) ;"
 		:
 		: "r"(c), "r"(a), "r"(b)
-		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13");
+		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r13", "%r15");
 }
 
 static void sqr2_256x256_integer_adx(u64 *const c, const u64 *const a)
@@ -652,10 +652,10 @@ static void sqr2_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"mulx 24(%1), %%rax, %%rcx ;" /* A[3]*A[0] */
 		"adcx %%rax, %%r10 ;"
 		"movq 24(%1), %%rdx        ;" /* A[3]      */
-		"mulx  8(%1), %%r11, %%r12 ;" /* A[1]*A[3] */
+		"mulx  8(%1), %%r11, %%rbx ;" /* A[1]*A[3] */
 		"adcx %%rcx, %%r11 ;"
 		"mulx 16(%1), %%rax, %%r13 ;" /* A[2]*A[3] */
-		"adcx %%rax, %%r12 ;"
+		"adcx %%rax, %%rbx ;"
 		"movq  8(%1), %%rdx        ;" /* A[1]      */
 		"adcx %%r15, %%r13 ;"
 		"mulx 16(%1), %%rax, %%rcx ;" /* A[2]*A[1] */
@@ -668,12 +668,12 @@ static void sqr2_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"adcx  %%r8,  %%r8 ;"
 		"adox %%rcx, %%r11 ;"
 		"adcx  %%r9,  %%r9 ;"
-		"adox %%r15, %%r12 ;"
+		"adox %%r15, %%rbx ;"
 		"adcx %%r10, %%r10 ;"
 		"adox %%r15, %%r13 ;"
 		"adcx %%r11, %%r11 ;"
 		"adox %%r15, %%r14 ;"
-		"adcx %%r12, %%r12 ;"
+		"adcx %%rbx, %%rbx ;"
 		"adcx %%r13, %%r13 ;"
 		"adcx %%r14, %%r14 ;"
 
@@ -693,8 +693,8 @@ static void sqr2_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"mulx %%rdx, %%rax, %%rcx ;" /* A[2]^2 */
 		"adcq %%rax, %%r11 ;"
 		"movq %%r11, 32(%0) ;"
-		"adcq %%rcx, %%r12 ;"
-		"movq %%r12, 40(%0) ;"
+		"adcq %%rcx, %%rbx ;"
+		"movq %%rbx, 40(%0) ;"
 		"movq 24(%1), %%rdx ;"
 		"mulx %%rdx, %%rax, %%rcx ;" /* A[3]^2 */
 		"adcq %%rax, %%r13 ;"
@@ -711,10 +711,10 @@ static void sqr2_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"mulx 56(%1), %%rax, %%rcx ;" /* B[3]*B[0] */
 		"adcx %%rax, %%r10 ;"
 		"movq 56(%1), %%rdx        ;" /* B[3]      */
-		"mulx 40(%1), %%r11, %%r12 ;" /* B[1]*B[3] */
+		"mulx 40(%1), %%r11, %%rbx ;" /* B[1]*B[3] */
 		"adcx %%rcx, %%r11 ;"
 		"mulx 48(%1), %%rax, %%r13 ;" /* B[2]*B[3] */
-		"adcx %%rax, %%r12 ;"
+		"adcx %%rax, %%rbx ;"
 		"movq 40(%1), %%rdx        ;" /* B[1]      */
 		"adcx %%r15, %%r13 ;"
 		"mulx 48(%1), %%rax, %%rcx ;" /* B[2]*B[1] */
@@ -727,12 +727,12 @@ static void sqr2_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"adcx  %%r8,  %%r8 ;"
 		"adox %%rcx, %%r11 ;"
 		"adcx  %%r9,  %%r9 ;"
-		"adox %%r15, %%r12 ;"
+		"adox %%r15, %%rbx ;"
 		"adcx %%r10, %%r10 ;"
 		"adox %%r15, %%r13 ;"
 		"adcx %%r11, %%r11 ;"
 		"adox %%r15, %%r14 ;"
-		"adcx %%r12, %%r12 ;"
+		"adcx %%rbx, %%rbx ;"
 		"adcx %%r13, %%r13 ;"
 		"adcx %%r14, %%r14 ;"
 
@@ -752,8 +752,8 @@ static void sqr2_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"mulx %%rdx, %%rax, %%rcx ;" /* B[2]^2 */
 		"adcq %%rax, %%r11 ;"
 		"movq %%r11,  96(%0) ;"
-		"adcq %%rcx, %%r12 ;"
-		"movq %%r12, 104(%0) ;"
+		"adcq %%rcx, %%rbx ;"
+		"movq %%rbx, 104(%0) ;"
 		"movq 56(%1), %%rdx ;"
 		"mulx %%rdx, %%rax, %%rcx ;" /* B[3]^2 */
 		"adcq %%rax, %%r13 ;"
@@ -762,7 +762,7 @@ static void sqr2_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"movq %%r14, 120(%0) ;"
 		:
 		: "r"(c), "r"(a)
-		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15");
+		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r13", "%r14", "%r15");
 }
 
 static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
@@ -774,13 +774,13 @@ static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 		"mulx 24(%1), %%rcx, %%r14 ;" /* A[3]*A[1] */
 
 		"movq 16(%1), %%rdx        ;" /* A[2]      */
-		"mulx 24(%1), %%r12, %%r13 ;" /* A[3]*A[2] */
+		"mulx 24(%1), %%r15, %%r13 ;" /* A[3]*A[2] */
 		"mulx   (%1), %%rax, %%rdx ;" /* A[0]*A[2] */
 
 		"addq %%rax,  %%r9 ;"
 		"adcq %%rdx, %%r10 ;"
 		"adcq %%rcx, %%r11 ;"
-		"adcq %%r14, %%r12 ;"
+		"adcq %%r14, %%r15 ;"
 		"adcq    $0, %%r13 ;"
 		"movq    $0, %%r14 ;"
 		"adcq    $0, %%r14 ;"
@@ -790,13 +790,13 @@ static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 
 		"addq %%rax, %%r10 ;"
 		"adcq %%rcx, %%r11 ;"
-		"adcq    $0, %%r12 ;"
+		"adcq    $0, %%r15 ;"
 		"adcq    $0, %%r13 ;"
 		"adcq    $0, %%r14 ;"
 
 		"shldq $1, %%r13, %%r14 ;"
-		"shldq $1, %%r12, %%r13 ;"
-		"shldq $1, %%r11, %%r12 ;"
+		"shldq $1, %%r15, %%r13 ;"
+		"shldq $1, %%r11, %%r15 ;"
 		"shldq $1, %%r10, %%r11 ;"
 		"shldq $1,  %%r9, %%r10 ;"
 		"shldq $1,  %%r8,  %%r9 ;"
@@ -818,8 +818,8 @@ static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 		"mulx %%rdx, %%rax, %%rcx ; " /* A[2]^2 */
 		"adcq %%rax, %%r11 ;"
 		"movq %%r11, 32(%0) ;"
-		"adcq %%rcx, %%r12 ;"
-		"movq %%r12, 40(%0) ;"
+		"adcq %%rcx, %%r15 ;"
+		"movq %%r15, 40(%0) ;"
 		"movq 24(%1), %%rdx ;"
 		"mulx %%rdx, %%rax, %%rcx ; " /* A[3]^2 */
 		"adcq %%rax, %%r13 ;"
@@ -833,13 +833,13 @@ static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 		"mulx 56(%1), %%rcx, %%r14 ;" /* B[3]*B[1] */
 
 		"movq 48(%1), %%rdx        ;" /* B[2]      */
-		"mulx 56(%1), %%r12, %%r13 ;" /* B[3]*B[2] */
+		"mulx 56(%1), %%r15, %%r13 ;" /* B[3]*B[2] */
 		"mulx 32(%1), %%rax, %%rdx ;" /* B[0]*B[2] */
 
 		"addq %%rax,  %%r9 ;"
 		"adcq %%rdx, %%r10 ;"
 		"adcq %%rcx, %%r11 ;"
-		"adcq %%r14, %%r12 ;"
+		"adcq %%r14, %%r15 ;"
 		"adcq    $0, %%r13 ;"
 		"movq    $0, %%r14 ;"
 		"adcq    $0, %%r14 ;"
@@ -849,13 +849,13 @@ static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 
 		"addq %%rax, %%r10 ;"
 		"adcq %%rcx, %%r11 ;"
-		"adcq    $0, %%r12 ;"
+		"adcq    $0, %%r15 ;"
 		"adcq    $0, %%r13 ;"
 		"adcq    $0, %%r14 ;"
 
 		"shldq $1, %%r13, %%r14 ;"
-		"shldq $1, %%r12, %%r13 ;"
-		"shldq $1, %%r11, %%r12 ;"
+		"shldq $1, %%r15, %%r13 ;"
+		"shldq $1, %%r11, %%r15 ;"
 		"shldq $1, %%r10, %%r11 ;"
 		"shldq $1,  %%r9, %%r10 ;"
 		"shldq $1,  %%r8,  %%r9 ;"
@@ -877,8 +877,8 @@ static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 		"mulx %%rdx, %%rax, %%rcx ; " /* B[2]^2 */
 		"adcq %%rax, %%r11 ;"
 		"movq %%r11,  96(%0) ;"
-		"adcq %%rcx, %%r12 ;"
-		"movq %%r12, 104(%0) ;"
+		"adcq %%rcx, %%r15 ;"
+		"movq %%r15, 104(%0) ;"
 		"movq 56(%1), %%rdx ;"
 		"mulx %%rdx, %%rax, %%rcx ; " /* B[3]^2 */
 		"adcq %%rax, %%r13 ;"
@@ -887,7 +887,7 @@ static void sqr2_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 		"movq %%r14, 120(%0) ;"
 		:
 		: "r"(c), "r"(a)
-		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14");
+		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r13", "%r14", "%r15");
 }
 
 static void red_eltfp25519_2w_adx(u64 *const c, const u64 *const a)
@@ -1026,8 +1026,8 @@ static void mul_256x256_integer_adx(u64 *const c, const u64 *const a, const u64 
 		"mulx  8(%2), %%r10, %%r11; " /* A[0]*B[1] */
 		"adox  %%r9, %%r10 ;"
 		"movq %%r10, 8(%0) ;"
-		"mulx 16(%2), %%r12, %%r13; " /* A[0]*B[2] */
-		"adox %%r11, %%r12 ;"
+		"mulx 16(%2), %%r15, %%r13; " /* A[0]*B[2] */
+		"adox %%r11, %%r15 ;"
 		"mulx 24(%2), %%r14, %%rdx; " /* A[0]*B[3] */
 		"adox %%r13, %%r14 ;"
 		"movq $0, %%rax ;"
@@ -1041,11 +1041,11 @@ static void mul_256x256_integer_adx(u64 *const c, const u64 *const a, const u64 
 		"movq  %%r8,  8(%0) ;"
 		"mulx  8(%2), %%r10, %%r11; " /* A[1]*B[1] */
 		"adox  %%r9, %%r10 ;"
-		"adcx %%r12, %%r10 ;"
+		"adcx %%r15, %%r10 ;"
 		"movq %%r10, 16(%0) ;"
-		"mulx 16(%2), %%r12, %%r13; " /* A[1]*B[2] */
-		"adox %%r11, %%r12 ;"
-		"adcx %%r14, %%r12 ;"
+		"mulx 16(%2), %%r15, %%r13; " /* A[1]*B[2] */
+		"adox %%r11, %%r15 ;"
+		"adcx %%r14, %%r15 ;"
 		"movq $0, %%r8  ;"
 		"mulx 24(%2), %%r14, %%rdx; " /* A[1]*B[3] */
 		"adox %%r13, %%r14 ;"
@@ -1062,11 +1062,11 @@ static void mul_256x256_integer_adx(u64 *const c, const u64 *const a, const u64 
 		"movq  %%r8, 16(%0) ;"
 		"mulx  8(%2), %%r10, %%r11; " /* A[2]*B[1] */
 		"adox  %%r9, %%r10 ;"
-		"adcx %%r12, %%r10 ;"
+		"adcx %%r15, %%r10 ;"
 		"movq %%r10, 24(%0) ;"
-		"mulx 16(%2), %%r12, %%r13; " /* A[2]*B[2] */
-		"adox %%r11, %%r12 ;"
-		"adcx %%r14, %%r12 ;"
+		"mulx 16(%2), %%r15, %%r13; " /* A[2]*B[2] */
+		"adox %%r11, %%r15 ;"
+		"adcx %%r14, %%r15 ;"
 		"movq $0, %%r8  ;"
 		"mulx 24(%2), %%r14, %%rdx; " /* A[2]*B[3] */
 		"adox %%r13, %%r14 ;"
@@ -1083,12 +1083,12 @@ static void mul_256x256_integer_adx(u64 *const c, const u64 *const a, const u64 
 		"movq  %%r8, 24(%0) ;"
 		"mulx  8(%2), %%r10, %%r11; " /* A[3]*B[1] */
 		"adox  %%r9, %%r10 ;"
-		"adcx %%r12, %%r10 ;"
+		"adcx %%r15, %%r10 ;"
 		"movq %%r10, 32(%0) ;"
-		"mulx 16(%2), %%r12, %%r13; " /* A[3]*B[2] */
-		"adox %%r11, %%r12 ;"
-		"adcx %%r14, %%r12 ;"
-		"movq %%r12, 40(%0) ;"
+		"mulx 16(%2), %%r15, %%r13; " /* A[3]*B[2] */
+		"adox %%r11, %%r15 ;"
+		"adcx %%r14, %%r15 ;"
+		"movq %%r15, 40(%0) ;"
 		"movq $0, %%r8  ;"
 		"mulx 24(%2), %%r14, %%rdx; " /* A[3]*B[3] */
 		"adox %%r13, %%r14 ;"
@@ -1101,17 +1101,17 @@ static void mul_256x256_integer_adx(u64 *const c, const u64 *const a, const u64 
 		"movq %%rax, 56(%0) ;"
 		:
 		: "r"(c), "r"(a), "r"(b)
-		: "memory", "cc", "%rax", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14");
+		: "memory", "cc", "%rax", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r13", "%r14", "%r15");
 }
 
 static void mul_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u64 *const b)
 {
 	asm volatile(
 		"movq   (%1), %%rdx; "	/* A[0] */
-		"mulx   (%2),  %%r8, %%r12; " /* A[0]*B[0] */
+		"mulx   (%2),  %%r8, %%r15; " /* A[0]*B[0] */
 		"movq %%r8,  (%0) ;"
 		"mulx  8(%2), %%r10, %%rax; " /* A[0]*B[1] */
-		"addq %%r10, %%r12 ;"
+		"addq %%r10, %%r15 ;"
 		"mulx 16(%2),  %%r8, %%rbx; " /* A[0]*B[2] */
 		"adcq  %%r8, %%rax ;"
 		"mulx 24(%2), %%r10, %%rcx; " /* A[0]*B[3] */
@@ -1121,21 +1121,21 @@ static void mul_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u64
 
 		"movq  8(%1), %%rdx; "	/* A[1] */
 		"mulx   (%2),  %%r8,  %%r9; " /* A[1]*B[0] */
-		"addq %%r12,  %%r8 ;"
+		"addq %%r15,  %%r8 ;"
 		"movq %%r8, 8(%0) ;"
 		"mulx  8(%2), %%r10, %%r11; " /* A[1]*B[1] */
 		"adcq %%r10,  %%r9 ;"
 		"mulx 16(%2),  %%r8, %%r13; " /* A[1]*B[2] */
 		"adcq  %%r8, %%r11 ;"
-		"mulx 24(%2), %%r10, %%r12; " /* A[1]*B[3] */
+		"mulx 24(%2), %%r10, %%r15; " /* A[1]*B[3] */
 		"adcq %%r10, %%r13 ;"
 		/******************************************/
-		"adcq    $0, %%r12 ;"
+		"adcq    $0, %%r15 ;"
 
 		"addq  %%r9, %%rax ;"
 		"adcq %%r11, %%rbx ;"
 		"adcq %%r13, %%rcx ;"
-		"adcq    $0, %%r12 ;"
+		"adcq    $0, %%r15 ;"
 
 		"movq 16(%1), %%rdx; "	/* A[2] */
 		"mulx   (%2),  %%r8,  %%r9; " /* A[2]*B[0] */
@@ -1152,7 +1152,7 @@ static void mul_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u64
 
 		"addq  %%r9, %%rbx ;"
 		"adcq %%r11, %%rcx ;"
-		"adcq %%r13, %%r12 ;"
+		"adcq %%r13, %%r15 ;"
 		"adcq    $0, %%rax ;"
 
 		"movq 24(%1), %%rdx; "	/* A[3] */
@@ -1170,15 +1170,15 @@ static void mul_256x256_integer_bmi2(u64 *const c, const u64 *const a, const u64
 
 		"addq  %%r9, %%rcx ;"
 		"movq %%rcx, 32(%0) ;"
-		"adcq %%r11, %%r12 ;"
-		"movq %%r12, 40(%0) ;"
+		"adcq %%r11, %%r15 ;"
+		"movq %%r15, 40(%0) ;"
 		"adcq %%r13, %%rax ;"
 		"movq %%rax, 48(%0) ;"
 		"adcq    $0, %%rbx ;"
 		"movq %%rbx, 56(%0) ;"
 		:
 		: "r"(c), "r"(a), "r"(b)
-		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13");
+		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r13", "%r15");
 }
 
 static void sqr_256x256_integer_adx(u64 *const c, const u64 *const a)
@@ -1192,10 +1192,10 @@ static void sqr_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"mulx 24(%1), %%rax, %%rcx ;" /* A[3]*A[0] */
 		"adcx %%rax, %%r10 ;"
 		"movq 24(%1), %%rdx        ;" /* A[3]      */
-		"mulx  8(%1), %%r11, %%r12 ;" /* A[1]*A[3] */
+		"mulx  8(%1), %%r11, %%rbx ;" /* A[1]*A[3] */
 		"adcx %%rcx, %%r11 ;"
 		"mulx 16(%1), %%rax, %%r13 ;" /* A[2]*A[3] */
-		"adcx %%rax, %%r12 ;"
+		"adcx %%rax, %%rbx ;"
 		"movq  8(%1), %%rdx        ;" /* A[1]      */
 		"adcx %%r15, %%r13 ;"
 		"mulx 16(%1), %%rax, %%rcx ;" /* A[2]*A[1] */
@@ -1208,12 +1208,12 @@ static void sqr_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"adcx  %%r8,  %%r8 ;"
 		"adox %%rcx, %%r11 ;"
 		"adcx  %%r9,  %%r9 ;"
-		"adox %%r15, %%r12 ;"
+		"adox %%r15, %%rbx ;"
 		"adcx %%r10, %%r10 ;"
 		"adox %%r15, %%r13 ;"
 		"adcx %%r11, %%r11 ;"
 		"adox %%r15, %%r14 ;"
-		"adcx %%r12, %%r12 ;"
+		"adcx %%rbx, %%rbx ;"
 		"adcx %%r13, %%r13 ;"
 		"adcx %%r14, %%r14 ;"
 
@@ -1233,8 +1233,8 @@ static void sqr_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"mulx %%rdx, %%rax, %%rcx ;" /* A[2]^2 */
 		"adcq %%rax, %%r11 ;"
 		"movq %%r11, 32(%0) ;"
-		"adcq %%rcx, %%r12 ;"
-		"movq %%r12, 40(%0) ;"
+		"adcq %%rcx, %%rbx ;"
+		"movq %%rbx, 40(%0) ;"
 		"movq 24(%1), %%rdx ;"
 		"mulx %%rdx, %%rax, %%rcx ;" /* A[3]^2 */
 		"adcq %%rax, %%r13 ;"
@@ -1243,7 +1243,7 @@ static void sqr_256x256_integer_adx(u64 *const c, const u64 *const a)
 		"movq %%r14, 56(%0) ;"
 		:
 		: "r"(c), "r"(a)
-		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15");
+		: "memory", "cc", "%rax", "%rbx", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r13", "%r14", "%r15");
 }
 
 static void sqr_256x256_integer_bmi2(u64 *const c, const u64 *const a)
@@ -1255,13 +1255,13 @@ static void sqr_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 		"mulx 24(%1), %%rcx, %%r14 ;" /* A[3]*A[1] */
 
 		"movq 16(%1), %%rdx        ;" /* A[2]      */
-		"mulx 24(%1), %%r12, %%r13 ;" /* A[3]*A[2] */
+		"mulx 24(%1), %%r15, %%r13 ;" /* A[3]*A[2] */
 		"mulx   (%1), %%rax, %%rdx ;" /* A[0]*A[2] */
 
 		"addq %%rax,  %%r9 ;"
 		"adcq %%rdx, %%r10 ;"
 		"adcq %%rcx, %%r11 ;"
-		"adcq %%r14, %%r12 ;"
+		"adcq %%r14, %%r15 ;"
 		"adcq    $0, %%r13 ;"
 		"movq    $0, %%r14 ;"
 		"adcq    $0, %%r14 ;"
@@ -1271,13 +1271,13 @@ static void sqr_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 
 		"addq %%rax, %%r10 ;"
 		"adcq %%rcx, %%r11 ;"
-		"adcq    $0, %%r12 ;"
+		"adcq    $0, %%r15 ;"
 		"adcq    $0, %%r13 ;"
 		"adcq    $0, %%r14 ;"
 
 		"shldq $1, %%r13, %%r14 ;"
-		"shldq $1, %%r12, %%r13 ;"
-		"shldq $1, %%r11, %%r12 ;"
+		"shldq $1, %%r15, %%r13 ;"
+		"shldq $1, %%r11, %%r15 ;"
 		"shldq $1, %%r10, %%r11 ;"
 		"shldq $1,  %%r9, %%r10 ;"
 		"shldq $1,  %%r8,  %%r9 ;"
@@ -1299,8 +1299,8 @@ static void sqr_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 		"mulx %%rdx, %%rax, %%rcx ;" /* A[2]^2 */
 		"adcq %%rax, %%r11 ;"
 		"movq %%r11, 32(%0) ;"
-		"adcq %%rcx, %%r12 ;"
-		"movq %%r12, 40(%0) ;"
+		"adcq %%rcx, %%r15 ;"
+		"movq %%r15, 40(%0) ;"
 		"movq 24(%1), %%rdx ;"
 		"mulx %%rdx, %%rax, %%rcx ;" /* A[3]^2 */
 		"adcq %%rax, %%r13 ;"
@@ -1309,7 +1309,7 @@ static void sqr_256x256_integer_bmi2(u64 *const c, const u64 *const a)
 		"movq %%r14, 56(%0) ;"
 		:
 		: "r"(c), "r"(a)
-		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14");
+		: "memory", "cc", "%rax", "%rcx", "%rdx", "%r8", "%r9", "%r10", "%r11", "%r13", "%r14", "%r15");
 }
 
 static void red_eltfp25519_1w_adx(u64 *const c, const u64 *const a)
