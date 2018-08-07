@@ -137,7 +137,7 @@ static void chacha20_generic(u8 *out, const u8 *in, u32 len, const u32 key[8], c
 	};
 
 	if (out != in)
-		memcpy(out, in, len);
+		memmove(out, in, len);
 
 	while (len >= CHACHA20_BLOCK_SIZE) {
 		chacha20_block_generic(buf, x);
