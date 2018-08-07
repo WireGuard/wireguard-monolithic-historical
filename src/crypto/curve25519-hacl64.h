@@ -10,14 +10,9 @@
 typedef __uint128_t u128;
 static __always_inline u64 u64_eq_mask(u64 x, u64 y)
 {
-	x = ~(x ^ y);
-	x &= x << 32;
-	x &= x << 16;
-	x &= x << 8;
-	x &= x << 4;
-	x &= x << 2;
-	x &= x << 1;
-	return ((s64)x) >> 63;
+	x ^= y;
+	x |= -x;
+	return (x >> 63) - 1;
 }
 
 static __always_inline u64 u64_gte_mask(u64 x, u64 y)
