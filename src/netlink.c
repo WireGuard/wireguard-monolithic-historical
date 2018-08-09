@@ -165,13 +165,15 @@ static int get_device_start(struct netlink_callback *cb)
 static int get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0];
-	struct wireguard_peer *peer, *next_peer_cursor = NULL, *last_peer_cursor = (struct wireguard_peer *)cb->args[1];
+	struct wireguard_peer *peer, *next_peer_cursor, *last_peer_cursor;
 	struct allowedips_cursor *rt_cursor = (struct allowedips_cursor *)cb->args[2];
 	unsigned int peer_idx = 0;
 	struct nlattr *peers_nest;
 	bool done = true;
 	void *hdr;
 	int ret = -EMSGSIZE;
+
+	next_peer_cursor = last_peer_cursor = (struct wireguard_peer *)cb->args[1];
 
 	rtnl_lock();
 	mutex_lock(&wg->device_update_lock);
@@ -220,9 +222,9 @@ static int get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	nla_nest_end(skb, peers_nest);
 
 out:
-	peer_put(last_peer_cursor);
 	if (!ret && !done && next_peer_cursor)
 		peer_get(next_peer_cursor);
+	peer_put(last_peer_cursor);
 	mutex_unlock(&wg->device_update_lock);
 	rtnl_unlock();
 
