@@ -9,8 +9,6 @@
 #include "queueing.h"
 #include "socket.h"
 
-#include <linux/ktime.h>
-
 /*
  * Timer for retransmitting the handshake if we don't hear back after `REKEY_TIMEOUT + jitter` ms
  * Timer for sending empty packet if we have received a packet but after have not sent one for `KEEPALIVE_TIMEOUT` ms
