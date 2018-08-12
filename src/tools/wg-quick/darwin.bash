@@ -11,7 +11,7 @@ export LC_ALL=C
 SELF="${BASH_SOURCE[0]}"
 [[ $SELF == */* ]] || SELF="./$SELF"
 SELF="$(cd "${SELF%/*}" && pwd -P)/${SELF##*/}"
-export PATH="${SELF%/*}:$PATH"
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${SELF%/*}:$PATH"
 
 WG_CONFIG=""
 INTERFACE=""
