@@ -1606,11 +1606,8 @@ static void inv_eltfp25519_1w_bmi2(u64 *const c, const u64 *const a)
  */
 static __always_inline void fred_eltfp25519_1w(u64 *const c)
 {
-	u64 tmp0, tmp1;
+	u64 tmp0 = 38, tmp1 = 19;
 	asm volatile(
-		"movl   $19,   %k5 ;"
-		"movl   $38,   %k4 ;"
-
 		"btrq   $63,    %3 ;" /* Put bit 255 in carry flag and clear */
 		"cmovncl %k5,   %k4 ;" /* c[255] ? 38 : 19 */
 
@@ -1631,7 +1628,7 @@ static __always_inline void fred_eltfp25519_1w(u64 *const c)
 		"sbbq    $0,   %2 ;"
 		"sbbq    $0,   %3 ;"
 
-		: "+r"(c[0]), "+r"(c[1]), "+r"(c[2]), "+r"(c[3]), "=r"(tmp0), "=r"(tmp1)
+		: "+r"(c[0]), "+r"(c[1]), "+r"(c[2]), "+r"(c[3]), "+r"(tmp0), "+r"(tmp1)
 		:
 		: "memory", "cc");
 }
