@@ -168,7 +168,7 @@ add_route() {
 	elif [[ $1 == */0 ]]; then
 		add_default "$1"
 	else
-		[[ $(ip route get "$i" 2>/dev/null) == *dev\ $INTERFACE\ * ]] || cmd ip route add "$1" dev "$INTERFACE"
+		[[ $(ip route get "$1" 2>/dev/null) == *dev\ $INTERFACE\ * ]] || cmd ip route add "$1" dev "$INTERFACE"
 	fi
 }
 
