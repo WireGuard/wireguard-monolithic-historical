@@ -28,4 +28,4 @@ while IFS= read -r line; do
 		[[ ${ifs[level]} -ne 0 ]] && continue
 	fi
 	[[ $silent -eq 0 ]] && printf '%s\n' "$line"
-done < "$1"
+done < "$1" | clang-format -style="{ColumnLimit: 10000}"
