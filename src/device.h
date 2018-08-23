@@ -42,7 +42,8 @@ struct wireguard_device {
 	struct sock __rcu *sock4, *sock6;
 	struct net *creating_net;
 	struct noise_static_identity static_identity;
-	struct workqueue_struct *handshake_receive_wq, *handshake_send_wq, *packet_crypt_wq;
+	struct workqueue_struct *handshake_receive_wq, *handshake_send_wq;
+	struct workqueue_struct *packet_crypt_wq;
 	struct sk_buff_head incoming_handshakes;
 	int incoming_handshake_cpu;
 	struct multicore_worker __percpu *incoming_handshakes_worker;

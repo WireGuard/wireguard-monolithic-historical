@@ -109,18 +109,20 @@ struct message_data {
 	u8 encrypted_data[];
 };
 
-#define message_data_len(plain_len) (noise_encrypted_len(plain_len) + sizeof(struct message_data))
+#define message_data_len(plain_len)                                            \
+	(noise_encrypted_len(plain_len) + sizeof(struct message_data))
 
 enum message_alignments {
 	MESSAGE_PADDING_MULTIPLE = 16,
 	MESSAGE_MINIMUM_LENGTH = message_data_len(0)
 };
 
-#define SKB_HEADER_LEN (max(sizeof(struct iphdr), sizeof(struct ipv6hdr)) + sizeof(struct udphdr) + NET_SKB_PAD)
-#define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
+#define SKB_HEADER_LEN                                                         \
+	(max(sizeof(struct iphdr), sizeof(struct ipv6hdr)) +                   \
+	 sizeof(struct udphdr) + NET_SKB_PAD)
+#define DATA_PACKET_HEAD_ROOM                                                  \
+	ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
 
-enum {
-	HANDSHAKE_DSCP = 0x88 /* AF41, plus 00 ECN */
-};
+enum { HANDSHAKE_DSCP = 0x88 /* AF41, plus 00 ECN */ };
 
 #endif /* _WG_MESSAGES_H */

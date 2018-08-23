@@ -6,13 +6,24 @@
 #ifdef DEBUG
 bool __init packet_counter_selftest(void)
 {
-	bool success = true;
 	unsigned int test_num = 0, i;
 	union noise_counter counter;
+	bool success = true;
 
-#define T_INIT do { memset(&counter, 0, sizeof(union noise_counter)); spin_lock_init(&counter.receive.lock); } while (0)
+#define T_INIT do {                                               \
+		memset(&counter, 0, sizeof(union noise_counter)); \
+		spin_lock_init(&counter.receive.lock);            \
+	} while (0)
 #define T_LIM (COUNTER_WINDOW_SIZE + 1)
-#define T(n, v) do { ++test_num; if (counter_validate(&counter, n) != v) { pr_info("nonce counter self-test %u: FAIL\n", test_num); success = false; } } while (0)
+#define T(n, v) do {                                                  \
+		++test_num;                                           \
+		if (counter_validate(&counter, n) != v) {             \
+			pr_info("nonce counter self-test %u: FAIL\n", \
+				test_num);                            \
+			success = false;                              \
+		}                                                     \
+	} while (0)
+
 	T_INIT;
 	/*  1 */ T(0, true);
 	/*  2 */ T(1, true);
@@ -62,22 +73,22 @@ bool __init packet_counter_selftest(void)
 	T(0, false);
 
 	T_INIT;
-	for (i = COUNTER_WINDOW_SIZE + 1; i-- > 0 ;)
+	for (i = COUNTER_WINDOW_SIZE + 1; i-- > 0;)
 		T(i, true);
 
 	T_INIT;
-	for (i = COUNTER_WINDOW_SIZE + 2; i-- > 1 ;)
+	for (i = COUNTER_WINDOW_SIZE + 2; i-- > 1;)
 		T(i, true);
 	T(0, false);
 
 	T_INIT;
-	for (i = COUNTER_WINDOW_SIZE + 1; i-- > 1 ;)
+	for (i = COUNTER_WINDOW_SIZE + 1; i-- > 1;)
 		T(i, true);
 	T(COUNTER_WINDOW_SIZE + 1, true);
 	T(0, false);
 
 	T_INIT;
-	for (i = COUNTER_WINDOW_SIZE + 1; i-- > 1 ;)
+	for (i = COUNTER_WINDOW_SIZE + 1; i-- > 1;)
 		T(i, true);
 	T(0, true);
 	T(COUNTER_WINDOW_SIZE + 1, true);

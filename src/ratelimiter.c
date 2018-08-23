@@ -41,7 +41,8 @@ enum {
 
 static void entry_free(struct rcu_head *rcu)
 {
-	kmem_cache_free(entry_cache, container_of(rcu, struct ratelimiter_entry, rcu));
+	kmem_cache_free(entry_cache,
+			container_of(rcu, struct ratelimiter_entry, rcu));
 	atomic_dec(&total_entries);
 }
 
@@ -54,20 +55,22 @@ static void entry_uninit(struct ratelimiter_entry *entry)
 /* Calling this function with a NULL work uninits all entries. */
 static void gc_entries(struct work_struct *work)
 {
-	unsigned int i;
+	const u64 now = ktime_get_boot_fast_ns();
 	struct ratelimiter_entry *entry;
 	struct hlist_node *temp;
-	const u64 now = ktime_get_boot_fast_ns();
+	unsigned int i;
 
 	for (i = 0; i < table_size; ++i) {
 		spin_lock(&table_lock);
-		hlist_for_each_entry_safe(entry, temp, &table_v4[i], hash) {
-			if (unlikely(!work) || now - entry->last_time_ns > NSEC_PER_SEC)
+		hlist_for_each_entry_safe (entry, temp, &table_v4[i], hash) {
+			if (unlikely(!work) ||
+			    now - entry->last_time_ns > NSEC_PER_SEC)
 				entry_uninit(entry);
 		}
 #if IS_ENABLED(CONFIG_IPV6)
-		hlist_for_each_entry_safe(entry, temp, &table_v6[i], hash) {
-			if (unlikely(!work) || now - entry->last_time_ns > NSEC_PER_SEC)
+		hlist_for_each_entry_safe (entry, temp, &table_v6[i], hash) {
+			if (unlikely(!work) ||
+			    now - entry->last_time_ns > NSEC_PER_SEC)
 				entry_uninit(entry);
 		}
 #endif
@@ -81,34 +84,41 @@ static void gc_entries(struct work_struct *work)
 
 bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 {
+	struct { __be64 ip; u32 net; } data =
+		{ .net = (unsigned long)net & 0xffffffff };
 	struct ratelimiter_entry *entry;
 	struct hlist_head *bucket;
-	struct { __be64 ip; u32 net; } data = { .net = (unsigned long)net & 0xffffffff };
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		data.ip = (__force __be64)ip_hdr(skb)->saddr;
-		bucket = &table_v4[hsiphash(&data, sizeof(u32) * 3, &key) & (table_size - 1)];
+		bucket = &table_v4[hsiphash(&data, sizeof(u32) * 3, &key) &
+				   (table_size - 1)];
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (skb->protocol == htons(ETH_P_IPV6)) {
-		memcpy(&data.ip, &ipv6_hdr(skb)->saddr, sizeof(__be64)); /* Only 64 bits */
-		bucket = &table_v6[hsiphash(&data, sizeof(u32) * 3, &key) & (table_size - 1)];
+		memcpy(&data.ip, &ipv6_hdr(skb)->saddr,
+		       sizeof(__be64)); /* Only 64 bits */
+		bucket = &table_v6[hsiphash(&data, sizeof(u32) * 3, &key) &
+				   (table_size - 1)];
 	}
 #endif
 	else
 		return false;
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(entry, bucket, hash) {
+	hlist_for_each_entry_rcu (entry, bucket, hash) {
 		if (entry->net == net && entry->ip == data.ip) {
 			u64 now, tokens;
 			bool ret;
-			/* Inspired by nft_limit.c, but this is actually a slightly different
-			 * algorithm. Namely, we incorporate the burst as part of the maximum
-			 * tokens, rather than as part of the rate.
+			/* Quasi-inspired by nft_limit.c, but this is actually a
+			 * slightly different algorithm. Namely, we incorporate
+			 * the burst as part of the maximum tokens, rather than
+			 * as part of the rate.
 			 */
 			spin_lock(&entry->lock);
 			now = ktime_get_boot_fast_ns();
-			tokens = min_t(u64, TOKEN_MAX, entry->tokens + now - entry->last_time_ns);
+			tokens = min_t(u64, TOKEN_MAX,
+				       entry->tokens + now -
+					       entry->last_time_ns);
 			entry->last_time_ns = now;
 			ret = tokens >= PACKET_COST;
 			entry->tokens = ret ? tokens - PACKET_COST : tokens;
@@ -157,7 +167,10 @@ int ratelimiter_init(void)
 	 * we borrow their wisdom about good table sizes on different systems
 	 * dependent on RAM. This calculation here comes from there.
 	 */
-	table_size = (totalram_pages > (1U << 30) / PAGE_SIZE) ? 8192 : max_t(unsigned long, 16, roundup_pow_of_two((totalram_pages << PAGE_SHIFT) / (1U << 14) / sizeof(struct hlist_head)));
+	table_size = (totalram_pages > (1U << 30) / PAGE_SIZE) ? 8192 :
+		max_t(unsigned long, 16, roundup_pow_of_two(
+			(totalram_pages << PAGE_SHIFT) /
+			(1U << 14) / sizeof(struct hlist_head)));
 	max_entries = table_size * 8;
 
 	table_v4 = kvzalloc(table_size * sizeof(struct hlist_head), GFP_KERNEL);
