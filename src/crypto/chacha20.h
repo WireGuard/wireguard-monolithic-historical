@@ -7,6 +7,7 @@
 #define _WG_CHACHA20_H
 
 #include "simd.h"
+#include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
@@ -27,15 +28,14 @@ void chacha20_fpu_init(void);
 
 static inline void chacha20_init(struct chacha20_ctx *state, const u8 key[CHACHA20_KEY_SIZE], const u64 nonce)
 {
-	__le32 *le_key = (__le32 *)key;
-	state->key[0] = le32_to_cpu(le_key[0]);
-	state->key[1] = le32_to_cpu(le_key[1]);
-	state->key[2] = le32_to_cpu(le_key[2]);
-	state->key[3] = le32_to_cpu(le_key[3]);
-	state->key[4] = le32_to_cpu(le_key[4]);
-	state->key[5] = le32_to_cpu(le_key[5]);
-	state->key[6] = le32_to_cpu(le_key[6]);
-	state->key[7] = le32_to_cpu(le_key[7]);
+	state->key[0] = get_unaligned_le32(key + 0);
+	state->key[1] = get_unaligned_le32(key + 4);
+	state->key[2] = get_unaligned_le32(key + 8);
+	state->key[3] = get_unaligned_le32(key + 12);
+	state->key[4] = get_unaligned_le32(key + 16);
+	state->key[5] = get_unaligned_le32(key + 20);
+	state->key[6] = get_unaligned_le32(key + 24);
+	state->key[7] = get_unaligned_le32(key + 28);
 	state->counter[0] = state->counter[1] = 0;
 	state->counter[2] = nonce & U32_MAX;
 	state->counter[3] = nonce >> 32;

@@ -23,14 +23,14 @@ typedef struct fe_loose { u32 v[10]; } fe_loose;
 static __always_inline void fe_frombytes_impl(u32 h[10], const u8 *s)
 {
 	/* Ignores top bit of s. */
-	u32 a0 = le32_to_cpup((__force __le32 *)(s));
-	u32 a1 = le32_to_cpup((__force __le32 *)(s+4));
-	u32 a2 = le32_to_cpup((__force __le32 *)(s+8));
-	u32 a3 = le32_to_cpup((__force __le32 *)(s+12));
-	u32 a4 = le32_to_cpup((__force __le32 *)(s+16));
-	u32 a5 = le32_to_cpup((__force __le32 *)(s+20));
-	u32 a6 = le32_to_cpup((__force __le32 *)(s+24));
-	u32 a7 = le32_to_cpup((__force __le32 *)(s+28));
+	u32 a0 = get_unaligned_le32(s);
+	u32 a1 = get_unaligned_le32(s+4);
+	u32 a2 = get_unaligned_le32(s+8);
+	u32 a3 = get_unaligned_le32(s+12);
+	u32 a4 = get_unaligned_le32(s+16);
+	u32 a5 = get_unaligned_le32(s+20);
+	u32 a6 = get_unaligned_le32(s+24);
+	u32 a7 = get_unaligned_le32(s+28);
 	h[0] = a0&((1<<26)-1);                    /* 26 used, 32-26 left.   26 */
 	h[1] = (a0>>26) | ((a1&((1<<19)-1))<< 6); /* (32-26) + 19 =  6+19 = 25 */
 	h[2] = (a1>>19) | ((a2&((1<<13)-1))<<13); /* (32-19) + 13 = 13+13 = 26 */

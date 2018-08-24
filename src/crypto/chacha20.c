@@ -5,6 +5,7 @@
 
 #include "chacha20.h"
 
+#include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <crypto/algapi.h>
 
@@ -210,9 +211,9 @@ static void hchacha20_generic(u8 derived_key[CHACHA20_KEY_SIZE], const u8 nonce[
 	__le32 *out = (__force __le32 *)derived_key;
 	u32 x[] = {
 		EXPAND_32_BYTE_K,
-		le32_to_cpup((__le32 *)(key + 0)), le32_to_cpup((__le32 *)(key + 4)), le32_to_cpup((__le32 *)(key + 8)), le32_to_cpup((__le32 *)(key + 12)),
-		le32_to_cpup((__le32 *)(key + 16)), le32_to_cpup((__le32 *)(key + 20)), le32_to_cpup((__le32 *)(key + 24)), le32_to_cpup((__le32 *)(key + 28)),
-		le32_to_cpup((__le32 *)(nonce + 0)), le32_to_cpup((__le32 *)(nonce + 4)), le32_to_cpup((__le32 *)(nonce +  8)), le32_to_cpup((__le32 *)(nonce + 12))
+		get_unaligned_le32(key + 0), get_unaligned_le32(key + 4), get_unaligned_le32(key + 8), get_unaligned_le32(key + 12),
+		get_unaligned_le32(key + 16), get_unaligned_le32(key + 20), get_unaligned_le32(key + 24), get_unaligned_le32(key + 28),
+		get_unaligned_le32(nonce + 0), get_unaligned_le32(nonce + 4), get_unaligned_le32(nonce +  8), get_unaligned_le32(nonce + 12)
 	};
 
 	TWENTY_ROUNDS(x);

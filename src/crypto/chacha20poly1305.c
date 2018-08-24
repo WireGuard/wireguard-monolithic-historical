@@ -7,6 +7,7 @@
 #include "chacha20.h"
 #include "poly1305.h"
 
+#include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <crypto/scatterwalk.h>
 
@@ -256,7 +257,7 @@ void xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 	u8 derived_key[CHACHA20POLY1305_KEYLEN] __aligned(16);
 
 	hchacha20(derived_key, nonce, key, simd_context);
-	__chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpup((__le64 *)(nonce + 16)), derived_key, simd_context);
+	__chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, get_unaligned_le64(nonce + 16), derived_key, simd_context);
 	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
 	simd_put(simd_context);
 }
@@ -270,7 +271,7 @@ bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 	u8 derived_key[CHACHA20POLY1305_KEYLEN] __aligned(16);
 
 	hchacha20(derived_key, nonce, key, simd_context);
-	ret = __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len, le64_to_cpup((__le64 *)(nonce + 16)), derived_key, simd_context);
+	ret = __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len, get_unaligned_le64(nonce + 16), derived_key, simd_context);
 	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
 	simd_put(simd_context);
 	return ret;

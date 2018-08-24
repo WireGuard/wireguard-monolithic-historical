@@ -565,11 +565,11 @@ static __always_inline void format_fexpand(u64 *output, const u8 *input)
 	const u8 *x02 = input + 19;
 	const u8 *x0 = input + 24;
 	u64 i0, i1, i2, i3, i4, output0, output1, output2, output3, output4;
-	i0 = le64_to_cpup((__force __le64 *)input);
-	i1 = le64_to_cpup((__force __le64 *)x00);
-	i2 = le64_to_cpup((__force __le64 *)x01);
-	i3 = le64_to_cpup((__force __le64 *)x02);
-	i4 = le64_to_cpup((__force __le64 *)x0);
+	i0 = get_unaligned_le64(input);
+	i1 = get_unaligned_le64(x00);
+	i2 = get_unaligned_le64(x01);
+	i3 = get_unaligned_le64(x02);
+	i4 = get_unaligned_le64(x0);
 	output0 = i0 & 0x7ffffffffffffLLU;
 	output1 = i1 >> 3 & 0x7ffffffffffffLLU;
 	output2 = i2 >> 6 & 0x7ffffffffffffLLU;
@@ -688,10 +688,10 @@ static __always_inline void format_fcontract_store(u8 *output, u64 *input)
 	u8 *b1 = output + 8;
 	u8 *b2 = output + 16;
 	u8 *b3 = output + 24;
-	*(__force __le64 *)b0 = cpu_to_le64(o0);
-	*(__force __le64 *)b1 = cpu_to_le64(o1);
-	*(__force __le64 *)b2 = cpu_to_le64(o2);
-	*(__force __le64 *)b3 = cpu_to_le64(o3);
+	put_unaligned_le64(o0, b0);
+	put_unaligned_le64(o1, b1);
+	put_unaligned_le64(o2, b2);
+	put_unaligned_le64(o3, b3);
 }
 
 static __always_inline void format_fcontract(u8 *output, u64 *input)

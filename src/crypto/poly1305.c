@@ -7,6 +7,7 @@
 #include "poly1305.h"
 #include "simd.h"
 
+#include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 
@@ -94,10 +95,10 @@ static void poly1305_init_generic(void *ctx, const u8 key[16])
 	st->h[4] = 0;
 
 	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
-	st->r[0] = le32_to_cpup((__le32 *)&key[ 0]) & 0x0fffffff;
-	st->r[1] = le32_to_cpup((__le32 *)&key[ 4]) & 0x0ffffffc;
-	st->r[2] = le32_to_cpup((__le32 *)&key[ 8]) & 0x0ffffffc;
-	st->r[3] = le32_to_cpup((__le32 *)&key[12]) & 0x0ffffffc;
+	st->r[0] = get_unaligned_le32(&key[ 0]) & 0x0fffffff;
+	st->r[1] = get_unaligned_le32(&key[ 4]) & 0x0ffffffc;
+	st->r[2] = get_unaligned_le32(&key[ 8]) & 0x0ffffffc;
+	st->r[3] = get_unaligned_le32(&key[12]) & 0x0ffffffc;
 }
 
 static void poly1305_blocks_generic(void *ctx, const u8 *inp, size_t len, const u32 padbit)
@@ -126,10 +127,10 @@ static void poly1305_blocks_generic(void *ctx, const u8 *inp, size_t len, const 
 
 	while (len >= POLY1305_BLOCK_SIZE) {
 		/* h += m[i] */
-		h0 = (u32)(d0 = (u64)h0 + le32_to_cpup((__le32 *)(inp + 0)));
-		h1 = (u32)(d1 = (u64)h1 + (d0 >> 32) + le32_to_cpup((__le32 *)(inp + 4)));
-		h2 = (u32)(d2 = (u64)h2 + (d1 >> 32) + le32_to_cpup((__le32 *)(inp + 8)));
-		h3 = (u32)(d3 = (u64)h3 + (d2 >> 32) + le32_to_cpup((__le32 *)(inp + 12)));
+		h0 = (u32)(d0 = (u64)h0 + (0       ) + get_unaligned_le32(&inp[ 0]));
+		h1 = (u32)(d1 = (u64)h1 + (d0 >> 32) + get_unaligned_le32(&inp[ 4]));
+		h2 = (u32)(d2 = (u64)h2 + (d1 >> 32) + get_unaligned_le32(&inp[ 8]));
+		h3 = (u32)(d3 = (u64)h3 + (d2 >> 32) + get_unaligned_le32(&inp[12]));
 		h4 += (u32)(d3 >> 32) + padbit;
 
 		/* h *= r "%" p, where "%" stands for "partial remainder" */
@@ -194,7 +195,6 @@ static void poly1305_blocks_generic(void *ctx, const u8 *inp, size_t len, const 
 static void poly1305_emit_generic(void *ctx, u8 mac[16], const u32 nonce[4])
 {
 	struct poly1305_internal *st = (struct poly1305_internal *)ctx;
-	__le32 *omac = (__force __le32 *)mac;
 	u32 h0, h1, h2, h3, h4;
 	u32 g0, g1, g2, g3, g4;
 	u64 t;
@@ -231,19 +231,19 @@ static void poly1305_emit_generic(void *ctx, u8 mac[16], const u32 nonce[4])
 	h2 = (u32)(t = (u64)h2 + (t >> 32) + nonce[2]);
 	h3 = (u32)(t = (u64)h3 + (t >> 32) + nonce[3]);
 
-	omac[0] = cpu_to_le32(h0);
-	omac[1] = cpu_to_le32(h1);
-	omac[2] = cpu_to_le32(h2);
-	omac[3] = cpu_to_le32(h3);
+	put_unaligned_le32(h0, &mac[ 0]);
+	put_unaligned_le32(h1, &mac[ 4]);
+	put_unaligned_le32(h2, &mac[ 8]);
+	put_unaligned_le32(h3, &mac[12]);
 }
 #endif
 
 void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE], simd_context_t simd_context)
 {
-	ctx->nonce[0] = le32_to_cpup((__le32 *)&key[16]);
-	ctx->nonce[1] = le32_to_cpup((__le32 *)&key[20]);
-	ctx->nonce[2] = le32_to_cpup((__le32 *)&key[24]);
-	ctx->nonce[3] = le32_to_cpup((__le32 *)&key[28]);
+	ctx->nonce[0] = get_unaligned_le32(&key[16]);
+	ctx->nonce[1] = get_unaligned_le32(&key[20]);
+	ctx->nonce[2] = get_unaligned_le32(&key[24]);
+	ctx->nonce[3] = get_unaligned_le32(&key[28]);
 
 #if defined(CONFIG_X86_64)
 	poly1305_init_x86_64(ctx->opaque, key);
