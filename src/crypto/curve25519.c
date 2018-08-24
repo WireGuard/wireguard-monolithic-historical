@@ -5,6 +5,7 @@
 
 #include "curve25519.h"
 
+#include <asm/unaligned.h>
 #include <linux/version.h>
 #include <linux/string.h>
 #include <linux/random.h>

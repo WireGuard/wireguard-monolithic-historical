@@ -4236,9 +4236,9 @@ static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 
 	} b = {{ 0 }};
 
 	chacha20_init(&chacha20_state, key, 0);
-	chacha20_state.counter[1] = le32_to_cpu(*(__le32 *)(nonce + 0));
-	chacha20_state.counter[2] = le32_to_cpu(*(__le32 *)(nonce + 4));
-	chacha20_state.counter[3] = le32_to_cpu(*(__le32 *)(nonce + 8));
+	chacha20_state.counter[1] = get_unaligned_le32((__le32 *)(nonce + 0));
+	chacha20_state.counter[2] = get_unaligned_le32((__le32 *)(nonce + 4));
+	chacha20_state.counter[3] = get_unaligned_le32((__le32 *)(nonce + 8));
 	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0), simd_context);
 	poly1305_init(&poly1305_state, b.block0, simd_context);
 	poly1305_update(&poly1305_state, ad, ad_len, simd_context);
@@ -4258,7 +4258,7 @@ static inline void chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 
 static inline void chacha20poly1305_selftest_encrypt(u8 *dst, const u8 *src, const size_t src_len, const u8 *ad, const size_t ad_len, const u8 *nonce, const size_t nonce_len, const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	if (nonce_len == 8)
-		chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, le64_to_cpup((__force __le64 *)nonce), key);
+		chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len, get_unaligned_le64((__force __le64 *)nonce), key);
 	else if (nonce_len == 12)
 		chacha20poly1305_selftest_encrypt_bignonce(dst, src, src_len, ad, ad_len, nonce, key);
 	else
@@ -4306,7 +4306,7 @@ bool __init chacha20poly1305_selftest(void)
 		memcpy(heap_src, chacha20poly1305_enc_vectors[i].input, chacha20poly1305_enc_vectors[i].ilen);
 		sg_init_one(&sg_src, heap_src, chacha20poly1305_enc_vectors[i].ilen);
 		sg_init_one(&sg_dst, heap_dst, chacha20poly1305_enc_vectors[i].ilen + POLY1305_MAC_SIZE);
-		ret = chacha20poly1305_encrypt_sg(&sg_dst, &sg_src, chacha20poly1305_enc_vectors[i].ilen, chacha20poly1305_enc_vectors[i].assoc, chacha20poly1305_enc_vectors[i].alen, le64_to_cpup((__force __le64 *)chacha20poly1305_enc_vectors[i].nonce), chacha20poly1305_enc_vectors[i].key, simd_context);
+		ret = chacha20poly1305_encrypt_sg(&sg_dst, &sg_src, chacha20poly1305_enc_vectors[i].ilen, chacha20poly1305_enc_vectors[i].assoc, chacha20poly1305_enc_vectors[i].alen, get_unaligned_le64((__force __le64 *)chacha20poly1305_enc_vectors[i].nonce), chacha20poly1305_enc_vectors[i].key, simd_context);
 		if (!ret || memcmp(heap_dst, chacha20poly1305_enc_vectors[i].result, chacha20poly1305_enc_vectors[i].ilen + POLY1305_MAC_SIZE)) {
 			pr_info("chacha20poly1305 sg encryption self-test %zu: FAIL\n", i + 1);
 			success = false;
@@ -4315,7 +4315,7 @@ bool __init chacha20poly1305_selftest(void)
 	simd_put(simd_context);
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
 		memset(computed_result, 0, sizeof(computed_result));
-		ret = chacha20poly1305_decrypt(computed_result, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpu(*(__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key);
+		ret = chacha20poly1305_decrypt(computed_result, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, get_unaligned_le64((__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key);
 		if (!decryption_success(ret, chacha20poly1305_dec_vectors[i].failure, memcmp(computed_result, chacha20poly1305_dec_vectors[i].result, chacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE))) {
 			pr_info("chacha20poly1305 decryption self-test %zu: FAIL\n", i + 1);
 			success = false;
@@ -4327,7 +4327,7 @@ bool __init chacha20poly1305_selftest(void)
 		memcpy(heap_src, chacha20poly1305_dec_vectors[i].input, chacha20poly1305_dec_vectors[i].ilen);
 		sg_init_one(&sg_src, heap_src, chacha20poly1305_dec_vectors[i].ilen);
 		sg_init_one(&sg_dst, heap_dst, chacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE);
-		ret = chacha20poly1305_decrypt_sg(&sg_dst, &sg_src, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, le64_to_cpup((__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key, simd_context);
+		ret = chacha20poly1305_decrypt_sg(&sg_dst, &sg_src, chacha20poly1305_dec_vectors[i].ilen, chacha20poly1305_dec_vectors[i].assoc, chacha20poly1305_dec_vectors[i].alen, get_unaligned_le64((__force __le64 *)chacha20poly1305_dec_vectors[i].nonce), chacha20poly1305_dec_vectors[i].key, simd_context);
 		if (!decryption_success(ret, chacha20poly1305_dec_vectors[i].failure, memcmp(heap_dst, chacha20poly1305_dec_vectors[i].result, chacha20poly1305_dec_vectors[i].ilen - POLY1305_MAC_SIZE))) {
 			pr_info("chacha20poly1305 sg decryption self-test %zu: FAIL\n", i + 1);
 			success = false;

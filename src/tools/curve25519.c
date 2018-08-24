@@ -29,6 +29,9 @@ typedef int64_t s64;
 #define le32_to_cpup(a) (*(a))
 #define cpu_to_le64(a) (a)
 #endif
+#define get_unaligned_le32(a) le32_to_cpup(a)
+#define get_unaligned_le64(a) le64_to_cpup(a)
+#define put_unaligned_le64(s, d) *(d) = cpu_to_le64(s)
 #ifndef __always_inline
 #define __always_inline __inline __attribute__((__always_inline__))
 #endif
