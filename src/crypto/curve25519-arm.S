@@ -16,16 +16,10 @@
 .align 4
 
 ENTRY(curve25519_neon)
-	mov		r12, sp
-	sub		r3, sp, #736
-	and		r3, r3, #0xfffffff0
-	mov		sp, r3
-	strd		r4, [sp, #0]
-	strd		r6, [sp, #8]
-	strd		r8, [sp, #16]
-	strd		r10, [sp, #24]
-	str		r12, [sp, #480]
-	str		r14, [sp, #484]
+	push		{r4-r11, lr}
+	mov		ip, sp
+	sub		sp, sp, #736
+	and		sp, sp, #0xfffffff0
 	add		r3, sp, #32
 	movw		r4, 0
 	movw		r5, 254
@@ -2094,14 +2088,8 @@ ENTRY(curve25519_neon)
 	str		r7, [r0, #20]
 	str		r8, [r0, #24]
 	str		r1, [r0, #28]
-	ldrd		r4, [sp, #0]
-	ldrd		r6, [sp, #8]
-	ldrd		r8, [sp, #16]
-	ldrd		r10, [sp, #24]
-	ldr		r12, [sp, #480]
-	ldr		r14, [sp, #484]
 	movw		r0, 0
-	mov		sp, r12
-	bx		lr
+	mov		sp, ip
+	pop		{r4-r11, pc}
 ENDPROC(curve25519_neon)
 #endif
