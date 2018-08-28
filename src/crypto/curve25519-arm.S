@@ -2,7 +2,9 @@
  *
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  *
- * Based on public domain code from Daniel J. Bernstein and Peter Schwabe.
+ * Based on public domain code from Daniel J. Bernstein and Peter Schwabe. This
+ * has been built from SUPERCOP's curve25519/neon2/scalarmult.pq using qhasm,
+ * but has subsequently been manually reworked for use in kernel space.
  */
 
 #if IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
@@ -14,10 +16,9 @@
 .align 4
 
 ENTRY(curve25519_neon)
-	vpush		{q4,q5,q6,q7}
 	mov		r12,sp
 	sub		r3,sp,#736
-	and		r3,r3,#0xffffffe0
+	and		r3,r3,#0xfffffff0
 	mov		sp,r3
 	strd		r4,[sp,#0]
 	strd		r6,[sp,#8]
@@ -25,12 +26,9 @@ ENTRY(curve25519_neon)
 	strd		r10,[sp,#24]
 	str		r12,[sp,#480]
 	str		r14,[sp,#484]
-	mov		r0,r0
-	mov		r1,r1
-	mov		r2,r2
 	add		r3,sp,#32
-	ldr		r4,=0
-	ldr		r5,=254
+	movw		r4,0
+	movw		r5,254
 	vmov.i32	q0,#1
 	vshr.u64	q1,q0,#7
 	vshr.u64	q0,q0,#8
@@ -48,7 +46,7 @@ ENTRY(curve25519_neon)
 	vst1.8		{d4-d5},[r6,: 128]!
 	vst1.8		d4,[r6,: 64]
 	add		r6,r3,#0
-	ldr		r7,=960
+	movw		r7,960
 	sub		r7,r7,#2
 	neg		r7,r7
 	sub		r7,r7,r7,LSL #7
@@ -1556,41 +1554,41 @@ ENTRY(curve25519_neon)
 	vst1.8		{d0-d1},[r2,: 128]!
 	vst1.8		{d2-d3},[r2,: 128]!
 	vst1.8		d4,[r2,: 64]
-	ldr		r1,=0
+	movw		r1,0
 .Linvertloop:
 	add		r2,r3,#144
-	ldr		r4,=0
-	ldr		r5,=2
+	movw		r4,0
+	movw		r5,2
 	cmp		r1,#1
-	ldreq		r5,=1
+	moveq		r5,1
 	addeq		r2,r3,#336
 	addeq		r4,r3,#48
 	cmp		r1,#2
-	ldreq		r5,=1
+	moveq		r5,1
 	addeq		r2,r3,#48
 	cmp		r1,#3
-	ldreq		r5,=5
+	moveq		r5,5
 	addeq		r4,r3,#336
 	cmp		r1,#4
-	ldreq		r5,=10
+	moveq		r5,10
 	cmp		r1,#5
-	ldreq		r5,=20
+	moveq		r5,20
 	cmp		r1,#6
-	ldreq		r5,=10
+	moveq		r5,10
 	addeq		r2,r3,#336
 	addeq		r4,r3,#336
 	cmp		r1,#7
-	ldreq		r5,=50
+	moveq		r5,50
 	cmp		r1,#8
-	ldreq		r5,=100
+	moveq		r5,100
 	cmp		r1,#9
-	ldreq		r5,=50
+	moveq		r5,50
 	addeq		r2,r3,#336
 	cmp		r1,#10
-	ldreq		r5,=5
+	moveq		r5,5
 	addeq		r2,r3,#48
 	cmp		r1,#11
-	ldreq		r5,=0
+	moveq		r5,0
 	addeq		r2,r3,#96
 	add		r6,r3,#144
 	add		r7,r3,#288
@@ -2088,23 +2086,22 @@ ENTRY(curve25519_neon)
 	add		r8,r8,r10,LSL #12
 	mov		r9,r10,LSR #20
 	add		r1,r9,r1,LSL #6
-	str		r2,[r0],#4
-	str		r3,[r0],#4
-	str		r4,[r0],#4
-	str		r5,[r0],#4
-	str		r6,[r0],#4
-	str		r7,[r0],#4
-	str		r8,[r0],#4
-	str		r1,[r0]
+	str		r2,[r0]
+	str		r3,[r0,#4]
+	str		r4,[r0,#8]
+	str		r5,[r0,#12]
+	str		r6,[r0,#16]
+	str		r7,[r0,#20]
+	str		r8,[r0,#24]
+	str		r1,[r0,#28]
 	ldrd		r4,[sp,#0]
 	ldrd		r6,[sp,#8]
 	ldrd		r8,[sp,#16]
 	ldrd		r10,[sp,#24]
 	ldr		r12,[sp,#480]
 	ldr		r14,[sp,#484]
-	ldr		r0,=0
+	movw		r0,0
 	mov		sp,r12
-	vpop		{q4,q5,q6,q7}
 	bx		lr
 ENDPROC(curve25519_neon)
 #endif
