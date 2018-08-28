@@ -18,9 +18,9 @@
 ENTRY(curve25519_neon)
 	push		{r4-r11, lr}
 	mov		ip, sp
-	sub		sp, sp, #736
+	sub		sp, sp, #704
 	and		sp, sp, #0xfffffff0
-	add		r3, sp, #32
+	add		r3, sp, #0
 	movw		r4, 0
 	movw		r5, 254
 	vmov.i32	q0, #1
@@ -28,11 +28,11 @@ ENTRY(curve25519_neon)
 	vshr.u64	q0, q0, #8
 	vmov.i32	d4, #19
 	vmov.i32	d5, #38
-	add		r6, sp, #512
+	add		r6, sp, #480
 	vst1.8		{d2-d3}, [r6, : 128]
-	add		r6, sp, #528
+	add		r6, sp, #496
 	vst1.8		{d0-d1}, [r6, : 128]
-	add		r6, sp, #544
+	add		r6, sp, #512
 	vst1.8		{d4-d5}, [r6, : 128]
 	add		r6, r3, #0
 	vmov.i32	q2, #0
@@ -45,7 +45,7 @@ ENTRY(curve25519_neon)
 	neg		r7, r7
 	sub		r7, r7, r7, LSL #7
 	str		r7, [r6]
-	add		r6, sp, #704
+	add		r6, sp, #672
 	vld1.8		{d4-d5}, [r1]!
 	vld1.8		{d6-d7}, [r1]
 	vst1.8		{d4-d5}, [r6, : 128]!
@@ -213,9 +213,9 @@ ENTRY(curve25519_neon)
 	ldrb		r2, [r1, r2]
 	mov		r2, r2, LSR r6
 	and		r2, r2, #1
-	str		r5, [sp, #488]
+	str		r5, [sp, #456]
 	eor		r4, r4, r2
-	str		r2, [sp, #492]
+	str		r2, [sp, #460]
 	neg		r2, r4
 	add		r4, r3, #96
 	add		r5, r3, #192
@@ -286,7 +286,7 @@ ENTRY(curve25519_neon)
 	vsub.i32	q0, q1, q3
 	vst1.8		d4, [r4, : 64]
 	vst1.8		d0, [r6, : 64]
-	add		r2, sp, #544
+	add		r2, sp, #512
 	add		r4, r3, #96
 	add		r5, r3, #144
 	vld1.8		{d0-d1}, [r2, : 128]
@@ -356,14 +356,14 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q0, d12, d8
 	vmlal.s32	q0, d13, d17
 	vmlal.s32	q0, d6, d6
-	add		r2, sp, #512
+	add		r2, sp, #480
 	vld1.8		{d18-d19}, [r2, : 128]
 	vmull.s32	q3, d16, d7
 	vmlal.s32	q3, d10, d15
 	vmlal.s32	q3, d11, d14
 	vmlal.s32	q3, d12, d9
 	vmlal.s32	q3, d13, d8
-	add		r2, sp, #528
+	add		r2, sp, #496
 	vld1.8		{d8-d9}, [r2, : 128]
 	vadd.i64	q5, q12, q9
 	vadd.i64	q6, q15, q9
@@ -497,21 +497,21 @@ ENTRY(curve25519_neon)
 	vadd.i32	q5, q5, q0
 	vtrn.32		q11, q14
 	vadd.i32	q6, q6, q3
-	add		r2, sp, #560
+	add		r2, sp, #528
 	vadd.i32	q10, q10, q2
 	vtrn.32		d24, d25
 	vst1.8		{d12-d13}, [r2, : 128]
 	vshl.i32	q6, q13, #1
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vst1.8		{d20-d21}, [r2, : 128]
 	vshl.i32	q10, q14, #1
-	add		r2, sp, #592
+	add		r2, sp, #560
 	vst1.8		{d12-d13}, [r2, : 128]
 	vshl.i32	q15, q12, #1
 	vadd.i32	q8, q8, q4
 	vext.32		d10, d31, d30, #0
 	vadd.i32	q7, q7, q1
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vst1.8		{d16-d17}, [r2, : 128]
 	vmull.s32	q8, d18, d5
 	vmlal.s32	q8, d26, d4
@@ -523,7 +523,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q8, d29, d1
 	vmlal.s32	q8, d24, d6
 	vmlal.s32	q8, d25, d0
-	add		r2, sp, #624
+	add		r2, sp, #592
 	vst1.8		{d14-d15}, [r2, : 128]
 	vmull.s32	q2, d18, d4
 	vmlal.s32	q2, d12, d9
@@ -532,7 +532,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q2, d22, d2
 	vmlal.s32	q2, d23, d1
 	vmlal.s32	q2, d24, d0
-	add		r2, sp, #640
+	add		r2, sp, #608
 	vst1.8		{d20-d21}, [r2, : 128]
 	vmull.s32	q7, d18, d9
 	vmlal.s32	q7, d26, d3
@@ -542,14 +542,14 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q7, d28, d1
 	vmlal.s32	q7, d23, d6
 	vmlal.s32	q7, d29, d0
-	add		r2, sp, #656
+	add		r2, sp, #624
 	vst1.8		{d10-d11}, [r2, : 128]
 	vmull.s32	q5, d18, d3
 	vmlal.s32	q5, d19, d2
 	vmlal.s32	q5, d22, d1
 	vmlal.s32	q5, d23, d0
 	vmlal.s32	q5, d12, d8
-	add		r2, sp, #672
+	add		r2, sp, #640
 	vst1.8		{d16-d17}, [r2, : 128]
 	vmull.s32	q4, d18, d8
 	vmlal.s32	q4, d26, d2
@@ -561,7 +561,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q8, d26, d1
 	vmlal.s32	q8, d19, d6
 	vmlal.s32	q8, d27, d0
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vld1.8		{d20-d21}, [r2, : 128]
 	vmlal.s32	q7, d24, d21
 	vmlal.s32	q7, d25, d20
@@ -570,32 +570,32 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q8, d22, d21
 	vmlal.s32	q8, d28, d20
 	vmlal.s32	q5, d24, d20
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vst1.8		{d14-d15}, [r2, : 128]
 	vmull.s32	q7, d18, d6
 	vmlal.s32	q7, d26, d0
-	add		r2, sp, #656
+	add		r2, sp, #624
 	vld1.8		{d30-d31}, [r2, : 128]
 	vmlal.s32	q2, d30, d21
 	vmlal.s32	q7, d19, d21
 	vmlal.s32	q7, d27, d20
-	add		r2, sp, #624
+	add		r2, sp, #592
 	vld1.8		{d26-d27}, [r2, : 128]
 	vmlal.s32	q4, d25, d27
 	vmlal.s32	q8, d29, d27
 	vmlal.s32	q8, d25, d26
 	vmlal.s32	q7, d28, d27
 	vmlal.s32	q7, d29, d26
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vld1.8		{d28-d29}, [r2, : 128]
 	vmlal.s32	q4, d24, d29
 	vmlal.s32	q8, d23, d29
 	vmlal.s32	q8, d24, d28
 	vmlal.s32	q7, d22, d29
 	vmlal.s32	q7, d23, d28
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vst1.8		{d8-d9}, [r2, : 128]
-	add		r2, sp, #560
+	add		r2, sp, #528
 	vld1.8		{d8-d9}, [r2, : 128]
 	vmlal.s32	q7, d24, d9
 	vmlal.s32	q7, d25, d31
@@ -616,7 +616,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q0, d23, d26
 	vmlal.s32	q0, d24, d31
 	vmlal.s32	q0, d19, d20
-	add		r2, sp, #640
+	add		r2, sp, #608
 	vld1.8		{d18-d19}, [r2, : 128]
 	vmlal.s32	q2, d18, d7
 	vmlal.s32	q2, d19, d6
@@ -628,24 +628,24 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q0, d19, d9
 	vmlal.s32	q6, d18, d29
 	vmlal.s32	q6, d19, d28
-	add		r2, sp, #592
+	add		r2, sp, #560
 	vld1.8		{d18-d19}, [r2, : 128]
-	add		r2, sp, #512
+	add		r2, sp, #480
 	vld1.8		{d22-d23}, [r2, : 128]
 	vmlal.s32	q5, d19, d7
 	vmlal.s32	q0, d18, d21
 	vmlal.s32	q0, d19, d29
 	vmlal.s32	q6, d18, d6
-	add		r2, sp, #528
+	add		r2, sp, #496
 	vld1.8		{d6-d7}, [r2, : 128]
 	vmlal.s32	q6, d19, d21
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vld1.8		{d18-d19}, [r2, : 128]
 	vmlal.s32	q0, d30, d8
-	add		r2, sp, #672
+	add		r2, sp, #640
 	vld1.8		{d20-d21}, [r2, : 128]
 	vmlal.s32	q5, d30, d29
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vld1.8		{d24-d25}, [r2, : 128]
 	vmlal.s32	q1, d30, d28
 	vadd.i64	q13, q0, q11
@@ -818,21 +818,21 @@ ENTRY(curve25519_neon)
 	vadd.i32	q5, q5, q0
 	vtrn.32		q11, q14
 	vadd.i32	q6, q6, q3
-	add		r2, sp, #560
+	add		r2, sp, #528
 	vadd.i32	q10, q10, q2
 	vtrn.32		d24, d25
 	vst1.8		{d12-d13}, [r2, : 128]
 	vshl.i32	q6, q13, #1
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vst1.8		{d20-d21}, [r2, : 128]
 	vshl.i32	q10, q14, #1
-	add		r2, sp, #592
+	add		r2, sp, #560
 	vst1.8		{d12-d13}, [r2, : 128]
 	vshl.i32	q15, q12, #1
 	vadd.i32	q8, q8, q4
 	vext.32		d10, d31, d30, #0
 	vadd.i32	q7, q7, q1
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vst1.8		{d16-d17}, [r2, : 128]
 	vmull.s32	q8, d18, d5
 	vmlal.s32	q8, d26, d4
@@ -844,7 +844,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q8, d29, d1
 	vmlal.s32	q8, d24, d6
 	vmlal.s32	q8, d25, d0
-	add		r2, sp, #624
+	add		r2, sp, #592
 	vst1.8		{d14-d15}, [r2, : 128]
 	vmull.s32	q2, d18, d4
 	vmlal.s32	q2, d12, d9
@@ -853,7 +853,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q2, d22, d2
 	vmlal.s32	q2, d23, d1
 	vmlal.s32	q2, d24, d0
-	add		r2, sp, #640
+	add		r2, sp, #608
 	vst1.8		{d20-d21}, [r2, : 128]
 	vmull.s32	q7, d18, d9
 	vmlal.s32	q7, d26, d3
@@ -863,14 +863,14 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q7, d28, d1
 	vmlal.s32	q7, d23, d6
 	vmlal.s32	q7, d29, d0
-	add		r2, sp, #656
+	add		r2, sp, #624
 	vst1.8		{d10-d11}, [r2, : 128]
 	vmull.s32	q5, d18, d3
 	vmlal.s32	q5, d19, d2
 	vmlal.s32	q5, d22, d1
 	vmlal.s32	q5, d23, d0
 	vmlal.s32	q5, d12, d8
-	add		r2, sp, #672
+	add		r2, sp, #640
 	vst1.8		{d16-d17}, [r2, : 128]
 	vmull.s32	q4, d18, d8
 	vmlal.s32	q4, d26, d2
@@ -882,7 +882,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q8, d26, d1
 	vmlal.s32	q8, d19, d6
 	vmlal.s32	q8, d27, d0
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vld1.8		{d20-d21}, [r2, : 128]
 	vmlal.s32	q7, d24, d21
 	vmlal.s32	q7, d25, d20
@@ -891,32 +891,32 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q8, d22, d21
 	vmlal.s32	q8, d28, d20
 	vmlal.s32	q5, d24, d20
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vst1.8		{d14-d15}, [r2, : 128]
 	vmull.s32	q7, d18, d6
 	vmlal.s32	q7, d26, d0
-	add		r2, sp, #656
+	add		r2, sp, #624
 	vld1.8		{d30-d31}, [r2, : 128]
 	vmlal.s32	q2, d30, d21
 	vmlal.s32	q7, d19, d21
 	vmlal.s32	q7, d27, d20
-	add		r2, sp, #624
+	add		r2, sp, #592
 	vld1.8		{d26-d27}, [r2, : 128]
 	vmlal.s32	q4, d25, d27
 	vmlal.s32	q8, d29, d27
 	vmlal.s32	q8, d25, d26
 	vmlal.s32	q7, d28, d27
 	vmlal.s32	q7, d29, d26
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vld1.8		{d28-d29}, [r2, : 128]
 	vmlal.s32	q4, d24, d29
 	vmlal.s32	q8, d23, d29
 	vmlal.s32	q8, d24, d28
 	vmlal.s32	q7, d22, d29
 	vmlal.s32	q7, d23, d28
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vst1.8		{d8-d9}, [r2, : 128]
-	add		r2, sp, #560
+	add		r2, sp, #528
 	vld1.8		{d8-d9}, [r2, : 128]
 	vmlal.s32	q7, d24, d9
 	vmlal.s32	q7, d25, d31
@@ -937,7 +937,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q0, d23, d26
 	vmlal.s32	q0, d24, d31
 	vmlal.s32	q0, d19, d20
-	add		r2, sp, #640
+	add		r2, sp, #608
 	vld1.8		{d18-d19}, [r2, : 128]
 	vmlal.s32	q2, d18, d7
 	vmlal.s32	q2, d19, d6
@@ -949,24 +949,24 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q0, d19, d9
 	vmlal.s32	q6, d18, d29
 	vmlal.s32	q6, d19, d28
-	add		r2, sp, #592
+	add		r2, sp, #560
 	vld1.8		{d18-d19}, [r2, : 128]
-	add		r2, sp, #512
+	add		r2, sp, #480
 	vld1.8		{d22-d23}, [r2, : 128]
 	vmlal.s32	q5, d19, d7
 	vmlal.s32	q0, d18, d21
 	vmlal.s32	q0, d19, d29
 	vmlal.s32	q6, d18, d6
-	add		r2, sp, #528
+	add		r2, sp, #496
 	vld1.8		{d6-d7}, [r2, : 128]
 	vmlal.s32	q6, d19, d21
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vld1.8		{d18-d19}, [r2, : 128]
 	vmlal.s32	q0, d30, d8
-	add		r2, sp, #672
+	add		r2, sp, #640
 	vld1.8		{d20-d21}, [r2, : 128]
 	vmlal.s32	q5, d30, d29
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vld1.8		{d24-d25}, [r2, : 128]
 	vmlal.s32	q1, d30, d28
 	vadd.i64	q13, q0, q11
@@ -1064,7 +1064,7 @@ ENTRY(curve25519_neon)
 	sub		r4, r4, #24
 	vst1.8		d0, [r2, : 64]
 	vst1.8		d1, [r4, : 64]
-	add		r2, sp, #544
+	add		r2, sp, #512
 	add		r4, r3, #144
 	add		r5, r3, #192
 	vld1.8		{d0-d1}, [r2, : 128]
@@ -1134,14 +1134,14 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q0, d12, d8
 	vmlal.s32	q0, d13, d17
 	vmlal.s32	q0, d6, d6
-	add		r2, sp, #512
+	add		r2, sp, #480
 	vld1.8		{d18-d19}, [r2, : 128]
 	vmull.s32	q3, d16, d7
 	vmlal.s32	q3, d10, d15
 	vmlal.s32	q3, d11, d14
 	vmlal.s32	q3, d12, d9
 	vmlal.s32	q3, d13, d8
-	add		r2, sp, #528
+	add		r2, sp, #496
 	vld1.8		{d8-d9}, [r2, : 128]
 	vadd.i64	q5, q12, q9
 	vadd.i64	q6, q15, q9
@@ -1290,21 +1290,21 @@ ENTRY(curve25519_neon)
 	vadd.i32	q5, q5, q0
 	vtrn.32		q11, q14
 	vadd.i32	q6, q6, q3
-	add		r2, sp, #560
+	add		r2, sp, #528
 	vadd.i32	q10, q10, q2
 	vtrn.32		d24, d25
 	vst1.8		{d12-d13}, [r2, : 128]
 	vshl.i32	q6, q13, #1
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vst1.8		{d20-d21}, [r2, : 128]
 	vshl.i32	q10, q14, #1
-	add		r2, sp, #592
+	add		r2, sp, #560
 	vst1.8		{d12-d13}, [r2, : 128]
 	vshl.i32	q15, q12, #1
 	vadd.i32	q8, q8, q4
 	vext.32		d10, d31, d30, #0
 	vadd.i32	q7, q7, q1
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vst1.8		{d16-d17}, [r2, : 128]
 	vmull.s32	q8, d18, d5
 	vmlal.s32	q8, d26, d4
@@ -1316,7 +1316,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q8, d29, d1
 	vmlal.s32	q8, d24, d6
 	vmlal.s32	q8, d25, d0
-	add		r2, sp, #624
+	add		r2, sp, #592
 	vst1.8		{d14-d15}, [r2, : 128]
 	vmull.s32	q2, d18, d4
 	vmlal.s32	q2, d12, d9
@@ -1325,7 +1325,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q2, d22, d2
 	vmlal.s32	q2, d23, d1
 	vmlal.s32	q2, d24, d0
-	add		r2, sp, #640
+	add		r2, sp, #608
 	vst1.8		{d20-d21}, [r2, : 128]
 	vmull.s32	q7, d18, d9
 	vmlal.s32	q7, d26, d3
@@ -1335,14 +1335,14 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q7, d28, d1
 	vmlal.s32	q7, d23, d6
 	vmlal.s32	q7, d29, d0
-	add		r2, sp, #656
+	add		r2, sp, #624
 	vst1.8		{d10-d11}, [r2, : 128]
 	vmull.s32	q5, d18, d3
 	vmlal.s32	q5, d19, d2
 	vmlal.s32	q5, d22, d1
 	vmlal.s32	q5, d23, d0
 	vmlal.s32	q5, d12, d8
-	add		r2, sp, #672
+	add		r2, sp, #640
 	vst1.8		{d16-d17}, [r2, : 128]
 	vmull.s32	q4, d18, d8
 	vmlal.s32	q4, d26, d2
@@ -1354,7 +1354,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q8, d26, d1
 	vmlal.s32	q8, d19, d6
 	vmlal.s32	q8, d27, d0
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vld1.8		{d20-d21}, [r2, : 128]
 	vmlal.s32	q7, d24, d21
 	vmlal.s32	q7, d25, d20
@@ -1363,32 +1363,32 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q8, d22, d21
 	vmlal.s32	q8, d28, d20
 	vmlal.s32	q5, d24, d20
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vst1.8		{d14-d15}, [r2, : 128]
 	vmull.s32	q7, d18, d6
 	vmlal.s32	q7, d26, d0
-	add		r2, sp, #656
+	add		r2, sp, #624
 	vld1.8		{d30-d31}, [r2, : 128]
 	vmlal.s32	q2, d30, d21
 	vmlal.s32	q7, d19, d21
 	vmlal.s32	q7, d27, d20
-	add		r2, sp, #624
+	add		r2, sp, #592
 	vld1.8		{d26-d27}, [r2, : 128]
 	vmlal.s32	q4, d25, d27
 	vmlal.s32	q8, d29, d27
 	vmlal.s32	q8, d25, d26
 	vmlal.s32	q7, d28, d27
 	vmlal.s32	q7, d29, d26
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vld1.8		{d28-d29}, [r2, : 128]
 	vmlal.s32	q4, d24, d29
 	vmlal.s32	q8, d23, d29
 	vmlal.s32	q8, d24, d28
 	vmlal.s32	q7, d22, d29
 	vmlal.s32	q7, d23, d28
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vst1.8		{d8-d9}, [r2, : 128]
-	add		r2, sp, #560
+	add		r2, sp, #528
 	vld1.8		{d8-d9}, [r2, : 128]
 	vmlal.s32	q7, d24, d9
 	vmlal.s32	q7, d25, d31
@@ -1409,7 +1409,7 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q0, d23, d26
 	vmlal.s32	q0, d24, d31
 	vmlal.s32	q0, d19, d20
-	add		r2, sp, #640
+	add		r2, sp, #608
 	vld1.8		{d18-d19}, [r2, : 128]
 	vmlal.s32	q2, d18, d7
 	vmlal.s32	q2, d19, d6
@@ -1421,24 +1421,24 @@ ENTRY(curve25519_neon)
 	vmlal.s32	q0, d19, d9
 	vmlal.s32	q6, d18, d29
 	vmlal.s32	q6, d19, d28
-	add		r2, sp, #592
+	add		r2, sp, #560
 	vld1.8		{d18-d19}, [r2, : 128]
-	add		r2, sp, #512
+	add		r2, sp, #480
 	vld1.8		{d22-d23}, [r2, : 128]
 	vmlal.s32	q5, d19, d7
 	vmlal.s32	q0, d18, d21
 	vmlal.s32	q0, d19, d29
 	vmlal.s32	q6, d18, d6
-	add		r2, sp, #528
+	add		r2, sp, #496
 	vld1.8		{d6-d7}, [r2, : 128]
 	vmlal.s32	q6, d19, d21
-	add		r2, sp, #576
+	add		r2, sp, #544
 	vld1.8		{d18-d19}, [r2, : 128]
 	vmlal.s32	q0, d30, d8
-	add		r2, sp, #672
+	add		r2, sp, #640
 	vld1.8		{d20-d21}, [r2, : 128]
 	vmlal.s32	q5, d30, d29
-	add		r2, sp, #608
+	add		r2, sp, #576
 	vld1.8		{d24-d25}, [r2, : 128]
 	vmlal.s32	q1, d30, d28
 	vadd.i64	q13, q0, q11
@@ -1536,8 +1536,8 @@ ENTRY(curve25519_neon)
 	sub		r4, r4, #24
 	vst1.8		d0, [r2, : 64]
 	vst1.8		d1, [r4, : 64]
-	ldr		r2, [sp, #488]
-	ldr		r4, [sp, #492]
+	ldr		r2, [sp, #456]
+	ldr		r4, [sp, #460]
 	subs		r5, r2, #1
 	bge		.Lmainloop
 	add		r1, r3, #144
@@ -1606,7 +1606,7 @@ ENTRY(curve25519_neon)
 	vld1.8		{d6-d7}, [r7, : 128]!
 	vld1.8		{d9}, [r7, : 64]
 	vld1.8		{d10-d11}, [r6, : 128]!
-	add		r7, sp, #416
+	add		r7, sp, #384
 	vld1.8		{d12-d13}, [r6, : 128]!
 	vmul.i32	q7, q2, q0
 	vld1.8		{d8}, [r6, : 64]
@@ -1721,7 +1721,7 @@ ENTRY(curve25519_neon)
 	vext.32		d10, d6, d6, #0
 	vmov.i32	q1, #0xffffffff
 	vshl.i64	q4, q1, #25
-	add		r7, sp, #512
+	add		r7, sp, #480
 	vld1.8		{d14-d15}, [r7, : 128]
 	vadd.i64	q9, q2, q7
 	vshl.i64	q1, q1, #26
@@ -1730,7 +1730,7 @@ ENTRY(curve25519_neon)
 	vadd.i64	q5, q5, q10
 	vand		q9, q9, q1
 	vld1.8		{d16}, [r6, : 64]!
-	add		r6, sp, #528
+	add		r6, sp, #496
 	vld1.8		{d20-d21}, [r6, : 128]
 	vadd.i64	q11, q5, q10
 	vsub.i64	q2, q2, q9
@@ -1797,7 +1797,7 @@ ENTRY(curve25519_neon)
 	vld1.8		{d6-d7}, [r5, : 128]!
 	vld1.8		{d9}, [r5, : 64]
 	vld1.8		{d10-d11}, [r2, : 128]!
-	add		r5, sp, #416
+	add		r5, sp, #384
 	vld1.8		{d12-d13}, [r2, : 128]!
 	vmul.i32	q7, q2, q0
 	vld1.8		{d8}, [r2, : 64]
@@ -1912,7 +1912,7 @@ ENTRY(curve25519_neon)
 	vext.32		d10, d6, d6, #0
 	vmov.i32	q1, #0xffffffff
 	vshl.i64	q4, q1, #25
-	add		r5, sp, #512
+	add		r5, sp, #480
 	vld1.8		{d14-d15}, [r5, : 128]
 	vadd.i64	q9, q2, q7
 	vshl.i64	q1, q1, #26
@@ -1921,7 +1921,7 @@ ENTRY(curve25519_neon)
 	vadd.i64	q5, q5, q10
 	vand		q9, q9, q1
 	vld1.8		{d16}, [r2, : 64]!
-	add		r2, sp, #528
+	add		r2, sp, #496
 	vld1.8		{d20-d21}, [r2, : 128]
 	vadd.i64	q11, q5, q10
 	vsub.i64	q2, q2, q9
