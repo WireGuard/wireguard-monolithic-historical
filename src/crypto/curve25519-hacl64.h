@@ -8,16 +8,29 @@
  */
 
 typedef __uint128_t u128;
-static __always_inline u64 u64_eq_mask(u64 x, u64 y)
+
+static __always_inline u64 u64_eq_mask(u64 a, u64 b)
 {
-	x ^= y;
-	x |= -x;
-	return (x >> 63) - 1;
+	u64 x = a ^ b;
+	u64 minus_x = ~x + (u64)1U;
+	u64 x_or_minus_x = x | minus_x;
+	u64 xnx = x_or_minus_x >> (u32)63U;
+	u64 c = xnx - (u64)1U;
+	return c;
 }
 
-static __always_inline u64 u64_gte_mask(u64 x, u64 y)
+static __always_inline u64 u64_gte_mask(u64 a, u64 b)
 {
-	return ((x ^ ((x ^ y) | ((x - y) ^ y))) >> 63) - 1;
+	u64 x = a;
+	u64 y = b;
+	u64 x_xor_y = x ^ y;
+	u64 x_sub_y = x - y;
+	u64 x_sub_y_xor_y = x_sub_y ^ y;
+	u64 q = x_xor_y | x_sub_y_xor_y;
+	u64 x_xor_q = x ^ q;
+	u64 x_xor_q_ = x_xor_q >> (u32)63U;
+	u64 c = x_xor_q_ - (u64)1U;
+	return c;
 }
 
 static __always_inline void modulo_carry_top(u64 *b)
