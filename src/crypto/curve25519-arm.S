@@ -21,8 +21,8 @@ ENTRY(curve25519_neon)
 	sub		sp, sp, #704
 	and		sp, sp, #0xfffffff0
 	add		r3, sp, #0
-	movw		r4, 0
-	movw		r5, 254
+	movw		r4, #0
+	movw		r5, #254
 	vmov.i32	q0, #1
 	vshr.u64	q1, q0, #7
 	vshr.u64	q0, q0, #8
@@ -40,7 +40,7 @@ ENTRY(curve25519_neon)
 	vst1.8		{d4-d5}, [r6, : 128]!
 	vst1.8		d4, [r6, : 64]
 	add		r6, r3, #0
-	movw		r7, 960
+	movw		r7, #960
 	sub		r7, r7, #2
 	neg		r7, r7
 	sub		r7, r7, r7, LSL #7
@@ -1548,41 +1548,41 @@ ENTRY(curve25519_neon)
 	vst1.8		{d0-d1}, [r2, : 128]!
 	vst1.8		{d2-d3}, [r2, : 128]!
 	vst1.8		d4, [r2, : 64]
-	movw		r1, 0
+	movw		r1, #0
 .Linvertloop:
 	add		r2, r3, #144
-	movw		r4, 0
-	movw		r5, 2
+	movw		r4, #0
+	movw		r5, #2
 	cmp		r1, #1
-	moveq		r5, 1
+	moveq		r5, #1
 	addeq		r2, r3, #336
 	addeq		r4, r3, #48
 	cmp		r1, #2
-	moveq		r5, 1
+	moveq		r5, #1
 	addeq		r2, r3, #48
 	cmp		r1, #3
-	moveq		r5, 5
+	moveq		r5, #5
 	addeq		r4, r3, #336
 	cmp		r1, #4
-	moveq		r5, 10
+	moveq		r5, #10
 	cmp		r1, #5
-	moveq		r5, 20
+	moveq		r5, #20
 	cmp		r1, #6
-	moveq		r5, 10
+	moveq		r5, #10
 	addeq		r2, r3, #336
 	addeq		r4, r3, #336
 	cmp		r1, #7
-	moveq		r5, 50
+	moveq		r5, #50
 	cmp		r1, #8
-	moveq		r5, 100
+	moveq		r5, #100
 	cmp		r1, #9
-	moveq		r5, 50
+	moveq		r5, #50
 	addeq		r2, r3, #336
 	cmp		r1, #10
-	moveq		r5, 5
+	moveq		r5, #5
 	addeq		r2, r3, #48
 	cmp		r1, #11
-	moveq		r5, 0
+	moveq		r5, #0
 	addeq		r2, r3, #96
 	add		r6, r3, #144
 	add		r7, r3, #288
@@ -2088,7 +2088,7 @@ ENTRY(curve25519_neon)
 	str		r7, [r0, #20]
 	str		r8, [r0, #24]
 	str		r1, [r0, #28]
-	movw		r0, 0
+	movw		r0, #0
 	mov		sp, ip
 	pop		{r4-r11, pc}
 ENDPROC(curve25519_neon)
