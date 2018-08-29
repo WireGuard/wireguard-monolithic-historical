@@ -9,8 +9,9 @@
 #include "messages.h"
 #include "ratelimiter.h"
 #include "timers.h"
-#include "crypto/blake2s.h"
-#include "crypto/chacha20poly1305.h"
+
+#include <zinc/blake2s.h>
+#include <zinc/chacha20poly1305.h>
 
 #include <net/ipv6.h>
 #include <crypto/algapi.h>

@@ -10,8 +10,8 @@
 #include "socket.h"
 #include "messages.h"
 #include "cookie.h"
-#include "crypto/simd.h"
 
+#include <linux/simd.h>
 #include <linux/uio.h>
 #include <linux/inetdevice.h>
 #include <linux/socket.h>

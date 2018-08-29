@@ -3,9 +3,11 @@
 #
 # Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
+shopt -s globstar
+
 WG="$(readlink -f "$(dirname "$(readlink -f "$0")")/../../src/")"
 
-for i in "$WG"/*.c "$WG"/*.h "$WG"/uapi/*.h "$WG"/selftest/*.h "$WG"/crypto/*.c "$WG"/crypto/*.h "$WG"/crypto/*.S "$WG"/Kbuild "$WG"/Kconfig $(find "$WG"/compat -name '*.c' -o -name '*.h' -o -name '*.include'); do
+for i in "$WG"/*.c "$WG"/*.h "$WG"/uapi/*.h "$WG"/selftest/*.h "$WG"/Kbuild "$WG"/Kconfig "$WG"/crypto/**/*.c "$WG"/crypto/**/*.h "$WG"/crypto/**/*.S "$WG"/crypto/**/*.include "$WG"/compat/**/*.c "$WG"/compat/**/*.h "$WG"/compat/**/*.include; do
 	diff -u /dev/null "$i" | sed "s:${WG}:b/net/wireguard:;s:Kbuild:Makefile:"
 done
 

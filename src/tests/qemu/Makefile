@@ -22,8 +22,9 @@ NR_CPUS ?= 4
 
 MIRROR := https://download.wireguard.com/qemu-test/distfiles/
 
-WIREGUARD_SOURCES := $(wildcard ../../*.c ../../*.h ../../selftest/*.h ../../crypto/*.c ../../crypto/*.h ../../crypto/*.S ../../compat/*.h)
-TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools/*.h ../../uapi/*.h ../../crypto/curve25519-hacl64.h ../../crypto/curve25519-fiat32.h)
+rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
+WIREGUARD_SOURCES := $(wildcard ../../Kbuild ../../Kconfig ../../*.c ../../*.h ../../selftest/*.h ../../uapi/*.h) $(call rwildcard,../../crypto/,*.c *.h *.S *.include) $(call rwildcard,../../compat/,*.c *.h *.include)
+TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools/*.h ../../uapi/*.h ../../crypto/zinc/curve25519/curve25519-hacl64.h ../../crypto/zinc/curve25519/curve25519-fiat32.h)
 
 default: qemu
 

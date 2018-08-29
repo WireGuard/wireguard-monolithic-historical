@@ -10,8 +10,8 @@
 #include "messages.h"
 #include "cookie.h"
 #include "socket.h"
-#include "crypto/simd.h"
 
+#include <linux/simd.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/udp.h>

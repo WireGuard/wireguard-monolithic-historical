@@ -53,9 +53,9 @@ static noinline void memzero_explicit(void *s, size_t count)
 }
 
 #ifdef __SIZEOF_INT128__
-#include "../crypto/curve25519-hacl64.h"
+#include "../crypto/zinc/curve25519/curve25519-hacl64.h"
 #else
-#include "../crypto/curve25519-fiat32.h"
+#include "../crypto/zinc/curve25519/curve25519-fiat32.h"
 #endif
 
 void curve25519_generate_public(uint8_t pub[static CURVE25519_POINT_SIZE], const uint8_t secret[static CURVE25519_POINT_SIZE])

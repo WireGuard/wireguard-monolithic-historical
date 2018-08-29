@@ -1,0 +1,64 @@
+ifeq ($(wildcard $(src)/compat/compat.h),)
+cmd_include_path_prefix := $(srctree)/$(src)
+else
+cmd_include_path_prefix := $(src)
+endif
+
+ccflags-y += -I$(src)/crypto/include
+
+wireguard-y += crypto/zinc/chacha20/chacha20.o
+ifeq ($(CONFIG_X86_64)$(CONFIG_UML),y)
+wireguard-y += crypto/zinc/chacha20/chacha20-x86_64.o
+CFLAGS_chacha20.o += -include $(cmd_include_path_prefix)/crypto/zinc/chacha20/chacha20-x86_64-glue.h
+endif
+ifeq ($(CONFIG_ARM),y)
+wireguard-y += crypto/zinc/chacha20/chacha20-arm.o
+CFLAGS_chacha20.o += -include $(cmd_include_path_prefix)/crypto/zinc/chacha20/chacha20-arm-glue.h
+endif
+ifeq ($(CONFIG_ARM64),y)
+wireguard-y += crypto/zinc/chacha20/chacha20-arm64.o
+CFLAGS_chacha20.o += -include $(cmd_include_path_prefix)/crypto/zinc/chacha20/chacha20-arm-glue.h
+endif
+ifeq ($(CONFIG_MIPS)$(CONFIG_CPU_MIPS32_R2),yy)
+wireguard-y += crypto/zinc/chacha20/chacha20-mips.o
+CFLAGS_chacha20.o += -include $(cmd_include_path_prefix)/crypto/zinc/chacha20/chacha20-mips-glue.h
+endif
+
+wireguard-y += crypto/zinc/poly1305/poly1305.o
+ifeq ($(CONFIG_X86_64)$(CONFIG_UML),y)
+wireguard-y += crypto/zinc/poly1305/poly1305-x86_64.o
+CFLAGS_poly1305.o += -include $(cmd_include_path_prefix)/crypto/zinc/poly1305/poly1305-x86_64-glue.h
+endif
+ifeq ($(CONFIG_ARM),y)
+wireguard-y += crypto/zinc/poly1305/poly1305-arm.o
+CFLAGS_poly1305.o += -include $(cmd_include_path_prefix)/crypto/zinc/poly1305/poly1305-arm-glue.h
+endif
+ifeq ($(CONFIG_ARM64),y)
+wireguard-y += crypto/zinc/poly1305/poly1305-arm64.o
+CFLAGS_poly1305.o += -include $(cmd_include_path_prefix)/crypto/zinc/poly1305/poly1305-arm-glue.h
+endif
+ifeq ($(CONFIG_MIPS)$(CONFIG_CPU_MIPS32_R2),yy)
+wireguard-y += crypto/zinc/poly1305/poly1305-mips.o
+CFLAGS_poly1305.o += -include $(cmd_include_path_prefix)/crypto/zinc/poly1305/poly1305-mips-glue.h
+endif
+ifeq ($(CONFIG_MIPS)$(CONFIG_64BIT),yy)
+wireguard-y += crypto/zinc/poly1305/poly1305-mips64.o
+CFLAGS_poly1305.o += -include $(cmd_include_path_prefix)/crypto/zinc/poly1305/poly1305-mips-glue.h
+endif
+
+wireguard-y += crypto/zinc/chacha20poly1305.o
+
+wireguard-y += crypto/zinc/curve25519/curve25519.o
+ifeq ($(CONFIG_ARM)$(CONFIG_KERNEL_MODE_NEON),yy)
+wireguard-y += crypto/zinc/curve25519/curve25519-arm.o
+CFLAGS_curve25519.o += -include $(cmd_include_path_prefix)/crypto/zinc/curve25519/curve25519-arm-glue.h
+endif
+ifeq ($(CONFIG_X86_64)$(CONFIG_UML),y)
+CFLAGS_curve25519.o += -include $(cmd_include_path_prefix)/crypto/zinc/curve25519/curve25519-x86_64-glue.h
+endif
+
+wireguard-y += crypto/zinc/blake2s/blake2s.o
+ifeq ($(CONFIG_X86_64)$(CONFIG_UML),y)
+wireguard-y += crypto/zinc/blake2s/blake2s-x86_64.o
+CFLAGS_blake2s.o += -include $(cmd_include_path_prefix)/crypto/zinc/blake2s/blake2s-x86_64-glue.h
+endif
