@@ -36,7 +36,8 @@ static const struct nla_policy peer_policy[WGPEER_A_MAX + 1] = {
 	[WGPEER_A_LAST_HANDSHAKE_TIME]		= { .len = sizeof(struct timespec) },
 	[WGPEER_A_RX_BYTES]			= { .type = NLA_U64 },
 	[WGPEER_A_TX_BYTES]			= { .type = NLA_U64 },
-	[WGPEER_A_ALLOWEDIPS]			= { .type = NLA_NESTED }
+	[WGPEER_A_ALLOWEDIPS]			= { .type = NLA_NESTED },
+	[WGPEER_A_PROTOCOL_VERSION]		= { .type = NLA_U32 }
 };
 
 static const struct nla_policy allowedip_policy[WGALLOWEDIP_A_MAX + 1] = {
@@ -128,7 +129,8 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index,
 		    nla_put_u64_64bit(skb, WGPEER_A_TX_BYTES, peer->tx_bytes,
 				      WGPEER_A_UNSPEC) ||
 		    nla_put_u64_64bit(skb, WGPEER_A_RX_BYTES, peer->rx_bytes,
-				      WGPEER_A_UNSPEC))
+				      WGPEER_A_UNSPEC) ||
+		    nla_put_u32(skb, WGPEER_A_PROTOCOL_VERSION, 1))
 			goto err;
 
 		read_lock_bh(&peer->endpoint_lock);
@@ -362,6 +364,12 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 		preshared_key = nla_data(attrs[WGPEER_A_PRESHARED_KEY]);
 	if (attrs[WGPEER_A_FLAGS])
 		flags = nla_get_u32(attrs[WGPEER_A_FLAGS]);
+
+	ret = -EPFNOSUPPORT;
+	if (attrs[WGPEER_A_PROTOCOL_VERSION]) {
+		if (nla_get_u32(attrs[WGPEER_A_PROTOCOL_VERSION]) != 1)
+			goto out;
+	}
 
 	peer = pubkey_hashtable_lookup(&wg->peer_hashtable,
 				       nla_data(attrs[WGPEER_A_PUBLIC_KEY]));

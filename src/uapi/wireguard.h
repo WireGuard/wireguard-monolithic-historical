@@ -47,6 +47,7 @@
  *				2: NLA_NESTED
  *					...
  *				...
+ *			WGPEER_A_PROTOCOL_VERSION: NLA_U32
  *		1: NLA_NESTED
  *			...
  *		...
@@ -101,6 +102,10 @@
  *				2: NLA_NESTED
  *					...
  *				...
+ *			WGPEER_A_PROTOCOL_VERSION: NLA_U32, should not be set or used at all by most
+ *						   users of this API, as the most recent protocol
+ *						   will be used when this is unset. Otherwise, must
+ *						   be set to 1.
  *		1: NLA_NESTED
  *			...
  *		...
@@ -166,6 +171,7 @@ enum wgpeer_attribute {
 	WGPEER_A_RX_BYTES,
 	WGPEER_A_TX_BYTES,
 	WGPEER_A_ALLOWEDIPS,
+	WGPEER_A_PROTOCOL_VERSION,
 	__WGPEER_A_LAST
 };
 #define WGPEER_A_MAX (__WGPEER_A_LAST - 1)
