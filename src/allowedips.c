@@ -57,8 +57,8 @@ static void node_free_rcu(struct rcu_head *rcu)
 	})
 static void root_free_rcu(struct rcu_head *rcu)
 {
-	struct allowedips_node *node, *stack[128] =
-		{ container_of(rcu, struct allowedips_node, rcu) };
+	struct allowedips_node *node, *stack[128] = {
+		container_of(rcu, struct allowedips_node, rcu) };
 	unsigned int len = 1;
 
 	while (len > 0 && (node = stack[--len]) &&

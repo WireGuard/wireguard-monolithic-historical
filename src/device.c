@@ -407,8 +407,9 @@ static int netdevice_notification(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block netdevice_notifier =
-				{ .notifier_call = netdevice_notification };
+static struct notifier_block netdevice_notifier = {
+	.notifier_call = netdevice_notification
+};
 
 int __init device_init(void)
 {

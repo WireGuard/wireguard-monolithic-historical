@@ -177,7 +177,7 @@ void timers_data_received(struct wireguard_peer *peer)
 
 /* Should be called after any type of authenticated packet is sent, whether
  * keepalive, data, or handshake.
-*/
+ */
 void timers_any_authenticated_packet_sent(struct wireguard_peer *peer)
 {
 	del_peer_timer(peer, &peer->timer_send_keepalive);

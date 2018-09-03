@@ -84,8 +84,8 @@ static void gc_entries(struct work_struct *work)
 
 bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 {
-	struct { __be64 ip; u32 net; } data =
-		{ .net = (unsigned long)net & 0xffffffff };
+	struct { __be64 ip; u32 net; } data = {
+		.net = (unsigned long)net & 0xffffffff };
 	struct ratelimiter_entry *entry;
 	struct hlist_head *bucket;
 
