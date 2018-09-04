@@ -30,7 +30,7 @@ peer_create(struct wireguard_device *wg,
 		return NULL;
 
 	peer = kzalloc(sizeof(*peer), GFP_KERNEL);
-	if (!peer)
+	if (unlikely(!peer))
 		return NULL;
 	peer->device = wg;
 

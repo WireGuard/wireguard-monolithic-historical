@@ -175,9 +175,9 @@ static int get_device_start(struct netlink_callback *cb)
 
 	if (ret < 0)
 		return ret;
-	cb->args[2] =
-		(long)kzalloc(sizeof(struct allowedips_cursor), GFP_KERNEL);
-	if (!cb->args[2])
+	cb->args[2] = (long)kzalloc(sizeof(struct allowedips_cursor),
+				    GFP_KERNEL);
+	if (unlikely(!cb->args[2]))
 		return -ENOMEM;
 	wg = lookup_interface(attrs, cb->skb);
 	if (IS_ERR(wg)) {

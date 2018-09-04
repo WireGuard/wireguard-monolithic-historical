@@ -133,7 +133,7 @@ bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
 		goto err_oom;
 
 	entry = kmem_cache_alloc(entry_cache, GFP_KERNEL);
-	if (!entry)
+	if (unlikely(!entry))
 		goto err_oom;
 
 	entry->net = net;
@@ -174,12 +174,12 @@ int ratelimiter_init(void)
 	max_entries = table_size * 8;
 
 	table_v4 = kvzalloc(table_size * sizeof(*table_v4), GFP_KERNEL);
-	if (!table_v4)
+	if (unlikely(!table_v4))
 		goto err_kmemcache;
 
 #if IS_ENABLED(CONFIG_IPV6)
 	table_v6 = kvzalloc(table_size * sizeof(*table_v6), GFP_KERNEL);
-	if (!table_v6) {
+	if (unlikely(!table_v6)) {
 		kvfree(table_v4);
 		goto err_kmemcache;
 	}
