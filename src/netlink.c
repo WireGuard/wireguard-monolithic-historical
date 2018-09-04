@@ -122,7 +122,7 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index,
 			goto err;
 
 		if (nla_put(skb, WGPEER_A_LAST_HANDSHAKE_TIME,
-			    sizeof(struct timespec),
+			    sizeof(peer->walltime_last_handshake),
 			    &peer->walltime_last_handshake) ||
 		    nla_put_u16(skb, WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL,
 				peer->persistent_keepalive_interval) ||
@@ -136,11 +136,11 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index,
 		read_lock_bh(&peer->endpoint_lock);
 		if (peer->endpoint.addr.sa_family == AF_INET)
 			fail = nla_put(skb, WGPEER_A_ENDPOINT,
-				       sizeof(struct sockaddr_in),
+				       sizeof(peer->endpoint.addr4),
 				       &peer->endpoint.addr4);
 		else if (peer->endpoint.addr.sa_family == AF_INET6)
 			fail = nla_put(skb, WGPEER_A_ENDPOINT,
-				       sizeof(struct sockaddr_in6),
+				       sizeof(peer->endpoint.addr6),
 				       &peer->endpoint.addr6);
 		read_unlock_bh(&peer->endpoint_lock);
 		if (fail)
@@ -336,8 +336,7 @@ static int set_allowedip(struct wireguard_peer *peer, struct nlattr **attrs)
 			nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer,
 			&peer->device->device_update_lock);
 	else if (family == AF_INET6 && cidr <= 128 &&
-		 nla_len(attrs[WGALLOWEDIP_A_IPADDR]) ==
-			 sizeof(struct in6_addr))
+		 nla_len(attrs[WGALLOWEDIP_A_IPADDR]) == sizeof(struct in6_addr))
 		ret = allowedips_insert_v6(
 			&peer->device->peer_allowedips,
 			nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer,

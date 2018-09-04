@@ -53,12 +53,12 @@ static void sort_peers(struct wgdevice *device)
 		++peer_count;
 	if (!peer_count)
 		return;
-	peers = calloc(peer_count, sizeof(struct wgpeer *));
+	peers = calloc(peer_count, sizeof(*peers));
 	if (!peers)
 		return;
 	for_each_wgpeer(device, peer)
 		peers[i++] = peer;
-	qsort(peers, peer_count, sizeof(struct wgpeer *), peer_cmp);
+	qsort(peers, peer_count, sizeof(*peers), peer_cmp);
 	device->first_peer = peers[0];
 	peers[0]->next_peer = NULL;
 	for (i = 1; i < peer_count; ++i) {

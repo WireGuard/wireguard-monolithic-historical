@@ -294,7 +294,7 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 	FILE *f;
 	int ret = -EPROTO;
 
-	*out = dev = calloc(1, sizeof(struct wgdevice));
+	*out = dev = calloc(1, sizeof(*dev));
 	if (!dev)
 		return -errno;
 
@@ -332,7 +332,7 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 			dev->fwmark = NUM(0xffffffffU);
 			dev->flags |= WGDEVICE_HAS_FWMARK;
 		} else if (!strcmp(key, "public_key")) {
-			struct wgpeer *new_peer = calloc(1, sizeof(struct wgpeer));
+			struct wgpeer *new_peer = calloc(1, sizeof(*new_peer));
 
 			if (!new_peer) {
 				ret = -ENOMEM;
@@ -398,7 +398,7 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 
 			if (!mask || !isdigit(mask[0]))
 				break;
-			new_allowedip = calloc(1, sizeof(struct wgallowedip));
+			new_allowedip = calloc(1, sizeof(*new_allowedip));
 			if (!new_allowedip) {
 				ret = -ENOMEM;
 				goto err;
@@ -708,7 +708,7 @@ static int parse_allowedip(const struct nlattr *attr, void *data)
 static int parse_allowedips(const struct nlattr *attr, void *data)
 {
 	struct wgpeer *peer = data;
-	struct wgallowedip *new_allowedip = calloc(1, sizeof(struct wgallowedip));
+	struct wgallowedip *new_allowedip = calloc(1, sizeof(*new_allowedip));
 	int ret;
 
 	if (!new_allowedip) {
@@ -787,7 +787,7 @@ static int parse_peer(const struct nlattr *attr, void *data)
 static int parse_peers(const struct nlattr *attr, void *data)
 {
 	struct wgdevice *device = data;
-	struct wgpeer *new_peer = calloc(1, sizeof(struct wgpeer));
+	struct wgpeer *new_peer = calloc(1, sizeof(*new_peer));
 	int ret;
 
 	if (!new_peer) {
@@ -886,7 +886,7 @@ static int kernel_get_device(struct wgdevice **device, const char *interface)
 	struct mnlg_socket *nlg;
 
 try_again:
-	*device = calloc(1, sizeof(struct wgdevice));
+	*device = calloc(1, sizeof(**device));
 	if (!*device)
 		return -errno;
 

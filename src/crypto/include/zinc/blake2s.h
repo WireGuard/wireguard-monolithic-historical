@@ -65,7 +65,7 @@ static inline void blake2s_final(struct blake2s_state *state, u8 *out,
 		memzero_explicit(buffer, sizeof(buffer));
 	}
 
-	memzero_explicit(state, sizeof(struct blake2s_state));
+	memzero_explicit(state, sizeof(*state));
 }
 
 static inline void blake2s(u8 *out, const u8 *in, const u8 *key,

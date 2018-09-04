@@ -71,7 +71,7 @@ static inline void blake2s_init_param(struct blake2s_state *state,
 {
 	int i;
 
-	memset(state, 0, sizeof(struct blake2s_state));
+	memset(state, 0, sizeof(*state));
 	for (i = 0; i < 8; ++i)
 		state->h[i] = blake2s_iv[i] ^ le32_to_cpu(param->words[i]);
 }

@@ -62,7 +62,7 @@ bool __init ratelimiter_selftest(void)
 	if (!skb4)
 		goto err_nofree;
 	skb4->protocol = htons(ETH_P_IP);
-	hdr4 = (struct iphdr *)skb_put(skb4, sizeof(struct iphdr));
+	hdr4 = (struct iphdr *)skb_put(skb4, sizeof(*hdr4));
 	hdr4->saddr = htonl(8182);
 	skb_reset_network_header(skb4);
 	++test;
@@ -74,7 +74,7 @@ bool __init ratelimiter_selftest(void)
 		goto err_nofree;
 	}
 	skb6->protocol = htons(ETH_P_IPV6);
-	hdr6 = (struct ipv6hdr *)skb_put(skb6, sizeof(struct ipv6hdr));
+	hdr6 = (struct ipv6hdr *)skb_put(skb6, sizeof(*hdr6));
 	hdr6->saddr.in6_u.u6_addr32[0] = htonl(1212);
 	hdr6->saddr.in6_u.u6_addr32[1] = htonl(289188);
 	skb_reset_network_header(skb6);

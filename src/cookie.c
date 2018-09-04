@@ -68,7 +68,7 @@ void cookie_checker_precompute_peer_keys(struct wireguard_peer *peer)
 
 void cookie_init(struct cookie *cookie)
 {
-	memset(cookie, 0, sizeof(struct cookie));
+	memset(cookie, 0, sizeof(*cookie));
 	init_rwsem(&cookie->lock);
 }
 
@@ -120,7 +120,7 @@ enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker,
 					     bool check_cookie)
 {
 	struct message_macs *macs = (struct message_macs *)
-		(skb->data + skb->len - sizeof(struct message_macs));
+		(skb->data + skb->len - sizeof(*macs));
 	enum cookie_mac_state ret;
 	u8 computed_mac[COOKIE_LEN];
 	u8 cookie[COOKIE_LEN];
@@ -156,7 +156,7 @@ void cookie_add_mac_to_packet(void *message, size_t len,
 			      struct wireguard_peer *peer)
 {
 	struct message_macs *macs = (struct message_macs *)
-		((u8 *)message + len - sizeof(struct message_macs));
+		((u8 *)message + len - sizeof(*macs));
 
 	down_write(&peer->latest_cookie.lock);
 	compute_mac1(macs->mac1, message, len,
@@ -181,7 +181,7 @@ void cookie_message_create(struct message_handshake_cookie *dst,
 			   struct cookie_checker *checker)
 {
 	struct message_macs *macs = (struct message_macs *)
-		((u8 *)skb->data + skb->len - sizeof(struct message_macs));
+		((u8 *)skb->data + skb->len - sizeof(*macs));
 	u8 cookie[COOKIE_LEN];
 
 	dst->header.type = cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE);

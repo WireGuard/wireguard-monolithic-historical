@@ -38,10 +38,8 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 		timers_any_authenticated_packet_sent(peer);
 		atomic64_set(&peer->last_sent_handshake,
 			     ktime_get_boot_fast_ns());
-		socket_send_buffer_to_peer(
-			peer, &packet,
-			sizeof(struct message_handshake_initiation),
-			HANDSHAKE_DSCP);
+		socket_send_buffer_to_peer(peer, &packet, sizeof(packet),
+					   HANDSHAKE_DSCP);
 		timers_handshake_initiated(peer);
 	}
 }
@@ -102,10 +100,9 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 			timers_any_authenticated_packet_sent(peer);
 			atomic64_set(&peer->last_sent_handshake,
 				     ktime_get_boot_fast_ns());
-			socket_send_buffer_to_peer(
-				peer, &packet,
-				sizeof(struct message_handshake_response),
-				HANDSHAKE_DSCP);
+			socket_send_buffer_to_peer(peer, &packet,
+						   sizeof(packet),
+						   HANDSHAKE_DSCP);
 		}
 	}
 }
@@ -200,8 +197,7 @@ static inline bool skb_encrypt(struct sk_buff *skb,
 	 * and the header.
 	 */
 	skb_set_inner_network_header(skb, 0);
-	header = (struct message_data *)skb_push(skb,
-						 sizeof(struct message_data));
+	header = (struct message_data *)skb_push(skb, sizeof(*header));
 	header->header.type = cpu_to_le32(MESSAGE_DATA);
 	header->key_idx = keypair->remote_index;
 	header->counter = cpu_to_le64(PACKET_CB(skb)->nonce);

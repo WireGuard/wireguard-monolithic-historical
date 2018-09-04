@@ -67,7 +67,7 @@ bool noise_handshake_init(struct noise_handshake *handshake,
 			  const u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN],
 			  struct wireguard_peer *peer)
 {
-	memset(handshake, 0, sizeof(struct noise_handshake));
+	memset(handshake, 0, sizeof(*handshake));
 	init_rwsem(&handshake->lock);
 	handshake->entry.type = INDEX_HASHTABLE_HANDSHAKE;
 	handshake->entry.peer = peer;
@@ -103,8 +103,7 @@ void noise_handshake_clear(struct noise_handshake *handshake)
 
 static struct noise_keypair *keypair_create(struct wireguard_peer *peer)
 {
-	struct noise_keypair *keypair =
-		kzalloc(sizeof(struct noise_keypair), GFP_KERNEL);
+	struct noise_keypair *keypair = kzalloc(sizeof(*keypair), GFP_KERNEL);
 
 	if (unlikely(!keypair))
 		return NULL;

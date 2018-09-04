@@ -238,8 +238,7 @@ static void destruct(struct net_device *dev)
 	packet_queue_free(&wg->encrypt_queue, true);
 	rcu_barrier_bh(); /* Wait for all the peers to be actually freed. */
 	ratelimiter_uninit();
-	memzero_explicit(&wg->static_identity,
-			 sizeof(struct noise_static_identity));
+	memzero_explicit(&wg->static_identity, sizeof(wg->static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
@@ -285,7 +284,7 @@ static void setup(struct net_device *dev)
 	/* We need to keep the dst around in case of icmp replies. */
 	netif_keep_dst(dev);
 
-	memset(wg, 0, sizeof(struct wireguard_device));
+	memset(wg, 0, sizeof(*wg));
 	wg->dev = dev;
 }
 

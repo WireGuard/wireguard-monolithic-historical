@@ -310,7 +310,7 @@ static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **la
 		saved_entry = strdup(mask);
 		ip = strsep(&mask, "/");
 
-		new_allowedip = calloc(1, sizeof(struct wgallowedip));
+		new_allowedip = calloc(1, sizeof(*new_allowedip));
 		if (!new_allowedip) {
 			perror("calloc");
 			free(saved_entry);
@@ -464,8 +464,8 @@ out:
 
 bool config_read_init(struct config_ctx *ctx, bool append)
 {
-	memset(ctx, 0, sizeof(struct config_ctx));
-	ctx->device = calloc(1, sizeof(struct wgdevice));
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->device = calloc(1, sizeof(*ctx->device));
 	if (!ctx->device) {
 		perror("calloc");
 		return false;
@@ -511,7 +511,7 @@ static char *strip_spaces(const char *in)
 
 struct wgdevice *config_read_cmd(char *argv[], int argc)
 {
-	struct wgdevice *device = calloc(1, sizeof(struct wgdevice));
+	struct wgdevice *device = calloc(1, sizeof(*device));
 	struct wgpeer *peer = NULL;
 	struct wgallowedip *allowedip = NULL;
 
@@ -537,7 +537,7 @@ struct wgdevice *config_read_cmd(char *argv[], int argc)
 			argv += 2;
 			argc -= 2;
 		} else if (!strcmp(argv[0], "peer") && argc >= 2) {
-			struct wgpeer *new_peer = calloc(1, sizeof(struct wgpeer));
+			struct wgpeer *new_peer = calloc(1, sizeof(*new_peer));
 
 			allowedip = NULL;
 			if (!new_peer) {

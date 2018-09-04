@@ -245,7 +245,7 @@ int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg,
 int socket_endpoint_from_skb(struct endpoint *endpoint,
 			     const struct sk_buff *skb)
 {
-	memset(endpoint, 0, sizeof(struct endpoint));
+	memset(endpoint, 0, sizeof(*endpoint));
 	if (skb->protocol == htons(ETH_P_IP)) {
 		endpoint->addr4.sin_family = AF_INET;
 		endpoint->addr4.sin_port = udp_hdr(skb)->source;
