@@ -41,6 +41,7 @@ struct wg_device {
 	struct crypt_queue encrypt_queue, decrypt_queue;
 	struct sock __rcu *sock4, *sock6;
 	struct net *transit_net;
+	struct net *dev_net;
 	struct noise_static_identity static_identity;
 	struct workqueue_struct *handshake_receive_wq, *handshake_send_wq;
 	struct workqueue_struct *packet_crypt_wq;
@@ -56,10 +57,11 @@ struct wg_device {
 	unsigned int num_peers, device_update_gen;
 	u32 fwmark;
 	u16 incoming_port;
-	bool have_transit_net_ref;
 };
 
 int wg_device_init(void);
 void wg_device_uninit(void);
+void wg_device_set_nets(struct wg_device *wg, struct net *dev_net,
+			struct net *transit_net);
 
 #endif /* _WG_DEVICE_H */

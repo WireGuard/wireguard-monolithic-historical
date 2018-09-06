@@ -251,7 +251,7 @@ static void wg_destruct(struct net_device *dev)
 	skb_queue_purge(&wg->incoming_handshakes);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
-	if (wg->have_transit_net_ref)
+	if (wg->transit_net != wg->dev_net)
 		put_net(wg->transit_net);
 	mutex_unlock(&wg->device_update_lock);
 
@@ -304,7 +304,9 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 	struct wg_device *wg = netdev_priv(dev);
 	int ret = -ENOMEM;
 
-	wg->transit_net = src_net;
+	wg->dev_net = NULL;
+	wg->transit_net = NULL;
+	wg_device_set_nets(wg,  dev_net(dev), src_net);
 	init_rwsem(&wg->static_identity.lock);
 	mutex_init(&wg->socket_update_lock);
 	mutex_init(&wg->device_update_lock);
@@ -406,14 +408,8 @@ static int wg_netdevice_notification(struct notifier_block *nb,
 	if (action != NETDEV_REGISTER || dev->netdev_ops != &netdev_ops)
 		return 0;
 
-	if (dev_net(dev) == wg->transit_net && wg->have_transit_net_ref) {
-		put_net(wg->transit_net);
-		wg->have_transit_net_ref = false;
-	} else if (dev_net(dev) != wg->transit_net &&
-		   !wg->have_transit_net_ref) {
-		wg->have_transit_net_ref = true;
-		get_net(wg->transit_net);
-	}
+	wg_device_set_nets(wg, dev_net(dev), wg->transit_net);
+
 	return 0;
 }
 
@@ -458,4 +454,15 @@ void wg_device_uninit(void)
 	unregister_pm_notifier(&pm_notifier);
 #endif
 	rcu_barrier_bh();
+}
+
+void wg_device_set_nets(struct wg_device *wg, struct net *dev_net,
+			struct net *transit_net)
+{
+	if (wg->transit_net != wg->dev_net)
+		put_net(wg->transit_net);
+	wg->dev_net = dev_net;
+	wg->transit_net = transit_net;
+	if (wg->transit_net != wg->dev_net)
+		get_net(wg->transit_net);
 }
