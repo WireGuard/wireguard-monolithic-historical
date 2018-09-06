@@ -362,7 +362,7 @@ static int set_port(struct wg_device *wg, u16 port)
 		wg->incoming_port = port;
 		return 0;
 	}
-	return wg_socket_init(wg, port);
+	return wg_socket_init(wg, wg->transit_net, port);
 }
 
 static int set_allowedip(struct wg_peer *peer, struct nlattr **attrs)

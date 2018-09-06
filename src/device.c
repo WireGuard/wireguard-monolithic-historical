@@ -53,7 +53,7 @@ static int wg_open(struct net_device *dev)
 #endif
 #endif
 
-	ret = wg_socket_init(wg, wg->incoming_port);
+	ret = wg_socket_init(wg, wg->transit_net, wg->incoming_port);
 	if (ret < 0)
 		return ret;
 	mutex_lock(&wg->device_update_lock);
@@ -118,7 +118,7 @@ static int wg_stop(struct net_device *dev)
 	}
 	mutex_unlock(&wg->device_update_lock);
 	skb_queue_purge(&wg->incoming_handshakes);
-	wg_socket_reinit(wg, NULL, NULL);
+	wg_socket_reinit(wg, NULL, NULL, NULL);
 	return 0;
 }
 
@@ -236,7 +236,7 @@ static void wg_destruct(struct net_device *dev)
 	rtnl_unlock();
 	mutex_lock(&wg->device_update_lock);
 	wg->incoming_port = 0;
-	wg_socket_reinit(wg, NULL, NULL);
+	wg_socket_reinit(wg, NULL, NULL, NULL);
 	wg_allowedips_free(&wg->peer_allowedips, &wg->device_update_lock);
 	/* The final references are cleared in the below calls to destroy_workqueue. */
 	wg_peer_remove_all(wg);
