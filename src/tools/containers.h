@@ -75,7 +75,9 @@ enum {
 	WGDEVICE_HAS_PRIVATE_KEY = 1U << 1,
 	WGDEVICE_HAS_PUBLIC_KEY = 1U << 2,
 	WGDEVICE_HAS_LISTEN_PORT = 1U << 3,
-	WGDEVICE_HAS_FWMARK = 1U << 4
+	WGDEVICE_HAS_FWMARK = 1U << 4,
+	WGDEVICE_HAS_TRANSIT_NETNS_PID = 1U << 5,
+	WGDEVICE_HAS_TRANSIT_NETNS_FD = 1U << 6,
 };
 
 struct wgdevice {
@@ -89,6 +91,7 @@ struct wgdevice {
 
 	uint32_t fwmark;
 	uint16_t listen_port;
+	struct wgnetns transit_netns;
 
 	struct wgpeer *first_peer, *last_peer;
 };

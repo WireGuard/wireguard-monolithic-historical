@@ -19,6 +19,7 @@
 #include "containers.h"
 #include "ipc.h"
 #include "encoding.h"
+#include "netns.h"
 
 #define COMMENT_CHAR '#'
 
@@ -392,6 +393,8 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 	if (ctx->is_device_section) {
 		if (key_match("ListenPort"))
 			ret = parse_port(&ctx->device->listen_port, &ctx->device->flags, value);
+		else if (key_match("TransitNetns"))
+			ret = netns_parse(&ctx->device->transit_netns, value);
 		else if (key_match("FwMark"))
 			ret = parse_fwmark(&ctx->device->fwmark, &ctx->device->flags, value);
 		else if (key_match("PrivateKey")) {
@@ -522,6 +525,11 @@ struct wgdevice *config_read_cmd(char *argv[], int argc)
 	while (argc > 0) {
 		if (!strcmp(argv[0], "listen-port") && argc >= 2 && !peer) {
 			if (!parse_port(&device->listen_port, &device->flags, argv[1]))
+				goto error;
+			argv += 2;
+			argc -= 2;
+		} else if (!strcmp(argv[0], "transit-netns") && argc >= 2 && !peer) {
+			if (!netns_parse(&device->transit_netns, argv[1]))
 				goto error;
 			argv += 2;
 			argc -= 2;
