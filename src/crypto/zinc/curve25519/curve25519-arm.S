@@ -17,9 +17,9 @@
 ENTRY(curve25519_neon)
 	push		{r4-r11, lr}
 	mov		ip, sp
-	sub		sp, sp, #704
-	and		sp, sp, #0xfffffff0
-	add		r3, sp, #0
+	sub		r3, sp, #704
+	and		r3, r3, #0xfffffff0
+	mov		sp, r3
 	movw		r4, #0
 	movw		r5, #254
 	vmov.i32	q0, #1
