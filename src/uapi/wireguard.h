@@ -88,16 +88,18 @@
  * May only be called via NLM_F_REQUEST. The command must contain the following
  * tree of nested items. Exactly one of WGDEVICE_A_IFINDEX and WGDEVICE_A_IFNAME
  * must be provided. All other top-level items are optional. At most one of
- * WGDEVICE_A_DEV_NETNS_PID and WGDEVICE_A_DEV_NETNS_FD may be provided.
+ * WGDEVICE_A_TRANSIT_NETNS_PID and WGDEVICE_A_TRANSIT_NETNS_FD may be provided.
+ * At most one of WGDEVICE_A_DEV_NETNS_PID and WGDEVICE_A_DEV_NETNS_FD may be
+ * provided.
  *
  * If WGDEVICE_A_DEV_NETNS_PID/FD is provided, the Wireguard device is looked up
  * in this network namespace. Otherwise it is looked up in the network namespace
  * of the netlink socket. The caller must have CAP_NET_ADMIN in the namespace of
  * the Wireguard device.
  *
- * If WGDEVICE_A_LISTEN_PORT is provided and the calling process is not in the
- * transit namespace, then the calling process must have CAP_NET_ADMIN the
- * transit namespace.
+ * If WGDEVICE_A_TRANSIT_NETNS_PID/FD and/or WGDEVICE_A_LISTEN_PORT are provided
+ * and the calling process is not in the transit namespace, then the calling
+ * process must have CAP_NET_ADMIN the transit namespace.
  *
  *    WGDEVICE_A_IFINDEX: NLA_U32
  *    WGDEVICE_A_IFNAME: NLA_NUL_STRING, maxlen IFNAMESIZ - 1
@@ -107,6 +109,8 @@
  *    WGDEVICE_A_LISTEN_PORT: NLA_U16, 0 to choose randomly
  *    WGDEVICE_A_DEV_NETNS_PID: NLA_U32
  *    WGDEVICE_A_DEV_NETNS_FD: NLA_U32
+ *    WGDEVICE_A_TRANSIT_NETNS_PID: NLA_U32
+ *    WGDEVICE_A_TRANSIT_NETNS_FD: NLA_U32
  *    WGDEVICE_A_FWMARK: NLA_U32, 0 to disable
  *    WGDEVICE_A_PEERS: NLA_NESTED
  *        0: NLA_NESTED
@@ -181,6 +185,8 @@ enum wgdevice_attribute {
 	WGDEVICE_A_PEERS,
 	WGDEVICE_A_DEV_NETNS_PID,
 	WGDEVICE_A_DEV_NETNS_FD,
+	WGDEVICE_A_TRANSIT_NETNS_PID,
+	WGDEVICE_A_TRANSIT_NETNS_FD,
 	__WGDEVICE_A_LAST
 };
 #define WGDEVICE_A_MAX (__WGDEVICE_A_LAST - 1)
