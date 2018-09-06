@@ -251,8 +251,8 @@ static void wg_destruct(struct net_device *dev)
 	skb_queue_purge(&wg->incoming_handshakes);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
-	if (wg->have_creating_net_ref)
-		put_net(wg->creating_net);
+	if (wg->have_transit_net_ref)
+		put_net(wg->transit_net);
 	mutex_unlock(&wg->device_update_lock);
 
 	pr_debug("%s: Interface deleted\n", dev->name);
@@ -304,7 +304,7 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 	struct wg_device *wg = netdev_priv(dev);
 	int ret = -ENOMEM;
 
-	wg->creating_net = src_net;
+	wg->transit_net = src_net;
 	init_rwsem(&wg->static_identity.lock);
 	mutex_init(&wg->socket_update_lock);
 	mutex_init(&wg->device_update_lock);
@@ -406,13 +406,13 @@ static int wg_netdevice_notification(struct notifier_block *nb,
 	if (action != NETDEV_REGISTER || dev->netdev_ops != &netdev_ops)
 		return 0;
 
-	if (dev_net(dev) == wg->creating_net && wg->have_creating_net_ref) {
-		put_net(wg->creating_net);
-		wg->have_creating_net_ref = false;
-	} else if (dev_net(dev) != wg->creating_net &&
-		   !wg->have_creating_net_ref) {
-		wg->have_creating_net_ref = true;
-		get_net(wg->creating_net);
+	if (dev_net(dev) == wg->transit_net && wg->have_transit_net_ref) {
+		put_net(wg->transit_net);
+		wg->have_transit_net_ref = false;
+	} else if (dev_net(dev) != wg->transit_net &&
+		   !wg->have_transit_net_ref) {
+		wg->have_transit_net_ref = true;
+		get_net(wg->transit_net);
 	}
 	return 0;
 }

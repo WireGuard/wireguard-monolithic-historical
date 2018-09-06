@@ -257,7 +257,7 @@ static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	genl_dump_check_consistent(cb, hdr);
 
 	if (!last_peer_cursor) {
-		if (test_socket_net_capable(wg->creating_net) == 0) {
+		if (test_socket_net_capable(wg->transit_net) == 0) {
 			if (nla_put_u16(skb, WGDEVICE_A_LISTEN_PORT,
 						wg->incoming_port))
 				goto out;
@@ -351,7 +351,7 @@ static int set_port(struct wg_device *wg, u16 port)
 	struct wg_peer *peer;
 	int ret;
 
-	ret = test_socket_net_capable(wg->creating_net);
+	ret = test_socket_net_capable(wg->transit_net);
 	if (ret)
 		return ret;
 	if (wg->incoming_port == port)
