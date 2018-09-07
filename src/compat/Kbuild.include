@@ -47,6 +47,13 @@ ccflags-y += -include $(cmd_include_path_prefix)/compat/memneq/include.h
 wireguard-y += compat/memneq/memneq.o
 endif
 
+ifeq ($(wildcard $(srctree)/arch/arm/include/asm/neon.h)$(CONFIG_ARM),y)
+ccflags-y += -I$(src)/compat/neon/include
+endif
+ifeq ($(wildcard $(srctree)/arch/arm64/include/asm/neon.h)$(CONFIG_ARM64),y)
+ccflags-y += -I$(src)/compat/neon/include
+endif
+
 ifeq ($(CONFIG_X86_64),y)
 	ifeq ($(ssse3_instr),)
 		ssse3_instr := $(call as-instr,pshufb %xmm0$(comma)%xmm0,-DCONFIG_AS_SSSE3=1)
