@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: OpenSSL OR (BSD-3-Clause OR GPL-2.0)
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
  *
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (C) 2006-2017 CRYPTOGAMS by <appro@openssl.org>. All Rights Reserved.
  *
- * This is based in part on Andy Polyakov's implementation from OpenSSL.
+ * This is based in part on Andy Polyakov's implementation from CRYPTOGAMS.
  */
 
 #include <linux/linkage.h>
