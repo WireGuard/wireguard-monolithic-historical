@@ -37,7 +37,7 @@ SIGMA:
 ENTRY(blake2s_compress_avx)
 	movl		%ecx, %ecx
 	testq		%rdx, %rdx
-	je .Lendofloop
+	je		.Lendofloop
 	.align 32
 .Lbeginofloop:
 	addq		%rcx, 32(%rdi)
@@ -605,7 +605,7 @@ ENDPROC(blake2s_compress_avx)
 
 #ifdef CONFIG_AS_AVX512
 ENTRY(blake2s_compress_avx512)
-	vmovdqu (%rdi),%xmm0
+	vmovdqu		(%rdi),%xmm0
 	vmovdqu		0x10(%rdi),%xmm1
 	vmovdqu		0x20(%rdi),%xmm4
 	vmovq		%rcx,%xmm5
