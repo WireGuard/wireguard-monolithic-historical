@@ -6,12 +6,14 @@
 #ifndef SUBCOMMANDS_H
 #define SUBCOMMANDS_H
 
+#include "containers.h"
+
 extern const char *PROG_NAME;
-int show_main(int argc, char *argv[]);
-int showconf_main(int argc, char *argv[]);
-int set_main(int argc, char *argv[]);
-int setconf_main(int argc, char *argv[]);
-int genkey_main(int argc, char *argv[]);
-int pubkey_main(int argc, char *argv[]);
+int show_main(int argc, char *argv[], struct wgoptions *);
+int showconf_main(int argc, char *argv[], struct wgoptions *);
+int set_main(int argc, char *argv[], struct wgoptions *);
+int setconf_main(int argc, char *argv[], struct wgoptions *);
+int genkey_main(int argc, char *argv[], struct wgoptions *);
+int pubkey_main(int argc, char *argv[], struct wgoptions *);
 
 #endif

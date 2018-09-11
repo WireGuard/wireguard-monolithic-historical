@@ -52,11 +52,12 @@ static inline ssize_t get_random_bytes(uint8_t *out, size_t len)
 	return ret;
 }
 
-int genkey_main(int argc, char *argv[])
+int genkey_main(int argc, char *argv[], struct wgoptions *options)
 {
 	uint8_t key[WG_KEY_LEN];
 	char base64[WG_KEY_LEN_BASE64];
 	struct stat stat;
+	(void)options;
 
 	if (argc != 1) {
 		fprintf(stderr, "Usage: %s %s\n", PROG_NAME, argv[0]);

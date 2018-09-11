@@ -13,7 +13,7 @@
 #include "ipc.h"
 #include "subcommands.h"
 
-int setconf_main(int argc, char *argv[])
+int setconf_main(int argc, char *argv[], struct wgoptions *options)
 {
 	struct wgdevice *device = NULL;
 	struct config_ctx ctx;
@@ -21,6 +21,7 @@ int setconf_main(int argc, char *argv[])
 	char *config_buffer = NULL;
 	size_t config_buffer_len = 0;
 	int ret = 1;
+	(void)options;
 
 	if (argc != 3) {
 		fprintf(stderr, "Usage: %s %s <interface> <configuration filename>\n", PROG_NAME, argv[0]);

@@ -11,11 +11,12 @@
 #include "encoding.h"
 #include "subcommands.h"
 
-int pubkey_main(int argc, char *argv[])
+int pubkey_main(int argc, char *argv[], struct wgoptions *options)
 {
 	uint8_t key[WG_KEY_LEN];
 	char base64[WG_KEY_LEN_BASE64];
 	int trailing_char;
+	(void)options;
 
 	if (argc != 1) {
 		fprintf(stderr, "Usage: %s %s\n", PROG_NAME, argv[0]);

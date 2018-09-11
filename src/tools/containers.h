@@ -15,6 +15,9 @@
 
 #include "../uapi/wireguard.h"
 
+struct wgoptions {
+};
+
 struct wgallowedip {
 	uint16_t family;
 	union {

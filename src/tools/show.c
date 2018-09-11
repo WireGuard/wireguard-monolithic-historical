@@ -377,10 +377,11 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 	return true;
 }
 
-int show_main(int argc, char *argv[])
+int show_main(int argc, char *argv[], struct wgoptions *options)
 {
 	int ret = 0;
 
+	(void)options;
 	COMMAND_NAME = argv[0];
 
 	if (argc > 3) {

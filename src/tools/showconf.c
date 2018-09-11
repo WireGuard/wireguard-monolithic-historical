@@ -18,7 +18,7 @@
 #include "ipc.h"
 #include "subcommands.h"
 
-int showconf_main(int argc, char *argv[])
+int showconf_main(int argc, char *argv[], struct wgoptions *options)
 {
 	char base64[WG_KEY_LEN_BASE64];
 	char ip[INET6_ADDRSTRLEN];
@@ -26,6 +26,7 @@ int showconf_main(int argc, char *argv[])
 	struct wgpeer *peer;
 	struct wgallowedip *allowedip;
 	int ret = 1;
+	(void)options;
 
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s %s <interface>\n", PROG_NAME, argv[0]);

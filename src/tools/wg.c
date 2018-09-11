@@ -6,14 +6,17 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include <getopt.h>
 
 #include "subcommands.h"
+#include "containers.h"
 
 const char *PROG_NAME;
 
 static const struct {
 	const char *subcommand;
-	int (*function)(int, char**);
+	int (*function)(int, char**, struct wgoptions *);
 	const char *description;
 } subcommands[] = {
 	{ "show", show_main, "Shows the current configuration and device information" },
@@ -35,26 +38,65 @@ static void show_usage(FILE *file)
 	fprintf(file, "You may pass `--help' to any of these subcommands to view usage.\n");
 }
 
+static bool parse_options(int argc, char *argv[], struct wgoptions *options)
+{
+	int ch;
+	struct option opts[] = {
+		{
+			.name = "help",
+			.val = 'h',
+		},
+		{
+			0
+		}
+	};
+	(void)options;
+
+	setenv("POSIXLY_CORRECT", "", 0);
+
+	while ((ch = getopt_long(argc, argv, "h", opts, NULL)) != -1) {
+		switch (ch) {
+		case '?':
+			return false;
+		case 'h':
+			show_usage(stdout);
+			exit(0);
+		}
+	}
+
+	return true;
+}
+
 int main(int argc, char *argv[])
 {
+	struct wgoptions options = { };
+
 	PROG_NAME = argv[0];
 
-	if (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "help"))) {
+	if (argc == 2 && !strcmp(argv[1], "help")) {
 		show_usage(stdout);
 		return 0;
 	}
 
-	if (argc == 1) {
+	if (!parse_options(argc, argv, &options)) {
+		show_usage(stderr);
+		return 1;
+	}
+
+	argv += optind;
+	argc -= optind;
+
+	if (argc == 0) {
 		static char *new_argv[] = { "show", NULL };
-		return show_main(1, new_argv);
+		return show_main(1, new_argv, &options);
 	}
 
 	for (size_t i = 0; i < sizeof(subcommands) / sizeof(subcommands[0]); ++i) {
-		if (!strcmp(argv[1], subcommands[i].subcommand))
-			return subcommands[i].function(argc - 1, argv + 1);
+		if (!strcmp(argv[0], subcommands[i].subcommand))
+			return subcommands[i].function(argc, argv, &options);
 	}
 
-	fprintf(stderr, "Invalid subcommand: `%s'\n", argv[1]);
+	fprintf(stderr, "Invalid subcommand: `%s'\n", argv[0]);
 	show_usage(stderr);
 	return 1;
 }
