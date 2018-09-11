@@ -16,7 +16,6 @@ int set_main(int argc, char *argv[], struct wgoptions *options)
 {
 	struct wgdevice *device = NULL;
 	int ret = 1;
-	(void)options;
 
 	if (argc < 3) {
 		fprintf(stderr, "Usage: %s %s <interface> [listen-port <port>] [fwmark <mark>] [private-key <file path>] [peer <base64 public key> [remove] [preshared-key <file path>] [endpoint <ip>:<port>] [persistent-keepalive <interval seconds>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...] ]...\n", PROG_NAME, argv[0]);
@@ -29,7 +28,7 @@ int set_main(int argc, char *argv[], struct wgoptions *options)
 	strncpy(device->name, argv[1], IFNAMSIZ -  1);
 	device->name[IFNAMSIZ - 1] = '\0';
 
-	if (ipc_set_device(device) != 0) {
+	if (ipc_set_device(&options->dev_netns, device) != 0) {
 		perror("Unable to modify interface");
 		goto cleanup;
 	}

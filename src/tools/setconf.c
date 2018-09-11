@@ -21,7 +21,6 @@ int setconf_main(int argc, char *argv[], struct wgoptions *options)
 	char *config_buffer = NULL;
 	size_t config_buffer_len = 0;
 	int ret = 1;
-	(void)options;
 
 	if (argc != 3) {
 		fprintf(stderr, "Usage: %s %s <interface> <configuration filename>\n", PROG_NAME, argv[0]);
@@ -51,7 +50,7 @@ int setconf_main(int argc, char *argv[], struct wgoptions *options)
 	strncpy(device->name, argv[1], IFNAMSIZ - 1);
 	device->name[IFNAMSIZ - 1] = '\0';
 
-	if (ipc_set_device(device) != 0) {
+	if (ipc_set_device(&options->dev_netns, device) != 0) {
 		perror("Unable to modify interface");
 		goto cleanup;
 	}

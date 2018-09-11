@@ -551,7 +551,7 @@ cleanup:
 	return ret;
 }
 
-static int kernel_set_device(struct wgdevice *dev)
+static int kernel_set_device(struct wgnetns *dev_netns, struct wgdevice *dev)
 {
 	int ret = 0;
 	struct wgpeer *peer = NULL;
@@ -579,6 +579,10 @@ again:
 			mnl_attr_put_u32(nlh, WGDEVICE_A_FWMARK, dev->fwmark);
 		if (dev->flags & WGDEVICE_REPLACE_PEERS)
 			flags |= WGDEVICE_F_REPLACE_PEERS;
+		if (dev_netns->flags & WGNETNS_HAS_PID)
+			mnl_attr_put_u32(nlh, WGDEVICE_A_DEV_NETNS_PID, dev_netns->pid);
+		if (dev_netns->flags & WGNETNS_HAS_FD)
+			mnl_attr_put_u32(nlh, WGDEVICE_A_DEV_NETNS_FD, (uint32_t)dev_netns->fd);
 		if (flags)
 			mnl_attr_put_u32(nlh, WGDEVICE_A_FLAGS, flags);
 	}
@@ -885,7 +889,8 @@ static void coalesce_peers(struct wgdevice *device)
 	}
 }
 
-static int kernel_get_device(struct wgdevice **device, const char *interface)
+static int kernel_get_device(struct wgnetns *dev_netns,
+		struct wgdevice **device, const char *interface)
 {
 	int ret = 0;
 	struct nlmsghdr *nlh;
@@ -905,6 +910,10 @@ try_again:
 
 	nlh = mnlg_msg_prepare(nlg, WG_CMD_GET_DEVICE, NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP);
 	mnl_attr_put_strz(nlh, WGDEVICE_A_IFNAME, interface);
+	if (dev_netns->flags & WGNETNS_HAS_PID)
+		mnl_attr_put_u32(nlh, WGDEVICE_A_DEV_NETNS_PID, dev_netns->pid);
+	if (dev_netns->flags & WGNETNS_HAS_FD)
+		mnl_attr_put_u32(nlh, WGDEVICE_A_DEV_NETNS_FD, (uint32_t)dev_netns->fd);
 	if (mnlg_socket_send(nlg, nlh) < 0) {
 		ret = -errno;
 		goto out;
@@ -959,23 +968,24 @@ cleanup:
 	return buffer.buffer;
 }
 
-int ipc_get_device(struct wgdevice **dev, const char *interface)
+int ipc_get_device(struct wgnetns *dev_netns, struct wgdevice **dev,
+		const char *interface)
 {
 #ifdef __linux__
 	if (userspace_has_wireguard_interface(interface))
 		return userspace_get_device(dev, interface);
-	return kernel_get_device(dev, interface);
+	return kernel_get_device(dev_netns, dev, interface);
 #else
 	return userspace_get_device(dev, interface);
 #endif
 }
 
-int ipc_set_device(struct wgdevice *dev)
+int ipc_set_device(struct wgnetns *dev_netns, struct wgdevice *dev)
 {
 #ifdef __linux__
 	if (userspace_has_wireguard_interface(dev->name))
 		return userspace_set_device(dev);
-	return kernel_set_device(dev);
+	return kernel_set_device(dev_netns, dev);
 #else
 	return userspace_set_device(dev);
 #endif

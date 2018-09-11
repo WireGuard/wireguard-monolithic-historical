@@ -15,7 +15,21 @@
 
 #include "../uapi/wireguard.h"
 
+struct wgnetns {
+	uint32_t flags;
+
+	uint32_t pid;
+	int fd;
+};
+
+enum {
+	WGNETNS_HAS_PID = 1U << 0,
+	WGNETNS_HAS_FD = 1U << 1,
+};
+
+
 struct wgoptions {
+	struct wgnetns dev_netns;
 };
 
 struct wgallowedip {

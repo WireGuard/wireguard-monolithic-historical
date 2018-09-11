@@ -11,6 +11,7 @@
 
 #include "subcommands.h"
 #include "containers.h"
+#include "netns.h"
 
 const char *PROG_NAME;
 
@@ -47,20 +48,27 @@ static bool parse_options(int argc, char *argv[], struct wgoptions *options)
 			.val = 'h',
 		},
 		{
+			.name = "netns",
+			.has_arg = 1,
+			.val = 'n',
+		},
+		{
 			0
 		}
 	};
-	(void)options;
 
 	setenv("POSIXLY_CORRECT", "", 0);
 
-	while ((ch = getopt_long(argc, argv, "h", opts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "hn:", opts, NULL)) != -1) {
 		switch (ch) {
 		case '?':
 			return false;
 		case 'h':
 			show_usage(stdout);
 			exit(0);
+		case 'n':
+			netns_parse(&options->dev_netns, optarg);
+			break;
 		}
 	}
 
@@ -69,7 +77,7 @@ static bool parse_options(int argc, char *argv[], struct wgoptions *options)
 
 int main(int argc, char *argv[])
 {
-	struct wgoptions options = { };
+	struct wgoptions options = { 0 };
 
 	PROG_NAME = argv[0];
 

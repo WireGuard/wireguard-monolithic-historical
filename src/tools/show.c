@@ -23,6 +23,7 @@
 #include "terminal.h"
 #include "encoding.h"
 #include "subcommands.h"
+#include "netns.h"
 
 static int peer_cmp(const void *first, const void *second)
 {
@@ -377,17 +378,14 @@ static bool ugly_print(struct wgdevice *device, const char *param, bool with_int
 	return true;
 }
 
-int show_main(int argc, char *argv[], struct wgoptions *options)
+static int show_all(int argc, char *argv[], struct wgoptions *options)
 {
 	int ret = 0;
 
-	(void)options;
-	COMMAND_NAME = argv[0];
-
-	if (argc > 3) {
-		show_usage();
+	// The kernel interface used by ipc_list_devices does not allow us to
+	// list devices in a namespace referenced via pid or fd.
+	if (!netns_enter(&options->dev_netns))
 		return 1;
-	}
 
 	if (argc == 1 || !strcmp(argv[1], "all")) {
 		char *interfaces = ipc_list_devices(), *interface;
@@ -401,7 +399,7 @@ int show_main(int argc, char *argv[], struct wgoptions *options)
 		for (size_t len = 0; (len = strlen(interface)); interface += len + 1) {
 			struct wgdevice *device = NULL;
 
-			if (ipc_get_device(&device, interface) < 0) {
+			if (ipc_get_device(&netns_current, &device, interface) < 0) {
 				fprintf(stderr, "Unable to access interface %s: %s\n", interface, strerror(errno));
 				continue;
 			}
@@ -436,12 +434,30 @@ int show_main(int argc, char *argv[], struct wgoptions *options)
 		for (size_t len = 0; (len = strlen(interface)); interface += len + 1)
 			printf("%s%c", interface, strlen(interface + len + 1) ? ' ' : '\n');
 		free(interfaces);
-	} else if (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "help")))
+	}
+
+	return ret;
+}
+
+int show_main(int argc, char *argv[], struct wgoptions *options)
+{
+	int ret = 0;
+
+	COMMAND_NAME = argv[0];
+
+	if (argc > 3) {
+		show_usage();
+		return 1;
+	}
+
+	if (argc == 1 || !strcmp(argv[1], "all") || !strcmp(argv[1], "interfaces"))
+		ret = show_all(argc, argv, options);
+	else if (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "help")))
 		show_usage();
 	else {
 		struct wgdevice *device = NULL;
 
-		if (ipc_get_device(&device, argv[1]) < 0) {
+		if (ipc_get_device(&options->dev_netns, &device, argv[1]) < 0) {
 			perror("Unable to access interface");
 			return 1;
 		}

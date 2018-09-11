@@ -8,10 +8,13 @@
 
 #include <stdbool.h>
 
+#include "containers.h"
+
 struct wgdevice;
 
-int ipc_set_device(struct wgdevice *dev);
-int ipc_get_device(struct wgdevice **dev, const char *interface);
+int ipc_set_device(struct wgnetns *dev_netns, struct wgdevice *dev);
+int ipc_get_device(struct wgnetns *dev_netns, struct wgdevice **dev,
+		const char *interface);
 char *ipc_list_devices(void);
 
 #endif

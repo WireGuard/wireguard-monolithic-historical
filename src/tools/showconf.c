@@ -26,14 +26,13 @@ int showconf_main(int argc, char *argv[], struct wgoptions *options)
 	struct wgpeer *peer;
 	struct wgallowedip *allowedip;
 	int ret = 1;
-	(void)options;
 
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s %s <interface>\n", PROG_NAME, argv[0]);
 		return 1;
 	}
 
-	if (ipc_get_device(&device, argv[1])) {
+	if (ipc_get_device(&options->dev_netns, &device, argv[1])) {
 		perror("Unable to access interface");
 		goto cleanup;
 	}
