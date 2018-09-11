@@ -24,7 +24,9 @@ static const struct nla_policy device_policy[WGDEVICE_A_MAX + 1] = {
 	[WGDEVICE_A_FLAGS]		= { .type = NLA_U32 },
 	[WGDEVICE_A_LISTEN_PORT]	= { .type = NLA_U16 },
 	[WGDEVICE_A_FWMARK]		= { .type = NLA_U32 },
-	[WGDEVICE_A_PEERS]		= { .type = NLA_NESTED }
+	[WGDEVICE_A_PEERS]		= { .type = NLA_NESTED },
+	[WGDEVICE_A_DEV_NETNS_PID]	= { .type = NLA_U32 },
+	[WGDEVICE_A_DEV_NETNS_FD]	= { .type = NLA_U32 },
 };
 
 static const struct nla_policy peer_policy[WGPEER_A_MAX + 1] = {
@@ -47,17 +49,17 @@ static const struct nla_policy allowedip_policy[WGALLOWEDIP_A_MAX + 1] = {
 };
 
 static struct wg_device *lookup_interface(struct nlattr **attrs,
-					  struct sk_buff *skb)
+					  struct net *net)
 {
 	struct net_device *dev = NULL;
 
 	if (!attrs[WGDEVICE_A_IFINDEX] == !attrs[WGDEVICE_A_IFNAME])
 		return ERR_PTR(-EBADR);
 	if (attrs[WGDEVICE_A_IFINDEX])
-		dev = dev_get_by_index(sock_net(skb->sk),
+		dev = dev_get_by_index(net,
 				       nla_get_u32(attrs[WGDEVICE_A_IFINDEX]));
 	else if (attrs[WGDEVICE_A_IFNAME])
-		dev = dev_get_by_name(sock_net(skb->sk),
+		dev = dev_get_by_name(net,
 				      nla_data(attrs[WGDEVICE_A_IFNAME]));
 	if (!dev)
 		return ERR_PTR(-ENODEV);
@@ -160,10 +162,22 @@ err:
 	return -EMSGSIZE;
 }
 
+static struct net *get_attr_net(struct nlattr *net_pid, struct nlattr *net_fd)
+{
+	if (net_pid && net_fd)
+		return ERR_PTR(-EINVAL);
+	if (net_pid)
+		return get_net_ns_by_pid(nla_get_u32(net_pid));
+	if (net_fd)
+		return get_net_ns_by_fd(nla_get_u32(net_fd));
+	return NULL;
+}
+
 static int wg_get_device_start(struct netlink_callback *cb)
 {
 	struct nlattr **attrs = genl_family_attrbuf(&genl_family);
-	struct net *dev_net = sock_net(cb->skb->sk);
+	struct net *owned_dev_net = NULL, *dev_net;
+	struct allowedips_cursor *cursor = NULL;
 	struct wg_device *wg;
 	int ret;
 
@@ -171,20 +185,42 @@ static int wg_get_device_start(struct netlink_callback *cb)
 			  genl_family.maxattr, device_policy, NULL);
 	if (ret < 0)
 		return ret;
-	if (!netlink_ns_capable(cb->skb, dev_net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
-	cb->args[2] = (long)kzalloc(sizeof(struct allowedips_cursor),
-				    GFP_KERNEL);
-	if (unlikely(!cb->args[2]))
-		return -ENOMEM;
-	wg = lookup_interface(attrs, cb->skb);
-	if (IS_ERR(wg)) {
-		kfree((void *)cb->args[2]);
-		cb->args[2] = 0;
-		return PTR_ERR(wg);
+
+	owned_dev_net = get_attr_net(attrs[WGDEVICE_A_DEV_NETNS_PID],
+			attrs[WGDEVICE_A_DEV_NETNS_FD]);
+	if (IS_ERR(owned_dev_net)) {
+		ret = PTR_ERR(owned_dev_net);
+		owned_dev_net = NULL;
+		goto out;
 	}
+	dev_net = owned_dev_net ? : sock_net(cb->skb->sk);
+	if (!netlink_ns_capable(cb->skb, dev_net->user_ns, CAP_NET_ADMIN)) {
+		ret = -EPERM;
+		goto out;
+	}
+
+	cursor = kzalloc(sizeof(*cursor), GFP_KERNEL);
+	if (unlikely(!cursor)) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	wg = lookup_interface(attrs, dev_net);
+	if (IS_ERR(wg)) {
+		ret = PTR_ERR(wg);
+		goto out;
+	}
+
 	cb->args[0] = (long)wg;
-	return 0;
+	cb->args[2] = (long)cursor;
+	cursor = NULL;
+
+out:
+	if (cursor)
+		kfree(cursor);
+	if (owned_dev_net)
+		put_net(owned_dev_net);
+	return ret;
 }
 
 static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
@@ -473,16 +509,23 @@ out:
 
 static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 {
-	struct net *dev_net = sock_net(skb->sk);
+	struct net *owned_dev_net, *dev_net;
 	struct wg_device *wg;
 	int ret;
 
+	owned_dev_net = get_attr_net(info->attrs[WGDEVICE_A_DEV_NETNS_PID],
+			info->attrs[WGDEVICE_A_DEV_NETNS_FD]);
+	if (IS_ERR(owned_dev_net)) {
+		ret = PTR_ERR(owned_dev_net);
+		goto out_nonet;
+	}
+	dev_net = owned_dev_net ? : sock_net(skb->sk);
 	if (!netlink_ns_capable(skb, dev_net->user_ns, CAP_NET_ADMIN)) {
 		ret = -EPERM;
 		goto out_nodev;
 	}
 
-	wg = lookup_interface(info->attrs, skb);
+	wg = lookup_interface(info->attrs, dev_net);
 
 	if (IS_ERR(wg)) {
 		ret = PTR_ERR(wg);
@@ -565,6 +608,9 @@ out:
 	rtnl_unlock();
 	dev_put(wg->dev);
 out_nodev:
+	if (owned_dev_net)
+		put_net(owned_dev_net);
+out_nonet:
 	if (info->attrs[WGDEVICE_A_PRIVATE_KEY])
 		memzero_explicit(nla_data(info->attrs[WGDEVICE_A_PRIVATE_KEY]),
 				 nla_len(info->attrs[WGDEVICE_A_PRIVATE_KEY]));
