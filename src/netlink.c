@@ -173,6 +173,14 @@ static struct net *get_attr_net(struct nlattr *net_pid, struct nlattr *net_fd)
 	return NULL;
 }
 
+static int test_socket_net_capable(struct net *net)
+{
+	if (net != current->nsproxy->net_ns &&
+			!ns_capable(net->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+	return 0;
+}
+
 static int wg_get_device_start(struct netlink_callback *cb)
 {
 	struct nlattr **attrs = genl_family_attrbuf(&genl_family);
@@ -249,9 +257,12 @@ static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	genl_dump_check_consistent(cb, hdr);
 
 	if (!last_peer_cursor) {
-		if (nla_put_u16(skb, WGDEVICE_A_LISTEN_PORT,
-				wg->incoming_port) ||
-		    nla_put_u32(skb, WGDEVICE_A_FWMARK, wg->fwmark) ||
+		if (test_socket_net_capable(wg->creating_net) == 0) {
+			if (nla_put_u16(skb, WGDEVICE_A_LISTEN_PORT,
+						wg->incoming_port))
+				goto out;
+		}
+		if (nla_put_u32(skb, WGDEVICE_A_FWMARK, wg->fwmark) ||
 		    nla_put_u32(skb, WGDEVICE_A_IFINDEX, wg->dev->ifindex) ||
 		    nla_put_string(skb, WGDEVICE_A_IFNAME, wg->dev->name))
 			goto out;
@@ -338,7 +349,11 @@ static int wg_get_device_done(struct netlink_callback *cb)
 static int set_port(struct wg_device *wg, u16 port)
 {
 	struct wg_peer *peer;
+	int ret;
 
+	ret = test_socket_net_capable(wg->creating_net);
+	if (ret)
+		return ret;
 	if (wg->incoming_port == port)
 		return 0;
 	list_for_each_entry(peer, &wg->peer_list, peer_list)

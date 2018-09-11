@@ -30,6 +30,9 @@
  * socket. The caller must have CAP_NET_ADMIN in the namespace of the Wireguard
  * device.
  *
+ * If the caller is not in the transit namespace and does not have CAP_NET_ADMIN
+ * in the transit namespace, then the WGDEVICE_A_LISTEN_PORT is not returned.
+ *
  * The kernel will then return several messages (NLM_F_MULTI) containing the
  * following tree of nested items:
  *
@@ -91,6 +94,10 @@
  * in this network namespace. Otherwise it is looked up in the network namespace
  * of the netlink socket. The caller must have CAP_NET_ADMIN in the namespace of
  * the Wireguard device.
+ *
+ * If WGDEVICE_A_LISTEN_PORT is provided and the calling process is not in the
+ * transit namespace, then the calling process must have CAP_NET_ADMIN the
+ * transit namespace.
  *
  *    WGDEVICE_A_IFINDEX: NLA_U32
  *    WGDEVICE_A_IFNAME: NLA_NUL_STRING, maxlen IFNAMESIZ - 1
