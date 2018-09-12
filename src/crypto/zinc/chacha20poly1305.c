@@ -62,7 +62,7 @@ __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens),
 			simd_context);
 
-	poly1305_finish(&poly1305_state, dst + src_len, simd_context);
+	poly1305_final(&poly1305_state, dst + src_len, simd_context);
 
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 	memzero_explicit(&b, sizeof(b));
@@ -142,7 +142,7 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst,
 	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens),
 			simd_context);
 
-	poly1305_finish(&poly1305_state, b.mac, simd_context);
+	poly1305_final(&poly1305_state, b.mac, simd_context);
 	scatterwalk_map_and_copy(b.mac, dst, src_len, sizeof(b.mac), 1);
 err:
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
@@ -189,7 +189,7 @@ __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens),
 			simd_context);
 
-	poly1305_finish(&poly1305_state, b.mac, simd_context);
+	poly1305_final(&poly1305_state, b.mac, simd_context);
 
 	ret = crypto_memneq(b.mac, src + dst_len, POLY1305_MAC_SIZE);
 	if (likely(!ret))
@@ -284,7 +284,7 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst,
 	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens),
 			simd_context);
 
-	poly1305_finish(&poly1305_state, b.computed_mac, simd_context);
+	poly1305_final(&poly1305_state, b.computed_mac, simd_context);
 
 	scatterwalk_map_and_copy(b.read_mac, src, dst_len, POLY1305_MAC_SIZE, 0);
 	ret = crypto_memneq(b.read_mac, b.computed_mac, POLY1305_MAC_SIZE);

@@ -834,7 +834,7 @@ bool __init poly1305_selftest(void)
 			      simd_context);
 		poly1305_update(&poly1305, poly1305_testvecs[i].input,
 				poly1305_testvecs[i].ilen, simd_context);
-		poly1305_finish(&poly1305, out, simd_context);
+		poly1305_final(&poly1305, out, simd_context);
 		if (memcmp(out, poly1305_testvecs[i].output,
 			   POLY1305_MAC_SIZE)) {
 			pr_info("poly1305 self-test %zu: FAIL\n", i + 1);
@@ -856,7 +856,7 @@ bool __init poly1305_selftest(void)
 					poly1305_testvecs[i].input + j,
 					poly1305_testvecs[i].ilen - j,
 					simd_context);
-			poly1305_finish(&poly1305, out, simd_context);
+			poly1305_final(&poly1305, out, simd_context);
 			if (memcmp(out, poly1305_testvecs[i].output,
 				   POLY1305_MAC_SIZE)) {
 				pr_info("poly1305 self-test %zu (split %zu): FAIL\n",

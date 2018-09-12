@@ -7661,7 +7661,7 @@ chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 *src,
 	b.lens[1] = cpu_to_le64(src_len);
 	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens),
 			simd_context);
-	poly1305_finish(&poly1305_state, dst + src_len, simd_context);
+	poly1305_final(&poly1305_state, dst + src_len, simd_context);
 	simd_put(simd_context);
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 	memzero_explicit(&b, sizeof(b));

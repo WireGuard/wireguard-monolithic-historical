@@ -109,8 +109,8 @@ void poly1305_update(struct poly1305_ctx *ctx, const u8 *input, size_t len,
 }
 EXPORT_SYMBOL(poly1305_update);
 
-void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE],
-		     simd_context_t simd_context)
+void poly1305_final(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE],
+		    simd_context_t simd_context)
 {
 	size_t num = ctx->num % POLY1305_BLOCK_SIZE;
 
@@ -126,6 +126,6 @@ void poly1305_finish(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE],
 
 	memzero_explicit(ctx, sizeof(*ctx));
 }
-EXPORT_SYMBOL(poly1305_finish);
+EXPORT_SYMBOL(poly1305_final);
 
 #include "../selftest/poly1305.h"
