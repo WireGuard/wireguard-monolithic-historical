@@ -4,7 +4,6 @@
  */
 
 #include <zinc/curve25519.h>
-#include <crypto/algapi.h>
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 
