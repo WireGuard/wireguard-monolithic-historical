@@ -72,7 +72,7 @@ static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
 
 static void chacha20_block_generic(__le32 *stream, u32 *state)
 {
-	u32 x[CHACHA20_BLOCK_SIZE / sizeof(u32)];
+	u32 x[CHACHA20_BLOCK_WORDS];
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(x); ++i)
@@ -89,7 +89,7 @@ static void chacha20_block_generic(__le32 *stream, u32 *state)
 static void chacha20_generic(u8 *out, const u8 *in, u32 len, const u32 key[8],
 			     const u32 counter[4])
 {
-	__le32 buf[CHACHA20_BLOCK_SIZE / sizeof(__le32)];
+	__le32 buf[CHACHA20_BLOCK_WORDS];
 	u32 x[] = {
 		EXPAND_32_BYTE_K,
 		key[0], key[1], key[2], key[3],
