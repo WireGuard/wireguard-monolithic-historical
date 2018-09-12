@@ -9,6 +9,7 @@
 struct poly1305_internal {
 	u32 h[5];
 	u32 r[5];
+	u32 s[4];
 };
 
 static void poly1305_init_generic(void *ctx, const u8 key[16])
@@ -21,6 +22,12 @@ static void poly1305_init_generic(void *ctx, const u8 key[16])
 	st->r[2] = (get_unaligned_le32(&key[6]) >> 4) & 0x3ffc0ff;
 	st->r[3] = (get_unaligned_le32(&key[9]) >> 6) & 0x3f03fff;
 	st->r[4] = (get_unaligned_le32(&key[12]) >> 8) & 0x00fffff;
+
+	/* s = 5*r */
+	st->s[0] = st->r[1] * 5;
+	st->s[1] = st->r[2] * 5;
+	st->s[2] = st->r[3] * 5;
+	st->s[3] = st->r[4] * 5;
 
 	/* h = 0 */
 	st->h[0] = 0;
@@ -47,10 +54,10 @@ static void poly1305_blocks_generic(void *ctx, const u8 *input, size_t len,
 	r3 = st->r[3];
 	r4 = st->r[4];
 
-	s1 = r1 * 5;
-	s2 = r2 * 5;
-	s3 = r3 * 5;
-	s4 = r4 * 5;
+	s1 = st->s[0];
+	s2 = st->s[1];
+	s3 = st->s[2];
+	s4 = st->s[3];
 
 	h0 = st->h[0];
 	h1 = st->h[1];

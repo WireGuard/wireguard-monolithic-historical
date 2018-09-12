@@ -11,6 +11,7 @@ typedef __uint128_t u128;
 struct poly1305_internal {
 	u64 r[3];
 	u64 h[3];
+	u64 s[2];
 };
 
 static void poly1305_init_generic(void *ctx, const u8 key[16])
@@ -25,6 +26,10 @@ static void poly1305_init_generic(void *ctx, const u8 key[16])
 	st->r[0] = t0 & 0xffc0fffffff;
 	st->r[1] = ((t0 >> 44) | (t1 << 20)) & 0xfffffc0ffff;
 	st->r[2] = ((t1 >> 24)) & 0x00ffffffc0f;
+
+	/* s = 20*r */
+	st->s[0] = st->r[1] * 20;
+	st->s[1] = st->r[2] * 20;
 
 	/* h = 0 */
 	st->h[0] = 0;
@@ -51,8 +56,8 @@ static void poly1305_blocks_generic(void *ctx, const u8 *input, size_t len,
 	h1 = st->h[1];
 	h2 = st->h[2];
 
-	s1 = r1 * (5 << 2);
-	s2 = r2 * (5 << 2);
+	s1 = st->s[0];
+	s2 = st->s[1];
 
 	while (len >= POLY1305_BLOCK_SIZE) {
 		u64 t0, t1;
