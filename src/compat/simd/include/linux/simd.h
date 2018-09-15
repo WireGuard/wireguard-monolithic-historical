@@ -21,7 +21,7 @@ typedef enum {
 	HAVE_FULL_SIMD
 } simd_context_t;
 
-static inline simd_context_t simd_get(void)
+static __must_check inline simd_context_t simd_get(void)
 {
 	bool have_simd = false;
 #if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
@@ -51,7 +51,7 @@ static inline void simd_put(simd_context_t prior_context)
 #endif
 }
 
-static inline simd_context_t simd_relax(simd_context_t prior_context)
+static __must_check inline simd_context_t simd_relax(simd_context_t prior_context)
 {
 #ifdef CONFIG_PREEMPT
 	if (prior_context != HAVE_NO_SIMD && need_resched()) {
