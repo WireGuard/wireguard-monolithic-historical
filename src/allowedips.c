@@ -220,7 +220,7 @@ retry:
 	return peer;
 }
 
-__attribute__((nonnull(1))) static inline bool
+__attribute__((nonnull(1))) static bool
 node_placement(struct allowedips_node __rcu *trie, const u8 *key, u8 cidr,
 	       u8 bits, struct allowedips_node **rnode, struct mutex *lock)
 {

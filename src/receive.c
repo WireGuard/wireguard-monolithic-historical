@@ -18,7 +18,7 @@
 #include <net/ip_tunnels.h>
 
 /* Must be called with bh disabled. */
-static inline void rx_stats(struct wireguard_peer *peer, size_t len)
+static void rx_stats(struct wireguard_peer *peer, size_t len)
 {
 	struct pcpu_sw_netstats *tstats =
 		get_cpu_ptr(peer->device->dev->tstats);
@@ -33,7 +33,7 @@ static inline void rx_stats(struct wireguard_peer *peer, size_t len)
 
 #define SKB_TYPE_LE32(skb) (((struct message_header *)(skb)->data)->type)
 
-static inline size_t validate_header_len(struct sk_buff *skb)
+static size_t validate_header_len(struct sk_buff *skb)
 {
 	if (unlikely(skb->len < sizeof(struct message_header)))
 		return 0;
@@ -52,8 +52,7 @@ static inline size_t validate_header_len(struct sk_buff *skb)
 	return 0;
 }
 
-static inline int skb_prepare_header(struct sk_buff *skb,
-				     struct wireguard_device *wg)
+static int skb_prepare_header(struct sk_buff *skb, struct wireguard_device *wg)
 {
 	size_t data_offset, data_len, header_len;
 	struct udphdr *udp;
@@ -222,7 +221,7 @@ void packet_handshake_receive_worker(struct work_struct *work)
 	}
 }
 
-static inline void keep_key_fresh(struct wireguard_peer *peer)
+static void keep_key_fresh(struct wireguard_peer *peer)
 {
 	struct noise_keypair *keypair;
 	bool send = false;
@@ -245,9 +244,8 @@ static inline void keep_key_fresh(struct wireguard_peer *peer)
 	}
 }
 
-static inline bool skb_decrypt(struct sk_buff *skb,
-			       struct noise_symmetric_key *key,
-			       simd_context_t simd_context)
+static bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *key,
+			simd_context_t simd_context)
 {
 	struct scatterlist sg[MAX_SKB_FRAGS + 8];
 	struct sk_buff *trailer;
@@ -300,8 +298,7 @@ static inline bool skb_decrypt(struct sk_buff *skb,
 }
 
 /* This is RFC6479, a replay detection bitmap algorithm that avoids bitshifts */
-static inline bool counter_validate(union noise_counter *counter,
-				    u64 their_counter)
+static bool counter_validate(union noise_counter *counter, u64 their_counter)
 {
 	unsigned long index, index_current, top, i;
 	bool ret = false;
