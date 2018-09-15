@@ -161,7 +161,7 @@ static inline bool skb_encrypt(struct sk_buff *skb,
 			       simd_context_t simd_context)
 {
 	unsigned int padding_len, plaintext_len, trailer_len;
-	struct scatterlist sg[MAX_SKB_FRAGS * 2 + 1];
+	struct scatterlist sg[MAX_SKB_FRAGS + 8];
 	struct message_data *header;
 	struct sk_buff *trailer;
 	int num_frags;

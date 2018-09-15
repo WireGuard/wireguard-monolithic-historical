@@ -249,7 +249,7 @@ static inline bool skb_decrypt(struct sk_buff *skb,
 			       struct noise_symmetric_key *key,
 			       simd_context_t simd_context)
 {
-	struct scatterlist sg[MAX_SKB_FRAGS * 2 + 1];
+	struct scatterlist sg[MAX_SKB_FRAGS + 8];
 	struct sk_buff *trailer;
 	unsigned int offset;
 	int num_frags;
