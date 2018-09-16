@@ -229,6 +229,11 @@ $(KERNEL_PATH)/.installed:
 	mkdir -p $(dir $(KERNEL_PATH))
 	flock -s $(dir $(KERNEL_TAR))/$(KERNEL_VERSION).lock git clone $(GIT_URI_$(patsubst %-git,%,$(patsubst %-debug,%,$(KERNEL_VERSION)))) $(KERNEL_PATH)
 	touch $@
+always-pull: $(KERNEL_PATH)/.installed
+	flock -s $(dir $(KERNEL_TAR))/$(KERNEL_VERSION).lock git -C $(KERNEL_PATH) fetch
+	flock -s $(dir $(KERNEL_TAR))/$(KERNEL_VERSION).lock git -C $(KERNEL_PATH) reset --hard FETCH_HEAD
+.PHONY: always-pull
+$(KERNEL_BZIMAGE): always-pull
 endif
 
 $(KERNEL_PATH)/.config: kernel.config arch/$(QEMU_ARCH).config | $(KERNEL_PATH)/.installed
