@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: MIT
  *
  * Copyright (C) 2016-2018 René van Dorst <opensource@vdorst.com>. All Rights Reserved.
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
