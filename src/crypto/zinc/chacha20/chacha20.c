@@ -12,7 +12,13 @@
 #include <linux/kernel.h>
 #include <crypto/algapi.h>
 
-#ifndef HAVE_CHACHA20_ARCH_IMPLEMENTATION
+#if defined(CONFIG_ZINC_ARCH_X86_64)
+#include "chacha20-x86_64-glue.h"
+#elif defined(CONFIG_ZINC_ARCH_ARM) || defined(CONFIG_ZINC_ARCH_ARM64)
+#include "chacha20-arm-glue.h"
+#elif defined(CONFIG_ZINC_ARCH_MIPS)
+#include "chacha20-mips-glue.h"
+#else
 void __init chacha20_fpu_init(void)
 {
 }

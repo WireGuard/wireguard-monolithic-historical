@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#include <zinc/chacha20.h>
 #include <asm/fpu/api.h>
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
@@ -101,5 +100,3 @@ static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
 #endif
 	return false;
 }
-
-#define HAVE_CHACHA20_ARCH_IMPLEMENTATION

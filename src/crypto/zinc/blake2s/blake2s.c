@@ -111,7 +111,9 @@ void blake2s_init_key(struct blake2s_state *state, const size_t outlen,
 }
 EXPORT_SYMBOL(blake2s_init_key);
 
-#ifndef HAVE_BLAKE2S_ARCH_IMPLEMENTATION
+#if defined(CONFIG_ZINC_ARCH_X86_64)
+#include "blake2s-x86_64-glue.h"
+#else
 void __init blake2s_fpu_init(void)
 {
 }

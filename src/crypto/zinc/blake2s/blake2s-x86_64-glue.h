@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#include <zinc/blake2s.h>
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 #include <asm/fpu/api.h>
@@ -60,5 +59,3 @@ static inline bool blake2s_arch(struct blake2s_state *state, const u8 *block,
 #endif
 	return false;
 }
-
-#define HAVE_BLAKE2S_ARCH_IMPLEMENTATION

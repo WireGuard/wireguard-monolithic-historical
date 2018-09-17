@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#include <zinc/curve25519.h>
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 
@@ -45,5 +44,3 @@ static inline bool curve25519_base_arch(u8 pub[CURVE25519_POINT_SIZE],
 	}
 	return false;
 }
-
-#define HAVE_CURVE25519_ARCH_IMPLEMENTATION

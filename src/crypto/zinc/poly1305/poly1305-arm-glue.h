@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#include <zinc/poly1305.h>
 #include <asm/hwcap.h>
 #include <asm/neon.h>
 
@@ -64,5 +63,3 @@ static inline bool poly1305_emit_arch(void *ctx, u8 mac[POLY1305_MAC_SIZE],
 	poly1305_emit_arm(ctx, mac, nonce);
 	return true;
 }
-
-#define HAVE_POLY1305_ARCH_IMPLEMENTATION
