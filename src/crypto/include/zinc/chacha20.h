@@ -25,8 +25,6 @@ struct chacha20_ctx {
 	u32 counter[4];
 } __aligned(32);
 
-void chacha20_fpu_init(void);
-
 static inline void chacha20_init(struct chacha20_ctx *state,
 				 const u8 key[CHACHA20_KEY_SIZE],
 				 const u64 nonce)

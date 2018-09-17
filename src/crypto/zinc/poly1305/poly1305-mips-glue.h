@@ -7,7 +7,7 @@ asmlinkage void poly1305_init_mips(void *ctx, const u8 key[16]);
 asmlinkage void poly1305_blocks_mips(void *ctx, const u8 *inp, const size_t len,
 				     const u32 padbit);
 asmlinkage void poly1305_emit_mips(void *ctx, u8 mac[16], const u32 nonce[4]);
-void __init poly1305_fpu_init(void)
+static void __init poly1305_fpu_init(void)
 {
 }
 

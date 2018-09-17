@@ -818,7 +818,7 @@ static const struct poly1305_testvec poly1305_testvecs[] __initconst = {
 		    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 } };
 
-bool __init poly1305_selftest(void)
+static bool __init poly1305_selftest(void)
 {
 	simd_context_t simd_context;
 	bool success = true;

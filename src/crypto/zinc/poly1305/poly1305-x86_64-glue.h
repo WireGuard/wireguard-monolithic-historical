@@ -32,7 +32,7 @@ static bool poly1305_use_avx __ro_after_init;
 static bool poly1305_use_avx2 __ro_after_init;
 static bool poly1305_use_avx512 __ro_after_init;
 
-void __init poly1305_fpu_init(void)
+static void __init poly1305_fpu_init(void)
 {
 	poly1305_use_avx =
 		boot_cpu_has(X86_FEATURE_AVX) &&

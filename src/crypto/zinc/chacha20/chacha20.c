@@ -10,6 +10,8 @@
 #include <zinc/chacha20.h>
 
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <crypto/algapi.h>
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
@@ -168,7 +170,26 @@ void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE],
 	if (!hchacha20_arch(derived_key, nonce, key, simd_context))
 		hchacha20_generic(derived_key, nonce, key);
 }
-/* Deliberately not EXPORT_SYMBOL'd, since there are few reasons why somebody
- * should be using this directly, rather than via xchacha20. Revisit only in
- * the unlikely event that somebody has a good reason to export this.
- */
+EXPORT_SYMBOL(hchacha20);
+
+#ifndef COMPAT_ZINC_IS_A_MODULE
+int __init chacha20_mod_init(void)
+#else
+static int __init mod_init(void)
+#endif
+{
+	chacha20_fpu_init();
+	return 0;
+}
+
+#ifdef COMPAT_ZINC_IS_A_MODULE
+static void __exit mod_exit(void)
+{
+}
+
+module_init(mod_init);
+module_exit(mod_exit);
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("ChaCha20 stream cipher");
+MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
+#endif

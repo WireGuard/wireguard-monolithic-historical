@@ -11,7 +11,7 @@
 static bool curve25519_use_bmi2 __ro_after_init;
 static bool curve25519_use_adx __ro_after_init;
 
-void __init curve25519_fpu_init(void)
+static void __init curve25519_fpu_init(void)
 {
 	curve25519_use_bmi2 = boot_cpu_has(X86_FEATURE_BMI2);
 	curve25519_use_adx = boot_cpu_has(X86_FEATURE_BMI2) &&

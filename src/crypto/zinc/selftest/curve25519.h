@@ -1279,7 +1279,7 @@ static const struct curve25519_test_vector curve25519_test_vectors[] __initconst
 	}
 };
 
-bool __init curve25519_selftest(void)
+static bool __init curve25519_selftest(void)
 {
 	bool success = true, ret, ret2;
 	size_t i = 0, j;

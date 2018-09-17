@@ -14,6 +14,8 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/bug.h>
 #include <asm/unaligned.h>
 
@@ -114,9 +116,10 @@ EXPORT_SYMBOL(blake2s_init_key);
 #if defined(CONFIG_ZINC_ARCH_X86_64)
 #include "blake2s-x86_64-glue.h"
 #else
-void __init blake2s_fpu_init(void)
+static void __init blake2s_fpu_init(void)
 {
 }
+
 static inline bool blake2s_arch(struct blake2s_state *state, const u8 *block,
 				const size_t nblocks, const u32 inc)
 {
@@ -274,3 +277,29 @@ void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const size_t outlen,
 EXPORT_SYMBOL(blake2s_hmac);
 
 #include "../selftest/blake2s.h"
+
+#ifndef COMPAT_ZINC_IS_A_MODULE
+int __init blake2s_mod_init(void)
+#else
+static int __init mod_init(void)
+#endif
+{
+	blake2s_fpu_init();
+#ifdef DEBUG
+	if (!blake2s_selftest())
+		return -ENOTRECOVERABLE;
+#endif
+	return 0;
+}
+
+#ifdef COMPAT_ZINC_IS_A_MODULE
+static void __exit mod_exit(void)
+{
+}
+
+module_init(mod_init);
+module_exit(mod_exit);
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("BLAKE2s hash function");
+MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
+#endif

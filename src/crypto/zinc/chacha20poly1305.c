@@ -12,6 +12,8 @@
 #include <zinc/poly1305.h>
 #include <asm/unaligned.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <crypto/scatterwalk.h>
 
 static const u8 pad0[16] = { 0 };
@@ -334,3 +336,28 @@ bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 EXPORT_SYMBOL(xchacha20poly1305_decrypt);
 
 #include "selftest/chacha20poly1305.h"
+
+#ifndef COMPAT_ZINC_IS_A_MODULE
+int __init chacha20poly1305_mod_init(void)
+#else
+static int __init mod_init(void)
+#endif
+{
+#ifdef DEBUG
+	if (!chacha20poly1305_selftest())
+		return -ENOTRECOVERABLE;
+#endif
+	return 0;
+}
+
+#ifdef COMPAT_ZINC_IS_A_MODULE
+static void __exit mod_exit(void)
+{
+}
+
+module_init(mod_init);
+module_exit(mod_exit);
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("ChaCha20Poly1305 AEAD construction");
+MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
+#endif

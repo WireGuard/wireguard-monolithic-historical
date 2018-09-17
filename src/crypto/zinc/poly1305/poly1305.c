@@ -12,6 +12,8 @@
 #include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/module.h>
+#include <linux/init.h>
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
 #include "poly1305-x86_64-glue.h"
@@ -133,3 +135,29 @@ void poly1305_final(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE],
 EXPORT_SYMBOL(poly1305_final);
 
 #include "../selftest/poly1305.h"
+
+#ifndef COMPAT_ZINC_IS_A_MODULE
+int __init poly1305_mod_init(void)
+#else
+static int __init mod_init(void)
+#endif
+{
+	poly1305_fpu_init();
+#ifdef DEBUG
+	if (!poly1305_selftest())
+		return -ENOTRECOVERABLE;
+#endif
+	return 0;
+}
+
+#ifdef COMPAT_ZINC_IS_A_MODULE
+static void __exit mod_exit(void)
+{
+}
+
+module_init(mod_init);
+module_exit(mod_exit);
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Poly1305 one-time MAC");
+MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
+#endif

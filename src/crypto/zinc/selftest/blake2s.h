@@ -2058,7 +2058,7 @@ static const u8 blake2s_keyed_testvecs[][BLAKE2S_OUTBYTES] __initconst = {
 	  0x34, 0xbd, 0xe9, 0x99, 0xef, 0xd7, 0x24, 0xdd }
 };
 
-bool __init blake2s_selftest(void)
+static bool __init blake2s_selftest(void)
 {
 	u8 key[BLAKE2S_KEYBYTES];
 	u8 buf[ARRAY_SIZE(blake2s_testvecs)];

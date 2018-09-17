@@ -17,7 +17,7 @@ asmlinkage void chacha20_neon(u8 *out, const u8 *in, const size_t len,
 
 static bool chacha20_use_neon __ro_after_init;
 
-void __init chacha20_fpu_init(void)
+static void __init chacha20_fpu_init(void)
 {
 #if defined(CONFIG_ARM64)
 	chacha20_use_neon = elf_hwcap & HWCAP_ASIMD;

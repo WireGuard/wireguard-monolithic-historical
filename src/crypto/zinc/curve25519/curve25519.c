@@ -15,6 +15,8 @@
 #include <linux/version.h>
 #include <linux/string.h>
 #include <linux/random.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <crypto/algapi.h>
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
@@ -85,3 +87,29 @@ void curve25519_generate_secret(u8 secret[CURVE25519_POINT_SIZE])
 EXPORT_SYMBOL(curve25519_generate_secret);
 
 #include "../selftest/curve25519.h"
+
+#ifndef COMPAT_ZINC_IS_A_MODULE
+int __init curve25519_mod_init(void)
+#else
+static int __init mod_init(void)
+#endif
+{
+	curve25519_fpu_init();
+#ifdef DEBUG
+	if (!curve25519_selftest())
+		return -ENOTRECOVERABLE;
+#endif
+	return 0;
+}
+
+#ifdef COMPAT_ZINC_IS_A_MODULE
+static void __exit mod_exit(void)
+{
+}
+
+module_init(mod_init);
+module_exit(mod_exit);
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Curve25519 scalar multiplication");
+MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
+#endif

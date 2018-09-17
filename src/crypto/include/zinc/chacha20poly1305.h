@@ -47,8 +47,4 @@ bool __must_check xchacha20poly1305_decrypt(
 	const size_t ad_len, const u8 nonce[XCHACHA20POLY1305_NONCELEN],
 	const u8 key[CHACHA20POLY1305_KEYLEN]);
 
-#ifdef DEBUG
-bool chacha20poly1305_selftest(void);
-#endif
-
 #endif /* _ZINC_CHACHA20POLY1305_H */

@@ -20,7 +20,7 @@ asmlinkage void poly1305_emit_neon(void *ctx, u8 mac[16], const u32 nonce[4]);
 
 static bool poly1305_use_neon __ro_after_init;
 
-void __init poly1305_fpu_init(void)
+static void __init poly1305_fpu_init(void)
 {
 #if defined(CONFIG_ARM64)
 	poly1305_use_neon = elf_hwcap & HWCAP_ASIMD;

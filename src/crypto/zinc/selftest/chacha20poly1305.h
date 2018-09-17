@@ -7695,7 +7695,7 @@ decryption_success(bool func_ret, bool expect_failure, int memcmp_result)
 
 enum { MAXIMUM_TEST_BUFFER_LEN = 3000 };
 
-bool __init chacha20poly1305_selftest(void)
+static bool __init chacha20poly1305_selftest(void)
 {
 	size_t i;
 	u8 computed_result[MAXIMUM_TEST_BUFFER_LEN], *heap_src, *heap_dst;

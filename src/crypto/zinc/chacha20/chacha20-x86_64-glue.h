@@ -30,7 +30,7 @@ static bool chacha20_use_avx2 __ro_after_init;
 static bool chacha20_use_avx512 __ro_after_init;
 static bool chacha20_use_avx512vl __ro_after_init;
 
-void __init chacha20_fpu_init(void)
+static void __init chacha20_fpu_init(void)
 {
 	chacha20_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
 	chacha20_use_avx2 =

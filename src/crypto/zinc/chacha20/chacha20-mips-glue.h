@@ -5,7 +5,7 @@
 
 asmlinkage void chacha20_mips(u8 *out, const u8 *in, const size_t len,
 			      const u32 key[8], const u32 counter[4]);
-void __init chacha20_fpu_init(void)
+static void __init chacha20_fpu_init(void)
 {
 }
 
