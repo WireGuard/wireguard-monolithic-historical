@@ -60,22 +60,21 @@ static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
 				 const u32 key[8], const u32 counter[4],
 				 simd_context_t *simd_context)
 {
-	if ((len < CHACHA20_BLOCK_SIZE && !(*simd_context && HAVE_SIMD_IN_USE)) ||
-	    !simd_use(simd_context))
+	if (len <= CHACHA20_BLOCK_SIZE || !simd_use(simd_context))
 		return false;
 
 #ifdef CONFIG_AS_AVX512
-	if (chacha20_use_avx512 && len >= CHACHA20_BLOCK_SIZE * 16) {
+	if (chacha20_use_avx512 && len >= CHACHA20_BLOCK_SIZE * 8) {
 		chacha20_avx512(dst, src, len, key, counter);
 		return true;
 	}
-	if (chacha20_use_avx512vl && len >= CHACHA20_BLOCK_SIZE * 16) {
+	if (chacha20_use_avx512vl && len >= CHACHA20_BLOCK_SIZE * 8) {
 		chacha20_avx512vl(dst, src, len, key, counter);
 		return true;
 	}
 #endif
 #ifdef CONFIG_AS_AVX2
-	if (chacha20_use_avx2 && len >= CHACHA20_BLOCK_SIZE * 8) {
+	if (chacha20_use_avx2 && len >= CHACHA20_BLOCK_SIZE * 4) {
 		chacha20_avx2(dst, src, len, key, counter);
 		return true;
 	}
