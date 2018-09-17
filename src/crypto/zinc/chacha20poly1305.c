@@ -122,6 +122,7 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst,
 				 walk.src.virt.addr, chunk_len, simd_context);
 			poly1305_update(&poly1305_state, walk.dst.virt.addr,
 					chunk_len, simd_context);
+			simd_relax(simd_context);
 			ret = blkcipher_walk_done(&chacha20_desc, &walk,
 					walk.nbytes % CHACHA20_BLOCK_SIZE);
 		}
@@ -264,6 +265,7 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst,
 					chunk_len, simd_context);
 			chacha20(&chacha20_state, walk.dst.virt.addr,
 				 walk.src.virt.addr, chunk_len, simd_context);
+			simd_relax(simd_context);
 			ret = blkcipher_walk_done(&chacha20_desc, &walk,
 					walk.nbytes % CHACHA20_BLOCK_SIZE);
 		}
