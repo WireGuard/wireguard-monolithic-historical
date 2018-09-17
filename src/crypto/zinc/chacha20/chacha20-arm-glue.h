@@ -29,10 +29,10 @@ void __init chacha20_fpu_init(void)
 
 static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
 				 const u32 key[8], const u32 counter[4],
-				 simd_context_t simd_context)
+				 simd_context_t *simd_context)
 {
 #if defined(ARM_USE_NEON)
-	if (simd_context == HAVE_FULL_SIMD && chacha20_use_neon) {
+	if (chacha20_use_neon && simd_use(simd_context)) {
 		chacha20_neon(dst, src, len, key, counter);
 		return true;
 	}
@@ -42,7 +42,7 @@ static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
 }
 
 static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
-				  const u8 *key, simd_context_t simd_context)
+				  const u8 *key, simd_context_t *simd_context)
 {
 	return false;
 }

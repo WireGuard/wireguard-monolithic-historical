@@ -44,11 +44,11 @@ static inline void chacha20_init(struct chacha20_ctx *state,
 	state->counter[3] = nonce >> 32;
 }
 void chacha20(struct chacha20_ctx *state, u8 *dst, const u8 *src, u32 len,
-	      simd_context_t simd_context);
+	      simd_context_t *simd_context);
 
 /* Derived key should be 32-bit aligned */
 void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE],
 	       const u8 nonce[HCHACHA20_NONCE_SIZE],
-	       const u8 key[HCHACHA20_KEY_SIZE], simd_context_t simd_context);
+	       const u8 key[HCHACHA20_KEY_SIZE], simd_context_t *simd_context);
 
 #endif /* _ZINC_CHACHA20_H */

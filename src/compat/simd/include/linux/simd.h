@@ -17,49 +17,61 @@
 #endif
 
 typedef enum {
-	HAVE_NO_SIMD,
-	HAVE_FULL_SIMD
+	HAVE_NO_SIMD = 1 << 0,
+	HAVE_FULL_SIMD = 1 << 1,
+	HAVE_SIMD_IN_USE = 1 << 31
 } simd_context_t;
 
-static __must_check inline simd_context_t simd_get(void)
+static inline void simd_get(simd_context_t *ctx)
 {
 	bool have_simd = false;
 #if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
 	have_simd = irq_fpu_usable();
-	if (have_simd)
-		kernel_fpu_begin();
 #elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_PREEMPT_RT_BASE)
 #if defined(CONFIG_ARM64)
 	have_simd = true; /* ARM64 supports NEON in any context. */
 #elif defined(CONFIG_ARM)
 	have_simd = may_use_simd(); /* ARM doesn't support NEON in interrupt context. */
 #endif
-	if (have_simd)
-		kernel_neon_begin();
 #endif
-	return have_simd ? HAVE_FULL_SIMD : HAVE_NO_SIMD;
+	*ctx = have_simd ? HAVE_FULL_SIMD : HAVE_NO_SIMD;
 }
 
-static inline void simd_put(simd_context_t prior_context)
+static inline void simd_put(simd_context_t *ctx)
 {
 #if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
-	if (prior_context != HAVE_NO_SIMD)
+	if (*ctx & HAVE_SIMD_IN_USE)
 		kernel_fpu_end();
 #elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_PREEMPT_RT_BASE)
-	if (prior_context != HAVE_NO_SIMD)
+	if (*ctx & HAVE_SIMD_IN_USE)
 		kernel_neon_end();
+#endif
+	*ctx = HAVE_NO_SIMD;
+}
+
+static inline void simd_relax(simd_context_t *ctx)
+{
+#ifdef CONFIG_PREEMPT
+	if ((*ctx & HAVE_SIMD_IN_USE) && need_resched()) {
+		simd_put(ctx);
+		simd_get(ctx);
+	}
 #endif
 }
 
-static __must_check inline simd_context_t simd_relax(simd_context_t prior_context)
+static __must_check inline bool simd_use(simd_context_t *ctx)
 {
-#ifdef CONFIG_PREEMPT
-	if (prior_context != HAVE_NO_SIMD && need_resched()) {
-		simd_put(prior_context);
-		return simd_get();
-	}
+	if (!(*ctx & HAVE_FULL_SIMD))
+		return false;
+	if (*ctx & HAVE_SIMD_IN_USE)
+		return true;
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
+	kernel_fpu_begin();
+#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_PREEMPT_RT_BASE)
+	kernel_neon_begin();
 #endif
-	return prior_context;
+	*ctx |= HAVE_SIMD_IN_USE;
+	return true;
 }
 
 #endif /* _WG_SIMD_H */

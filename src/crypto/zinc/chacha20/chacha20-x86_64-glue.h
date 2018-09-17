@@ -59,9 +59,9 @@ void __init chacha20_fpu_init(void)
 
 static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
 				 const u32 key[8], const u32 counter[4],
-				 simd_context_t simd_context)
+				 simd_context_t *simd_context)
 {
-	if (simd_context != HAVE_FULL_SIMD)
+	if (!simd_use(simd_context))
 		return false;
 
 #ifdef CONFIG_AS_AVX512
@@ -90,10 +90,10 @@ static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
 }
 
 static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
-				  const u8 *key, simd_context_t simd_context)
+				  const u8 *key, simd_context_t *simd_context)
 {
 #if defined(CONFIG_AS_SSSE3)
-	if (simd_context == HAVE_FULL_SIMD && chacha20_use_ssse3) {
+	if (chacha20_use_ssse3 && simd_use(simd_context)) {
 		hchacha20_ssse3(derived_key, nonce, key);
 		return true;
 	}

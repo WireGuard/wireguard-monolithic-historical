@@ -157,7 +157,7 @@ static unsigned int skb_padding(struct sk_buff *skb)
 }
 
 static bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypair,
-			simd_context_t simd_context)
+			simd_context_t *simd_context)
 {
 	unsigned int padding_len, plaintext_len, trailer_len;
 	struct scatterlist sg[MAX_SKB_FRAGS + 8];
@@ -296,14 +296,15 @@ void packet_encrypt_worker(struct work_struct *work)
 	struct crypt_queue *queue =
 		container_of(work, struct multicore_worker, work)->ptr;
 	struct sk_buff *first, *skb, *next;
-	simd_context_t simd_context = simd_get();
+	simd_context_t simd_context;
 
+	simd_get(&simd_context);
 	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
 		skb_walk_null_queue_safe (first, skb, next) {
 			if (likely(skb_encrypt(skb, PACKET_CB(first)->keypair,
-					       simd_context)))
+					       &simd_context)))
 				skb_reset(skb);
 			else {
 				state = PACKET_STATE_DEAD;
@@ -313,9 +314,9 @@ void packet_encrypt_worker(struct work_struct *work)
 		queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first,
 				       state);
 
-		simd_context = simd_relax(simd_context);
+		simd_relax(&simd_context);
 	}
-	simd_put(simd_context);
+	simd_put(&simd_context);
 }
 
 static void packet_create_data(struct sk_buff *first)

@@ -245,7 +245,7 @@ static void keep_key_fresh(struct wireguard_peer *peer)
 }
 
 static bool skb_decrypt(struct sk_buff *skb, struct noise_symmetric_key *key,
-			simd_context_t simd_context)
+			simd_context_t *simd_context)
 {
 	struct scatterlist sg[MAX_SKB_FRAGS + 8];
 	struct sk_buff *trailer;
@@ -500,20 +500,21 @@ void packet_decrypt_worker(struct work_struct *work)
 {
 	struct crypt_queue *queue =
 		container_of(work, struct multicore_worker, work)->ptr;
-	simd_context_t simd_context = simd_get();
+	simd_context_t simd_context;
 	struct sk_buff *skb;
 
+	simd_get(&simd_context);
 	while ((skb = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = likely(skb_decrypt(skb,
 					   &PACKET_CB(skb)->keypair->receiving,
-					   simd_context)) ?
+					   &simd_context)) ?
 				PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
 		queue_enqueue_per_peer_napi(&PACKET_PEER(skb)->rx_queue, skb,
 					    state);
-		simd_context = simd_relax(simd_context);
+		simd_relax(&simd_context);
 	}
 
-	simd_put(simd_context);
+	simd_put(&simd_context);
 }
 
 static void packet_consume_data(struct wireguard_device *wg,

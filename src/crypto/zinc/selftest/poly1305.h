@@ -820,10 +820,11 @@ static const struct poly1305_testvec poly1305_testvecs[] __initconst = {
 
 bool __init poly1305_selftest(void)
 {
-	simd_context_t simd_context = simd_get();
+	simd_context_t simd_context;
 	bool success = true;
 	size_t i, j;
 
+	simd_get(&simd_context);
 	for (i = 0; i < ARRAY_SIZE(poly1305_testvecs); ++i) {
 		struct poly1305_ctx poly1305;
 		u8 out[POLY1305_MAC_SIZE];
@@ -832,14 +833,14 @@ bool __init poly1305_selftest(void)
 		memset(&poly1305, 0, sizeof(poly1305));
 		poly1305_init(&poly1305, poly1305_testvecs[i].key);
 		poly1305_update(&poly1305, poly1305_testvecs[i].input,
-				poly1305_testvecs[i].ilen, simd_context);
-		poly1305_final(&poly1305, out, simd_context);
+				poly1305_testvecs[i].ilen, &simd_context);
+		poly1305_final(&poly1305, out, &simd_context);
 		if (memcmp(out, poly1305_testvecs[i].output,
 			   POLY1305_MAC_SIZE)) {
 			pr_info("poly1305 self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
-		simd_context = simd_relax(simd_context);
+		simd_relax(&simd_context);
 
 		if (poly1305_testvecs[i].ilen <= 1)
 			continue;
@@ -849,22 +850,22 @@ bool __init poly1305_selftest(void)
 			memset(&poly1305, 0, sizeof(poly1305));
 			poly1305_init(&poly1305, poly1305_testvecs[i].key);
 			poly1305_update(&poly1305, poly1305_testvecs[i].input,
-					j, simd_context);
+					j, &simd_context);
 			poly1305_update(&poly1305,
 					poly1305_testvecs[i].input + j,
 					poly1305_testvecs[i].ilen - j,
-					simd_context);
-			poly1305_final(&poly1305, out, simd_context);
+					&simd_context);
+			poly1305_final(&poly1305, out, &simd_context);
 			if (memcmp(out, poly1305_testvecs[i].output,
 				   POLY1305_MAC_SIZE)) {
 				pr_info("poly1305 self-test %zu (split %zu): FAIL\n",
 					i + 1, j);
 				success = false;
 			}
-			simd_context = simd_relax(simd_context);
+			simd_relax(&simd_context);
 		}
 	}
-	simd_put(simd_context);
+	simd_put(&simd_context);
 
 	if (success)
 		pr_info("poly1305 self-tests: pass\n");

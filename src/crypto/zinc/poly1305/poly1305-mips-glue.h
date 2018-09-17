@@ -22,7 +22,7 @@ static inline bool poly1305_init_arch(void *ctx,
 
 static inline bool poly1305_blocks_arch(void *ctx, const u8 *inp,
 					const size_t len, const u32 padbit,
-					simd_context_t simd_context)
+					simd_context_t *simd_context)
 {
 	poly1305_blocks_mips(ctx, inp, len, padbit);
 	return true;
@@ -30,7 +30,7 @@ static inline bool poly1305_blocks_arch(void *ctx, const u8 *inp,
 
 static inline bool poly1305_emit_arch(void *ctx, u8 mac[POLY1305_MAC_SIZE],
 				      const u32 nonce[4],
-				      simd_context_t simd_context)
+				      simd_context_t *simd_context)
 {
 	poly1305_emit_mips(ctx, mac, nonce);
 	return true;

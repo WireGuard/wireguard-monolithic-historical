@@ -18,12 +18,12 @@ void __init chacha20_fpu_init(void)
 }
 static inline bool chacha20_arch(u8 *out, const u8 *in, const size_t len,
 				 const u32 key[8], const u32 counter[4],
-				 simd_context_t simd_context)
+				 simd_context_t *simd_context)
 {
 	return false;
 }
 static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
-				  const u8 *key, simd_context_t simd_context)
+				  const u8 *key, simd_context_t *simd_context)
 {
 	return false;
 }
@@ -113,7 +113,7 @@ static void chacha20_generic(u8 *out, const u8 *in, u32 len, const u32 key[8],
 }
 
 void chacha20(struct chacha20_ctx *state, u8 *dst, const u8 *src, u32 len,
-	      simd_context_t simd_context)
+	      simd_context_t *simd_context)
 {
 	if (!chacha20_arch(dst, src, len, state->key, state->counter,
 			   simd_context))
@@ -157,7 +157,7 @@ static void hchacha20_generic(u8 derived_key[CHACHA20_KEY_SIZE],
 /* Derived key should be 32-bit aligned */
 void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE],
 	       const u8 nonce[HCHACHA20_NONCE_SIZE],
-	       const u8 key[HCHACHA20_KEY_SIZE], simd_context_t simd_context)
+	       const u8 key[HCHACHA20_KEY_SIZE], simd_context_t *simd_context)
 {
 	if (!hchacha20_arch(derived_key, nonce, key, simd_context))
 		hchacha20_generic(derived_key, nonce, key);

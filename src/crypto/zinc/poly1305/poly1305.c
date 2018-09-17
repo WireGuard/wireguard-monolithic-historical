@@ -21,13 +21,13 @@ static inline bool poly1305_init_arch(void *ctx,
 }
 static inline bool poly1305_blocks_arch(void *ctx, const u8 *input,
 					const size_t len, const u32 padbit,
-					simd_context_t simd_context)
+					simd_context_t *simd_context)
 {
 	return false;
 }
 static inline bool poly1305_emit_arch(void *ctx, u8 mac[POLY1305_MAC_SIZE],
 				      const u32 nonce[4],
-				      simd_context_t simd_context)
+				      simd_context_t *simd_context)
 {
 	return false;
 }
@@ -58,7 +58,7 @@ EXPORT_SYMBOL(poly1305_init);
 
 static inline void poly1305_blocks(void *ctx, const u8 *input, const size_t len,
 				   const u32 padbit,
-				   simd_context_t simd_context)
+				   simd_context_t *simd_context)
 {
 	if (!poly1305_blocks_arch(ctx, input, len, padbit, simd_context))
 		poly1305_blocks_generic(ctx, input, len, padbit);
@@ -66,14 +66,14 @@ static inline void poly1305_blocks(void *ctx, const u8 *input, const size_t len,
 
 static inline void poly1305_emit(void *ctx, u8 mac[POLY1305_KEY_SIZE],
 				 const u32 nonce[4],
-				 simd_context_t simd_context)
+				 simd_context_t *simd_context)
 {
 	if (!poly1305_emit_arch(ctx, mac, nonce, simd_context))
 		poly1305_emit_generic(ctx, mac, nonce);
 }
 
 void poly1305_update(struct poly1305_ctx *ctx, const u8 *input, size_t len,
-		     simd_context_t simd_context)
+		     simd_context_t *simd_context)
 {
 	const size_t num = ctx->num % POLY1305_BLOCK_SIZE;
 	size_t rem;
@@ -108,7 +108,7 @@ void poly1305_update(struct poly1305_ctx *ctx, const u8 *input, size_t len,
 EXPORT_SYMBOL(poly1305_update);
 
 void poly1305_final(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE],
-		    simd_context_t simd_context)
+		    simd_context_t *simd_context)
 {
 	size_t num = ctx->num % POLY1305_BLOCK_SIZE;
 
