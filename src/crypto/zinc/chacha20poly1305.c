@@ -45,7 +45,7 @@ __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 	chacha20_init(&chacha20_state, key, nonce);
 	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0),
 		 simd_context);
-	poly1305_init(&poly1305_state, b.block0, simd_context);
+	poly1305_init(&poly1305_state, b.block0);
 
 	poly1305_update(&poly1305_state, ad, ad_len, simd_context);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf,
@@ -102,7 +102,7 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst,
 	chacha20_init(&chacha20_state, key, nonce);
 	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0),
 		 simd_context);
-	poly1305_init(&poly1305_state, b.block0, simd_context);
+	poly1305_init(&poly1305_state, b.block0);
 
 	poly1305_update(&poly1305_state, ad, ad_len, simd_context);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf,
@@ -173,7 +173,7 @@ __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 	chacha20_init(&chacha20_state, key, nonce);
 	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0),
 		 simd_context);
-	poly1305_init(&poly1305_state, b.block0, simd_context);
+	poly1305_init(&poly1305_state, b.block0);
 
 	poly1305_update(&poly1305_state, ad, ad_len, simd_context);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf,
@@ -243,7 +243,7 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst,
 	chacha20_init(&chacha20_state, key, nonce);
 	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0),
 		 simd_context);
-	poly1305_init(&poly1305_state, b.block0, simd_context);
+	poly1305_init(&poly1305_state, b.block0);
 
 	poly1305_update(&poly1305_state, ad, ad_len, simd_context);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf,

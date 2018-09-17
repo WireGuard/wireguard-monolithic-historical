@@ -55,8 +55,7 @@ void __init poly1305_fpu_init(void)
 }
 
 static inline bool poly1305_init_arch(void *ctx,
-				      const u8 key[POLY1305_KEY_SIZE],
-				      simd_context_t simd_context)
+				      const u8 key[POLY1305_KEY_SIZE])
 {
 	poly1305_init_x86_64(ctx, key);
 	return true;

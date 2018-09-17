@@ -15,8 +15,7 @@
 
 #ifndef HAVE_POLY1305_ARCH_IMPLEMENTATION
 static inline bool poly1305_init_arch(void *ctx,
-				      const u8 key[POLY1305_KEY_SIZE],
-				      simd_context_t simd_context)
+				      const u8 key[POLY1305_KEY_SIZE])
 {
 	return false;
 }
@@ -43,15 +42,14 @@ void __init poly1305_fpu_init(void)
 #include "poly1305-donna32.h"
 #endif
 
-void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE],
-		   simd_context_t simd_context)
+void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE])
 {
 	ctx->nonce[0] = get_unaligned_le32(&key[16]);
 	ctx->nonce[1] = get_unaligned_le32(&key[20]);
 	ctx->nonce[2] = get_unaligned_le32(&key[24]);
 	ctx->nonce[3] = get_unaligned_le32(&key[28]);
 
-	if (!poly1305_init_arch(ctx->opaque, key, simd_context))
+	if (!poly1305_init_arch(ctx->opaque, key))
 		poly1305_init_generic(ctx->opaque, key);
 
 	ctx->num = 0;

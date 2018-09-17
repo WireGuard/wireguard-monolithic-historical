@@ -7649,7 +7649,7 @@ chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 *src,
 	chacha20_state.counter[3] = get_unaligned_le32(nonce + 8);
 	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0),
 		 simd_context);
-	poly1305_init(&poly1305_state, b.block0, simd_context);
+	poly1305_init(&poly1305_state, b.block0);
 	poly1305_update(&poly1305_state, ad, ad_len, simd_context);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf,
 			simd_context);

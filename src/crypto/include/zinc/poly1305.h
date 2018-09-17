@@ -24,8 +24,7 @@ struct poly1305_ctx {
 
 void poly1305_fpu_init(void);
 
-void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE],
-		   simd_context_t simd_context);
+void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE]);
 void poly1305_update(struct poly1305_ctx *ctx, const u8 *input, size_t len,
 		     simd_context_t simd_context);
 void poly1305_final(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE],
