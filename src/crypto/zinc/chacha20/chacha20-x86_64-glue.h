@@ -65,17 +65,17 @@ static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
 		return false;
 
 #ifdef CONFIG_AS_AVX512
-	if (chacha20_use_avx512) {
+	if (chacha20_use_avx512 && len >= CHACHA20_BLOCK_SIZE * 16) {
 		chacha20_avx512(dst, src, len, key, counter);
 		return true;
 	}
-	if (chacha20_use_avx512vl) {
+	if (chacha20_use_avx512vl && len >= CHACHA20_BLOCK_SIZE * 16) {
 		chacha20_avx512vl(dst, src, len, key, counter);
 		return true;
 	}
 #endif
 #ifdef CONFIG_AS_AVX2
-	if (chacha20_use_avx2) {
+	if (chacha20_use_avx2 && len >= CHACHA20_BLOCK_SIZE * 8) {
 		chacha20_avx2(dst, src, len, key, counter);
 		return true;
 	}
