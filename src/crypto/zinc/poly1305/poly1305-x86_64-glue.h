@@ -61,22 +61,33 @@ static inline bool poly1305_init_arch(void *ctx,
 	return true;
 }
 
+struct poly1305_arch_internal {
+	u32 state[5];
+	u32 simd_is_engaged;
+};
+
 static inline bool poly1305_blocks_arch(void *ctx, const u8 *inp,
 					const size_t len, const u32 padbit,
 					simd_context_t *simd_context)
 {
+	struct poly1305_arch_internal *state = ctx;
+
+	if ((len < (POLY1305_BLOCK_SIZE * 18) && !state->simd_is_engaged) ||
+	    !simd_use(simd_context))
+	    poly1305_blocks_x86_64(ctx, inp, len, padbit);
+	else
 #ifdef CONFIG_AS_AVX512
-	if (poly1305_use_avx512 && simd_use(simd_context))
+	if (poly1305_use_avx512)
 		poly1305_blocks_avx512(ctx, inp, len, padbit);
 	else
 #endif
 #ifdef CONFIG_AS_AVX2
-	if (poly1305_use_avx2 && simd_use(simd_context))
+	if (poly1305_use_avx2)
 		poly1305_blocks_avx2(ctx, inp, len, padbit);
 	else
 #endif
 #ifdef CONFIG_AS_AVX
-	if (poly1305_use_avx && simd_use(simd_context))
+	if (poly1305_use_avx)
 		poly1305_blocks_avx(ctx, inp, len, padbit);
 	else
 #endif
