@@ -172,6 +172,8 @@ void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE],
 }
 EXPORT_SYMBOL(hchacha20);
 
+#include "../selftest/chacha20.h"
+
 static bool nosimd __initdata = false;
 
 #ifndef COMPAT_ZINC_IS_A_MODULE
@@ -182,6 +184,10 @@ static int __init mod_init(void)
 {
 	if (!nosimd)
 		chacha20_fpu_init();
+#ifdef DEBUG
+	if (!chacha20_selftest())
+		return -ENOTRECOVERABLE;
+#endif
 	return 0;
 }
 
