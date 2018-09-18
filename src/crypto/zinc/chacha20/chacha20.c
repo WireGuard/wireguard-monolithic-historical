@@ -172,13 +172,16 @@ void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE],
 }
 EXPORT_SYMBOL(hchacha20);
 
+static bool nosimd __initdata = false;
+
 #ifndef COMPAT_ZINC_IS_A_MODULE
 int __init chacha20_mod_init(void)
 #else
 static int __init mod_init(void)
 #endif
 {
-	chacha20_fpu_init();
+	if (!nosimd)
+		chacha20_fpu_init();
 	return 0;
 }
 
@@ -187,6 +190,7 @@ static void __exit mod_exit(void)
 {
 }
 
+module_param(nosimd, bool, 0);
 module_init(mod_init);
 module_exit(mod_exit);
 MODULE_LICENSE("GPL v2");

@@ -278,13 +278,16 @@ EXPORT_SYMBOL(blake2s_hmac);
 
 #include "../selftest/blake2s.h"
 
+static bool nosimd __initdata = false;
+
 #ifndef COMPAT_ZINC_IS_A_MODULE
 int __init blake2s_mod_init(void)
 #else
 static int __init mod_init(void)
 #endif
 {
-	blake2s_fpu_init();
+	if (!nosimd)
+		blake2s_fpu_init();
 #ifdef DEBUG
 	if (!blake2s_selftest())
 		return -ENOTRECOVERABLE;
@@ -297,6 +300,7 @@ static void __exit mod_exit(void)
 {
 }
 
+module_param(nosimd, bool, 0);
 module_init(mod_init);
 module_exit(mod_exit);
 MODULE_LICENSE("GPL v2");

@@ -60,7 +60,8 @@ static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
 				 const u32 key[8], const u32 counter[4],
 				 simd_context_t *simd_context)
 {
-	if (len <= CHACHA20_BLOCK_SIZE || !simd_use(simd_context))
+	if (!chacha20_use_ssse3 || len <= CHACHA20_BLOCK_SIZE ||
+	    !simd_use(simd_context))
 		return false;
 
 #ifdef CONFIG_AS_AVX512

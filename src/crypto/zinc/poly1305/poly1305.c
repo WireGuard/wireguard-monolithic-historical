@@ -136,13 +136,16 @@ EXPORT_SYMBOL(poly1305_final);
 
 #include "../selftest/poly1305.h"
 
+static bool nosimd __initdata = false;
+
 #ifndef COMPAT_ZINC_IS_A_MODULE
 int __init poly1305_mod_init(void)
 #else
 static int __init mod_init(void)
 #endif
 {
-	poly1305_fpu_init();
+	if (!nosimd)
+		poly1305_fpu_init();
 #ifdef DEBUG
 	if (!poly1305_selftest())
 		return -ENOTRECOVERABLE;
@@ -155,6 +158,7 @@ static void __exit mod_exit(void)
 {
 }
 
+module_param(nosimd, bool, 0);
 module_init(mod_init);
 module_exit(mod_exit);
 MODULE_LICENSE("GPL v2");
