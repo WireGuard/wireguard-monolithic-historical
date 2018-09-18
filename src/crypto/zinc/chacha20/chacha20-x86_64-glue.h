@@ -69,7 +69,7 @@ static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
 		chacha20_avx512(dst, src, len, key, counter);
 		return true;
 	}
-	if (chacha20_use_avx512vl && len >= CHACHA20_BLOCK_SIZE * 8) {
+	if (chacha20_use_avx512vl && len >= CHACHA20_BLOCK_SIZE * 4) {
 		chacha20_avx512vl(dst, src, len, key, counter);
 		return true;
 	}
