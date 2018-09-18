@@ -7,7 +7,7 @@
  * but has subsequently been manually reworked for use in kernel space.
  */
 
-#if __LINUX_ARM_ARCH__ == 7
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && __LINUX_ARM_ARCH__ == 7
 #include <linux/linkage.h>
 
 .text
