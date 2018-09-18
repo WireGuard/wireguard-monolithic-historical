@@ -162,6 +162,6 @@ module_param(nosimd, bool, 0);
 module_init(mod_init);
 module_exit(mod_exit);
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Poly1305 one-time MAC");
+MODULE_DESCRIPTION("Poly1305 one-time authenticator");
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 #endif
