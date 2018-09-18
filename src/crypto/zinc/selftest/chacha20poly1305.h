@@ -7628,7 +7628,7 @@ xchacha20poly1305_dec_vectors[] __initconst = {	{
 		    0x9d }
 } };
 
-static inline void
+static void __init
 chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 *src,
 					   const size_t src_len, const u8 *ad,
 					   const size_t ad_len,
@@ -7668,7 +7668,7 @@ chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 *src,
 	memzero_explicit(&b, sizeof(b));
 }
 
-static inline void
+static void __init
 chacha20poly1305_selftest_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 				  const u8 *ad, const size_t ad_len,
 				  const u8 *nonce, const size_t nonce_len,
@@ -7685,7 +7685,7 @@ chacha20poly1305_selftest_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 		BUG();
 }
 
-static inline bool
+static bool __init
 decryption_success(bool func_ret, bool expect_failure, int memcmp_result)
 {
 	if (expect_failure)
