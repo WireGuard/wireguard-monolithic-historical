@@ -41,6 +41,10 @@ bool __init ratelimiter_selftest(void)
 	struct sk_buff *skb4;
 	struct iphdr *hdr4;
 
+#if defined(CONFIG_KASAN) || defined(CONFIG_UBSAN)
+	return true;
+#endif
+
 	BUILD_BUG_ON(MSEC_PER_SEC % PACKETS_PER_SECOND != 0);
 
 	if (ratelimiter_init())
