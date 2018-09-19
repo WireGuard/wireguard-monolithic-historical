@@ -50,7 +50,7 @@ static void node_free_rcu(struct rcu_head *rcu)
 
 #define push_rcu(stack, p, len) ({                                             \
 		if (rcu_access_pointer(p)) {                                   \
-			BUG_ON(len >= 128);                                    \
+			WARN_ON(len >= 128);                                   \
 			stack[len++] = rcu_dereference_raw(p);                 \
 		}                                                              \
 		true;                                                          \
@@ -109,7 +109,7 @@ walk_by_peer(struct allowedips_node __rcu *top, u8 bits,
 #define ref(p) rcu_access_pointer(p)
 #define deref(p) rcu_dereference_protected(*p, lockdep_is_held(lock))
 #define push(p) ({                                                             \
-		BUG_ON(len >= 128);                                            \
+		WARN_ON(len >= 128);                                           \
 		stack[len++] = p;                                              \
 	})
 static void walk_remove_by_peer(struct allowedips_node __rcu **top,
