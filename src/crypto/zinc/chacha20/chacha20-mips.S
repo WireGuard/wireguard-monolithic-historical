@@ -335,7 +335,7 @@ chacha20_mips:
 	bne	$at, BYTES, .Lchacha20_mips_xor_bytes
 	/* Empty delayslot, Increase NONCE_0, return NONCE_0 value */
 	addiu	NONCE_0, 1
-	.set noreorder
+	.set reorder
 
 .Lchacha20_mips_xor_done:
 	/* Restore used registers */
