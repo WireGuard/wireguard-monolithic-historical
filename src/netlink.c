@@ -169,10 +169,11 @@ err:
 static int get_device_start(struct netlink_callback *cb)
 {
 	struct nlattr **attrs = genl_family_attrbuf(&genl_family);
-	int ret = nlmsg_parse(cb->nlh, GENL_HDRLEN + genl_family.hdrsize, attrs,
-			      genl_family.maxattr, device_policy, NULL);
 	struct wireguard_device *wg;
+	int ret;
 
+	ret = nlmsg_parse(cb->nlh, GENL_HDRLEN + genl_family.hdrsize, attrs,
+			  genl_family.maxattr, device_policy, NULL);
 	if (ret < 0)
 		return ret;
 	cb->args[2] = (long)kzalloc(sizeof(struct allowedips_cursor),
@@ -196,9 +197,9 @@ static int get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct wireguard_device *wg;
 	unsigned int peer_idx = 0;
 	struct nlattr *peers_nest;
+	int ret = -EMSGSIZE;
 	bool done = true;
 	void *hdr;
-	int ret = -EMSGSIZE;
 
 	wg = (struct wireguard_device *)cb->args[0];
 	next_peer_cursor = (struct wireguard_peer *)cb->args[1];
@@ -347,10 +348,10 @@ static int set_allowedip(struct wireguard_peer *peer, struct nlattr **attrs)
 
 static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 {
-	int ret;
-	u32 flags = 0;
-	struct wireguard_peer *peer = NULL;
 	u8 *public_key = NULL, *preshared_key = NULL;
+	struct wireguard_peer *peer = NULL;
+	u32 flags = 0;
+	int ret;
 
 	ret = -EINVAL;
 	if (attrs[WGPEER_A_PUBLIC_KEY] &&
@@ -476,8 +477,8 @@ out:
 
 static int set_device(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret;
 	struct wireguard_device *wg = lookup_interface(info->attrs, skb);
+	int ret;
 
 	if (IS_ERR(wg)) {
 		ret = PTR_ERR(wg);
@@ -497,8 +498,8 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[WGDEVICE_A_LISTEN_PORT]) {
-		ret = set_port(
-			wg, nla_get_u16(info->attrs[WGDEVICE_A_LISTEN_PORT]));
+		ret = set_port(wg,
+			nla_get_u16(info->attrs[WGDEVICE_A_LISTEN_PORT]));
 		if (ret)
 			goto out;
 	}
@@ -540,8 +541,8 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[WGDEVICE_A_PEERS]) {
-		int rem;
 		struct nlattr *attr, *peer[WGPEER_A_MAX + 1];
+		int rem;
 
 		nla_for_each_nested (attr, info->attrs[WGDEVICE_A_PEERS], rem) {
 			ret = nla_parse_nested(peer, WGPEER_A_MAX, attr,
