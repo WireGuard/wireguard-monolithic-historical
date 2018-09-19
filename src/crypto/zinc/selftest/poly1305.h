@@ -862,6 +862,23 @@ static bool __init poly1305_selftest(void)
 					i + 1, j);
 				success = false;
 			}
+
+			memset(out, 0, sizeof(out));
+			memset(&poly1305, 0, sizeof(poly1305));
+			poly1305_init(&poly1305, poly1305_testvecs[i].key);
+			poly1305_update(&poly1305, poly1305_testvecs[i].input,
+					j, &simd_context);
+			poly1305_update(&poly1305,
+					poly1305_testvecs[i].input + j,
+					poly1305_testvecs[i].ilen - j,
+					(simd_context_t []){ HAVE_NO_SIMD });
+			poly1305_final(&poly1305, out, &simd_context);
+			if (memcmp(out, poly1305_testvecs[i].output,
+				   POLY1305_MAC_SIZE)) {
+				pr_info("poly1305 self-test %zu (split %zu, mixed simd): FAIL\n",
+					i + 1, j);
+				success = false;
+			}
 			simd_relax(&simd_context);
 		}
 	}
