@@ -16,6 +16,7 @@ endif
 ifeq ($(CONFIG_MIPS)$(CONFIG_CPU_MIPS32_R2),yy)
 wireguard-y += crypto/zinc/chacha20/chacha20-mips.o
 CFLAGS_chacha20.o += -DCONFIG_ZINC_ARCH_MIPS
+AFLAGS_chacha20-mips.o += -O2
 endif
 
 wireguard-y += crypto/zinc/poly1305/poly1305.o
