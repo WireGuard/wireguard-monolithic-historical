@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: LGPL-2.1+
- *
+// SPDX-License-Identifier: LGPL-2.1+
+/*
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
