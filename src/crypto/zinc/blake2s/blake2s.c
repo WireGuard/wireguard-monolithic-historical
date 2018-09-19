@@ -230,14 +230,20 @@ void blake2s_update(struct blake2s_state *state, const u8 *in, size_t inlen)
 }
 EXPORT_SYMBOL(blake2s_update);
 
-void __blake2s_final(struct blake2s_state *state)
+void blake2s_final(struct blake2s_state *state, u8 *out, const size_t outlen)
 {
+#ifdef DEBUG
+	BUG_ON(!out || !outlen || outlen > BLAKE2S_OUTBYTES);
+#endif
 	blake2s_set_lastblock(state);
 	memset(state->buf + state->buflen, 0,
 	       BLAKE2S_BLOCKBYTES - state->buflen); /* Padding */
 	blake2s_compress(state, state->buf, 1, state->buflen);
+	cpu_to_le32_array(state->h, ARRAY_SIZE(state->h));
+	memcpy(out, state->h, outlen);
+	memzero_explicit(state, sizeof(*state));
 }
-EXPORT_SYMBOL(__blake2s_final);
+EXPORT_SYMBOL(blake2s_final);
 
 void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const size_t outlen,
 		  const size_t inlen, const size_t keylen)
