@@ -105,18 +105,16 @@ static void chacha20_generic(u8 *out, const u8 *in, u32 len, const u32 key[8],
 		counter[0], counter[1], counter[2], counter[3]
 	};
 
-	if (out != in)
-		memmove(out, in, len);
-
 	while (len >= CHACHA20_BLOCK_SIZE) {
 		chacha20_block_generic(buf, x);
-		crypto_xor(out, (u8 *)buf, CHACHA20_BLOCK_SIZE);
+		crypto_xor_cpy(out, in, (u8 *)buf, CHACHA20_BLOCK_SIZE);
 		len -= CHACHA20_BLOCK_SIZE;
 		out += CHACHA20_BLOCK_SIZE;
+		in += CHACHA20_BLOCK_SIZE;
 	}
 	if (len) {
 		chacha20_block_generic(buf, x);
-		crypto_xor(out, (u8 *)buf, len);
+		crypto_xor_cpy(out, in, (u8 *)buf, len);
 	}
 }
 

@@ -698,6 +698,34 @@ static inline void cpu_to_le32_array(u32 *buf, unsigned int words)
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+#include <crypto/algapi.h>
+static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
+				  unsigned int size)
+{
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
+	    __builtin_constant_p(size) &&
+	    (size % sizeof(unsigned long)) == 0) {
+		unsigned long *d = (unsigned long *)dst;
+		unsigned long *s1 = (unsigned long *)src1;
+		unsigned long *s2 = (unsigned long *)src2;
+
+		while (size > 0) {
+			*d++ = *s1++ ^ *s2++;
+			size -= sizeof(unsigned long);
+		}
+	} else {
+		if (unlikely(dst != src1))
+			memmove(dst, src1, size);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+		crypto_xor(dst, src2, size);
+#else
+		__crypto_xor(dst, src2, size);
+#endif
+	}
+}
+#endif
+
 /* https://lkml.kernel.org/r/20170624021727.17835-1-Jason@zx2c4.com */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
