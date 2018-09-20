@@ -8881,22 +8881,21 @@ static bool __init chacha20poly1305_selftest(void)
 {
 	enum { MAXIMUM_TEST_BUFFER_LEN = 1UL << 12 };
 	size_t i;
-	u8 computed_output[MAXIMUM_TEST_BUFFER_LEN], *heap_src, *heap_dst;
+	u8 *computed_output = NULL, *heap_src = NULL;
 	bool success = true, ret;
 	simd_context_t simd_context;
 	struct scatterlist sg_src, sg_dst;
 
 	heap_src = kmalloc(MAXIMUM_TEST_BUFFER_LEN, GFP_KERNEL);
-	heap_dst = kmalloc(MAXIMUM_TEST_BUFFER_LEN, GFP_KERNEL);
-	if (!heap_src || !heap_dst) {
-		kfree(heap_src);
-		kfree(heap_dst);
+	computed_output = kmalloc(MAXIMUM_TEST_BUFFER_LEN, GFP_KERNEL);
+	if (!heap_src || !computed_output) {
 		pr_info("chacha20poly1305 self-test malloc: FAIL\n");
-		return false;
+		success = false;
+		goto out;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {
-		memset(computed_output, 0, sizeof(computed_output));
+		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN);
 		chacha20poly1305_selftest_encrypt(computed_output,
 					chacha20poly1305_enc_vectors[i].input,
 					chacha20poly1305_enc_vectors[i].ilen,
@@ -8918,12 +8917,12 @@ static bool __init chacha20poly1305_selftest(void)
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {
 		if (chacha20poly1305_enc_vectors[i].nlen != 8)
 			continue;
-		memset(heap_dst, 0, MAXIMUM_TEST_BUFFER_LEN);
+		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN);
 		memcpy(heap_src, chacha20poly1305_enc_vectors[i].input,
 		       chacha20poly1305_enc_vectors[i].ilen);
 		sg_init_one(&sg_src, heap_src,
 			    chacha20poly1305_enc_vectors[i].ilen);
-		sg_init_one(&sg_dst, heap_dst,
+		sg_init_one(&sg_dst, computed_output,
 			    chacha20poly1305_enc_vectors[i].ilen +
 				POLY1305_MAC_SIZE);
 		ret = chacha20poly1305_encrypt_sg(&sg_dst, &sg_src,
@@ -8933,7 +8932,7 @@ static bool __init chacha20poly1305_selftest(void)
 			get_unaligned_le64(chacha20poly1305_enc_vectors[i].nonce),
 			chacha20poly1305_enc_vectors[i].key,
 			&simd_context);
-		if (!ret || memcmp(heap_dst,
+		if (!ret || memcmp(computed_output,
 				   chacha20poly1305_enc_vectors[i].output,
 				   chacha20poly1305_enc_vectors[i].ilen +
 							POLY1305_MAC_SIZE)) {
@@ -8944,7 +8943,7 @@ static bool __init chacha20poly1305_selftest(void)
 	}
 	simd_put(&simd_context);
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
-		memset(computed_output, 0, sizeof(computed_output));
+		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN);
 		ret = chacha20poly1305_decrypt(computed_output,
 			chacha20poly1305_dec_vectors[i].input,
 			chacha20poly1305_dec_vectors[i].ilen,
@@ -8965,12 +8964,12 @@ static bool __init chacha20poly1305_selftest(void)
 	}
 	simd_get(&simd_context);
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_dec_vectors); ++i) {
-		memset(heap_dst, 0, MAXIMUM_TEST_BUFFER_LEN);
+		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN);
 		memcpy(heap_src, chacha20poly1305_dec_vectors[i].input,
 		       chacha20poly1305_dec_vectors[i].ilen);
 		sg_init_one(&sg_src, heap_src,
 			    chacha20poly1305_dec_vectors[i].ilen);
-		sg_init_one(&sg_dst, heap_dst,
+		sg_init_one(&sg_dst, computed_output,
 			    chacha20poly1305_dec_vectors[i].ilen -
 							POLY1305_MAC_SIZE);
 		ret = chacha20poly1305_decrypt_sg(&sg_dst, &sg_src,
@@ -8981,7 +8980,7 @@ static bool __init chacha20poly1305_selftest(void)
 			chacha20poly1305_dec_vectors[i].key, &simd_context);
 		if (!decryption_success(ret,
 			chacha20poly1305_dec_vectors[i].failure,
-			memcmp(heap_dst, chacha20poly1305_dec_vectors[i].output,
+			memcmp(computed_output, chacha20poly1305_dec_vectors[i].output,
 			       chacha20poly1305_dec_vectors[i].ilen -
 							POLY1305_MAC_SIZE))) {
 			pr_info("chacha20poly1305 sg decryption self-test %zu: FAIL\n",
@@ -8991,7 +8990,7 @@ static bool __init chacha20poly1305_selftest(void)
 	}
 	simd_put(&simd_context);
 	for (i = 0; i < ARRAY_SIZE(xchacha20poly1305_enc_vectors); ++i) {
-		memset(computed_output, 0, sizeof(computed_output));
+		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN);
 		xchacha20poly1305_encrypt(computed_output,
 					xchacha20poly1305_enc_vectors[i].input,
 					xchacha20poly1305_enc_vectors[i].ilen,
@@ -9009,7 +9008,7 @@ static bool __init chacha20poly1305_selftest(void)
 		}
 	}
 	for (i = 0; i < ARRAY_SIZE(xchacha20poly1305_dec_vectors); ++i) {
-		memset(computed_output, 0, sizeof(computed_output));
+		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN);
 		ret = xchacha20poly1305_decrypt(computed_output,
 					xchacha20poly1305_dec_vectors[i].input,
 					xchacha20poly1305_dec_vectors[i].ilen,
@@ -9030,8 +9029,10 @@ static bool __init chacha20poly1305_selftest(void)
 	}
 	if (success)
 		pr_info("chacha20poly1305 self-tests: pass\n");
+
+out:
 	kfree(heap_src);
-	kfree(heap_dst);
+	kfree(computed_output);
 	return success;
 }
 #endif

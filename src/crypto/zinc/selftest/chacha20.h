@@ -2518,20 +2518,25 @@ static bool __init chacha20_selftest(void)
 {
 	enum { MAXIMUM_TEST_BUFFER_LEN = 1UL << 10 };
 	size_t i, j;
-	u8 offset_input[MAXIMUM_TEST_BUFFER_LEN + 1]
-			__aligned(__alignof__(unsigned long));
+	u8 *offset_input = NULL, *computed_output = NULL;
 	u8 offset_key[CHACHA20_KEY_SIZE + 1]
-			__aligned(__alignof__(unsigned long));
-	u8 computed_output[MAXIMUM_TEST_BUFFER_LEN + 1]
 			__aligned(__alignof__(unsigned long));
 	struct chacha20_ctx state;
 	bool success = true;
 	simd_context_t simd_context;
 
+	offset_input = kmalloc(MAXIMUM_TEST_BUFFER_LEN + 1, GFP_KERNEL);
+	computed_output = kmalloc(MAXIMUM_TEST_BUFFER_LEN + 1, GFP_KERNEL);
+	if (!computed_output || !offset_input) {
+		pr_info("chacha20 self-test malloc: FAIL\n");
+		success = false;
+		goto out;
+	}
+
 	simd_get(&simd_context);
 	for (i = 0; i < ARRAY_SIZE(chacha20_testvecs); ++i) {
 		/* Boring case */
-		memset(computed_output, 0, sizeof(computed_output));
+		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN + 1);
 		memset(&state, 0, sizeof(state));
 		chacha20_init(&state, chacha20_testvecs[i].key,
 			      chacha20_testvecs[i].nonce);
@@ -2544,7 +2549,7 @@ static bool __init chacha20_selftest(void)
 		}
 
 		/* Unaligned case */
-		memset(computed_output, 0, sizeof(computed_output));
+		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN + 1);
 		memset(&state, 0, sizeof(state));
 		memcpy(offset_input + 1, chacha20_testvecs[i].input,
 		       chacha20_testvecs[i].ilen);
@@ -2563,7 +2568,7 @@ static bool __init chacha20_selftest(void)
 		/* Chunked case */
 		if (chacha20_testvecs[i].ilen <= CHACHA20_BLOCK_SIZE)
 			goto next_test;
-		memset(computed_output, 0, sizeof(computed_output));
+		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN + 1);
 		memset(&state, 0, sizeof(state));
 		chacha20_init(&state, chacha20_testvecs[i].key,
 			      chacha20_testvecs[i].nonce);
@@ -2586,7 +2591,7 @@ next_test:
 		    !chacha20_testvecs[i].ilen)
 			continue;
 		for (j = 1; j < CHACHA20_BLOCK_SIZE; ++j) {
-			memset(computed_output, 0, sizeof(computed_output));
+			memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN + 1);
 			memset(&state, 0, sizeof(state));
 			memcpy(offset_input + j, chacha20_testvecs[i].input,
 			       chacha20_testvecs[i].ilen);
@@ -2616,6 +2621,10 @@ next_test:
 	simd_put(&simd_context);
 	if (success)
 		pr_info("chacha20 self-tests: pass\n");
+
+out:
+	kfree(offset_input);
+	kfree(computed_output);
 	return success;
 }
 #endif

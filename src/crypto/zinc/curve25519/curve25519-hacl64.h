@@ -584,7 +584,7 @@ static __always_inline void ladder_bigloop_cmult_big_loop(u8 *n1, u64 *nq,
 	}
 }
 
-static __always_inline void ladder_cmult(u64 *result, u8 *n1, u64 *q)
+static void ladder_cmult(u64 *result, u8 *n1, u64 *q)
 {
 	u64 point_buf[40] = { 0 };
 	u64 *nq = point_buf;
