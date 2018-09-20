@@ -24,8 +24,8 @@
 void __init chacha20_fpu_init(void)
 {
 }
-static inline bool chacha20_arch(u8 *out, const u8 *in, const size_t len,
-				 const u32 key[8], const u32 counter[4],
+static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *out,
+				 const u8 *in, const size_t len,
 				 simd_context_t *simd_context)
 {
 	return false;
@@ -36,8 +36,6 @@ static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
 	return false;
 }
 #endif
-
-#define EXPAND_32_BYTE_K 0x61707865U, 0x3320646eU, 0x79622d32U, 0x6b206574U
 
 #define QUARTER_ROUND(x, a, b, c, d) ( \
 	x[a] += x[b], \
@@ -94,26 +92,20 @@ static void chacha20_block_generic(__le32 *stream, u32 *state)
 	++state[12];
 }
 
-static void chacha20_generic(u8 *out, const u8 *in, u32 len, const u32 key[8],
-			     const u32 counter[4])
+static void chacha20_generic(struct chacha20_ctx *state, u8 *out, const u8 *in,
+			     u32 len)
 {
 	__le32 buf[CHACHA20_BLOCK_WORDS];
-	u32 x[] = {
-		EXPAND_32_BYTE_K,
-		key[0], key[1], key[2], key[3],
-		key[4], key[5], key[6], key[7],
-		counter[0], counter[1], counter[2], counter[3]
-	};
 
 	while (len >= CHACHA20_BLOCK_SIZE) {
-		chacha20_block_generic(buf, x);
+		chacha20_block_generic(buf, (u32 *)state);
 		crypto_xor_cpy(out, in, (u8 *)buf, CHACHA20_BLOCK_SIZE);
 		len -= CHACHA20_BLOCK_SIZE;
 		out += CHACHA20_BLOCK_SIZE;
 		in += CHACHA20_BLOCK_SIZE;
 	}
 	if (len) {
-		chacha20_block_generic(buf, x);
+		chacha20_block_generic(buf, (u32 *)state);
 		crypto_xor_cpy(out, in, (u8 *)buf, len);
 	}
 }
@@ -121,10 +113,8 @@ static void chacha20_generic(u8 *out, const u8 *in, u32 len, const u32 key[8],
 void chacha20(struct chacha20_ctx *state, u8 *dst, const u8 *src, u32 len,
 	      simd_context_t *simd_context)
 {
-	if (!chacha20_arch(dst, src, len, state->key, state->counter,
-			   simd_context))
-		chacha20_generic(dst, src, len, state->key, state->counter);
-	state->counter[0] += (len + 63) / 64;
+	if (!chacha20_arch(state, dst, src, len, simd_context))
+		chacha20_generic(state, dst, src, len);
 }
 EXPORT_SYMBOL(chacha20);
 
@@ -133,7 +123,10 @@ static void hchacha20_generic(u8 derived_key[CHACHA20_KEY_SIZE],
 			      const u8 key[HCHACHA20_KEY_SIZE])
 {
 	__le32 *out = (__force __le32 *)derived_key;
-	u32 x[] = { EXPAND_32_BYTE_K,
+	u32 x[] = { CHACHA20_CONSTANT_EXPA,
+		    CHACHA20_CONSTANT_ND_3,
+		    CHACHA20_CONSTANT_2_BY,
+		    CHACHA20_CONSTANT_TE_K,
 		    get_unaligned_le32(key + 0),
 		    get_unaligned_le32(key + 4),
 		    get_unaligned_le32(key + 8),

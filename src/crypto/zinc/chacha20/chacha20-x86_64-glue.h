@@ -56,8 +56,8 @@ static void __init chacha20_fpu_init(void)
 #endif
 }
 
-static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
-				 const u32 key[8], const u32 counter[4],
+static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
+				 const u8 *src, const size_t len,
 				 simd_context_t *simd_context)
 {
 	if (!chacha20_use_ssse3 || len <= CHACHA20_BLOCK_SIZE ||
@@ -66,27 +66,30 @@ static inline bool chacha20_arch(u8 *dst, const u8 *src, const size_t len,
 
 #ifdef CONFIG_AS_AVX512
 	if (chacha20_use_avx512 && len >= CHACHA20_BLOCK_SIZE * 8) {
-		chacha20_avx512(dst, src, len, key, counter);
-		return true;
+		chacha20_avx512(dst, src, len, state->key, state->counter);
+		goto success;
 	}
 	if (chacha20_use_avx512vl && len >= CHACHA20_BLOCK_SIZE * 4) {
-		chacha20_avx512vl(dst, src, len, key, counter);
-		return true;
+		chacha20_avx512vl(dst, src, len, state->key, state->counter);
+		goto success;
 	}
 #endif
 #ifdef CONFIG_AS_AVX2
 	if (chacha20_use_avx2 && len >= CHACHA20_BLOCK_SIZE * 4) {
-		chacha20_avx2(dst, src, len, key, counter);
-		return true;
+		chacha20_avx2(dst, src, len, state->key, state->counter);
+		goto success;
 	}
 #endif
 #ifdef CONFIG_AS_SSSE3
 	if (chacha20_use_ssse3) {
-		chacha20_ssse3(dst, src, len, key, counter);
-		return true;
+		chacha20_ssse3(dst, src, len, state->key, state->counter);
+		goto success;
 	}
 #endif
 	return false;
+success:
+	state->counter[0] += (len + 63) / 64;
+	return true;
 }
 
 static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,

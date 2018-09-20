@@ -20,7 +20,16 @@ enum {
 	HCHACHA20_NONCE_SIZE = 16
 };
 
+enum {
+	/* expand 32-byte k */
+	CHACHA20_CONSTANT_EXPA = 0x61707865U,
+	CHACHA20_CONSTANT_ND_3 = 0x3320646eU,
+	CHACHA20_CONSTANT_2_BY = 0x79622d32U,
+	CHACHA20_CONSTANT_TE_K = 0x6b206574U
+};
+
 struct chacha20_ctx {
+	u32 constant[4];
 	u32 key[8];
 	u32 counter[4];
 } __aligned(32);
@@ -29,6 +38,10 @@ static inline void chacha20_init(struct chacha20_ctx *state,
 				 const u8 key[CHACHA20_KEY_SIZE],
 				 const u64 nonce)
 {
+	state->constant[0] = CHACHA20_CONSTANT_EXPA;
+	state->constant[1] = CHACHA20_CONSTANT_ND_3;
+	state->constant[2] = CHACHA20_CONSTANT_2_BY;
+	state->constant[3] = CHACHA20_CONSTANT_TE_K;
 	state->key[0] = get_unaligned_le32(key + 0);
 	state->key[1] = get_unaligned_le32(key + 4);
 	state->key[2] = get_unaligned_le32(key + 8);
