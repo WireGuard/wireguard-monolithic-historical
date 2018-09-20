@@ -34,6 +34,7 @@ endif
 ifeq ($(CONFIG_MIPS)$(CONFIG_CPU_MIPS32_R2),yy)
 wireguard-y += crypto/zinc/poly1305/poly1305-mips.o
 CFLAGS_poly1305.o += -DCONFIG_ZINC_ARCH_MIPS
+AFLAGS_poly1305-mips.o += -O2
 endif
 ifeq ($(CONFIG_MIPS)$(CONFIG_64BIT),yy)
 wireguard-y += crypto/zinc/poly1305/poly1305-mips64.o

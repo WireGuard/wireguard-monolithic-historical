@@ -52,23 +52,21 @@
 #define PTR_POLY1305_H(n) (20 + (n*4)) ## ($a0)
 
 #define POLY1305_BLOCK_SIZE 16
-#define POLY1305_STACK_SIZE 8 * 4
+#define POLY1305_STACK_SIZE 32
 
-.set reorder
-.set noat
-.align 4
-.globl poly1305_blocks_mips
-.ent poly1305_blocks_mips
+.set	noat
+.align	4
+.globl	poly1305_blocks_mips
+.ent	poly1305_blocks_mips
 poly1305_blocks_mips:
-	.frame  $sp,POLY1305_STACK_SIZE,$31
+	.frame	$sp, POLY1305_STACK_SIZE, $ra
 	/* srclen &= 0xFFFFFFF0 */
 	ins	srclen, $zero, 0, 4
 
-	.set noreorder
+	addiu	$sp, -(POLY1305_STACK_SIZE)
+
 	/* check srclen >= 16 bytes */
 	beqz	srclen, .Lpoly1305_blocks_mips_end
-	addiu	$sp, -(POLY1305_STACK_SIZE)
-	.set reorder
 
 	/* Calculate last round based on src address pointer.
 	 * last round src ptr (srclen) = src + (srclen & 0xFFFFFFF0)
@@ -210,12 +208,10 @@ poly1305_blocks_mips:
 	srl	CA, O4, 2
 	ins	O4, $zero, 0, 2
 
-	/* able to do a 16 byte block. */
-	.set noreorder
-	bne	src, srclen, .Lpoly1305_loop
-	/* Delay slot is always executed. */
 	addu	CA, O4
-	.set reorder
+
+	/* able to do a 16 byte block. */
+	bne	src, srclen, .Lpoly1305_loop
 
 	/* restore the used save registers. */
 	lw	$s0, 0($sp)
@@ -234,14 +230,12 @@ poly1305_blocks_mips:
 	sw	H4, PTR_POLY1305_H(4)
 
 .Lpoly1305_blocks_mips_end:
-	/* Jump Back */
-	.set noreorder
-	jr	$ra
 	addiu	$sp, POLY1305_STACK_SIZE
-	.set reorder
+
+	/* Jump Back */
+	jr	$ra
 .end poly1305_blocks_mips
 .set at
-.set reorder
 
 /* Input arguments CTX=$a0, MAC=$a1, NONCE=$a2 */
 #define MAC	$a1
@@ -253,11 +247,10 @@ poly1305_blocks_mips:
 #define G3	$t8
 #define G4	$t9
 
-.set reorder
-.set noat
-.align 4
-.globl poly1305_emit_mips
-.ent poly1305_emit_mips
+.set	noat
+.align	4
+.globl	poly1305_emit_mips
+.ent	poly1305_emit_mips
 poly1305_emit_mips:
 	/* load Hx and Carry */
 	lw	CA, PTR_POLY1305_CA
@@ -347,10 +340,9 @@ poly1305_emit_mips:
 	swr	H0, 0+LSB(MAC)
 	swr	H1, 4+LSB(MAC)
 	swr	H2, 8+LSB(MAC)
-	.set noreorder
-	jr	$ra
 	swr	H3,12+LSB(MAC)
-	.set reorder
+
+	jr	$ra
 .end poly1305_emit_mips
 
 #define PR0 $t0
@@ -361,9 +353,9 @@ poly1305_emit_mips:
 
 /* Input arguments CTX=$a0, KEY=$a1 */
 
-.align 4
-.globl poly1305_init_mips
-.ent poly1305_init_mips
+.align	4
+.globl	poly1305_init_mips
+.ent	poly1305_init_mips
 poly1305_init_mips:
 	lwl	PR0, 0+MSB($a1)
 	lwl	PR1, 4+MSB($a1)
@@ -408,10 +400,8 @@ poly1305_init_mips:
 	sw	PR0, PTR_POLY1305_R(0)
 	sw	PR1, PTR_POLY1305_R(1)
 	sw	PR2, PTR_POLY1305_R(2)
+	sw	PR3, PTR_POLY1305_R(3)
 
-	.set noreorder
 	/* Jump Back  */
 	jr	$ra
-	sw	PR3, PTR_POLY1305_R(3)
-	.set reorder
 .end poly1305_init_mips
