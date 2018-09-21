@@ -5,19 +5,24 @@
 
 #include <asm/hwcap.h>
 #include <asm/neon.h>
+#if defined(CONFIG_ARM)
+#include <asm/system_info.h>
+#include <asm/cputype.h>
+#endif
+
+#define ARM_USE_NEON (defined(CONFIG_KERNEL_MODE_NEON) &&                      \
+		      (defined(CONFIG_ARM64) ||                                \
+		       (defined(__LINUX_ARM_ARCH__) &&                         \
+			__LINUX_ARM_ARCH__ == 7)))
 
 asmlinkage void chacha20_arm(u8 *out, const u8 *in, const size_t len,
 			     const u32 key[8], const u32 counter[4]);
-#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
-#if defined(__LINUX_ARM_ARCH__) && __LINUX_ARM_ARCH__ == 7
-#define ARM_USE_NEONv7
-asmlinkage void chacha20_neon_1block(const u32 *state, u8 *dst, const u8 *src);
-asmlinkage void chacha20_neon_4block(const u32 *state, u8 *dst, const u8 *src);
-#elif defined(CONFIG_64BIT)
-#define ARM_USE_NEONv8
+#if defined(CONFIG_ARM)
+asmlinkage void hchacha20_arm(const u32 state[16], u32 out[8]);
+#endif
+#if ARM_USE_NEON
 asmlinkage void chacha20_neon(u8 *out, const u8 *in, const size_t len,
 			      const u32 key[8], const u32 counter[4]);
-#endif
 #endif
 
 static bool chacha20_use_neon __ro_after_init;
@@ -27,7 +32,17 @@ static void __init chacha20_fpu_init(void)
 #if defined(CONFIG_ARM64)
 	chacha20_use_neon = elf_hwcap & HWCAP_ASIMD;
 #elif defined(CONFIG_ARM)
-	chacha20_use_neon = elf_hwcap & HWCAP_NEON;
+	switch (read_cpuid_part()) {
+	case ARM_CPU_PART_CORTEX_A7:
+	case ARM_CPU_PART_CORTEX_A5:
+		/* The Cortex-A7 and Cortex-A5 do not perform well with the NEON
+		 * implementation but do incredibly with the scalar one and use
+		 * less power.
+		 */
+		break;
+	default:
+		chacha20_use_neon = elf_hwcap & HWCAP_NEON;
+	}
 #endif
 }
 
@@ -35,43 +50,14 @@ static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
 				 const u8 *src, size_t len,
 				 simd_context_t *simd_context)
 {
-#if defined(ARM_USE_NEONv7)
-	if (chacha20_use_neon && simd_use(simd_context)) {
-		u8 buf[CHACHA20_BLOCK_SIZE];
-
-		while (len >= CHACHA20_BLOCK_SIZE * 4) {
-			chacha20_neon_4block((u32 *)state, dst, src);
-			len -= CHACHA20_BLOCK_SIZE * 4;
-			src += CHACHA20_BLOCK_SIZE * 4;
-			dst += CHACHA20_BLOCK_SIZE * 4;
-			state->counter[0] += 4;
-		}
-		while (len >= CHACHA20_BLOCK_SIZE) {
-			chacha20_neon_1block((u32 *)state, dst, src);
-			len -= CHACHA20_BLOCK_SIZE;
-			src += CHACHA20_BLOCK_SIZE;
-			dst += CHACHA20_BLOCK_SIZE;
-			state->counter[0] += 1;
-		}
-		if (len) {
-			memcpy(buf, src, len);
-			chacha20_neon_1block((u32 *)state, buf, buf);
-			state->counter[0] += 1;
-			memcpy(dst, buf, len);
-		}
-		return true;
-	}
-#elif defined(ARM_USE_NEONv8)
-	if (chacha20_use_neon && simd_use(simd_context)) {
+#if ARM_USE_NEON
+	if (chacha20_use_neon && len >= CHACHA20_BLOCK_SIZE * 3 &&
+	    simd_use(simd_context))
 		chacha20_neon(dst, src, len, state->key, state->counter);
-		goto success;
-	}
+	else
 #endif
+		chacha20_arm(dst, src, len, state->key, state->counter);
 
-	chacha20_arm(dst, src, len, state->key, state->counter);
-	goto success;
-
-success:
 	state->counter[0] += (len + 63) / 64;
 	return true;
 }
@@ -79,5 +65,27 @@ success:
 static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
 				  const u8 *key, simd_context_t *simd_context)
 {
+#if defined(CONFIG_ARM)
+	u32 x[] = { CHACHA20_CONSTANT_EXPA,
+		    CHACHA20_CONSTANT_ND_3,
+		    CHACHA20_CONSTANT_2_BY,
+		    CHACHA20_CONSTANT_TE_K,
+		    get_unaligned_le32(key + 0),
+		    get_unaligned_le32(key + 4),
+		    get_unaligned_le32(key + 8),
+		    get_unaligned_le32(key + 12),
+		    get_unaligned_le32(key + 16),
+		    get_unaligned_le32(key + 20),
+		    get_unaligned_le32(key + 24),
+		    get_unaligned_le32(key + 28),
+		    get_unaligned_le32(nonce + 0),
+		    get_unaligned_le32(nonce + 4),
+		    get_unaligned_le32(nonce + 8),
+		    get_unaligned_le32(nonce + 12)
+	};
+	hchacha20_arm(x, (u32 *)derived_key);
+	return true;
+#else
 	return false;
+#endif
 }
