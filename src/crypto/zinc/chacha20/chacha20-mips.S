@@ -49,7 +49,7 @@
  * They are used to handling the last bytes which are not multiple of 4.
  */
 #define SAVED_X		X15
-#define SAVED_CA	$ra
+#define SAVED_CA	$fp
 
 #define PTR_LAST_ROUND	$v1
 #define IS_UNALIGNED	$fp
@@ -166,25 +166,23 @@ CONCAT3(.Lchacha20_mips_xor_aligned_, PLUS_ONE(x), _b: ;) \
 #define JMPTBL_ALIGNED(x) \
 .Lchacha20_mips_jmptbl_aligned_ ## x: ; \
 	.set	noreorder; \
-	.if (x == 12); \
-		move	SAVED_CA, NONCE_0; \
-	.else; \
-		lw	SAVED_CA, (x*4)(STATE); \
-	.endif; \
 	b	.Lchacha20_mips_xor_aligned_ ## x ## _b; \
-	move	SAVED_X, X ## x; \
+	.if (x == 12); \
+		addu	SAVED_X, X ## x, NONCE_0; \
+	.else; \
+		addu	SAVED_X, X ## x, SAVED_CA; \
+	.endif; \
 	.set	reorder
 
 #define JMPTBL_UNALIGNED(x) \
 .Lchacha20_mips_jmptbl_unaligned_ ## x: ; \
 	.set	noreorder; \
-	.if (x == 12); \
-		move	SAVED_CA, NONCE_0; \
-	.else; \
-		lw	SAVED_CA, (x*4)(STATE);\
-	.endif; \
 	b	.Lchacha20_mips_xor_unaligned_ ## x ## _b; \
-	move	SAVED_X, X ## x; \
+	.if (x == 12); \
+		addu	SAVED_X, X ## x, NONCE_0; \
+	.else; \
+		addu	SAVED_X, X ## x, SAVED_CA; \
+	.endif; \
 	.set	reorder
 
 #define AXR(A, B, C, D,  K, L, M, N,  V, W, Y, Z,  S) \
@@ -219,17 +217,16 @@ chacha20_mips:
 	ins	PTR_LAST_ROUND, $zero, 0, 6
 	addu	PTR_LAST_ROUND, OUT
 
-	/* Save s0-s7, ra, fp */
-	sw	$ra,  0($sp)
-	sw	$fp,  4($sp)
-	sw	$s0,  8($sp)
-	sw	$s1, 12($sp)
-	sw	$s2, 16($sp)
-	sw	$s3, 20($sp)
-	sw	$s4, 24($sp)
-	sw	$s5, 28($sp)
-	sw	$s6, 32($sp)
-	sw	$s7, 36($sp)
+	/* Save s0-s7, fp */
+	sw	$s0,  0($sp)
+	sw	$s1,  4($sp)
+	sw	$s2,  8($sp)
+	sw	$s3, 12($sp)
+	sw	$s4, 16($sp)
+	sw	$s5, 20($sp)
+	sw	$s6, 24($sp)
+	sw	$s7, 28($sp)
+	sw	$fp, 32($sp)
 
 	lw	NONCE_0, 48(STATE)
 
@@ -293,31 +290,45 @@ chacha20_mips:
 	/* Last round? No, do a full block. */
 	bne	OUT, PTR_LAST_ROUND, .Lchacha20_mips_xor_aligned_16_b
 
-	/* Calculate lower half jump table addr and offset */
-	ins	T0, $at, 2, 6
+	/* Calculate lower half jump table offset */
+	ins	T0, $at, 1, 6
 
 	/* Full block? Jump */
 	beqz	BYTES, .Lchacha20_mips_xor_aligned_16_b
 
-	subu	T0, $at
+	/* Add STATE with offset */
+	addu	T1, STATE, $at
+
+	/* Add lower half jump table addr */
 	addiu	T0, %lo(.Lchacha20_mips_jmptbl_aligned_0)
+
+	/* Read value from STATE */
+	lw	SAVED_CA, 0(T1)
+
 	jr	T0
 
 .Loop_chacha20_unaligned:
 	/* Load upper half of jump table addr */
 	lui	T0, %hi(.Lchacha20_mips_jmptbl_unaligned_0)
 
-	/* Last round? no jump */
+	/* Last round? No, do a full block. */
 	bne	OUT, PTR_LAST_ROUND, .Lchacha20_mips_xor_unaligned_16_b
 
-	/* Calculate lower half jump table addr and offset */
-	ins	T0, $at, 2, 6
+	/* Calculate lower half jump table offset */
+	ins	T0, $at, 1, 6
 
 	/* Full block? Jump */
 	beqz	BYTES, .Lchacha20_mips_xor_unaligned_16_b
 
-	subu	T0, $at
+	/* Add STATE with offset */
+	addu	T1, STATE, $at
+
+	/* Add lower half jump table addr */
 	addiu	T0, %lo(.Lchacha20_mips_jmptbl_unaligned_0)
+
+	/* Read value from STATE */
+	lw	SAVED_CA, 0(T1)
+
 	jr	T0
 
 /* Aligned code path
@@ -336,16 +347,15 @@ chacha20_mips:
 	sw	NONCE_0, 48(STATE)
 
 	/* Restore used registers */
-	lw	$ra,  0($sp)
-	lw	$fp,  4($sp)
-	lw	$s0,  8($sp)
-	lw	$s1, 12($sp)
-	lw	$s2, 16($sp)
-	lw	$s3, 20($sp)
-	lw	$s4, 24($sp)
-	lw	$s5, 28($sp)
-	lw	$s6, 32($sp)
-	lw	$s7, 36($sp)
+	lw	$s0,  0($sp)
+	lw	$s1,  4($sp)
+	lw	$s2,  8($sp)
+	lw	$s3, 12($sp)
+	lw	$s4, 16($sp)
+	lw	$s5, 20($sp)
+	lw	$s6, 24($sp)
+	lw	$s7, 28($sp)
+	lw	$fp, 32($sp)
 .Lchacha20_mips_end:
 	addiu	$sp, STACK_SIZE
 	jr	$ra
@@ -368,9 +378,8 @@ chacha20_mips:
 	.set	reorder
 
 .Lchacha20_mips_xor_bytes:
-	addu	OUT, $at
 	addu	IN, $at
-	addu	SAVED_X, SAVED_CA
+	addu	OUT, $at
 	/* First byte */
 	lbu	T1, 0(IN)
 	andi	$at, BYTES, 2
