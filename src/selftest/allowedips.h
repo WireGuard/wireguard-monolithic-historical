@@ -495,7 +495,7 @@ bool __init allowedips_selftest(void)
 {
 	struct wireguard_peer *a = NULL, *b = NULL, *c = NULL, *d = NULL,
 			      *e = NULL, *f = NULL, *g = NULL, *h = NULL;
-	struct allowedips_cursor cursor = { 0 };
+	struct allowedips_cursor *cursor;
 	struct walk_ctx wctx = { 0 };
 	bool success = false;
 	struct allowedips t;
@@ -503,6 +503,12 @@ bool __init allowedips_selftest(void)
 	struct in6_addr ip;
 	size_t i = 0;
 	__be64 part;
+
+	cursor = kzalloc(sizeof(*cursor), GFP_KERNEL);
+	if (!cursor) {
+		pr_info("allowedips self-test malloc: FAIL\n");
+		return false;
+	}
 
 	mutex_init(&mutex);
 	mutex_lock(&mutex);
@@ -616,7 +622,7 @@ bool __init allowedips_selftest(void)
 	insert(4, a, 10, 1, 0, 20, 29);
 	insert(6, a, 0x26075300, 0x6d8a6bf8, 0xdab1f1df, 0xc05f1523, 83);
 	insert(6, a, 0x26075300, 0x6d8a6bf8, 0xdab1f1df, 0xc05f1523, 21);
-	allowedips_walk_by_peer(&t, &cursor, a, walk_callback, &wctx, &mutex);
+	allowedips_walk_by_peer(&t, cursor, a, walk_callback, &wctx, &mutex);
 	test_boolean(wctx.count == 5);
 	test_boolean(wctx.found_a);
 	test_boolean(wctx.found_b);
@@ -644,6 +650,7 @@ free:
 	kfree(g);
 	kfree(h);
 	mutex_unlock(&mutex);
+	kfree(cursor);
 
 	return success;
 }
