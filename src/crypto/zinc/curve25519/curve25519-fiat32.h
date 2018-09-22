@@ -753,8 +753,8 @@ static void curve25519_generic(u8 out[CURVE25519_POINT_SIZE],
 			       const u8 scalar[CURVE25519_POINT_SIZE],
 			       const u8 point[CURVE25519_POINT_SIZE])
 {
-	fe x1, x2, z2, x3, z3, tmp0, tmp1;
-	fe_loose x2l, z2l, x3l, tmp0l, tmp1l;
+	fe x1, x2, z2, x3, z3;
+	fe_loose x2l, z2l, x3l;
 	unsigned swap = 0;
 	int pos;
 	u8 e[32];
@@ -794,6 +794,8 @@ static void curve25519_generic(u8 out[CURVE25519_POINT_SIZE],
 	fe_1(&z3);
 
 	for (pos = 254; pos >= 0; --pos) {
+		fe tmp0, tmp1;
+		fe_loose tmp0l, tmp1l;
 		/* loop invariant as of right before the test, for the case
 		 * where x1 != 0:
 		 *   pos >= -1; if z2 = 0 then x2 is nonzero; if z3 = 0 then x3
@@ -851,12 +853,8 @@ static void curve25519_generic(u8 out[CURVE25519_POINT_SIZE],
 	memzero_explicit(&z2, sizeof(z2));
 	memzero_explicit(&x3, sizeof(x3));
 	memzero_explicit(&z3, sizeof(z3));
-	memzero_explicit(&tmp0, sizeof(tmp0));
-	memzero_explicit(&tmp1, sizeof(tmp1));
 	memzero_explicit(&x2l, sizeof(x2l));
 	memzero_explicit(&z2l, sizeof(z2l));
 	memzero_explicit(&x3l, sizeof(x3l));
-	memzero_explicit(&tmp0l, sizeof(tmp0l));
-	memzero_explicit(&tmp1l, sizeof(tmp1l));
 	memzero_explicit(&e, sizeof(e));
 }
