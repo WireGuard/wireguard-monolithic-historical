@@ -7,8 +7,12 @@
 #include <asm/neon.h>
 #include <asm/simd.h>
 
-#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && __LINUX_ARM_ARCH__ == 7
-#define ARM_USE_NEON
+#define ARM_USE_NEON (defined(CONFIG_KERNEL_MODE_NEON) &&                      \
+		      (defined(CONFIG_ARM64) ||                                \
+		       (defined(__LINUX_ARM_ARCH__) &&                         \
+			__LINUX_ARM_ARCH__ == 7)))
+
+#if ARM_USE_NEON
 asmlinkage void curve25519_neon(u8 mypublic[CURVE25519_POINT_SIZE],
 				const u8 secret[CURVE25519_POINT_SIZE],
 				const u8 basepoint[CURVE25519_POINT_SIZE]);
@@ -25,7 +29,7 @@ static inline bool curve25519_arch(u8 mypublic[CURVE25519_POINT_SIZE],
 				   const u8 secret[CURVE25519_POINT_SIZE],
 				   const u8 basepoint[CURVE25519_POINT_SIZE])
 {
-#ifdef ARM_USE_NEON
+#if ARM_USE_NEON
 	if (curve25519_use_neon && may_use_simd()) {
 		kernel_neon_begin();
 		curve25519_neon(mypublic, secret, basepoint);

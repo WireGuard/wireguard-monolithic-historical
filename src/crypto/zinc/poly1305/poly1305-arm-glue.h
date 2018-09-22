@@ -6,13 +6,16 @@
 #include <asm/hwcap.h>
 #include <asm/neon.h>
 
+#define ARM_USE_NEON (defined(CONFIG_KERNEL_MODE_NEON) &&                      \
+		      (defined(CONFIG_ARM64) ||                                \
+		       (defined(__LINUX_ARM_ARCH__) &&                         \
+			__LINUX_ARM_ARCH__ == 7)))
+
 asmlinkage void poly1305_init_arm(void *ctx, const u8 key[16]);
 asmlinkage void poly1305_blocks_arm(void *ctx, const u8 *inp, const size_t len,
 				    const u32 padbit);
 asmlinkage void poly1305_emit_arm(void *ctx, u8 mac[16], const u32 nonce[4]);
-#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&                                     \
-	(defined(CONFIG_64BIT) || __LINUX_ARM_ARCH__ >= 7)
-#define ARM_USE_NEON
+#if ARM_USE_NEON
 asmlinkage void poly1305_blocks_neon(void *ctx, const u8 *inp, const size_t len,
 				     const u32 padbit);
 asmlinkage void poly1305_emit_neon(void *ctx, u8 mac[16], const u32 nonce[4]);
@@ -54,7 +57,7 @@ struct poly1305_arch_internal {
 };
 #endif
 
-#if defined(ARM_USE_NEON)
+#if ARM_USE_NEON
 static void convert_to_base2_64(void *ctx)
 {
 	struct poly1305_arch_internal *state = ctx;
@@ -92,7 +95,7 @@ static inline bool poly1305_blocks_arch(void *ctx, const u8 *inp,
 					const size_t len, const u32 padbit,
 					simd_context_t *simd_context)
 {
-#if defined(ARM_USE_NEON)
+#if ARM_USE_NEON
 	if (poly1305_use_neon && simd_use(simd_context)) {
 		poly1305_blocks_neon(ctx, inp, len, padbit);
 		return true;
@@ -108,7 +111,7 @@ static inline bool poly1305_emit_arch(void *ctx, u8 mac[POLY1305_MAC_SIZE],
 				      const u32 nonce[4],
 				      simd_context_t *simd_context)
 {
-#if defined(ARM_USE_NEON)
+#if ARM_USE_NEON
 	if (poly1305_use_neon && simd_use(simd_context)) {
 		poly1305_emit_neon(ctx, mac, nonce);
 		return true;
