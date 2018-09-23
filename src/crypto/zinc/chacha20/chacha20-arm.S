@@ -465,7 +465,7 @@ ENTRY(hchacha20_arm)
 	pop		{r4-r11,pc}
 ENDPROC(hchacha20_arm)
 
-#if __LINUX_ARM_ARCH__ >= 7 && IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+#ifdef CONFIG_KERNEL_MODE_NEON
 /*
  * This following NEON routine was ported from Andy Polyakov's implementation
  * from CRYPTOGAMS. It begins with parts of the CRYPTOGAMS scalar routine,

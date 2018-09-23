@@ -289,6 +289,7 @@ ENTRY(chacha20_arm)
 	ret
 ENDPROC(chacha20_arm)
 
+#ifdef CONFIG_KERNEL_MODE_NEON
 .align	5
 ENTRY(chacha20_neon)
 	cbz	x2,.Labort_neon
@@ -1940,3 +1941,4 @@ ENTRY(chacha20_neon)
 .Labort_neon:
 	ret
 ENDPROC(chacha20_neon)
+#endif

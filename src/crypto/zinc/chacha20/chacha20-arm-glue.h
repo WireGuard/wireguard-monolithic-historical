@@ -10,17 +10,12 @@
 #include <asm/cputype.h>
 #endif
 
-#define ARM_USE_NEON (defined(CONFIG_KERNEL_MODE_NEON) &&                      \
-		      (defined(CONFIG_ARM64) ||                                \
-		       (defined(__LINUX_ARM_ARCH__) &&                         \
-			__LINUX_ARM_ARCH__ == 7)))
-
 asmlinkage void chacha20_arm(u8 *out, const u8 *in, const size_t len,
 			     const u32 key[8], const u32 counter[4]);
 #if defined(CONFIG_ARM)
 asmlinkage void hchacha20_arm(const u32 state[16], u32 out[8]);
 #endif
-#if ARM_USE_NEON
+#if defined(CONFIG_KERNEL_MODE_NEON)
 asmlinkage void chacha20_neon(u8 *out, const u8 *in, const size_t len,
 			      const u32 key[8], const u32 counter[4]);
 #endif
@@ -50,7 +45,7 @@ static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
 				 const u8 *src, size_t len,
 				 simd_context_t *simd_context)
 {
-#if ARM_USE_NEON
+#if defined(CONFIG_KERNEL_MODE_NEON)
 	if (chacha20_use_neon && len >= CHACHA20_BLOCK_SIZE * 3 &&
 	    simd_use(simd_context))
 		chacha20_neon(dst, src, len, state->key, state->counter);

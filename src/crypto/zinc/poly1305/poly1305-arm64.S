@@ -186,6 +186,7 @@ __poly1305_splat:
 
 	ret
 
+#ifdef CONFIG_KERNEL_MODE_NEON
 .align	5
 ENTRY(poly1305_blocks_neon)
 	ldr	x17,[x0,#24]
@@ -820,3 +821,4 @@ ENDPROC(poly1305_emit_neon)
 .align	5
 .Lzeros:
 .long	0,0,0,0,0,0,0,0
+#endif

@@ -339,7 +339,7 @@ ENTRY(poly1305_emit_arm)
 ENDPROC(poly1305_emit_arm)
 
 
-#if __LINUX_ARM_ARCH__ >= 7
+#ifdef CONFIG_KERNEL_MODE_NEON
 .fpu	neon
 
 .align	5

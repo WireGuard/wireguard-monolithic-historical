@@ -7,11 +7,12 @@
  * but has subsequently been manually reworked for use in kernel space.
  */
 
-#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && __LINUX_ARM_ARCH__ == 7
+#ifdef CONFIG_KERNEL_MODE_NEON
 #include <linux/linkage.h>
 
 .text
 .fpu neon
+.arch armv7-a
 .align 4
 
 ENTRY(curve25519_neon)
@@ -2091,5 +2092,4 @@ ENTRY(curve25519_neon)
 	mov		sp, ip
 	pop		{r4-r11, pc}
 ENDPROC(curve25519_neon)
-
 #endif
