@@ -1,60 +1,46 @@
-ccflags-y += -I$(src)/crypto/include
-
-wireguard-y += crypto/zinc/chacha20/chacha20.o
 ifeq ($(CONFIG_X86_64)$(if $(CONFIG_UML),y,n),yn)
-wireguard-y += crypto/zinc/chacha20/chacha20-x86_64.o
-CFLAGS_chacha20.o += -DCONFIG_ZINC_ARCH_X86_64
+CONFIG_ZINC_ARCH_X86_64 := y
 endif
 ifeq ($(CONFIG_ARM),y)
-wireguard-y += crypto/zinc/chacha20/chacha20-arm.o
-CFLAGS_chacha20.o += -DCONFIG_ZINC_ARCH_ARM
+CONFIG_ZINC_ARCH_ARM := y
 endif
 ifeq ($(CONFIG_ARM64),y)
-wireguard-y += crypto/zinc/chacha20/chacha20-arm64.o
-CFLAGS_chacha20.o += -DCONFIG_ZINC_ARCH_ARM64
+CONFIG_ZINC_ARCH_ARM64 := y
 endif
 ifeq ($(CONFIG_MIPS)$(CONFIG_CPU_MIPS32_R2),yy)
-wireguard-y += crypto/zinc/chacha20/chacha20-mips.o
-CFLAGS_chacha20.o += -DCONFIG_ZINC_ARCH_MIPS
-AFLAGS_chacha20-mips.o += -O2
-endif
-
-wireguard-y += crypto/zinc/poly1305/poly1305.o
-ifeq ($(CONFIG_X86_64)$(if $(CONFIG_UML),y,n),yn)
-wireguard-y += crypto/zinc/poly1305/poly1305-x86_64.o
-CFLAGS_poly1305.o += -DCONFIG_ZINC_ARCH_X86_64
-endif
-ifeq ($(CONFIG_ARM),y)
-wireguard-y += crypto/zinc/poly1305/poly1305-arm.o
-CFLAGS_poly1305.o += -DCONFIG_ZINC_ARCH_ARM
-endif
-ifeq ($(CONFIG_ARM64),y)
-wireguard-y += crypto/zinc/poly1305/poly1305-arm64.o
-CFLAGS_poly1305.o += -DCONFIG_ZINC_ARCH_ARM64
-endif
-ifeq ($(CONFIG_MIPS)$(CONFIG_CPU_MIPS32_R2),yy)
-wireguard-y += crypto/zinc/poly1305/poly1305-mips.o
-CFLAGS_poly1305.o += -DCONFIG_ZINC_ARCH_MIPS
-AFLAGS_poly1305-mips.o += -O2
+CONFIG_ZINC_ARCH_MIPS := y
 endif
 ifeq ($(CONFIG_MIPS)$(CONFIG_64BIT),yy)
-wireguard-y += crypto/zinc/poly1305/poly1305-mips64.o
-CFLAGS_poly1305.o += -DCONFIG_ZINC_ARCH_MIPS64
+CONFIG_ZINC_ARCH_MIPS64 := y
 endif
 
-wireguard-y += crypto/zinc/chacha20poly1305.o
+zinc-y += chacha20/chacha20.o
+zinc-$(CONFIG_ZINC_ARCH_X86_64) += chacha20/chacha20-x86_64.o
+zinc-$(CONFIG_ZINC_ARCH_ARM) += chacha20/chacha20-arm.o
+zinc-$(CONFIG_ZINC_ARCH_ARM64) += chacha20/chacha20-arm64.o
+zinc-$(CONFIG_ZINC_ARCH_MIPS) += chacha20/chacha20-mips.o
+AFLAGS_chacha20-mips.o += -O2 # This is required to fill the branch delay slots
 
-wireguard-y += crypto/zinc/curve25519/curve25519.o
-ifeq ($(CONFIG_ARM)$(CONFIG_KERNEL_MODE_NEON),yy)
-wireguard-y += crypto/zinc/curve25519/curve25519-arm.o
-CFLAGS_curve25519.o += -DCONFIG_ZINC_ARCH_ARM
-endif
-ifeq ($(CONFIG_X86_64)$(if $(CONFIG_UML),y,n),yn)
-CFLAGS_curve25519.o += -DCONFIG_ZINC_ARCH_X86_64
-endif
+zinc-y += poly1305/poly1305.o
+zinc-$(CONFIG_ZINC_ARCH_X86_64) += poly1305/poly1305-x86_64.o
+zinc-$(CONFIG_ZINC_ARCH_ARM) += poly1305/poly1305-arm.o
+zinc-$(CONFIG_ZINC_ARCH_ARM64) += poly1305/poly1305-arm64.o
+zinc-$(CONFIG_ZINC_ARCH_MIPS) += poly1305/poly1305-mips.o
+AFLAGS_poly1305-mips.o += -O2 # This is required to fill the branch delay slots
+zinc-$(CONFIG_ZINC_ARCH_MIPS64) += poly1305/poly1305-mips64.o
 
-wireguard-y += crypto/zinc/blake2s/blake2s.o
-ifeq ($(CONFIG_X86_64)$(if $(CONFIG_UML),y,n),yn)
-wireguard-y += crypto/zinc/blake2s/blake2s-x86_64.o
-CFLAGS_blake2s.o += -DCONFIG_ZINC_ARCH_X86_64
-endif
+zinc-y += chacha20poly1305.o
+
+zinc-y += blake2s/blake2s.o
+zinc-$(CONFIG_ZINC_ARCH_X86_64) += blake2s/blake2s-x86_64.o
+
+zinc-y += curve25519/curve25519.o
+zinc-$(CONFIG_ZINC_ARCH_ARM) += curve25519/curve25519-arm.o
+
+wireguard-y += $(addprefix crypto/zinc/,$(zinc-y))
+ccflags-y += -I$(src)/crypto/include
+ccflags-$(CONFIG_ZINC_ARCH_X86_64) += -DCONFIG_ZINC_ARCH_X86_64
+ccflags-$(CONFIG_ZINC_ARCH_ARM) += -DCONFIG_ZINC_ARCH_ARM
+ccflags-$(CONFIG_ZINC_ARCH_ARM64) += -DCONFIG_ZINC_ARCH_ARM64
+ccflags-$(CONFIG_ZINC_ARCH_MIPS) += -DCONFIG_ZINC_ARCH_MIPS
+ccflags-$(CONFIG_ZINC_ARCH_MIPS64) += -DCONFIG_ZINC_ARCH_MIPS64
