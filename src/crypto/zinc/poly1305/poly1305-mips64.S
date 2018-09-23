@@ -6,10 +6,6 @@
  * This is based in part on Andy Polyakov's implementation from CRYPTOGAMS.
  */
 
-#if !defined(CONFIG_64BIT)
-#error "This is only for 64-bit kernels."
-#endif
-
 #ifdef __MIPSEB__
 #define MSB 0
 #define LSB 7
