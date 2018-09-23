@@ -291,6 +291,12 @@ void packet_tx_worker(struct work_struct *work)
 	}
 }
 
+static inline void report_bench(unsigned int bytes, cycles_t duration)
+{
+	cycles_t cCPB = duration * 100;
+	pr_err("%u bytes in %u cycles (%u cCPB)\n", bytes, duration, cCPB / bytes);
+}
+
 void packet_encrypt_worker(struct work_struct *work)
 {
 	struct crypt_queue *queue =
@@ -298,11 +304,16 @@ void packet_encrypt_worker(struct work_struct *work)
 	struct sk_buff *first, *skb, *next;
 	simd_context_t simd_context;
 
+	unsigned int bytes = 0;
+	cycles_t start;
+
 	simd_get(&simd_context);
+	start = get_cycles();
 	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
 		skb_walk_null_queue_safe (first, skb, next) {
+			bytes += skb->len;
 			if (likely(skb_encrypt(skb, PACKET_CB(first)->keypair,
 					       &simd_context)))
 				skb_reset(skb);
@@ -311,11 +322,18 @@ void packet_encrypt_worker(struct work_struct *work)
 				break;
 			}
 		}
+		if (bytes >= 1024 * 1024 * 5) {
+			report_bench(bytes, get_cycles() - start);
+			bytes = 0;
+			start = get_cycles();
+		}
+
 		queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first,
 				       state);
-
-		simd_relax(&simd_context);
 	}
+
+	if (bytes > 1024 * 10)
+		report_bench(bytes, get_cycles() - start);
 	simd_put(&simd_context);
 }
 

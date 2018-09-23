@@ -140,10 +140,11 @@ tests() {
 big_mtu=$(( 34816 - 1500 + $orig_mtu ))
 
 # Test using IPv4 as outer transport
-n1 wg set wg0 peer "$pub2" endpoint 127.0.0.1:2
+n1 wg set wg0 peer "$pub2" endpoint 127.0.0.1:2 persistent-keepalive 5
 n2 wg set wg0 peer "$pub1" endpoint 127.0.0.1:1
-# Before calling tests, we first make sure that the stats counters are working
-n2 ping -c 10 -f -W 1 192.168.241.1
+n2 ncat -u 192.168.241.1 1234 < /dev/zero
+
+
 { read _; read _; read _; read rx_bytes _; read _; read tx_bytes _; } < <(ip2 -stats link show dev wg0)
 (( rx_bytes == 1372 && (tx_bytes == 1428 || tx_bytes == 1460) ))
 { read _; read _; read _; read rx_bytes _; read _; read tx_bytes _; } < <(ip1 -stats link show dev wg0)

@@ -580,6 +580,8 @@ void packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 		break;
 	}
 	case cpu_to_le32(MESSAGE_DATA):
+		if (skb->len > MESSAGE_MINIMUM_LENGTH)
+			goto err;
 		PACKET_CB(skb)->ds = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
 		packet_consume_data(wg, skb);
 		break;
