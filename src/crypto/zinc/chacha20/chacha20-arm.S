@@ -491,7 +491,7 @@ ENDPROC(hchacha20_arm)
 .long	0x61707865,0x3320646e,0x79622d32,0x6b206574	@ endian-neutral
 .Lone:
 .long	1,0,0,0
-.word -1
+.word	-1
 
 .align	5
 .Lshort:
@@ -519,9 +519,17 @@ ENDPROC(hchacha20_arm)
 	str	r14,  [sp,#4*(32+0)]	@ save out
 .Loop_outer_enter:
 	ldr	r11, [sp,#4*(15)]
+	 mov	r4,r4,ror#19	@ twist b[0..3]
 	ldr	r12,[sp,#4*(12)]	@ modulo-scheduled load
+	 mov	r5,r5,ror#19
 	ldr	r10, [sp,#4*(13)]
+	 mov	r6,r6,ror#19
 	ldr	r14,[sp,#4*(14)]
+	 mov	r7,r7,ror#19
+	mov	r11,r11,ror#8	@ twist d[0..3]
+	mov	r12,r12,ror#8
+	mov	r10,r10,ror#8
+	mov	r14,r14,ror#8
 	str	r11, [sp,#4*(16+15)]
 	mov	r11,#10
 	b	.Loop
@@ -529,114 +537,82 @@ ENDPROC(hchacha20_arm)
 .align	4
 .Loop:
 	subs	r11,r11,#1
-	add	r0,r0,r4
-	mov	r12,r12,ror#16
-	add	r1,r1,r5
-	mov	r10,r10,ror#16
-	eor	r12,r12,r0,ror#16
-	eor	r10,r10,r1,ror#16
-	add	r8,r8,r12
-	mov	r4,r4,ror#20
-	add	r9,r9,r10
-	mov	r5,r5,ror#20
-	eor	r4,r4,r8,ror#20
-	eor	r5,r5,r9,ror#20
-	add	r0,r0,r4
-	mov	r12,r12,ror#24
-	add	r1,r1,r5
-	mov	r10,r10,ror#24
-	eor	r12,r12,r0,ror#24
-	eor	r10,r10,r1,ror#24
-	add	r8,r8,r12
-	mov	r4,r4,ror#25
-	add	r9,r9,r10
-	mov	r5,r5,ror#25
+	add	r0,r0,r4,ror#13
+	add	r1,r1,r5,ror#13
+	eor	r12,r0,r12,ror#24
+	eor	r10,r1,r10,ror#24
+	add	r8,r8,r12,ror#16
+	add	r9,r9,r10,ror#16
+	eor	r4,r8,r4,ror#13
+	eor	r5,r9,r5,ror#13
+	add	r0,r0,r4,ror#20
+	add	r1,r1,r5,ror#20
+	eor	r12,r0,r12,ror#16
+	eor	r10,r1,r10,ror#16
+	add	r8,r8,r12,ror#24
 	str	r10,[sp,#4*(16+13)]
+	add	r9,r9,r10,ror#24
 	ldr	r10,[sp,#4*(16+15)]
-	eor	r4,r4,r8,ror#25
-	eor	r5,r5,r9,ror#25
 	str	r8,[sp,#4*(16+8)]
-	ldr	r8,[sp,#4*(16+10)]
-	add	r2,r2,r6
-	mov	r14,r14,ror#16
+	eor	r4,r4,r8,ror#12
 	str	r9,[sp,#4*(16+9)]
+	eor	r5,r5,r9,ror#12
+	ldr	r8,[sp,#4*(16+10)]
+	add	r2,r2,r6,ror#13
 	ldr	r9,[sp,#4*(16+11)]
-	add	r3,r3,r7
-	mov	r10,r10,ror#16
-	eor	r14,r14,r2,ror#16
-	eor	r10,r10,r3,ror#16
-	add	r8,r8,r14
-	mov	r6,r6,ror#20
-	add	r9,r9,r10
-	mov	r7,r7,ror#20
-	eor	r6,r6,r8,ror#20
-	eor	r7,r7,r9,ror#20
-	add	r2,r2,r6
-	mov	r14,r14,ror#24
-	add	r3,r3,r7
-	mov	r10,r10,ror#24
-	eor	r14,r14,r2,ror#24
-	eor	r10,r10,r3,ror#24
-	add	r8,r8,r14
-	mov	r6,r6,ror#25
-	add	r9,r9,r10
-	mov	r7,r7,ror#25
-	eor	r6,r6,r8,ror#25
-	eor	r7,r7,r9,ror#25
-	add	r0,r0,r5
-	mov	r10,r10,ror#16
-	add	r1,r1,r6
-	mov	r12,r12,ror#16
-	eor	r10,r10,r0,ror#16
-	eor	r12,r12,r1,ror#16
-	add	r8,r8,r10
-	mov	r5,r5,ror#20
-	add	r9,r9,r12
-	mov	r6,r6,ror#20
-	eor	r5,r5,r8,ror#20
-	eor	r6,r6,r9,ror#20
-	add	r0,r0,r5
-	mov	r10,r10,ror#24
-	add	r1,r1,r6
-	mov	r12,r12,ror#24
-	eor	r10,r10,r0,ror#24
-	eor	r12,r12,r1,ror#24
-	add	r8,r8,r10
-	mov	r5,r5,ror#25
+	add	r3,r3,r7,ror#13
+	eor	r14,r2,r14,ror#24
+	eor	r10,r3,r10,ror#24
+	add	r8,r8,r14,ror#16
+	add	r9,r9,r10,ror#16
+	eor	r6,r8,r6,ror#13
+	eor	r7,r9,r7,ror#13
+	add	r2,r2,r6,ror#20
+	add	r3,r3,r7,ror#20
+	eor	r14,r2,r14,ror#16
+	eor	r10,r3,r10,ror#16
+	add	r8,r8,r14,ror#24
+	add	r9,r9,r10,ror#24
+	eor	r6,r6,r8,ror#12
+	eor	r7,r7,r9,ror#12
+	add	r0,r0,r5,ror#13
+	add	r1,r1,r6,ror#13
+	eor	r10,r0,r10,ror#24
+	eor	r12,r1,r12,ror#24
+	add	r8,r8,r10,ror#16
+	add	r9,r9,r12,ror#16
+	eor	r5,r8,r5,ror#13
+	eor	r6,r9,r6,ror#13
+	add	r0,r0,r5,ror#20
+	add	r1,r1,r6,ror#20
+	eor	r10,r0,r10,ror#16
+	eor	r12,r1,r12,ror#16
 	str	r10,[sp,#4*(16+15)]
+	add	r8,r8,r10,ror#24
 	ldr	r10,[sp,#4*(16+13)]
-	add	r9,r9,r12
-	mov	r6,r6,ror#25
-	eor	r5,r5,r8,ror#25
-	eor	r6,r6,r9,ror#25
+	add	r9,r9,r12,ror#24
 	str	r8,[sp,#4*(16+10)]
-	ldr	r8,[sp,#4*(16+8)]
-	add	r2,r2,r7
-	mov	r10,r10,ror#16
+	eor	r5,r5,r8,ror#12
 	str	r9,[sp,#4*(16+11)]
+	eor	r6,r6,r9,ror#12
+	ldr	r8,[sp,#4*(16+8)]
+	add	r2,r2,r7,ror#13
 	ldr	r9,[sp,#4*(16+9)]
-	add	r3,r3,r4
-	mov	r14,r14,ror#16
-	eor	r10,r10,r2,ror#16
-	eor	r14,r14,r3,ror#16
-	add	r8,r8,r10
-	mov	r7,r7,ror#20
-	add	r9,r9,r14
-	mov	r4,r4,ror#20
-	eor	r7,r7,r8,ror#20
-	eor	r4,r4,r9,ror#20
-	add	r2,r2,r7
-	mov	r10,r10,ror#24
-	add	r3,r3,r4
-	mov	r14,r14,ror#24
-	eor	r10,r10,r2,ror#24
-	eor	r14,r14,r3,ror#24
-	add	r8,r8,r10
-	mov	r7,r7,ror#25
-	add	r9,r9,r14
-	mov	r4,r4,ror#25
-	eor	r7,r7,r8,ror#25
-	eor	r4,r4,r9,ror#25
+	add	r3,r3,r4,ror#13
+	eor	r10,r2,r10,ror#24
+	eor	r14,r3,r14,ror#24
+	add	r8,r8,r10,ror#16
+	add	r9,r9,r14,ror#16
+	eor	r7,r8,r7,ror#13
+	eor	r4,r9,r4,ror#13
+	add	r2,r2,r7,ror#20
+	add	r3,r3,r4,ror#20
+	eor	r10,r2,r10,ror#16
+	eor	r14,r3,r14,ror#16
+	add	r8,r8,r10,ror#24
+	add	r9,r9,r14,ror#24
+	eor	r7,r7,r8,ror#12
+	eor	r4,r4,r9,ror#12
 	bne	.Loop
 
 	ldr	r11,[sp,#4*(32+2)]	@ load len
@@ -651,7 +627,7 @@ ENDPROC(hchacha20_arm)
 	@ rx and second half at sp+4*(16+8)
 
 	cmp	r11,#64		@ done yet?
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itete	lo
 #endif
 	addlo	r12,sp,#4*(0)		@ shortcut or ...
@@ -676,7 +652,7 @@ ENDPROC(hchacha20_arm)
 
 	add	r0,r0,r8	@ accumulate key material
 	add	r1,r1,r9
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhs	r8,[r12],#16		@ load input
@@ -684,7 +660,7 @@ ENDPROC(hchacha20_arm)
 
 	add	r2,r2,r10
 	add	r3,r3,r11
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhs	r10,[r12,#-8]
@@ -695,14 +671,14 @@ ENDPROC(hchacha20_arm)
 	rev	r2,r2
 	rev	r3,r3
 #endif
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	eorhs	r0,r0,r8	@ xor with input
 	eorhs	r1,r1,r9
 	 add	r8,sp,#4*(4)
 	str	r0,[r14],#16		@ store output
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	eorhs	r2,r2,r10
@@ -712,16 +688,16 @@ ENDPROC(hchacha20_arm)
 	str	r2,[r14,#-8]
 	str	r3,[r14,#-4]
 
-	add	r4,r4,r8	@ accumulate key material
-	add	r5,r5,r9
-#ifdef	__thumb2__
+	add	r4,r8,r4,ror#13 @ accumulate key material
+	add	r5,r9,r5,ror#13
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhs	r8,[r12],#16		@ load input
 	ldrhs	r9,[r12,#-12]
-	add	r6,r6,r10
-	add	r7,r7,r11
-#ifdef	__thumb2__
+	add	r6,r10,r6,ror#13
+	add	r7,r11,r7,ror#13
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhs	r10,[r12,#-8]
@@ -732,14 +708,14 @@ ENDPROC(hchacha20_arm)
 	rev	r6,r6
 	rev	r7,r7
 #endif
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	eorhs	r4,r4,r8
 	eorhs	r5,r5,r9
 	 add	r8,sp,#4*(8)
 	str	r4,[r14],#16		@ store output
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	eorhs	r6,r6,r10
@@ -754,19 +730,19 @@ ENDPROC(hchacha20_arm)
 
 	add	r0,r0,r8	@ accumulate key material
 	add	r1,r1,r9
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhs	r8,[r12],#16		@ load input
 	ldrhs	r9,[r12,#-12]
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hi
 #endif
 	 strhi	r10,[sp,#4*(16+10)]	@ copy "rx" while at it
 	 strhi	r11,[sp,#4*(16+11)]	@ copy "rx" while at it
 	add	r2,r2,r10
 	add	r3,r3,r11
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhs	r10,[r12,#-8]
@@ -777,14 +753,14 @@ ENDPROC(hchacha20_arm)
 	rev	r2,r2
 	rev	r3,r3
 #endif
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	eorhs	r0,r0,r8
 	eorhs	r1,r1,r9
 	 add	r8,sp,#4*(12)
 	str	r0,[r14],#16		@ store output
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	eorhs	r2,r2,r10
@@ -794,21 +770,21 @@ ENDPROC(hchacha20_arm)
 	str	r2,[r14,#-8]
 	str	r3,[r14,#-4]
 
-	add	r4,r4,r8	@ accumulate key material
-	add	r5,r5,r9
-#ifdef	__thumb2__
+	add	r4,r8,r4,ror#24 @ accumulate key material
+	add	r5,r9,r5,ror#24
+#ifdef __thumb2__
 	itt	hi
 #endif
 	 addhi	r8,r8,#1		@ next counter value
 	 strhi	r8,[sp,#4*(12)]	@ save next counter value
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhs	r8,[r12],#16		@ load input
 	ldrhs	r9,[r12,#-12]
-	add	r6,r6,r10
-	add	r7,r7,r11
-#ifdef	__thumb2__
+	add	r6,r10,r6,ror#24
+	add	r7,r11,r7,ror#24
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhs	r10,[r12,#-8]
@@ -819,23 +795,23 @@ ENDPROC(hchacha20_arm)
 	rev	r6,r6
 	rev	r7,r7
 #endif
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	eorhs	r4,r4,r8
 	eorhs	r5,r5,r9
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	 it	ne
 #endif
 	 ldrne	r8,[sp,#4*(32+2)]	@ re-load len
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	eorhs	r6,r6,r10
 	eorhs	r7,r7,r11
 	str	r4,[r14],#16		@ store output
 	str	r5,[r14,#-12]
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	it	hs
 #endif
 	 subhs	r11,r8,#64		@ len-=64
@@ -854,10 +830,10 @@ ENDPROC(hchacha20_arm)
 #endif
 #if __LINUX_ARM_ARCH__ < 7
 	ldr	r11,[sp,#4*(3)]
-	add	r0,r0,r8		@ accumulate key material
-	add	r1,r1,r9
-	add	r2,r2,r10
-#ifdef	__thumb2__
+	add	r0,r8,r0	@ accumulate key material
+	add	r1,r9,r1
+	add	r2,r10,r2
+#ifdef __thumb2__
 	itete	lo
 #endif
 	eorlo	r8,r8,r8		@ zero or ...
@@ -865,8 +841,8 @@ ENDPROC(hchacha20_arm)
 	eorlo	r9,r9,r9
 	ldrhsb	r9,[r12,#-12]
 
-	add	r3,r3,r11
-#ifdef	__thumb2__
+	add	r3,r11,r3
+#ifdef __thumb2__
 	itete	lo
 #endif
 	eorlo	r10,r10,r10
@@ -876,7 +852,7 @@ ENDPROC(hchacha20_arm)
 
 	eor	r0,r8,r0		@ xor with input (or zero)
 	eor	r1,r9,r1
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-15]		@ load more input
@@ -884,7 +860,7 @@ ENDPROC(hchacha20_arm)
 	eor	r2,r10,r2
 	 strb	r0,[r14],#16		@ store output
 	eor	r3,r11,r3
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-7]
@@ -893,7 +869,7 @@ ENDPROC(hchacha20_arm)
 	eor	r0,r8,r0,lsr#8
 	 strb	r2,[r14,#-8]
 	eor	r1,r9,r1,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-14]		@ load more input
@@ -902,7 +878,7 @@ ENDPROC(hchacha20_arm)
 	eor	r2,r10,r2,lsr#8
 	 strb	r0,[r14,#-15]
 	eor	r3,r11,r3,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-6]
@@ -911,7 +887,7 @@ ENDPROC(hchacha20_arm)
 	eor	r0,r8,r0,lsr#8
 	 strb	r2,[r14,#-7]
 	eor	r1,r9,r1,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-13]		@ load more input
@@ -920,7 +896,7 @@ ENDPROC(hchacha20_arm)
 	eor	r2,r10,r2,lsr#8
 	 strb	r0,[r14,#-14]
 	eor	r3,r11,r3,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-5]
@@ -939,10 +915,10 @@ ENDPROC(hchacha20_arm)
 	add	r8,sp,#4*(4+0)
 	ldmia	r8,{r8-r11}		@ load key material
 	add	r0,sp,#4*(16+8)
-	add	r4,r4,r8		@ accumulate key material
-	add	r5,r5,r9
-	add	r6,r6,r10
-#ifdef	__thumb2__
+	add	r4,r8,r4,ror#13	@ accumulate key material
+	add	r5,r9,r5,ror#13
+	add	r6,r10,r6,ror#13
+#ifdef __thumb2__
 	itete	lo
 #endif
 	eorlo	r8,r8,r8		@ zero or ...
@@ -950,8 +926,8 @@ ENDPROC(hchacha20_arm)
 	eorlo	r9,r9,r9
 	ldrhsb	r9,[r12,#-12]
 
-	add	r7,r7,r11
-#ifdef	__thumb2__
+	add	r7,r11,r7,ror#13
+#ifdef __thumb2__
 	itete	lo
 #endif
 	eorlo	r10,r10,r10
@@ -961,7 +937,7 @@ ENDPROC(hchacha20_arm)
 
 	eor	r4,r8,r4		@ xor with input (or zero)
 	eor	r5,r9,r5
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-15]		@ load more input
@@ -969,7 +945,7 @@ ENDPROC(hchacha20_arm)
 	eor	r6,r10,r6
 	 strb	r4,[r14],#16		@ store output
 	eor	r7,r11,r7
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-7]
@@ -978,7 +954,7 @@ ENDPROC(hchacha20_arm)
 	eor	r4,r8,r4,lsr#8
 	 strb	r6,[r14,#-8]
 	eor	r5,r9,r5,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-14]		@ load more input
@@ -987,7 +963,7 @@ ENDPROC(hchacha20_arm)
 	eor	r6,r10,r6,lsr#8
 	 strb	r4,[r14,#-15]
 	eor	r7,r11,r7,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-6]
@@ -996,7 +972,7 @@ ENDPROC(hchacha20_arm)
 	eor	r4,r8,r4,lsr#8
 	 strb	r6,[r14,#-7]
 	eor	r5,r9,r5,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-13]		@ load more input
@@ -1005,7 +981,7 @@ ENDPROC(hchacha20_arm)
 	eor	r6,r10,r6,lsr#8
 	 strb	r4,[r14,#-14]
 	eor	r7,r11,r7,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-5]
@@ -1024,15 +1000,15 @@ ENDPROC(hchacha20_arm)
 	add	r8,sp,#4*(4+4)
 	ldmia	r8,{r8-r11}		@ load key material
 	ldmia	r0,{r0-r7}		@ load second half
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hi
 #endif
 	strhi	r10,[sp,#4*(16+10)]		@ copy "rx"
 	strhi	r11,[sp,#4*(16+11)]		@ copy "rx"
-	add	r0,r0,r8		@ accumulate key material
-	add	r1,r1,r9
-	add	r2,r2,r10
-#ifdef	__thumb2__
+	add	r0,r8,r0	@ accumulate key material
+	add	r1,r9,r1
+	add	r2,r10,r2
+#ifdef __thumb2__
 	itete	lo
 #endif
 	eorlo	r8,r8,r8		@ zero or ...
@@ -1040,8 +1016,8 @@ ENDPROC(hchacha20_arm)
 	eorlo	r9,r9,r9
 	ldrhsb	r9,[r12,#-12]
 
-	add	r3,r3,r11
-#ifdef	__thumb2__
+	add	r3,r11,r3
+#ifdef __thumb2__
 	itete	lo
 #endif
 	eorlo	r10,r10,r10
@@ -1051,7 +1027,7 @@ ENDPROC(hchacha20_arm)
 
 	eor	r0,r8,r0		@ xor with input (or zero)
 	eor	r1,r9,r1
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-15]		@ load more input
@@ -1059,7 +1035,7 @@ ENDPROC(hchacha20_arm)
 	eor	r2,r10,r2
 	 strb	r0,[r14],#16		@ store output
 	eor	r3,r11,r3
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-7]
@@ -1068,7 +1044,7 @@ ENDPROC(hchacha20_arm)
 	eor	r0,r8,r0,lsr#8
 	 strb	r2,[r14,#-8]
 	eor	r1,r9,r1,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-14]		@ load more input
@@ -1077,7 +1053,7 @@ ENDPROC(hchacha20_arm)
 	eor	r2,r10,r2,lsr#8
 	 strb	r0,[r14,#-15]
 	eor	r3,r11,r3,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-6]
@@ -1086,7 +1062,7 @@ ENDPROC(hchacha20_arm)
 	eor	r0,r8,r0,lsr#8
 	 strb	r2,[r14,#-7]
 	eor	r1,r9,r1,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-13]		@ load more input
@@ -1095,7 +1071,7 @@ ENDPROC(hchacha20_arm)
 	eor	r2,r10,r2,lsr#8
 	 strb	r0,[r14,#-14]
 	eor	r3,r11,r3,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-5]
@@ -1113,15 +1089,15 @@ ENDPROC(hchacha20_arm)
 	 strb	r3,[r14,#-1]
 	add	r8,sp,#4*(4+8)
 	ldmia	r8,{r8-r11}		@ load key material
-	add	r4,r4,r8		@ accumulate key material
-#ifdef	__thumb2__
+	add	r4,r8,r4,ror#24	@ accumulate key material
+#ifdef __thumb2__
 	itt	hi
 #endif
 	addhi	r8,r8,#1			@ next counter value
 	strhi	r8,[sp,#4*(12)]		@ save next counter value
-	add	r5,r5,r9
-	add	r6,r6,r10
-#ifdef	__thumb2__
+	add	r5,r9,r5,ror#24
+	add	r6,r10,r6,ror#24
+#ifdef __thumb2__
 	itete	lo
 #endif
 	eorlo	r8,r8,r8		@ zero or ...
@@ -1129,8 +1105,8 @@ ENDPROC(hchacha20_arm)
 	eorlo	r9,r9,r9
 	ldrhsb	r9,[r12,#-12]
 
-	add	r7,r7,r11
-#ifdef	__thumb2__
+	add	r7,r11,r7,ror#24
+#ifdef __thumb2__
 	itete	lo
 #endif
 	eorlo	r10,r10,r10
@@ -1140,7 +1116,7 @@ ENDPROC(hchacha20_arm)
 
 	eor	r4,r8,r4		@ xor with input (or zero)
 	eor	r5,r9,r5
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-15]		@ load more input
@@ -1148,7 +1124,7 @@ ENDPROC(hchacha20_arm)
 	eor	r6,r10,r6
 	 strb	r4,[r14],#16		@ store output
 	eor	r7,r11,r7
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-7]
@@ -1157,7 +1133,7 @@ ENDPROC(hchacha20_arm)
 	eor	r4,r8,r4,lsr#8
 	 strb	r6,[r14,#-8]
 	eor	r5,r9,r5,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-14]		@ load more input
@@ -1166,7 +1142,7 @@ ENDPROC(hchacha20_arm)
 	eor	r6,r10,r6,lsr#8
 	 strb	r4,[r14,#-15]
 	eor	r7,r11,r7,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-6]
@@ -1175,7 +1151,7 @@ ENDPROC(hchacha20_arm)
 	eor	r4,r8,r4,lsr#8
 	 strb	r6,[r14,#-7]
 	eor	r5,r9,r5,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r8,[r12,#-13]		@ load more input
@@ -1184,7 +1160,7 @@ ENDPROC(hchacha20_arm)
 	eor	r6,r10,r6,lsr#8
 	 strb	r4,[r14,#-14]
 	eor	r7,r11,r7,lsr#8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	itt	hs
 #endif
 	ldrhsb	r10,[r12,#-5]
@@ -1200,11 +1176,11 @@ ENDPROC(hchacha20_arm)
 	eor	r7,r11,r7,lsr#8
 	 strb	r6,[r14,#-5]
 	 strb	r7,[r14,#-1]
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	it	ne
 #endif
 	ldrne	r8,[sp,#4*(32+2)]		@ re-load len
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	it	hs
 #endif
 	subhs	r11,r8,#64			@ len-=64
@@ -1235,7 +1211,7 @@ ENDPROC(hchacha20_arm)
 .long	0x61707865,0x3320646e,0x79622d32,0x6b206574	@ endian-neutral
 .Lone2:
 .long	1,0,0,0
-.word -1
+.word	-1
 
 .arch	armv7-a
 .fpu	neon
@@ -1265,7 +1241,8 @@ ENTRY(chacha20_neon)
 	add		r12,sp,#4*8
 	ldmia		r14,{r0-r3}		@ load sigma
 	vld1.32		{q0},[r14]!		@ load sigma
-	vld1.32		{q12},[r14]		@ one
+	vld1.32		{q12},[r14]!		@ one
+	@ vld1.32	{d30},[r14]		@ rot8
 	vst1.32		{q2-q3},[r12]		@ copy 1/2key|counter|nonce
 	vst1.32		{q0-q1},[sp]		@ copy sigma|1/2key
 
@@ -1278,6 +1255,7 @@ ENTRY(chacha20_neon)
 	vmov		q4,q0
 	vstr		d28,[sp,#4*(16+4)]
 	vmov		q8,q0
+	@ vstr		d30,[sp,#4*(16+6)]
 	vmov		q5,q1
 	vmov		q9,q1
 	b		.Loop_neon_enter
@@ -1287,6 +1265,7 @@ ENTRY(chacha20_neon)
 	ldmia		sp,{r0-r9}		@ load key material
 	cmp		r11,#64*2		@ if len<=64*2
 	bls		.Lbreak_neon		@ switch to integer-only
+	@ vldr		d30,[sp,#4*(16+6)]	@ rot8
 	vmov		q4,q0
 	str		r11,[sp,#4*(32+2)]	@ save len
 	vmov		q8,q0
@@ -1296,237 +1275,213 @@ ENTRY(chacha20_neon)
 	vmov		q9,q1
 .Loop_neon_enter:
 	ldr		r11, [sp,#4*(15)]
+	 mov		r4,r4,ror#19	@ twist b[0..3]
 	vadd.i32	q7,q3,q12		@ counter+1
 	ldr		r12,[sp,#4*(12)]	@ modulo-scheduled load
+	 mov		r5,r5,ror#19
 	vmov		q6,q2
 	ldr		r10, [sp,#4*(13)]
+	 mov		r6,r6,ror#19
 	vmov		q10,q2
 	ldr		r14,[sp,#4*(14)]
+	 mov		r7,r7,ror#19
 	vadd.i32	q11,q7,q12		@ counter+2
+	add		r12,r12,#3	@ counter+3
+	mov		r11,r11,ror#8	@ twist d[0..3]
+	mov		r12,r12,ror#8
+	mov		r10,r10,ror#8
+	mov		r14,r14,ror#8
 	str		r11, [sp,#4*(16+15)]
 	mov		r11,#10
-	add		r12,r12,#3	@ counter+3
 	b		.Loop_neon
 
 .align	4
 .Loop_neon:
 	subs		r11,r11,#1
 	vadd.i32	q0,q0,q1
-	add	r0,r0,r4
+	add	r0,r0,r4,ror#13
 	vadd.i32	q4,q4,q5
-	mov	r12,r12,ror#16
+	add	r1,r1,r5,ror#13
 	vadd.i32	q8,q8,q9
-	add	r1,r1,r5
+	eor	r12,r0,r12,ror#24
 	veor	q3,q3,q0
-	mov	r10,r10,ror#16
+	eor	r10,r1,r10,ror#24
 	veor	q7,q7,q4
-	eor	r12,r12,r0,ror#16
+	add	r8,r8,r12,ror#16
 	veor	q11,q11,q8
-	eor	r10,r10,r1,ror#16
+	add	r9,r9,r10,ror#16
 	vrev32.16	q3,q3
-	add	r8,r8,r12
+	eor	r4,r8,r4,ror#13
 	vrev32.16	q7,q7
-	mov	r4,r4,ror#20
+	eor	r5,r9,r5,ror#13
 	vrev32.16	q11,q11
-	add	r9,r9,r10
+	add	r0,r0,r4,ror#20
 	vadd.i32	q2,q2,q3
-	mov	r5,r5,ror#20
+	add	r1,r1,r5,ror#20
 	vadd.i32	q6,q6,q7
-	eor	r4,r4,r8,ror#20
+	eor	r12,r0,r12,ror#16
 	vadd.i32	q10,q10,q11
-	eor	r5,r5,r9,ror#20
+	eor	r10,r1,r10,ror#16
 	veor	q12,q1,q2
-	add	r0,r0,r4
+	add	r8,r8,r12,ror#24
 	veor	q13,q5,q6
-	mov	r12,r12,ror#24
-	veor	q14,q9,q10
-	add	r1,r1,r5
-	vshr.u32	q1,q12,#20
-	mov	r10,r10,ror#24
-	vshr.u32	q5,q13,#20
-	eor	r12,r12,r0,ror#24
-	vshr.u32	q9,q14,#20
-	eor	r10,r10,r1,ror#24
-	vsli.32	q1,q12,#12
-	add	r8,r8,r12
-	vsli.32	q5,q13,#12
-	mov	r4,r4,ror#25
-	vsli.32	q9,q14,#12
-	add	r9,r9,r10
-	vadd.i32	q0,q0,q1
-	mov	r5,r5,ror#25
-	vadd.i32	q4,q4,q5
 	str	r10,[sp,#4*(16+13)]
-	vadd.i32	q8,q8,q9
-	ldr	r10,[sp,#4*(16+15)]
-	veor	q12,q3,q0
-	eor	r4,r4,r8,ror#25
-	veor	q13,q7,q4
-	eor	r5,r5,r9,ror#25
-	veor	q14,q11,q8
-	str	r8,[sp,#4*(16+8)]
-	vshr.u32	q3,q12,#24
-	ldr	r8,[sp,#4*(16+10)]
-	vshr.u32	q7,q13,#24
-	add	r2,r2,r6
-	vshr.u32	q11,q14,#24
-	mov	r14,r14,ror#16
-	vsli.32	q3,q12,#8
-	str	r9,[sp,#4*(16+9)]
-	vsli.32	q7,q13,#8
-	ldr	r9,[sp,#4*(16+11)]
-	vsli.32	q11,q14,#8
-	add	r3,r3,r7
-	vadd.i32	q2,q2,q3
-	mov	r10,r10,ror#16
-	vadd.i32	q6,q6,q7
-	eor	r14,r14,r2,ror#16
-	vadd.i32	q10,q10,q11
-	eor	r10,r10,r3,ror#16
-	veor	q12,q1,q2
-	add	r8,r8,r14
-	veor	q13,q5,q6
-	mov	r6,r6,ror#20
 	veor	q14,q9,q10
-	add	r9,r9,r10
-	vshr.u32	q1,q12,#25
-	mov	r7,r7,ror#20
-	vshr.u32	q5,q13,#25
-	eor	r6,r6,r8,ror#20
-	vshr.u32	q9,q14,#25
-	eor	r7,r7,r9,ror#20
-	vsli.32	q1,q12,#7
-	add	r2,r2,r6
-	vsli.32	q5,q13,#7
-	mov	r14,r14,ror#24
-	vsli.32	q9,q14,#7
-	add	r3,r3,r7
-	vext.8	q2,q2,q2,#8
-	mov	r10,r10,ror#24
-	vext.8	q6,q6,q6,#8
-	eor	r14,r14,r2,ror#24
-	vext.8	q10,q10,q10,#8
-	eor	r10,r10,r3,ror#24
-	vext.8	q1,q1,q1,#4
-	add	r8,r8,r14
-	vext.8	q5,q5,q5,#4
-	mov	r6,r6,ror#25
-	vext.8	q9,q9,q9,#4
-	add	r9,r9,r10
-	vext.8	q3,q3,q3,#12
-	mov	r7,r7,ror#25
-	vext.8	q7,q7,q7,#12
-	eor	r6,r6,r8,ror#25
-	vext.8	q11,q11,q11,#12
-	eor	r7,r7,r9,ror#25
-	vadd.i32	q0,q0,q1
-	add	r0,r0,r5
-	vadd.i32	q4,q4,q5
-	mov	r10,r10,ror#16
-	vadd.i32	q8,q8,q9
-	add	r1,r1,r6
-	veor	q3,q3,q0
-	mov	r12,r12,ror#16
-	veor	q7,q7,q4
-	eor	r10,r10,r0,ror#16
-	veor	q11,q11,q8
-	eor	r12,r12,r1,ror#16
-	vrev32.16	q3,q3
-	add	r8,r8,r10
-	vrev32.16	q7,q7
-	mov	r5,r5,ror#20
-	vrev32.16	q11,q11
-	add	r9,r9,r12
-	vadd.i32	q2,q2,q3
-	mov	r6,r6,ror#20
-	vadd.i32	q6,q6,q7
-	eor	r5,r5,r8,ror#20
-	vadd.i32	q10,q10,q11
-	eor	r6,r6,r9,ror#20
-	veor	q12,q1,q2
-	add	r0,r0,r5
-	veor	q13,q5,q6
-	mov	r10,r10,ror#24
-	veor	q14,q9,q10
-	add	r1,r1,r6
+	add	r9,r9,r10,ror#24
 	vshr.u32	q1,q12,#20
-	mov	r12,r12,ror#24
+	ldr	r10,[sp,#4*(16+15)]
 	vshr.u32	q5,q13,#20
-	eor	r10,r10,r0,ror#24
+	str	r8,[sp,#4*(16+8)]
 	vshr.u32	q9,q14,#20
-	eor	r12,r12,r1,ror#24
+	eor	r4,r4,r8,ror#12
 	vsli.32	q1,q12,#12
-	add	r8,r8,r10
+	str	r9,[sp,#4*(16+9)]
 	vsli.32	q5,q13,#12
-	mov	r5,r5,ror#25
+	eor	r5,r5,r9,ror#12
 	vsli.32	q9,q14,#12
-	str	r10,[sp,#4*(16+15)]
+	ldr	r8,[sp,#4*(16+10)]
 	vadd.i32	q0,q0,q1
-	ldr	r10,[sp,#4*(16+13)]
+	add	r2,r2,r6,ror#13
 	vadd.i32	q4,q4,q5
-	add	r9,r9,r12
+	ldr	r9,[sp,#4*(16+11)]
 	vadd.i32	q8,q8,q9
-	mov	r6,r6,ror#25
+	add	r3,r3,r7,ror#13
 	veor	q12,q3,q0
-	eor	r5,r5,r8,ror#25
+	eor	r14,r2,r14,ror#24
 	veor	q13,q7,q4
-	eor	r6,r6,r9,ror#25
+	eor	r10,r3,r10,ror#24
 	veor	q14,q11,q8
-	str	r8,[sp,#4*(16+10)]
+	add	r8,r8,r14,ror#16
 	vshr.u32	q3,q12,#24
-	ldr	r8,[sp,#4*(16+8)]
+	add	r9,r9,r10,ror#16
 	vshr.u32	q7,q13,#24
-	add	r2,r2,r7
+	eor	r6,r8,r6,ror#13
 	vshr.u32	q11,q14,#24
-	mov	r10,r10,ror#16
+	eor	r7,r9,r7,ror#13
 	vsli.32	q3,q12,#8
-	str	r9,[sp,#4*(16+11)]
+	add	r2,r2,r6,ror#20
 	vsli.32	q7,q13,#8
-	ldr	r9,[sp,#4*(16+9)]
+	add	r3,r3,r7,ror#20
 	vsli.32	q11,q14,#8
-	add	r3,r3,r4
+	eor	r14,r2,r14,ror#16
 	vadd.i32	q2,q2,q3
-	mov	r14,r14,ror#16
+	eor	r10,r3,r10,ror#16
 	vadd.i32	q6,q6,q7
-	eor	r10,r10,r2,ror#16
+	add	r8,r8,r14,ror#24
 	vadd.i32	q10,q10,q11
-	eor	r14,r14,r3,ror#16
+	add	r9,r9,r10,ror#24
 	veor	q12,q1,q2
-	add	r8,r8,r10
+	eor	r6,r6,r8,ror#12
 	veor	q13,q5,q6
-	mov	r7,r7,ror#20
+	eor	r7,r7,r9,ror#12
 	veor	q14,q9,q10
-	add	r9,r9,r14
 	vshr.u32	q1,q12,#25
-	mov	r4,r4,ror#20
 	vshr.u32	q5,q13,#25
-	eor	r7,r7,r8,ror#20
 	vshr.u32	q9,q14,#25
-	eor	r4,r4,r9,ror#20
 	vsli.32	q1,q12,#7
-	add	r2,r2,r7
 	vsli.32	q5,q13,#7
-	mov	r10,r10,ror#24
 	vsli.32	q9,q14,#7
-	add	r3,r3,r4
 	vext.8	q2,q2,q2,#8
-	mov	r14,r14,ror#24
 	vext.8	q6,q6,q6,#8
-	eor	r10,r10,r2,ror#24
 	vext.8	q10,q10,q10,#8
-	eor	r14,r14,r3,ror#24
+	vext.8	q1,q1,q1,#4
+	vext.8	q5,q5,q5,#4
+	vext.8	q9,q9,q9,#4
+	vext.8	q3,q3,q3,#12
+	vext.8	q7,q7,q7,#12
+	vext.8	q11,q11,q11,#12
+	vadd.i32	q0,q0,q1
+	add	r0,r0,r5,ror#13
+	vadd.i32	q4,q4,q5
+	add	r1,r1,r6,ror#13
+	vadd.i32	q8,q8,q9
+	eor	r10,r0,r10,ror#24
+	veor	q3,q3,q0
+	eor	r12,r1,r12,ror#24
+	veor	q7,q7,q4
+	add	r8,r8,r10,ror#16
+	veor	q11,q11,q8
+	add	r9,r9,r12,ror#16
+	vrev32.16	q3,q3
+	eor	r5,r8,r5,ror#13
+	vrev32.16	q7,q7
+	eor	r6,r9,r6,ror#13
+	vrev32.16	q11,q11
+	add	r0,r0,r5,ror#20
+	vadd.i32	q2,q2,q3
+	add	r1,r1,r6,ror#20
+	vadd.i32	q6,q6,q7
+	eor	r10,r0,r10,ror#16
+	vadd.i32	q10,q10,q11
+	eor	r12,r1,r12,ror#16
+	veor	q12,q1,q2
+	str	r10,[sp,#4*(16+15)]
+	veor	q13,q5,q6
+	add	r8,r8,r10,ror#24
+	veor	q14,q9,q10
+	ldr	r10,[sp,#4*(16+13)]
+	vshr.u32	q1,q12,#20
+	add	r9,r9,r12,ror#24
+	vshr.u32	q5,q13,#20
+	str	r8,[sp,#4*(16+10)]
+	vshr.u32	q9,q14,#20
+	eor	r5,r5,r8,ror#12
+	vsli.32	q1,q12,#12
+	str	r9,[sp,#4*(16+11)]
+	vsli.32	q5,q13,#12
+	eor	r6,r6,r9,ror#12
+	vsli.32	q9,q14,#12
+	ldr	r8,[sp,#4*(16+8)]
+	vadd.i32	q0,q0,q1
+	add	r2,r2,r7,ror#13
+	vadd.i32	q4,q4,q5
+	ldr	r9,[sp,#4*(16+9)]
+	vadd.i32	q8,q8,q9
+	add	r3,r3,r4,ror#13
+	veor	q12,q3,q0
+	eor	r10,r2,r10,ror#24
+	veor	q13,q7,q4
+	eor	r14,r3,r14,ror#24
+	veor	q14,q11,q8
+	add	r8,r8,r10,ror#16
+	vshr.u32	q3,q12,#24
+	add	r9,r9,r14,ror#16
+	vshr.u32	q7,q13,#24
+	eor	r7,r8,r7,ror#13
+	vshr.u32	q11,q14,#24
+	eor	r4,r9,r4,ror#13
+	vsli.32	q3,q12,#8
+	add	r2,r2,r7,ror#20
+	vsli.32	q7,q13,#8
+	add	r3,r3,r4,ror#20
+	vsli.32	q11,q14,#8
+	eor	r10,r2,r10,ror#16
+	vadd.i32	q2,q2,q3
+	eor	r14,r3,r14,ror#16
+	vadd.i32	q6,q6,q7
+	add	r8,r8,r10,ror#24
+	vadd.i32	q10,q10,q11
+	add	r9,r9,r14,ror#24
+	veor	q12,q1,q2
+	eor	r7,r7,r8,ror#12
+	veor	q13,q5,q6
+	eor	r4,r4,r9,ror#12
+	veor	q14,q9,q10
+	vshr.u32	q1,q12,#25
+	vshr.u32	q5,q13,#25
+	vshr.u32	q9,q14,#25
+	vsli.32	q1,q12,#7
+	vsli.32	q5,q13,#7
+	vsli.32	q9,q14,#7
+	vext.8	q2,q2,q2,#8
+	vext.8	q6,q6,q6,#8
+	vext.8	q10,q10,q10,#8
 	vext.8	q1,q1,q1,#12
-	add	r8,r8,r10
 	vext.8	q5,q5,q5,#12
-	mov	r7,r7,ror#25
 	vext.8	q9,q9,q9,#12
-	add	r9,r9,r14
 	vext.8	q3,q3,q3,#4
-	mov	r4,r4,ror#25
 	vext.8	q7,q7,q7,#4
-	eor	r7,r7,r8,ror#25
 	vext.8	q11,q11,q11,#4
-	eor	r4,r4,r9,ror#25
 	bne		.Loop_neon
 
 	add		r11,sp,#32
@@ -1631,13 +1586,13 @@ ENTRY(chacha20_neon)
 	str		r2,[r14,#-8]
 	str		r3,[r14,#-4]
 
-	add		r4,r4,r8	@ accumulate key material
+	add		r4,r8,r4,ror#13 @ accumulate key material
 	ldr		r8,[r12],#16		@ load input
-	add		r5,r5,r9
+	add		r5,r9,r5,ror#13
 	ldr		r9,[r12,#-12]
-	add		r6,r6,r10
+	add		r6,r10,r6,ror#13
 	ldr		r10,[r12,#-8]
-	add		r7,r7,r11
+	add		r7,r11,r7,ror#13
 	ldr		r11,[r12,#-4]
 #ifdef	__ARMEB__
 	rev		r4,r4
@@ -1663,13 +1618,13 @@ ENTRY(chacha20_neon)
 	ldr		r8,[r12],#16		@ load input
 	add		r1,r1,r9
 	ldr		r9,[r12,#-12]
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	it	hi
 #endif
 	 strhi		r10,[sp,#4*(16+10)]	@ copy "rx" while at it
 	add		r2,r2,r10
 	ldr		r10,[r12,#-8]
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	it	hi
 #endif
 	 strhi		r11,[sp,#4*(16+11)]	@ copy "rx" while at it
@@ -1692,15 +1647,15 @@ ENTRY(chacha20_neon)
 	str		r2,[r14,#-8]
 	str		r3,[r14,#-4]
 
-	add		r4,r4,r8	@ accumulate key material
+	add		r4,r8,r4,ror#24 @ accumulate key material
 	 add		r8,r8,#4		@ next counter value
-	add		r5,r5,r9
+	add		r5,r9,r5,ror#24
 	 str		r8,[sp,#4*(12)]	@ save next counter value
 	ldr		r8,[r12],#16		@ load input
-	add		r6,r6,r10
+	add		r6,r10,r6,ror#24
 	 add		r4,r4,#3		@ counter+3
 	ldr		r9,[r12,#-12]
-	add		r7,r7,r11
+	add		r7,r11,r7,ror#24
 	ldr		r10,[r12,#-8]
 	ldr		r11,[r12,#-4]
 #ifdef	__ARMEB__
@@ -1710,7 +1665,7 @@ ENTRY(chacha20_neon)
 	rev		r7,r7
 #endif
 	eor		r4,r4,r8
-#ifdef	__thumb2__
+#ifdef __thumb2__
 	it	hi
 #endif
 	 ldrhi		r8,[sp,#4*(32+2)]	@ re-load len
@@ -1744,9 +1699,17 @@ ENTRY(chacha20_neon)
 	str		r14,[sp,#4*(20+16+11)]	@ copy "rx"
 
 	ldr		r11, [sp,#4*(15)]
+	 mov		r4,r4,ror#19		@ twist b[0..3]
 	ldr		r12,[sp,#4*(12)]		@ modulo-scheduled load
+	 mov		r5,r5,ror#19
 	ldr		r10, [sp,#4*(13)]
+	 mov		r6,r6,ror#19
 	ldr		r14,[sp,#4*(14)]
+	 mov		r7,r7,ror#19
+	mov		r11,r11,ror#8		@ twist d[0..3]
+	mov		r12,r12,ror#8
+	mov		r10,r10,ror#8
+	mov		r14,r14,ror#8
 	str		r11, [sp,#4*(20+16+15)]
 	add		r11,sp,#4*(20)
 	vst1.32		{q0-q1},[r11]!		@ copy key
@@ -1858,11 +1821,11 @@ ENTRY(chacha20_neon)
 	add		r3,r3,r11
 	 ldmia		r8,{r8-r11}	@ load key material
 
-	add		r4,r4,r8	@ accumulate key material
+	add		r4,r8,r4,ror#13 @ accumulate key material
 	 add		r8,sp,#4*(8)
-	add		r5,r5,r9
-	add		r6,r6,r10
-	add		r7,r7,r11
+	add		r5,r9,r5,ror#13
+	add		r6,r10,r6,ror#13
+	add		r7,r11,r7,ror#13
 	 ldmia		r8,{r8-r11}	@ load key material
 #ifdef	__ARMEB__
 	rev		r0,r0
@@ -1886,12 +1849,12 @@ ENTRY(chacha20_neon)
 	add		r3,r3,r11
 	 ldmia		r8,{r8-r11}	@ load key material
 
-	add		r4,r4,r8	@ accumulate key material
+	add		r4,r8,r4,ror#24 @ accumulate key material
 	 add		r8,sp,#4*(8)
-	add		r5,r5,r9
+	add		r5,r9,r5,ror#24
 	 add		r4,r4,#3		@ counter+3
-	add		r6,r6,r10
-	add		r7,r7,r11
+	add		r6,r10,r6,ror#24
+	add		r7,r11,r7,ror#24
 	 ldr		r11,[sp,#4*(32+2)]	@ re-load len
 #ifdef	__ARMEB__
 	rev		r0,r0
