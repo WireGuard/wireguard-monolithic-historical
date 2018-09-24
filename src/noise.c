@@ -286,19 +286,19 @@ static void kdf(u8 *first_dst, u8 *second_dst, u8 *third_dst, const u8 *data,
 		size_t first_len, size_t second_len, size_t third_len,
 		size_t data_len, const u8 chaining_key[NOISE_HASH_LEN])
 {
-	u8 output[BLAKE2S_OUTBYTES + 1];
-	u8 secret[BLAKE2S_OUTBYTES];
+	u8 output[BLAKE2S_HASH_SIZE + 1];
+	u8 secret[BLAKE2S_HASH_SIZE];
 
 #ifdef DEBUG
-	BUG_ON(first_len > BLAKE2S_OUTBYTES || second_len > BLAKE2S_OUTBYTES ||
-	       third_len > BLAKE2S_OUTBYTES ||
+	BUG_ON(first_len > BLAKE2S_HASH_SIZE || second_len > BLAKE2S_HASH_SIZE ||
+	       third_len > BLAKE2S_HASH_SIZE ||
 	       ((second_len || second_dst || third_len || third_dst) &&
 		(!first_len || !first_dst)) ||
 	       ((third_len || third_dst) && (!second_len || !second_dst)));
 #endif
 
 	/* Extract entropy from data into secret */
-	blake2s_hmac(secret, data, chaining_key, BLAKE2S_OUTBYTES, data_len,
+	blake2s_hmac(secret, data, chaining_key, BLAKE2S_HASH_SIZE, data_len,
 		     NOISE_HASH_LEN);
 
 	if (!first_dst || !first_len)
@@ -306,32 +306,32 @@ static void kdf(u8 *first_dst, u8 *second_dst, u8 *third_dst, const u8 *data,
 
 	/* Expand first key: key = secret, data = 0x1 */
 	output[0] = 1;
-	blake2s_hmac(output, output, secret, BLAKE2S_OUTBYTES, 1,
-		     BLAKE2S_OUTBYTES);
+	blake2s_hmac(output, output, secret, BLAKE2S_HASH_SIZE, 1,
+		     BLAKE2S_HASH_SIZE);
 	memcpy(first_dst, output, first_len);
 
 	if (!second_dst || !second_len)
 		goto out;
 
 	/* Expand second key: key = secret, data = first-key || 0x2 */
-	output[BLAKE2S_OUTBYTES] = 2;
-	blake2s_hmac(output, output, secret, BLAKE2S_OUTBYTES,
-		     BLAKE2S_OUTBYTES + 1, BLAKE2S_OUTBYTES);
+	output[BLAKE2S_HASH_SIZE] = 2;
+	blake2s_hmac(output, output, secret, BLAKE2S_HASH_SIZE,
+		     BLAKE2S_HASH_SIZE + 1, BLAKE2S_HASH_SIZE);
 	memcpy(second_dst, output, second_len);
 
 	if (!third_dst || !third_len)
 		goto out;
 
 	/* Expand third key: key = secret, data = second-key || 0x3 */
-	output[BLAKE2S_OUTBYTES] = 3;
-	blake2s_hmac(output, output, secret, BLAKE2S_OUTBYTES,
-		     BLAKE2S_OUTBYTES + 1, BLAKE2S_OUTBYTES);
+	output[BLAKE2S_HASH_SIZE] = 3;
+	blake2s_hmac(output, output, secret, BLAKE2S_HASH_SIZE,
+		     BLAKE2S_HASH_SIZE + 1, BLAKE2S_HASH_SIZE);
 	memcpy(third_dst, output, third_len);
 
 out:
 	/* Clear sensitive data from stack */
-	memzero_explicit(secret, BLAKE2S_OUTBYTES);
-	memzero_explicit(output, BLAKE2S_OUTBYTES + 1);
+	memzero_explicit(secret, BLAKE2S_HASH_SIZE);
+	memzero_explicit(output, BLAKE2S_HASH_SIZE + 1);
 }
 
 static void symmetric_key_init(struct noise_symmetric_key *key)

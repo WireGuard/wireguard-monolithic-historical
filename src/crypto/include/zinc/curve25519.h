@@ -9,14 +9,14 @@
 #include <linux/types.h>
 
 enum curve25519_lengths {
-	CURVE25519_POINT_SIZE = 32
+	CURVE25519_KEY_SIZE = 32
 };
 
-bool __must_check curve25519(u8 mypublic[CURVE25519_POINT_SIZE],
-			     const u8 secret[CURVE25519_POINT_SIZE],
-			     const u8 basepoint[CURVE25519_POINT_SIZE]);
-void curve25519_generate_secret(u8 secret[CURVE25519_POINT_SIZE]);
+bool __must_check curve25519(u8 mypublic[CURVE25519_KEY_SIZE],
+			     const u8 secret[CURVE25519_KEY_SIZE],
+			     const u8 basepoint[CURVE25519_KEY_SIZE]);
+void curve25519_generate_secret(u8 secret[CURVE25519_KEY_SIZE]);
 bool __must_check curve25519_generate_public(
-	u8 pub[CURVE25519_POINT_SIZE], const u8 secret[CURVE25519_POINT_SIZE]);
+	u8 pub[CURVE25519_KEY_SIZE], const u8 secret[CURVE25519_KEY_SIZE]);
 
 #endif /* _ZINC_CURVE25519_H */

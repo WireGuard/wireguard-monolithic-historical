@@ -8817,7 +8817,7 @@ chacha20poly1305_selftest_encrypt_bignonce(u8 *dst, const u8 *src,
 					   const size_t src_len, const u8 *ad,
 					   const size_t ad_len,
 					   const u8 nonce[12],
-					   const u8 key[CHACHA20POLY1305_KEYLEN])
+					   const u8 key[CHACHA20POLY1305_KEY_SIZE])
 {
 	simd_context_t simd_context;
 	struct poly1305_ctx poly1305_state;
@@ -8856,7 +8856,7 @@ static void __init
 chacha20poly1305_selftest_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 				  const u8 *ad, const size_t ad_len,
 				  const u8 *nonce, const size_t nonce_len,
-				  const u8 key[CHACHA20POLY1305_KEYLEN])
+				  const u8 key[CHACHA20POLY1305_KEY_SIZE])
 {
 	if (nonce_len == 8)
 		chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len,

@@ -753,9 +753,9 @@ static __always_inline void format_scalar_of_point(u8 *scalar, u64 *point)
 	format_fcontract(scalar, sc);
 }
 
-static void curve25519_generic(u8 mypublic[CURVE25519_POINT_SIZE],
-			       const u8 secret[CURVE25519_POINT_SIZE],
-			       const u8 basepoint[CURVE25519_POINT_SIZE])
+static void curve25519_generic(u8 mypublic[CURVE25519_KEY_SIZE],
+			       const u8 secret[CURVE25519_KEY_SIZE],
+			       const u8 basepoint[CURVE25519_KEY_SIZE])
 {
 	u64 buf0[10] __aligned(32) = { 0 };
 	u64 *x0 = buf0;

@@ -11,16 +11,16 @@
 #include <crypto/algapi.h>
 
 enum blake2s_lengths {
-	BLAKE2S_BLOCKBYTES = 64,
-	BLAKE2S_OUTBYTES = 32,
-	BLAKE2S_KEYBYTES = 32
+	BLAKE2S_BLOCK_SIZE = 64,
+	BLAKE2S_HASH_SIZE = 32,
+	BLAKE2S_KEY_SIZE = 32
 };
 
 struct blake2s_state {
 	u32 h[8];
 	u32 t[2];
 	u32 f[2];
-	u8 buf[BLAKE2S_BLOCKBYTES];
+	u8 buf[BLAKE2S_BLOCK_SIZE];
 	size_t buflen;
 	u8 last_node;
 };
@@ -39,7 +39,7 @@ static inline void blake2s(u8 *out, const u8 *in, const u8 *key,
 
 #ifdef DEBUG
 	BUG_ON((!in && inlen > 0) || !out || !outlen ||
-	       outlen > BLAKE2S_OUTBYTES || keylen > BLAKE2S_KEYBYTES ||
+	       outlen > BLAKE2S_HASH_SIZE || keylen > BLAKE2S_KEY_SIZE ||
 	       (!key && keylen));
 #endif
 

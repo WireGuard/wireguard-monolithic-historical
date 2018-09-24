@@ -1935,23 +1935,23 @@ static __always_inline void cselect(u8 bit, u64 *const px, const u64 *const py)
 	);
 }
 
-static __always_inline void clamp_secret(u8 secret[CURVE25519_POINT_SIZE])
+static __always_inline void clamp_secret(u8 secret[CURVE25519_KEY_SIZE])
 {
 	secret[0] &= 248;
 	secret[31] &= 127;
 	secret[31] |= 64;
 }
 
-static void curve25519_adx(u8 shared[CURVE25519_POINT_SIZE],
-			   const u8 private_key[CURVE25519_POINT_SIZE],
-			   const u8 session_key[CURVE25519_POINT_SIZE])
+static void curve25519_adx(u8 shared[CURVE25519_KEY_SIZE],
+			   const u8 private_key[CURVE25519_KEY_SIZE],
+			   const u8 session_key[CURVE25519_KEY_SIZE])
 {
 	struct {
 		u64 buffer[4 * NUM_WORDS_ELTFP25519];
 		u64 coordinates[4 * NUM_WORDS_ELTFP25519];
 		u64 workspace[6 * NUM_WORDS_ELTFP25519];
-		u8 session[CURVE25519_POINT_SIZE];
-		u8 private[CURVE25519_POINT_SIZE];
+		u8 session[CURVE25519_KEY_SIZE];
+		u8 private[CURVE25519_KEY_SIZE];
 	} __aligned(32) m;
 
 	int i = 0, j = 0;
@@ -1991,7 +1991,7 @@ static void curve25519_adx(u8 shared[CURVE25519_POINT_SIZE],
 	 * reserve the sign bit for use in other protocols and to
 	 * increase resistance to implementation fingerprinting
 	 */
-	m.session[CURVE25519_POINT_SIZE - 1] &= (1 << (255 % 8)) - 1;
+	m.session[CURVE25519_KEY_SIZE - 1] &= (1 << (255 % 8)) - 1;
 
 	copy_eltfp25519_1w(Px, X1);
 	setzero_eltfp25519_1w(Pz);
@@ -2043,14 +2043,14 @@ static void curve25519_adx(u8 shared[CURVE25519_POINT_SIZE],
 	memzero_explicit(&m, sizeof(m));
 }
 
-static void curve25519_adx_base(u8 session_key[CURVE25519_POINT_SIZE],
-				const u8 private_key[CURVE25519_POINT_SIZE])
+static void curve25519_adx_base(u8 session_key[CURVE25519_KEY_SIZE],
+				const u8 private_key[CURVE25519_KEY_SIZE])
 {
 	struct {
 		u64 buffer[4 * NUM_WORDS_ELTFP25519];
 		u64 coordinates[4 * NUM_WORDS_ELTFP25519];
 		u64 workspace[4 * NUM_WORDS_ELTFP25519];
-		u8 private[CURVE25519_POINT_SIZE];
+		u8 private[CURVE25519_KEY_SIZE];
 	} __aligned(32) m;
 
 	const int ite[4] = { 64, 64, 64, 63 };
@@ -2137,16 +2137,16 @@ static void curve25519_adx_base(u8 session_key[CURVE25519_POINT_SIZE],
 	memzero_explicit(&m, sizeof(m));
 }
 
-static void curve25519_bmi2(u8 shared[CURVE25519_POINT_SIZE],
-			    const u8 private_key[CURVE25519_POINT_SIZE],
-			    const u8 session_key[CURVE25519_POINT_SIZE])
+static void curve25519_bmi2(u8 shared[CURVE25519_KEY_SIZE],
+			    const u8 private_key[CURVE25519_KEY_SIZE],
+			    const u8 session_key[CURVE25519_KEY_SIZE])
 {
 	struct {
 		u64 buffer[4 * NUM_WORDS_ELTFP25519];
 		u64 coordinates[4 * NUM_WORDS_ELTFP25519];
 		u64 workspace[6 * NUM_WORDS_ELTFP25519];
-		u8 session[CURVE25519_POINT_SIZE];
-		u8 private[CURVE25519_POINT_SIZE];
+		u8 session[CURVE25519_KEY_SIZE];
+		u8 private[CURVE25519_KEY_SIZE];
 	} __aligned(32) m;
 
 	int i = 0, j = 0;
@@ -2186,7 +2186,7 @@ static void curve25519_bmi2(u8 shared[CURVE25519_POINT_SIZE],
 	 * reserve the sign bit for use in other protocols and to
 	 * increase resistance to implementation fingerprinting
 	 */
-	m.session[CURVE25519_POINT_SIZE - 1] &= (1 << (255 % 8)) - 1;
+	m.session[CURVE25519_KEY_SIZE - 1] &= (1 << (255 % 8)) - 1;
 
 	copy_eltfp25519_1w(Px, X1);
 	setzero_eltfp25519_1w(Pz);
@@ -2238,14 +2238,14 @@ static void curve25519_bmi2(u8 shared[CURVE25519_POINT_SIZE],
 	memzero_explicit(&m, sizeof(m));
 }
 
-static void curve25519_bmi2_base(u8 session_key[CURVE25519_POINT_SIZE],
-				 const u8 private_key[CURVE25519_POINT_SIZE])
+static void curve25519_bmi2_base(u8 session_key[CURVE25519_KEY_SIZE],
+				 const u8 private_key[CURVE25519_KEY_SIZE])
 {
 	struct {
 		u64 buffer[4 * NUM_WORDS_ELTFP25519];
 		u64 coordinates[4 * NUM_WORDS_ELTFP25519];
 		u64 workspace[4 * NUM_WORDS_ELTFP25519];
-		u8 private[CURVE25519_POINT_SIZE];
+		u8 private[CURVE25519_KEY_SIZE];
 	} __aligned(32) m;
 
 	const int ite[4] = { 64, 64, 64, 63 };

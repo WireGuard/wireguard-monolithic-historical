@@ -10,7 +10,7 @@ typedef unsigned int u32;
 typedef unsigned char u8;
 typedef u32 __le32;
 
-enum { CURVE25519_POINT_SIZE = 32 };
+enum { CURVE25519_KEY_SIZE = 32 };
 
 #ifndef __always_inline
 #define __always_inline __inline __attribute__((__always_inline__))
@@ -37,7 +37,7 @@ enum { CURVE25519_POINT_SIZE = 32 };
 /* We don't even attempt to deal with this in javascript. */
 #define memzero_explicit(a, b)
 
-static __always_inline void normalize_secret(u8 secret[CURVE25519_POINT_SIZE])
+static __always_inline void normalize_secret(u8 secret[CURVE25519_KEY_SIZE])
 {
 	secret[0] &= 248;
 	secret[31] &= 127;

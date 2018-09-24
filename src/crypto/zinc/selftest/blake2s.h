@@ -4,7 +4,7 @@
  */
 
 #ifdef DEBUG
-static const u8 blake2s_testvecs[][BLAKE2S_OUTBYTES] __initconst = {
+static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
 	{ 0x69, 0x21, 0x7a, 0x30, 0x79, 0x90, 0x80, 0x94,
 	  0xe1, 0x11, 0x21, 0xd0, 0x42, 0x35, 0x4a, 0x7c,
 	  0x1f, 0x55, 0xb6, 0x48, 0x2c, 0xa1, 0xa5, 0x1e,
@@ -1031,7 +1031,7 @@ static const u8 blake2s_testvecs[][BLAKE2S_OUTBYTES] __initconst = {
 	  0x86, 0xaa, 0x99, 0x4a, 0xcb, 0x38, 0xfe, 0x2d }
 };
 
-static const u8 blake2s_keyed_testvecs[][BLAKE2S_OUTBYTES] __initconst = {
+static const u8 blake2s_keyed_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
 	{ 0x48, 0xa8, 0x99, 0x7d, 0xa4, 0x07, 0x87, 0x6b,
 	  0x3d, 0x79, 0xc0, 0xd9, 0x23, 0x25, 0xad, 0x3b,
 	  0x89, 0xcb, 0xb7, 0x54, 0xd8, 0x6a, 0xb7, 0x1a,
@@ -2060,29 +2060,29 @@ static const u8 blake2s_keyed_testvecs[][BLAKE2S_OUTBYTES] __initconst = {
 
 static bool __init blake2s_selftest(void)
 {
-	u8 key[BLAKE2S_KEYBYTES];
+	u8 key[BLAKE2S_KEY_SIZE];
 	u8 buf[ARRAY_SIZE(blake2s_testvecs)];
-	u8 hash[BLAKE2S_OUTBYTES];
+	u8 hash[BLAKE2S_HASH_SIZE];
 	size_t i;
 	bool success = true;
 
-	for (i = 0; i < BLAKE2S_KEYBYTES; ++i)
+	for (i = 0; i < BLAKE2S_KEY_SIZE; ++i)
 		key[i] = (u8)i;
 
 	for (i = 0; i < ARRAY_SIZE(blake2s_testvecs); ++i)
 		buf[i] = (u8)i;
 
 	for (i = 0; i < ARRAY_SIZE(blake2s_keyed_testvecs); ++i) {
-		blake2s(hash, buf, key, BLAKE2S_OUTBYTES, i, BLAKE2S_KEYBYTES);
-		if (memcmp(hash, blake2s_keyed_testvecs[i], BLAKE2S_OUTBYTES)) {
+		blake2s(hash, buf, key, BLAKE2S_HASH_SIZE, i, BLAKE2S_KEY_SIZE);
+		if (memcmp(hash, blake2s_keyed_testvecs[i], BLAKE2S_HASH_SIZE)) {
 			pr_info("blake2s keyed self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(blake2s_testvecs); ++i) {
-		blake2s(hash, buf, NULL, BLAKE2S_OUTBYTES, i, 0);
-		if (memcmp(hash, blake2s_testvecs[i], BLAKE2S_OUTBYTES)) {
+		blake2s(hash, buf, NULL, BLAKE2S_HASH_SIZE, i, 0);
+		if (memcmp(hash, blake2s_testvecs[i], BLAKE2S_HASH_SIZE)) {
 			pr_info("blake2s unkeyed self-test %zu: FAIL\n", i + i);
 			success = false;
 		}

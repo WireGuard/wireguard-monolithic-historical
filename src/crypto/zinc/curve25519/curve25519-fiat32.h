@@ -749,9 +749,9 @@ static __always_inline void fe_mul121666(fe *h, const fe_loose *f)
 	fe_mul_121666_impl(h->v, f->v);
 }
 
-static void curve25519_generic(u8 out[CURVE25519_POINT_SIZE],
-			       const u8 scalar[CURVE25519_POINT_SIZE],
-			       const u8 point[CURVE25519_POINT_SIZE])
+static void curve25519_generic(u8 out[CURVE25519_KEY_SIZE],
+			       const u8 scalar[CURVE25519_KEY_SIZE],
+			       const u8 point[CURVE25519_KEY_SIZE])
 {
 	fe x1, x2, z2, x3, z3;
 	fe_loose x2l, z2l, x3l;

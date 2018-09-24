@@ -18,9 +18,9 @@ static void __init curve25519_fpu_init(void)
 			     boot_cpu_has(X86_FEATURE_ADX);
 }
 
-static inline bool curve25519_arch(u8 mypublic[CURVE25519_POINT_SIZE],
-				   const u8 secret[CURVE25519_POINT_SIZE],
-				   const u8 basepoint[CURVE25519_POINT_SIZE])
+static inline bool curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
+				   const u8 secret[CURVE25519_KEY_SIZE],
+				   const u8 basepoint[CURVE25519_KEY_SIZE])
 {
 	if (curve25519_use_adx) {
 		curve25519_adx(mypublic, secret, basepoint);
@@ -32,8 +32,8 @@ static inline bool curve25519_arch(u8 mypublic[CURVE25519_POINT_SIZE],
 	return false;
 }
 
-static inline bool curve25519_base_arch(u8 pub[CURVE25519_POINT_SIZE],
-					const u8 secret[CURVE25519_POINT_SIZE])
+static inline bool curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
+					const u8 secret[CURVE25519_KEY_SIZE])
 {
 	if (curve25519_use_adx) {
 		curve25519_adx_base(pub, secret);

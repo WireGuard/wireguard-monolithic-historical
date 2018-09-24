@@ -5,9 +5,9 @@
 
 #ifdef DEBUG
 struct curve25519_test_vector {
-	u8 private[CURVE25519_POINT_SIZE];
-	u8 public[CURVE25519_POINT_SIZE];
-	u8 result[CURVE25519_POINT_SIZE];
+	u8 private[CURVE25519_KEY_SIZE];
+	u8 public[CURVE25519_KEY_SIZE];
+	u8 result[CURVE25519_KEY_SIZE];
 	bool valid;
 };
 static const struct curve25519_test_vector curve25519_test_vectors[] __initconst = {
@@ -1283,16 +1283,16 @@ static bool __init curve25519_selftest(void)
 {
 	bool success = true, ret, ret2;
 	size_t i = 0, j;
-	u8 in[CURVE25519_POINT_SIZE];
-	u8 out[CURVE25519_POINT_SIZE], out2[CURVE25519_POINT_SIZE];
+	u8 in[CURVE25519_KEY_SIZE];
+	u8 out[CURVE25519_KEY_SIZE], out2[CURVE25519_KEY_SIZE];
 
 	for (i = 0; i < ARRAY_SIZE(curve25519_test_vectors); ++i) {
-		memset(out, 0, CURVE25519_POINT_SIZE);
+		memset(out, 0, CURVE25519_KEY_SIZE);
 		ret = curve25519(out, curve25519_test_vectors[i].private,
 				 curve25519_test_vectors[i].public);
 		if (ret != curve25519_test_vectors[i].valid ||
 		    memcmp(out, curve25519_test_vectors[i].result,
-			   CURVE25519_POINT_SIZE)) {
+			   CURVE25519_KEY_SIZE)) {
 			pr_info("curve25519 self-test %zu: FAIL\n", i + 1);
 			success = false;
 			break;
@@ -1302,11 +1302,11 @@ static bool __init curve25519_selftest(void)
 	for (i = 0; i < 5; ++i) {
 		get_random_bytes(in, sizeof(in));
 		ret = curve25519_generate_public(out, in);
-		ret2 = curve25519(out2, in, (u8[CURVE25519_POINT_SIZE]){ 9 });
-		if (ret != ret2 || memcmp(out, out2, CURVE25519_POINT_SIZE)) {
+		ret2 = curve25519(out2, in, (u8[CURVE25519_KEY_SIZE]){ 9 });
+		if (ret != ret2 || memcmp(out, out2, CURVE25519_KEY_SIZE)) {
 			pr_info("curve25519 basepoint self-test %zu: FAIL: input - 0x",
 				i + 1);
-			for (j = CURVE25519_POINT_SIZE; j-- > 0;)
+			for (j = CURVE25519_KEY_SIZE; j-- > 0;)
 				printk(KERN_CONT "%02x", in[j]);
 			printk(KERN_CONT "\n");
 			success = false;
