@@ -486,31 +486,6 @@ ENDPROC(hchacha20_arm)
 #define ldrhsb	ldrbhs
 #endif
 
-.align	5
-.Lsigma:
-.long	0x61707865,0x3320646e,0x79622d32,0x6b206574	@ endian-neutral
-.Lone:
-.long	1,0,0,0
-.word	-1
-
-.align	5
-.Lshort:
-	ldmia	r12,{r4-r7}		@ load counter and nonce
-	sub	sp,sp,#4*(16)		@ off-load area
-#if __LINUX_ARM_ARCH__ < 7 && !defined(__thumb2__)
-	sub	r14,pc,#100		@ .Lsigma
-#else
-	adr	r14,.Lsigma		@ .Lsigma
-#endif
-	stmdb	sp!,{r4-r7}		@ copy counter and nonce
-	ldmia	r3,{r4-r11}		@ load key
-	ldmia	r14,{r0-r3}		@ load sigma
-	stmdb	sp!,{r4-r11}		@ copy key
-	stmdb	sp!,{r0-r3}		@ copy sigma
-	str	r10,[sp,#4*(16+10)]	@ off-load "rx"
-	str	r11,[sp,#4*(16+11)]	@ off-load "rx"
-	b	.Loop_outer_enter
-
 .align	4
 .Loop_outer:
 	ldmia	sp,{r0-r9}		@ load key material
@@ -1226,8 +1201,6 @@ ENTRY(chacha20_neon)
 #endif
 	addeq		sp,sp,#4*3
 	beq		.Lno_data_neon
-	cmp		r2,#192			@ test len
-	bls		.Lshort
 .Lchacha20_neon_begin:
 	adr		r14,.Lsigma2
 	vstmdb		sp!,{d8-d15}		@ ABI spec says so

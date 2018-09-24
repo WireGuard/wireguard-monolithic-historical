@@ -18,7 +18,7 @@
 .align	5
 ENTRY(chacha20_arm)
 	cbz	x2,.Labort
-.Lshort:
+
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -293,8 +293,6 @@ ENDPROC(chacha20_arm)
 .align	5
 ENTRY(chacha20_neon)
 	cbz	x2,.Labort_neon
-	cmp	x2,#192
-	b.lo	.Lshort
 
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
