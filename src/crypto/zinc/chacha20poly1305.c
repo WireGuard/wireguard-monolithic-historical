@@ -305,13 +305,14 @@ void xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			       const u8 key[CHACHA20POLY1305_KEYLEN])
 {
 	simd_context_t simd_context;
-	u8 derived_key[CHACHA20POLY1305_KEYLEN] __aligned(16);
+	u32 derived_key[CHACHA20_KEY_WORDS] __aligned(16);
 
 	simd_get(&simd_context);
 	hchacha20(derived_key, nonce, key, &simd_context);
+	cpu_to_le32_array(derived_key, ARRAY_SIZE(derived_key));
 	__chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len,
 				   get_unaligned_le64(nonce + 16),
-				   derived_key, &simd_context);
+				   (u8 *)derived_key, &simd_context);
 	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
 	simd_put(&simd_context);
 }
@@ -324,13 +325,14 @@ bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 {
 	bool ret;
 	simd_context_t simd_context;
-	u8 derived_key[CHACHA20POLY1305_KEYLEN] __aligned(16);
+	u32 derived_key[CHACHA20_KEY_WORDS] __aligned(16);
 
 	simd_get(&simd_context);
 	hchacha20(derived_key, nonce, key, &simd_context);
+	cpu_to_le32_array(derived_key, ARRAY_SIZE(derived_key));
 	ret = __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len,
 					 get_unaligned_le64(nonce + 16),
-					 derived_key, &simd_context);
+					 (u8 *)derived_key, &simd_context);
 	memzero_explicit(derived_key, CHACHA20POLY1305_KEYLEN);
 	simd_put(&simd_context);
 	return ret;

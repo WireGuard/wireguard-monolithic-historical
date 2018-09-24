@@ -57,8 +57,10 @@ static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
 	return true;
 }
 
-static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
-				  const u8 *key, simd_context_t *simd_context)
+static inline bool hchacha20_arch(u32 derived_key[CHACHA20_KEY_WORDS],
+				  const u8 nonce[HCHACHA20_NONCE_SIZE],
+				  const u8 key[HCHACHA20_KEY_SIZE],
+				  simd_context_t *simd_context)
 {
 #if defined(CONFIG_ARM)
 	u32 x[] = { CHACHA20_CONSTANT_EXPA,
@@ -78,7 +80,7 @@ static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
 		    get_unaligned_le32(nonce + 8),
 		    get_unaligned_le32(nonce + 12)
 	};
-	hchacha20_arm(x, (u32 *)derived_key);
+	hchacha20_arm(x, derived_key);
 	return true;
 #else
 	return false;

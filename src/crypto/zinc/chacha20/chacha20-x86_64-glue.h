@@ -9,7 +9,7 @@
 #include <asm/intel-family.h>
 
 #ifdef CONFIG_AS_SSSE3
-asmlinkage void hchacha20_ssse3(u8 *derived_key, const u8 *nonce,
+asmlinkage void hchacha20_ssse3(u32 *derived_key, const u8 *nonce,
 				const u8 *key);
 asmlinkage void chacha20_ssse3(u8 *out, const u8 *in, const size_t len,
 			       const u32 key[8], const u32 counter[4]);
@@ -92,8 +92,10 @@ success:
 	return true;
 }
 
-static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
-				  const u8 *key, simd_context_t *simd_context)
+static inline bool hchacha20_arch(u32 derived_key[CHACHA20_KEY_WORDS],
+				  const u8 nonce[HCHACHA20_NONCE_SIZE],
+				  const u8 key[HCHACHA20_KEY_SIZE],
+				  simd_context_t *simd_context)
 {
 #if defined(CONFIG_AS_SSSE3)
 	if (chacha20_use_ssse3 && simd_use(simd_context)) {

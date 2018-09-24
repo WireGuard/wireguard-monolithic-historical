@@ -457,9 +457,7 @@ ENTRY(hchacha20_arm)
 	ror		X14, X14, #drot
 	ror		X15, X15, #drot
 
-	// Store (x0-x3,x12-x15) to 'out' after byte swapping
-	_le32_bswap_4x	X0, X1, X2, X3,	    X4, X5, X6
-	_le32_bswap_4x	X12, X13, X14, X15, X4, X5, X6
+	// Store (x0-x3,x12-x15) to 'out'
 	stm		r4, {X0,X1,X2,X3,X12,X13,X14,X15}
 
 	pop		{r4-r11,pc}

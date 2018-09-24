@@ -2518,6 +2518,7 @@ static bool __init chacha20_selftest(void)
 {
 	enum { MAXIMUM_TEST_BUFFER_LEN = 1UL << 10 };
 	size_t i, j;
+	u32 derived_key[CHACHA20_KEY_WORDS];
 	u8 *offset_input = NULL, *computed_output = NULL;
 	u8 offset_key[CHACHA20_KEY_SIZE + 1]
 			__aligned(__alignof__(unsigned long));
@@ -2609,10 +2610,11 @@ next_test:
 		}
 	}
 	for (i = 0; i < ARRAY_SIZE(hchacha20_testvecs); ++i) {
-		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN + 1);
-		hchacha20(computed_output, hchacha20_testvecs[i].nonce,
+		memset(&derived_key, 0, sizeof(derived_key));
+		hchacha20(derived_key, hchacha20_testvecs[i].nonce,
 			  hchacha20_testvecs[i].key, &simd_context);
-		if (memcmp(computed_output, hchacha20_testvecs[i].output,
+		cpu_to_le32_array(derived_key, ARRAY_SIZE(derived_key));
+		if (memcmp(derived_key, hchacha20_testvecs[i].output,
 			   CHACHA20_KEY_SIZE)) {
 			pr_info("hchacha20 self-test %zu: FAIL\n", i + 1);
 			success = false;

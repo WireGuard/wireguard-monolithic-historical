@@ -30,8 +30,10 @@ static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *out,
 {
 	return false;
 }
-static inline bool hchacha20_arch(u8 *derived_key, const u8 *nonce,
-				  const u8 *key, simd_context_t *simd_context)
+static inline bool hchacha20_arch(u32 derived_key[CHACHA20_KEY_WORDS],
+				  const u8 nonce[HCHACHA20_NONCE_SIZE],
+				  const u8 key[HCHACHA20_KEY_SIZE],
+				  simd_context_t *simd_context)
 {
 	return false;
 }
@@ -118,43 +120,36 @@ void chacha20(struct chacha20_ctx *state, u8 *dst, const u8 *src, u32 len,
 }
 EXPORT_SYMBOL(chacha20);
 
-static void hchacha20_generic(u8 derived_key[CHACHA20_KEY_SIZE],
+static void hchacha20_generic(u32 derived_key[CHACHA20_KEY_WORDS],
 			      const u8 nonce[HCHACHA20_NONCE_SIZE],
 			      const u8 key[HCHACHA20_KEY_SIZE])
 {
-	__le32 *out = (__force __le32 *)derived_key;
 	u32 x[] = { CHACHA20_CONSTANT_EXPA,
 		    CHACHA20_CONSTANT_ND_3,
 		    CHACHA20_CONSTANT_2_BY,
 		    CHACHA20_CONSTANT_TE_K,
-		    get_unaligned_le32(key + 0),
-		    get_unaligned_le32(key + 4),
-		    get_unaligned_le32(key + 8),
+		    get_unaligned_le32(key +  0),
+		    get_unaligned_le32(key +  4),
+		    get_unaligned_le32(key +  8),
 		    get_unaligned_le32(key + 12),
 		    get_unaligned_le32(key + 16),
 		    get_unaligned_le32(key + 20),
 		    get_unaligned_le32(key + 24),
 		    get_unaligned_le32(key + 28),
-		    get_unaligned_le32(nonce + 0),
-		    get_unaligned_le32(nonce + 4),
-		    get_unaligned_le32(nonce + 8),
+		    get_unaligned_le32(nonce +  0),
+		    get_unaligned_le32(nonce +  4),
+		    get_unaligned_le32(nonce +  8),
 		    get_unaligned_le32(nonce + 12)
 	};
 
 	TWENTY_ROUNDS(x);
 
-	out[0] = cpu_to_le32(x[0]);
-	out[1] = cpu_to_le32(x[1]);
-	out[2] = cpu_to_le32(x[2]);
-	out[3] = cpu_to_le32(x[3]);
-	out[4] = cpu_to_le32(x[12]);
-	out[5] = cpu_to_le32(x[13]);
-	out[6] = cpu_to_le32(x[14]);
-	out[7] = cpu_to_le32(x[15]);
+	memcpy(derived_key + 0, x +  0, sizeof(u32) * 4);
+	memcpy(derived_key + 4, x + 12, sizeof(u32) * 4);
 }
 
 /* Derived key should be 32-bit aligned */
-void hchacha20(u8 derived_key[CHACHA20_KEY_SIZE],
+void hchacha20(u32 derived_key[CHACHA20_KEY_WORDS],
 	       const u8 nonce[HCHACHA20_NONCE_SIZE],
 	       const u8 key[HCHACHA20_KEY_SIZE], simd_context_t *simd_context)
 {
