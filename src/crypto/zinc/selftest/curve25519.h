@@ -1295,7 +1295,6 @@ static bool __init curve25519_selftest(void)
 			   CURVE25519_KEY_SIZE)) {
 			pr_info("curve25519 self-test %zu: FAIL\n", i + 1);
 			success = false;
-			break;
 		}
 	}
 
@@ -1310,7 +1309,6 @@ static bool __init curve25519_selftest(void)
 				printk(KERN_CONT "%02x", in[j]);
 			printk(KERN_CONT "\n");
 			success = false;
-			break;
 		}
 	}
 
