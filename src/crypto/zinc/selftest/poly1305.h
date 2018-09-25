@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 struct poly1305_testvec {
 	const u8 *input, *output, *key;
 	size_t ilen;
@@ -1057,7 +1057,7 @@ static bool __init poly1305_selftest(void)
 		poly1305_final(&poly1305, out, &simd_context);
 		if (memcmp(out, poly1305_testvecs[i].output,
 			   POLY1305_MAC_SIZE)) {
-			pr_info("poly1305 self-test %zu: FAIL\n", i + 1);
+			pr_err("poly1305 self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
 		simd_relax(&simd_context);
@@ -1078,8 +1078,8 @@ static bool __init poly1305_selftest(void)
 			poly1305_final(&poly1305, out, &simd_context);
 			if (memcmp(out, poly1305_testvecs[i].output,
 				   POLY1305_MAC_SIZE)) {
-				pr_info("poly1305 self-test %zu (split %zu): FAIL\n",
-					i + 1, j);
+				pr_err("poly1305 self-test %zu (split %zu): FAIL\n",
+				       i + 1, j);
 				success = false;
 			}
 
@@ -1095,8 +1095,8 @@ static bool __init poly1305_selftest(void)
 			poly1305_final(&poly1305, out, &simd_context);
 			if (memcmp(out, poly1305_testvecs[i].output,
 				   POLY1305_MAC_SIZE)) {
-				pr_info("poly1305 self-test %zu (split %zu, mixed simd): FAIL\n",
-					i + 1, j);
+				pr_err("poly1305 self-test %zu (split %zu, mixed simd): FAIL\n",
+				       i + 1, j);
 				success = false;
 			}
 			simd_relax(&simd_context);

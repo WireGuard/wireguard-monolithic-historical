@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 struct curve25519_test_vector {
 	u8 private[CURVE25519_KEY_SIZE];
 	u8 public[CURVE25519_KEY_SIZE];
@@ -1293,7 +1293,7 @@ static bool __init curve25519_selftest(void)
 		if (ret != curve25519_test_vectors[i].valid ||
 		    memcmp(out, curve25519_test_vectors[i].result,
 			   CURVE25519_KEY_SIZE)) {
-			pr_info("curve25519 self-test %zu: FAIL\n", i + 1);
+			pr_err("curve25519 self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
 	}
@@ -1303,8 +1303,8 @@ static bool __init curve25519_selftest(void)
 		ret = curve25519_generate_public(out, in);
 		ret2 = curve25519(out2, in, (u8[CURVE25519_KEY_SIZE]){ 9 });
 		if (ret != ret2 || memcmp(out, out2, CURVE25519_KEY_SIZE)) {
-			pr_info("curve25519 basepoint self-test %zu: FAIL: input - 0x",
-				i + 1);
+			pr_err("curve25519 basepoint self-test %zu: FAIL: input - 0x",
+			       i + 1);
 			for (j = CURVE25519_KEY_SIZE; j-- > 0;)
 				printk(KERN_CONT "%02x", in[j]);
 			printk(KERN_CONT "\n");

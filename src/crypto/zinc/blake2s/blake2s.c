@@ -86,7 +86,7 @@ void blake2s_init(struct blake2s_state *state, const size_t outlen)
 		.depth = 1
 	};
 
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 	BUG_ON(!outlen || outlen > BLAKE2S_HASH_SIZE);
 #endif
 	blake2s_init_param(state, &param);
@@ -102,7 +102,7 @@ void blake2s_init_key(struct blake2s_state *state, const size_t outlen,
 				.depth = 1 };
 	u8 block[BLAKE2S_BLOCK_SIZE] = { 0 };
 
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 	BUG_ON(!outlen || outlen > BLAKE2S_HASH_SIZE || !key || !keylen ||
 	       keylen > BLAKE2S_KEY_SIZE);
 #endif
@@ -135,7 +135,7 @@ static inline void blake2s_compress(struct blake2s_state *state,
 	u32 v[16];
 	int i;
 
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 	BUG_ON(nblocks > 1 && inc != BLAKE2S_BLOCK_SIZE);
 #endif
 
@@ -232,7 +232,7 @@ EXPORT_SYMBOL(blake2s_update);
 
 void blake2s_final(struct blake2s_state *state, u8 *out, const size_t outlen)
 {
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 	BUG_ON(!out || !outlen || outlen > BLAKE2S_HASH_SIZE);
 #endif
 	blake2s_set_lastblock(state);
@@ -294,7 +294,7 @@ static int __init mod_init(void)
 {
 	if (!nosimd)
 		blake2s_fpu_init();
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 	if (!blake2s_selftest())
 		return -ENOTRECOVERABLE;
 #endif

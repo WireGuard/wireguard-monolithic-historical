@@ -3,8 +3,7 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef DEBUG
-
+#ifdef CONFIG_ZINC_SELFTEST
 struct chacha20_testvec {
 	const u8 *input, *output, *key;
 	u64 nonce;
@@ -2529,7 +2528,7 @@ static bool __init chacha20_selftest(void)
 	offset_input = kmalloc(MAXIMUM_TEST_BUFFER_LEN + 1, GFP_KERNEL);
 	computed_output = kmalloc(MAXIMUM_TEST_BUFFER_LEN + 1, GFP_KERNEL);
 	if (!computed_output || !offset_input) {
-		pr_info("chacha20 self-test malloc: FAIL\n");
+		pr_err("chacha20 self-test malloc: FAIL\n");
 		success = false;
 		goto out;
 	}
@@ -2545,14 +2544,14 @@ static bool __init chacha20_selftest(void)
 			 chacha20_testvecs[i].ilen, &simd_context);
 		if (memcmp(computed_output, chacha20_testvecs[i].output,
 			   chacha20_testvecs[i].ilen)) {
-			pr_info("chacha20 self-test %zu: FAIL\n", i + 1);
+			pr_err("chacha20 self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
 		for (k = chacha20_testvecs[i].ilen;
 		     k < MAXIMUM_TEST_BUFFER_LEN + 1; ++k) {
 			if (computed_output[k]) {
-				pr_info("chacha20 self-test %zu (zero check): FAIL\n",
-					i + 1);
+				pr_err("chacha20 self-test %zu (zero check): FAIL\n",
+				       i + 1);
 				success = false;
 			}
 		}
@@ -2569,20 +2568,20 @@ static bool __init chacha20_selftest(void)
 			 chacha20_testvecs[i].ilen, &simd_context);
 		if (memcmp(computed_output + 1, chacha20_testvecs[i].output,
 			   chacha20_testvecs[i].ilen)) {
-			pr_info("chacha20 self-test %zu (unaligned): FAIL\n",
-				i + 1);
+			pr_err("chacha20 self-test %zu (unaligned): FAIL\n",
+			       i + 1);
 			success = false;
 		}
 		if (computed_output[0]) {
-			pr_info("chacha20 self-test %zu (unaligned, zero check): FAIL\n",
-				i + 1);
+			pr_err("chacha20 self-test %zu (unaligned, zero check): FAIL\n",
+			       i + 1);
 			success = false;
 		}
 		for (k = chacha20_testvecs[i].ilen + 1;
 		     k < MAXIMUM_TEST_BUFFER_LEN + 1; ++k) {
 			if (computed_output[k]) {
-				pr_info("chacha20 self-test %zu (unaligned, zero check): FAIL\n",
-					i + 1);
+				pr_err("chacha20 self-test %zu (unaligned, zero check): FAIL\n",
+				       i + 1);
 				success = false;
 			}
 		}
@@ -2602,15 +2601,15 @@ static bool __init chacha20_selftest(void)
 			 &simd_context);
 		if (memcmp(computed_output, chacha20_testvecs[i].output,
 			   chacha20_testvecs[i].ilen)) {
-			pr_info("chacha20 self-test %zu (chunked): FAIL\n",
-				i + 1);
+			pr_err("chacha20 self-test %zu (chunked): FAIL\n",
+			       i + 1);
 			success = false;
 		}
 		for (k = chacha20_testvecs[i].ilen;
 		     k < MAXIMUM_TEST_BUFFER_LEN + 1; ++k) {
 			if (computed_output[k]) {
-				pr_info("chacha20 self-test %zu (chunked, zero check): FAIL\n",
-					i + 1);
+				pr_err("chacha20 self-test %zu (chunked, zero check): FAIL\n",
+				       i + 1);
 				success = false;
 			}
 		}
@@ -2632,22 +2631,22 @@ next_test:
 			if (memcmp(computed_output + j,
 				   chacha20_testvecs[i].output,
 				   chacha20_testvecs[i].ilen)) {
-				pr_info("chacha20 self-test %zu (unaligned, slide %zu): FAIL\n",
-					i + 1, j);
+				pr_err("chacha20 self-test %zu (unaligned, slide %zu): FAIL\n",
+				       i + 1, j);
 				success = false;
 			}
 			for (k = j; k < j; ++k) {
 				if (computed_output[k]) {
-					pr_info("chacha20 self-test %zu (unaligned, slide %zu, zero check): FAIL\n",
-						i + 1, j);
+					pr_err("chacha20 self-test %zu (unaligned, slide %zu, zero check): FAIL\n",
+					       i + 1, j);
 					success = false;
 				}
 			}
 			for (k = chacha20_testvecs[i].ilen + j;
 			     k < MAXIMUM_TEST_BUFFER_LEN + 1; ++k) {
 				if (computed_output[k]) {
-					pr_info("chacha20 self-test %zu (unaligned, slide %zu, zero check): FAIL\n",
-						i + 1, j);
+					pr_err("chacha20 self-test %zu (unaligned, slide %zu, zero check): FAIL\n",
+					       i + 1, j);
 					success = false;
 				}
 			}
@@ -2660,7 +2659,7 @@ next_test:
 		cpu_to_le32_array(derived_key, ARRAY_SIZE(derived_key));
 		if (memcmp(derived_key, hchacha20_testvecs[i].output,
 			   CHACHA20_KEY_SIZE)) {
-			pr_info("hchacha20 self-test %zu: FAIL\n", i + 1);
+			pr_err("hchacha20 self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
 	}

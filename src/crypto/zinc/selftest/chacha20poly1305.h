@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 struct chacha20poly1305_testvec {
 	const u8 *input, *output, *assoc, *nonce, *key;
 	size_t ilen, alen, nlen;
@@ -8889,7 +8889,7 @@ static bool __init chacha20poly1305_selftest(void)
 	heap_src = kmalloc(MAXIMUM_TEST_BUFFER_LEN, GFP_KERNEL);
 	computed_output = kmalloc(MAXIMUM_TEST_BUFFER_LEN, GFP_KERNEL);
 	if (!heap_src || !computed_output) {
-		pr_info("chacha20poly1305 self-test malloc: FAIL\n");
+		pr_err("chacha20poly1305 self-test malloc: FAIL\n");
 		success = false;
 		goto out;
 	}
@@ -8908,8 +8908,8 @@ static bool __init chacha20poly1305_selftest(void)
 			   chacha20poly1305_enc_vectors[i].output,
 			   chacha20poly1305_enc_vectors[i].ilen +
 							POLY1305_MAC_SIZE)) {
-			pr_info("chacha20poly1305 encryption self-test %zu: FAIL\n",
-				i + 1);
+			pr_err("chacha20poly1305 encryption self-test %zu: FAIL\n",
+			       i + 1);
 			success = false;
 		}
 	}
@@ -8936,8 +8936,8 @@ static bool __init chacha20poly1305_selftest(void)
 				   chacha20poly1305_enc_vectors[i].output,
 				   chacha20poly1305_enc_vectors[i].ilen +
 							POLY1305_MAC_SIZE)) {
-			pr_info("chacha20poly1305 sg encryption self-test %zu: FAIL\n",
-				i + 1);
+			pr_err("chacha20poly1305 sg encryption self-test %zu: FAIL\n",
+			       i + 1);
 			success = false;
 		}
 	}
@@ -8957,8 +8957,8 @@ static bool __init chacha20poly1305_selftest(void)
 				       chacha20poly1305_dec_vectors[i].output,
 				       chacha20poly1305_dec_vectors[i].ilen -
 							POLY1305_MAC_SIZE))) {
-			pr_info("chacha20poly1305 decryption self-test %zu: FAIL\n",
-				i + 1);
+			pr_err("chacha20poly1305 decryption self-test %zu: FAIL\n",
+			       i + 1);
 			success = false;
 		}
 	}
@@ -8983,8 +8983,8 @@ static bool __init chacha20poly1305_selftest(void)
 			memcmp(computed_output, chacha20poly1305_dec_vectors[i].output,
 			       chacha20poly1305_dec_vectors[i].ilen -
 							POLY1305_MAC_SIZE))) {
-			pr_info("chacha20poly1305 sg decryption self-test %zu: FAIL\n",
-				i + 1);
+			pr_err("chacha20poly1305 sg decryption self-test %zu: FAIL\n",
+			       i + 1);
 			success = false;
 		}
 	}
@@ -9002,8 +9002,8 @@ static bool __init chacha20poly1305_selftest(void)
 			   xchacha20poly1305_enc_vectors[i].output,
 			   xchacha20poly1305_enc_vectors[i].ilen +
 							POLY1305_MAC_SIZE)) {
-			pr_info("xchacha20poly1305 encryption self-test %zu: FAIL\n",
-				i + 1);
+			pr_err("xchacha20poly1305 encryption self-test %zu: FAIL\n",
+			       i + 1);
 			success = false;
 		}
 	}
@@ -9022,8 +9022,8 @@ static bool __init chacha20poly1305_selftest(void)
 				       xchacha20poly1305_dec_vectors[i].output,
 				       xchacha20poly1305_dec_vectors[i].ilen -
 							POLY1305_MAC_SIZE))) {
-			pr_info("xchacha20poly1305 decryption self-test %zu: FAIL\n",
-				i + 1);
+			pr_err("xchacha20poly1305 decryption self-test %zu: FAIL\n",
+			       i + 1);
 			success = false;
 		}
 	}

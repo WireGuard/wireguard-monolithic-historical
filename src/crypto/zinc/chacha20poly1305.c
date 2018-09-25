@@ -347,7 +347,7 @@ int __init chacha20poly1305_mod_init(void)
 static int __init mod_init(void)
 #endif
 {
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 	if (!chacha20poly1305_selftest())
 		return -ENOTRECOVERABLE;
 #endif

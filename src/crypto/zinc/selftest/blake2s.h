@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
 	{ 0x69, 0x21, 0x7a, 0x30, 0x79, 0x90, 0x80, 0x94,
 	  0xe1, 0x11, 0x21, 0xd0, 0x42, 0x35, 0x4a, 0x7c,
@@ -2075,7 +2075,7 @@ static bool __init blake2s_selftest(void)
 	for (i = 0; i < ARRAY_SIZE(blake2s_keyed_testvecs); ++i) {
 		blake2s(hash, buf, key, BLAKE2S_HASH_SIZE, i, BLAKE2S_KEY_SIZE);
 		if (memcmp(hash, blake2s_keyed_testvecs[i], BLAKE2S_HASH_SIZE)) {
-			pr_info("blake2s keyed self-test %zu: FAIL\n", i + 1);
+			pr_err("blake2s keyed self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
 	}
@@ -2083,7 +2083,7 @@ static bool __init blake2s_selftest(void)
 	for (i = 0; i < ARRAY_SIZE(blake2s_testvecs); ++i) {
 		blake2s(hash, buf, NULL, BLAKE2S_HASH_SIZE, i, 0);
 		if (memcmp(hash, blake2s_testvecs[i], BLAKE2S_HASH_SIZE)) {
-			pr_info("blake2s unkeyed self-test %zu: FAIL\n", i + i);
+			pr_err("blake2s unkeyed self-test %zu: FAIL\n", i + i);
 			success = false;
 		}
 	}

@@ -146,7 +146,7 @@ static int __init mod_init(void)
 {
 	if (!nosimd)
 		poly1305_fpu_init();
-#ifdef DEBUG
+#ifdef CONFIG_ZINC_SELFTEST
 	if (!poly1305_selftest())
 		return -ENOTRECOVERABLE;
 #endif
