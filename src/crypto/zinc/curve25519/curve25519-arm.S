@@ -7,7 +7,7 @@
  * but has subsequently been manually reworked for use in kernel space.
  */
 
-#ifdef CONFIG_KERNEL_MODE_NEON
+#if defined(CONFIG_KERNEL_MODE_NEON) && !defined(__ARMEB__)
 #include <linux/linkage.h>
 
 .text
