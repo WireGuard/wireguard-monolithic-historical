@@ -182,8 +182,7 @@ static __always_inline void fmul_mul_shift_reduce_(u128 *output, u64 *input,
 
 static __always_inline void fmul_fmul(u64 *output, u64 *input, u64 *input21)
 {
-	u64 tmp[5];
-	memcpy(tmp, input, 5 * sizeof(*input));
+	u64 tmp[5] = { input[0], input[1], input[2], input[3], input[4] };
 	{
 		u128 b4;
 		u128 b0;
