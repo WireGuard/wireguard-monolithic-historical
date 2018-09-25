@@ -60,6 +60,7 @@ $(eval $(call tar_download,NMAP,nmap,7.60,.tar.bz2,https://nmap.org/dist/))
 $(eval $(call tar_download,IPUTILS,iputils,s20161105,.tar.gz,https://github.com/iputils/iputils/archive/s20161105.tar.gz/#))
 
 export CFLAGS ?= -O3 -pipe
+export LDFLAGS ?=
 export CPPFLAGS := -I$(BUILD_PATH)/include
 
 ifeq ($(CHOST),$(CBUILD))
@@ -86,6 +87,16 @@ else
 QEMU_MACHINE := -cpu cortex-a53 -machine virt
 CFLAGS += -march=armv8-a -mtune=cortex-a53
 endif
+else ifeq ($(ARCH),aarch64_be)
+QEMU_ARCH := aarch64
+KERNEL_ARCH := arm64
+KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm64/boot/Image
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
+else
+QEMU_MACHINE := -cpu cortex-a53 -machine virt
+CFLAGS += -march=armv8-a -mtune=cortex-a53
+endif
 else ifeq ($(ARCH),arm)
 QEMU_ARCH := arm
 KERNEL_ARCH := arm
@@ -95,6 +106,17 @@ QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
 else
 QEMU_MACHINE := -cpu cortex-a15 -machine virt
 CFLAGS += -march=armv7-a -mtune=cortex-a15 -mabi=aapcs-linux
+endif
+else ifeq ($(ARCH),armeb)
+QEMU_ARCH := arm
+KERNEL_ARCH := arm
+KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm/boot/zImage
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
+else
+QEMU_MACHINE := -cpu cortex-a15 -machine virt
+CFLAGS += -march=armv7-a -mabi=aapcs-linux # We don't pass -mtune=cortex-a15 due to a compiler bug on big endian.
+LDFLAGS += -Wl,--be8
 endif
 else ifeq ($(ARCH),x86_64)
 QEMU_ARCH := x86_64
@@ -171,7 +193,7 @@ QEMU_MACHINE := -machine ppce500
 endif
 CFLAGS += -mcpu=powerpc -mlong-double-64 -msecure-plt
 else
-$(error I only build: x86_64, i686, arm, aarch64, mips, mipsel, mips64, mips64el, powerpc)
+$(error I only build: x86_64, i686, arm, armeb, aarch64, aarch64_be, mips, mipsel, mips64, mips64el, powerpc)
 endif
 
 REAL_CC := $(CBUILD)-gcc
@@ -236,10 +258,10 @@ always-pull: $(KERNEL_PATH)/.installed
 $(KERNEL_BZIMAGE): always-pull
 endif
 
-$(KERNEL_PATH)/.config: kernel.config arch/$(QEMU_ARCH).config | $(KERNEL_PATH)/.installed
+$(KERNEL_PATH)/.config: kernel.config arch/$(ARCH).config | $(KERNEL_PATH)/.installed
 	cp kernel.config $(KERNEL_PATH)/minimal.config
 	printf 'CONFIG_NR_CPUS=$(NR_CPUS)\nCONFIG_INITRAMFS_SOURCE="$(BUILD_PATH)/init-cpio-spec.txt"\n' >> $(KERNEL_PATH)/minimal.config
-	cat arch/$(QEMU_ARCH).config >> $(KERNEL_PATH)/minimal.config
+	cat arch/$(ARCH).config >> $(KERNEL_PATH)/minimal.config
 	$(MAKE) -C $(KERNEL_PATH) ARCH=$(KERNEL_ARCH) allnoconfig
 	cd $(KERNEL_PATH) && ARCH=$(KERNEL_ARCH) scripts/kconfig/merge_config.sh -n .config minimal.config
 	$(if $(findstring -debug,$(KERNEL_VERSION)),cd $(KERNEL_PATH) && sed -i 's/^EXTRAVERSION =.*/EXTRAVERSION = -debug/' Makefile && ARCH=$(KERNEL_ARCH) scripts/kconfig/merge_config.sh -n .config $(PWD)/debug.config,)
@@ -297,7 +319,7 @@ $(BUILD_PATH)/tools/wg: $(TOOLS_SOURCES) | $(LIBMNL_PATH)/src/.libs/libmnl.a $(U
 
 $(BUILD_PATH)/init: init.c | $(USERSPACE_DEPS)
 	mkdir -p $(BUILD_PATH)
-	$(MUSL_CC) -o $@ $(CFLAGS) -std=gnu11 $<
+	$(MUSL_CC) -o $@ $(CFLAGS) $(LDFLAGS) -std=gnu11 $<
 	$(STRIP) -s $@
 
 $(IPUTILS_PATH)/.installed: $(IPUTILS_TAR)
