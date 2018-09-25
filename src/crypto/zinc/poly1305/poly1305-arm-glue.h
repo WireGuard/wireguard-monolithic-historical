@@ -35,7 +35,7 @@ struct poly1305_arch_internal {
 			u64 h0, h1, h2;
 		};
 	};
-	u32 is_base2_26;
+	u64 is_base2_26;
 	u64 r[2];
 };
 #elif defined(CONFIG_ARM)
@@ -68,6 +68,10 @@ static void convert_to_base2_64(void *ctx)
 	state->h0 = ((u64)state->h[2] << 52) | ((u64)state->h[1] << 26) | state->h[0];
 	state->h1 = ((u64)state->h[4] << 40) | ((u64)state->h[3] << 14) | (state->h[2] >> 12);
 	state->h2 = state->h[4] >> 24;
+#if defined(CONFIG_ARM) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+	state->h0 = rol64(state->h0, 32);
+	state->h1 = rol64(state->h1, 32);
+#endif
 #define ULT(a, b) ((a ^ ((a ^ b) | ((a - b) ^ b))) >> (sizeof(a) * 8 - 1))
 	cy = (state->h2 >> 2) + (state->h2 & ~3ULL);
 	state->h2 &= 3;
