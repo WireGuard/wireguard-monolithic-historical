@@ -2517,7 +2517,7 @@ static const struct hchacha20_testvec hchacha20_testvecs[] __initconst = {{
 static bool __init chacha20_selftest(void)
 {
 	enum { MAXIMUM_TEST_BUFFER_LEN = 1UL << 10 };
-	size_t i, j;
+	size_t i, j, k;
 	u32 derived_key[CHACHA20_KEY_WORDS];
 	u8 *offset_input = NULL, *computed_output = NULL;
 	u8 offset_key[CHACHA20_KEY_SIZE + 1]
@@ -2548,6 +2548,14 @@ static bool __init chacha20_selftest(void)
 			pr_info("chacha20 self-test %zu: FAIL\n", i + 1);
 			success = false;
 		}
+		for (k = chacha20_testvecs[i].ilen;
+		     k < MAXIMUM_TEST_BUFFER_LEN + 1; ++k) {
+			if (computed_output[k]) {
+				pr_info("chacha20 self-test %zu (zero check): FAIL\n",
+					i + 1);
+				success = false;
+			}
+		}
 
 		/* Unaligned case */
 		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN + 1);
@@ -2564,6 +2572,19 @@ static bool __init chacha20_selftest(void)
 			pr_info("chacha20 self-test %zu (unaligned): FAIL\n",
 				i + 1);
 			success = false;
+		}
+		if (computed_output[0]) {
+			pr_info("chacha20 self-test %zu (unaligned, zero check): FAIL\n",
+				i + 1);
+			success = false;
+		}
+		for (k = chacha20_testvecs[i].ilen + 1;
+		     k < MAXIMUM_TEST_BUFFER_LEN + 1; ++k) {
+			if (computed_output[k]) {
+				pr_info("chacha20 self-test %zu (unaligned, zero check): FAIL\n",
+					i + 1);
+				success = false;
+			}
 		}
 
 		/* Chunked case */
@@ -2584,6 +2605,14 @@ static bool __init chacha20_selftest(void)
 			pr_info("chacha20 self-test %zu (chunked): FAIL\n",
 				i + 1);
 			success = false;
+		}
+		for (k = chacha20_testvecs[i].ilen;
+		     k < MAXIMUM_TEST_BUFFER_LEN + 1; ++k) {
+			if (computed_output[k]) {
+				pr_info("chacha20 self-test %zu (chunked, zero check): FAIL\n",
+					i + 1);
+				success = false;
+			}
 		}
 
 next_test:
@@ -2606,6 +2635,21 @@ next_test:
 				pr_info("chacha20 self-test %zu (unaligned, slide %zu): FAIL\n",
 					i + 1, j);
 				success = false;
+			}
+			for (k = j; k < j; ++k) {
+				if (computed_output[k]) {
+					pr_info("chacha20 self-test %zu (unaligned, slide %zu, zero check): FAIL\n",
+						i + 1, j);
+					success = false;
+				}
+			}
+			for (k = chacha20_testvecs[i].ilen + j;
+			     k < MAXIMUM_TEST_BUFFER_LEN + 1; ++k) {
+				if (computed_output[k]) {
+					pr_info("chacha20 self-test %zu (unaligned, slide %zu, zero check): FAIL\n",
+						i + 1, j);
+					success = false;
+				}
 			}
 		}
 	}
