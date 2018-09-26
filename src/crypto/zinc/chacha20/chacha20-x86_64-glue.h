@@ -51,26 +51,40 @@ static void __init chacha20_fpu_init(void)
 }
 
 static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
-				 const u8 *src, const size_t len,
+				 const u8 *src, size_t len,
 				 simd_context_t *simd_context)
 {
+	/* SIMD disables preemption, so relax after processing each page. */
+	BUILD_BUG_ON(PAGE_SIZE < CHACHA20_BLOCK_SIZE ||
+		     PAGE_SIZE % CHACHA20_BLOCK_SIZE);
+
 	if (!IS_ENABLED(CONFIG_AS_SSSE3) || !chacha20_use_ssse3 ||
 	    len <= CHACHA20_BLOCK_SIZE || !simd_use(simd_context))
 		return false;
 
-	if (IS_ENABLED(CONFIG_AS_AVX512) && chacha20_use_avx512 &&
-	    len >= CHACHA20_BLOCK_SIZE * 8)
-		chacha20_avx512(dst, src, len, state->key, state->counter);
-	else if (IS_ENABLED(CONFIG_AS_AVX512) && chacha20_use_avx512vl &&
-		 len >= CHACHA20_BLOCK_SIZE * 4)
-		chacha20_avx512vl(dst, src, len, state->key, state->counter);
-	else if (IS_ENABLED(CONFIG_AS_AVX2) && chacha20_use_avx2 &&
-		 len >= CHACHA20_BLOCK_SIZE * 4)
-		chacha20_avx2(dst, src, len, state->key, state->counter);
-	else
-		chacha20_ssse3(dst, src, len, state->key, state->counter);
+	for (;;) {
+		const size_t bytes = min_t(size_t, len, PAGE_SIZE);
 
-	state->counter[0] += (len + 63) / 64;
+		if (IS_ENABLED(CONFIG_AS_AVX512) && chacha20_use_avx512 &&
+		    len >= CHACHA20_BLOCK_SIZE * 8)
+			chacha20_avx512(dst, src, bytes, state->key, state->counter);
+		else if (IS_ENABLED(CONFIG_AS_AVX512) && chacha20_use_avx512vl &&
+			 len >= CHACHA20_BLOCK_SIZE * 4)
+			chacha20_avx512vl(dst, src, bytes, state->key, state->counter);
+		else if (IS_ENABLED(CONFIG_AS_AVX2) && chacha20_use_avx2 &&
+			 len >= CHACHA20_BLOCK_SIZE * 4)
+			chacha20_avx2(dst, src, bytes, state->key, state->counter);
+		else
+			chacha20_ssse3(dst, src, bytes, state->key, state->counter);
+		state->counter[0] += (bytes + 63) / 64;
+		len -= bytes;
+		if (!len)
+			break;
+		dst += bytes;
+		src += bytes;
+		simd_relax(simd_context);
+	}
+
 	return true;
 }
 

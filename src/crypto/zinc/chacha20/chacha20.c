@@ -25,8 +25,8 @@
 void __init chacha20_fpu_init(void)
 {
 }
-static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *out,
-				 const u8 *in, const size_t len,
+static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
+				 const u8 *src, size_t len,
 				 simd_context_t *simd_context)
 {
 	return false;

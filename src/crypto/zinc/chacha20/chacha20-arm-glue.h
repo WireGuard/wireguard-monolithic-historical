@@ -38,16 +38,33 @@ static void __init chacha20_fpu_init(void)
 }
 
 static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
-				 const u8 *src, const size_t len,
+				 const u8 *src, size_t len,
 				 simd_context_t *simd_context)
 {
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && chacha20_use_neon &&
-	    len >= CHACHA20_BLOCK_SIZE * 3 && simd_use(simd_context))
-		chacha20_neon(dst, src, len, state->key, state->counter);
-	else
-		chacha20_arm(dst, src, len, state->key, state->counter);
+	/* SIMD disables preemption, so relax after processing each page. */
+	BUILD_BUG_ON(PAGE_SIZE < CHACHA20_BLOCK_SIZE ||
+		     PAGE_SIZE % CHACHA20_BLOCK_SIZE);
 
-	state->counter[0] += (len + 63) / 64;
+	for (;;) {
+		if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && chacha20_use_neon &&
+		    len >= CHACHA20_BLOCK_SIZE * 3 && simd_use(simd_context)) {
+			const size_t bytes = min_t(size_t, len, PAGE_SIZE);
+
+			chacha20_neon(dst, src, bytes, state->key, state->counter);
+			state->counter[0] += (bytes + 63) / 64;
+			len -= bytes;
+			if (!len)
+				break;
+			dst += bytes;
+			src += bytes;
+			simd_relax(simd_context);
+		} else {
+			chacha20_arm(dst, src, len, state->key, state->counter);
+			state->counter[0] += (len + 63) / 64;
+			break;
+		}
+	}
+
 	return true;
 }
 
