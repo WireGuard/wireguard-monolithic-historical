@@ -1,7 +1,7 @@
 ifeq ($(CONFIG_X86_64)$(if $(CONFIG_UML),y,n),yn)
 CONFIG_ZINC_ARCH_X86_64 := y
 endif
-ifeq ($(CONFIG_ARM),y)
+ifeq ($(CONFIG_ARM)$(if $(CONFIG_CPU_32v3),y,n),yn)
 CONFIG_ZINC_ARCH_ARM := y
 endif
 ifeq ($(CONFIG_ARM64),y)
