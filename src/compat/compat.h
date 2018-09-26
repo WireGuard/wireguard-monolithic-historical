@@ -726,6 +726,10 @@ static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+#define read_cpuid_part() read_cpuid_part_number()
+#endif
+
 /* https://lkml.kernel.org/r/20170624021727.17835-1-Jason@zx2c4.com */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
