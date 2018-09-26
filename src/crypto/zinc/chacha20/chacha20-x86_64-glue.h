@@ -8,22 +8,16 @@
 #include <asm/processor.h>
 #include <asm/intel-family.h>
 
-#ifdef CONFIG_AS_SSSE3
 asmlinkage void hchacha20_ssse3(u32 *derived_key, const u8 *nonce,
 				const u8 *key);
 asmlinkage void chacha20_ssse3(u8 *out, const u8 *in, const size_t len,
 			       const u32 key[8], const u32 counter[4]);
-#endif
-#ifdef CONFIG_AS_AVX2
 asmlinkage void chacha20_avx2(u8 *out, const u8 *in, const size_t len,
 			      const u32 key[8], const u32 counter[4]);
-#endif
-#ifdef CONFIG_AS_AVX512
 asmlinkage void chacha20_avx512(u8 *out, const u8 *in, const size_t len,
 				const u32 key[8], const u32 counter[4]);
 asmlinkage void chacha20_avx512vl(u8 *out, const u8 *in, const size_t len,
 				  const u32 key[8], const u32 counter[4]);
-#endif
 
 static bool chacha20_use_ssse3 __ro_after_init;
 static bool chacha20_use_avx2 __ro_after_init;
@@ -60,34 +54,22 @@ static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
 				 const u8 *src, const size_t len,
 				 simd_context_t *simd_context)
 {
-	if (!chacha20_use_ssse3 || len <= CHACHA20_BLOCK_SIZE ||
-	    !simd_use(simd_context))
+	if (!IS_ENABLED(CONFIG_AS_SSSE3) || !chacha20_use_ssse3 ||
+	    len <= CHACHA20_BLOCK_SIZE || !simd_use(simd_context))
 		return false;
 
-#ifdef CONFIG_AS_AVX512
-	if (chacha20_use_avx512 && len >= CHACHA20_BLOCK_SIZE * 8) {
+	if (IS_ENABLED(CONFIG_AS_AVX512) && chacha20_use_avx512 &&
+	    len >= CHACHA20_BLOCK_SIZE * 8)
 		chacha20_avx512(dst, src, len, state->key, state->counter);
-		goto success;
-	}
-	if (chacha20_use_avx512vl && len >= CHACHA20_BLOCK_SIZE * 4) {
+	else if (IS_ENABLED(CONFIG_AS_AVX512) && chacha20_use_avx512vl &&
+		 len >= CHACHA20_BLOCK_SIZE * 4)
 		chacha20_avx512vl(dst, src, len, state->key, state->counter);
-		goto success;
-	}
-#endif
-#ifdef CONFIG_AS_AVX2
-	if (chacha20_use_avx2 && len >= CHACHA20_BLOCK_SIZE * 4) {
+	else if (IS_ENABLED(CONFIG_AS_AVX2) && chacha20_use_avx2 &&
+		 len >= CHACHA20_BLOCK_SIZE * 4)
 		chacha20_avx2(dst, src, len, state->key, state->counter);
-		goto success;
-	}
-#endif
-#ifdef CONFIG_AS_SSSE3
-	if (chacha20_use_ssse3) {
+	else
 		chacha20_ssse3(dst, src, len, state->key, state->counter);
-		goto success;
-	}
-#endif
-	return false;
-success:
+
 	state->counter[0] += (len + 63) / 64;
 	return true;
 }
@@ -97,11 +79,10 @@ static inline bool hchacha20_arch(u32 derived_key[CHACHA20_KEY_WORDS],
 				  const u8 key[HCHACHA20_KEY_SIZE],
 				  simd_context_t *simd_context)
 {
-#if defined(CONFIG_AS_SSSE3)
-	if (chacha20_use_ssse3 && simd_use(simd_context)) {
+	if (IS_ENABLED(CONFIG_AS_SSSE3) && chacha20_use_ssse3 &&
+	    simd_use(simd_context)) {
 		hchacha20_ssse3(derived_key, nonce, key);
 		return true;
 	}
-#endif
 	return false;
 }

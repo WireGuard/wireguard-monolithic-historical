@@ -10,11 +10,9 @@ asmlinkage void poly1305_init_arm(void *ctx, const u8 key[16]);
 asmlinkage void poly1305_blocks_arm(void *ctx, const u8 *inp, const size_t len,
 				    const u32 padbit);
 asmlinkage void poly1305_emit_arm(void *ctx, u8 mac[16], const u32 nonce[4]);
-#if defined(CONFIG_KERNEL_MODE_NEON)
 asmlinkage void poly1305_blocks_neon(void *ctx, const u8 *inp, const size_t len,
 				     const u32 padbit);
 asmlinkage void poly1305_emit_neon(void *ctx, u8 mac[16], const u32 nonce[4]);
-#endif
 
 static bool poly1305_use_neon __ro_after_init;
 
@@ -52,7 +50,6 @@ struct poly1305_arch_internal {
 };
 #endif
 
-#if defined(CONFIG_KERNEL_MODE_NEON)
 static void convert_to_base2_64(void *ctx)
 {
 	struct poly1305_arch_internal *state = ctx;
@@ -68,10 +65,10 @@ static void convert_to_base2_64(void *ctx)
 	state->h0 = ((u64)state->h[2] << 52) | ((u64)state->h[1] << 26) | state->h[0];
 	state->h1 = ((u64)state->h[4] << 40) | ((u64)state->h[3] << 14) | (state->h[2] >> 12);
 	state->h2 = state->h[4] >> 24;
-#if defined(CONFIG_ARM) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-	state->h0 = rol64(state->h0, 32);
-	state->h1 = rol64(state->h1, 32);
-#endif
+	if (IS_ENABLED(CONFIG_ARM) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
+		state->h0 = rol64(state->h0, 32);
+		state->h1 = rol64(state->h1, 32);
+	}
 #define ULT(a, b) ((a ^ ((a ^ b) | ((a - b) ^ b))) >> (sizeof(a) * 8 - 1))
 	cy = (state->h2 >> 2) + (state->h2 & ~3ULL);
 	state->h2 &= 3;
@@ -81,7 +78,6 @@ static void convert_to_base2_64(void *ctx)
 #undef ULT
 	state->is_base2_26 = 0;
 }
-#endif
 
 static inline bool poly1305_init_arch(void *ctx,
 				      const u8 key[POLY1305_KEY_SIZE])
@@ -94,13 +90,13 @@ static inline bool poly1305_blocks_arch(void *ctx, const u8 *inp,
 					const size_t len, const u32 padbit,
 					simd_context_t *simd_context)
 {
-#if defined(CONFIG_KERNEL_MODE_NEON)
-	if (poly1305_use_neon && simd_use(simd_context)) {
-		poly1305_blocks_neon(ctx, inp, len, padbit);
-		return true;
+	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON)) {
+		if (poly1305_use_neon && simd_use(simd_context)) {
+			poly1305_blocks_neon(ctx, inp, len, padbit);
+			return true;
+		}
+		convert_to_base2_64(ctx);
 	}
-	convert_to_base2_64(ctx);
-#endif
 
 	poly1305_blocks_arm(ctx, inp, len, padbit);
 	return true;
@@ -110,13 +106,13 @@ static inline bool poly1305_emit_arch(void *ctx, u8 mac[POLY1305_MAC_SIZE],
 				      const u32 nonce[4],
 				      simd_context_t *simd_context)
 {
-#if defined(CONFIG_KERNEL_MODE_NEON)
-	if (poly1305_use_neon && simd_use(simd_context)) {
-		poly1305_emit_neon(ctx, mac, nonce);
-		return true;
+	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON)) {
+		if (poly1305_use_neon && simd_use(simd_context)) {
+			poly1305_emit_neon(ctx, mac, nonce);
+			return true;
+		}
+		convert_to_base2_64(ctx);
 	}
-	convert_to_base2_64(ctx);
-#endif
 
 	poly1305_emit_arm(ctx, mac, nonce);
 	return true;

@@ -7,11 +7,9 @@
 #include <asm/neon.h>
 #include <asm/simd.h>
 
-#if defined(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_CPU_BIG_ENDIAN)
 asmlinkage void curve25519_neon(u8 mypublic[CURVE25519_KEY_SIZE],
 				const u8 secret[CURVE25519_KEY_SIZE],
 				const u8 basepoint[CURVE25519_KEY_SIZE]);
-#endif
 
 static bool curve25519_use_neon __ro_after_init;
 
@@ -24,14 +22,14 @@ static inline bool curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
 				   const u8 secret[CURVE25519_KEY_SIZE],
 				   const u8 basepoint[CURVE25519_KEY_SIZE])
 {
-#if defined(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_CPU_BIG_ENDIAN)
-	if (curve25519_use_neon && may_use_simd()) {
+	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
+	    !IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) && curve25519_use_neon &&
+	    may_use_simd()) {
 		kernel_neon_begin();
 		curve25519_neon(mypublic, secret, basepoint);
 		kernel_neon_end();
 		return true;
 	}
-#endif
 	return false;
 }
 
