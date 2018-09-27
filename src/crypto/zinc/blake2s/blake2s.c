@@ -120,8 +120,9 @@ static void __init blake2s_fpu_init(void)
 {
 }
 
-static inline bool blake2s_arch(struct blake2s_state *state, const u8 *block,
-				const size_t nblocks, const u32 inc)
+static inline bool blake2s_compress_arch(struct blake2s_state *state,
+					 const u8 *block, size_t nblocks,
+					 const u32 inc)
 {
 	return false;
 }
@@ -139,18 +140,13 @@ static inline void blake2s_compress(struct blake2s_state *state,
 	BUG_ON(nblocks > 1 && inc != BLAKE2S_BLOCK_SIZE);
 #endif
 
-	if (blake2s_arch(state, block, nblocks, inc))
+	if (blake2s_compress_arch(state, block, nblocks, inc))
 		return;
 
 	while (nblocks > 0) {
 		blake2s_increment_counter(state, inc);
-
-#ifdef __LITTLE_ENDIAN
 		memcpy(m, block, BLAKE2S_BLOCK_SIZE);
-#else
-		for (i = 0; i < 16; ++i)
-			m[i] = get_unaligned_le32(block + i * sizeof(m[i]));
-#endif
+		le32_to_cpu_array(m, ARRAY_SIZE(m));
 		memcpy(v, state->h, 32);
 		v[ 8] = blake2s_iv[0];
 		v[ 9] = blake2s_iv[1];

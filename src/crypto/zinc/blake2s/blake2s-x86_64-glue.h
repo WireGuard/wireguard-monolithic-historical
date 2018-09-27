@@ -34,8 +34,9 @@ static void __init blake2s_fpu_init(void)
 #endif
 }
 
-static inline bool blake2s_arch(struct blake2s_state *state, const u8 *block,
-				size_t nblocks, const u32 inc)
+static inline bool blake2s_compress_arch(struct blake2s_state *state,
+					 const u8 *block, size_t nblocks,
+					 const u32 inc)
 {
 	simd_context_t simd_context;
 
