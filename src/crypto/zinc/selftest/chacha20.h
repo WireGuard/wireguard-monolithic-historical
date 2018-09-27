@@ -2515,10 +2515,13 @@ static const struct hchacha20_testvec hchacha20_testvecs[] __initconst = {{
 
 static bool __init chacha20_selftest(void)
 {
-	enum { MAXIMUM_TEST_BUFFER_LEN = 1UL << 10 };
+	enum {
+		MAXIMUM_TEST_BUFFER_LEN = 1UL << 10,
+		OUTRAGEOUSLY_HUGE_BUFFER_LEN = PAGE_SIZE * 35 + 17 /* 143k */
+	};
 	size_t i, j, k;
 	u32 derived_key[CHACHA20_KEY_WORDS];
-	u8 *offset_input = NULL, *computed_output = NULL;
+	u8 *offset_input = NULL, *computed_output = NULL, *massive_input = NULL;
 	u8 offset_key[CHACHA20_KEY_SIZE + 1]
 			__aligned(__alignof__(unsigned long));
 	struct chacha20_ctx state;
@@ -2527,7 +2530,8 @@ static bool __init chacha20_selftest(void)
 
 	offset_input = kmalloc(MAXIMUM_TEST_BUFFER_LEN + 1, GFP_KERNEL);
 	computed_output = kmalloc(MAXIMUM_TEST_BUFFER_LEN + 1, GFP_KERNEL);
-	if (!computed_output || !offset_input) {
+	massive_input = vzalloc(OUTRAGEOUSLY_HUGE_BUFFER_LEN);
+	if (!computed_output || !offset_input || !massive_input) {
 		pr_err("chacha20 self-test malloc: FAIL\n");
 		success = false;
 		goto out;
@@ -2668,6 +2672,24 @@ next_test:
 			success = false;
 		}
 	}
+	memset(&state, 0, sizeof(state));
+	chacha20_init(&state, chacha20_testvecs[0].key,
+		      chacha20_testvecs[0].nonce);
+	chacha20(&state, massive_input, massive_input,
+		 OUTRAGEOUSLY_HUGE_BUFFER_LEN, &simd_context);
+	chacha20_init(&state, chacha20_testvecs[0].key,
+		      chacha20_testvecs[0].nonce);
+	chacha20(&state, massive_input, massive_input,
+		 OUTRAGEOUSLY_HUGE_BUFFER_LEN,
+		 (simd_context_t []){ HAVE_NO_SIMD });
+	for (k = 0; k < OUTRAGEOUSLY_HUGE_BUFFER_LEN; ++k) {
+		if (massive_input[k]) {
+			pr_err("chacha20 self-test massive: FAIL\n");
+			success = false;
+			break;
+		}
+	}
+
 	simd_put(&simd_context);
 	if (success)
 		pr_info("chacha20 self-tests: pass\n");
@@ -2675,6 +2697,7 @@ next_test:
 out:
 	kfree(offset_input);
 	kfree(computed_output);
+	vfree(massive_input);
 	return success;
 }
 #endif

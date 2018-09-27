@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/vmalloc.h>
 #include <crypto/algapi.h>
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
