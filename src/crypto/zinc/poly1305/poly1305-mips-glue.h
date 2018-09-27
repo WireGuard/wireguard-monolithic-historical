@@ -20,7 +20,7 @@ static inline bool poly1305_init_arch(void *ctx,
 }
 
 static inline bool poly1305_blocks_arch(void *ctx, const u8 *inp,
-					const size_t len, const u32 padbit,
+					size_t len, const u32 padbit,
 					simd_context_t *simd_context)
 {
 	poly1305_blocks_mips(ctx, inp, len, padbit);

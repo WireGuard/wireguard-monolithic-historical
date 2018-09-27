@@ -93,10 +93,14 @@ static void convert_to_base2_64(void *ctx)
 }
 
 static inline bool poly1305_blocks_arch(void *ctx, const u8 *inp,
-					const size_t len, const u32 padbit,
+					size_t len, const u32 padbit,
 					simd_context_t *simd_context)
 {
 	struct poly1305_arch_internal *state = ctx;
+
+	/* SIMD disables preemption, so relax after processing each page. */
+	BUILD_BUG_ON(PAGE_SIZE < POLY1305_BLOCK_SIZE ||
+		     PAGE_SIZE % POLY1305_BLOCK_SIZE);
 
 	if (!IS_ENABLED(CONFIG_AS_AVX) || !poly1305_use_avx ||
 	    (len < (POLY1305_BLOCK_SIZE * 18) && !state->is_base2_26) ||
@@ -106,12 +110,21 @@ static inline bool poly1305_blocks_arch(void *ctx, const u8 *inp,
 		return true;
 	}
 
-	if (IS_ENABLED(CONFIG_AS_AVX512) && poly1305_use_avx512)
-		poly1305_blocks_avx512(ctx, inp, len, padbit);
-	else if (IS_ENABLED(CONFIG_AS_AVX2) && poly1305_use_avx2)
-		poly1305_blocks_avx2(ctx, inp, len, padbit);
-	else
-		poly1305_blocks_avx(ctx, inp, len, padbit);
+	for (;;) {
+		const size_t bytes = min_t(size_t, len, PAGE_SIZE);
+
+		if (IS_ENABLED(CONFIG_AS_AVX512) && poly1305_use_avx512)
+			poly1305_blocks_avx512(ctx, inp, bytes, padbit);
+		else if (IS_ENABLED(CONFIG_AS_AVX2) && poly1305_use_avx2)
+			poly1305_blocks_avx2(ctx, inp, bytes, padbit);
+		else
+			poly1305_blocks_avx(ctx, inp, bytes, padbit);
+		len -= bytes;
+		if (!len)
+			break;
+		inp += bytes;
+		simd_relax(simd_context);
+	}
 
 	return true;
 }
@@ -126,9 +139,7 @@ static inline bool poly1305_emit_arch(void *ctx, u8 mac[POLY1305_MAC_SIZE],
 	    !state->is_base2_26 || !simd_use(simd_context)) {
 		convert_to_base2_64(ctx);
 		poly1305_emit_x86_64(ctx, mac, nonce);
-		return true;
-	}
-
-	poly1305_emit_avx(ctx, mac, nonce);
+	} else
+		poly1305_emit_avx(ctx, mac, nonce);
 	return true;
 }

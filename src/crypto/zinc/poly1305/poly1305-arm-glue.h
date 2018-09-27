@@ -55,7 +55,7 @@ static void convert_to_base2_64(void *ctx)
 	struct poly1305_arch_internal *state = ctx;
 	u32 cy;
 
-	if (!state->is_base2_26)
+	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !state->is_base2_26)
 		return;
 
 	cy = state->h[0] >> 26; state->h[0] &= 0x3ffffff; state->h[1] += cy;
@@ -87,18 +87,30 @@ static inline bool poly1305_init_arch(void *ctx,
 }
 
 static inline bool poly1305_blocks_arch(void *ctx, const u8 *inp,
-					const size_t len, const u32 padbit,
+					size_t len, const u32 padbit,
 					simd_context_t *simd_context)
 {
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON)) {
-		if (poly1305_use_neon && simd_use(simd_context)) {
-			poly1305_blocks_neon(ctx, inp, len, padbit);
-			return true;
-		}
+	/* SIMD disables preemption, so relax after processing each page. */
+	BUILD_BUG_ON(PAGE_SIZE < POLY1305_BLOCK_SIZE ||
+		     PAGE_SIZE % POLY1305_BLOCK_SIZE);
+
+	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !poly1305_use_neon ||
+	    !simd_use(simd_context)) {
 		convert_to_base2_64(ctx);
+		poly1305_blocks_arm(ctx, inp, len, padbit);
+		return true;
 	}
 
-	poly1305_blocks_arm(ctx, inp, len, padbit);
+	for (;;) {
+		const size_t bytes = min_t(size_t, len, PAGE_SIZE);
+
+		poly1305_blocks_neon(ctx, inp, bytes, padbit);
+		len -= bytes;
+		if (!len)
+			break;
+		inp += bytes;
+		simd_relax(simd_context);
+	}
 	return true;
 }
 
@@ -106,14 +118,11 @@ static inline bool poly1305_emit_arch(void *ctx, u8 mac[POLY1305_MAC_SIZE],
 				      const u32 nonce[4],
 				      simd_context_t *simd_context)
 {
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON)) {
-		if (poly1305_use_neon && simd_use(simd_context)) {
-			poly1305_emit_neon(ctx, mac, nonce);
-			return true;
-		}
+	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !poly1305_use_neon ||
+	    !simd_use(simd_context)) {
 		convert_to_base2_64(ctx);
-	}
-
-	poly1305_emit_arm(ctx, mac, nonce);
+		poly1305_emit_arm(ctx, mac, nonce);
+	} else
+		poly1305_emit_neon(ctx, mac, nonce);
 	return true;
 }
