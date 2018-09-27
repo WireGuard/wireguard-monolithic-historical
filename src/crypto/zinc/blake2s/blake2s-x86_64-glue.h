@@ -3,10 +3,10 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
+#include <linux/simd.h>
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 #include <asm/fpu/api.h>
-#include <asm/simd.h>
 
 asmlinkage void blake2s_compress_avx(struct blake2s_state *state,
 				     const u8 *block, const size_t nblocks,
@@ -37,18 +37,32 @@ static void __init blake2s_fpu_init(void)
 static inline bool blake2s_arch(struct blake2s_state *state, const u8 *block,
 				size_t nblocks, const u32 inc)
 {
-	if (IS_ENABLED(CONFIG_AS_AVX512) && blake2s_use_avx512 &&
-	    irq_fpu_usable()) {
-		kernel_fpu_begin();
-		blake2s_compress_avx512(state, block, nblocks, inc);
-		kernel_fpu_end();
-		return true;
+	simd_context_t simd_context;
+
+	/* SIMD disables preemption, so relax after processing each page. */
+	BUILD_BUG_ON(PAGE_SIZE / BLAKE2S_BLOCK_SIZE < 8);
+
+	simd_get(&simd_context);
+
+	if (!IS_ENABLED(CONFIG_AS_AVX) || !blake2s_use_avx ||
+	    !simd_use(&simd_context))
+		return false;
+
+	for (;;) {
+		const size_t blocks = min_t(size_t, nblocks,
+					    PAGE_SIZE / BLAKE2S_BLOCK_SIZE);
+
+		if (IS_ENABLED(CONFIG_AS_AVX512) && blake2s_use_avx512)
+			blake2s_compress_avx512(state, block, blocks, inc);
+		else
+			blake2s_compress_avx(state, block, blocks, inc);
+
+		nblocks -= blocks;
+		if (!nblocks)
+			break;
+		block += blocks * BLAKE2S_BLOCK_SIZE;
+		simd_relax(&simd_context);
 	}
-	if (IS_ENABLED(CONFIG_AS_AVX) && blake2s_use_avx && irq_fpu_usable()) {
-		kernel_fpu_begin();
-		blake2s_compress_avx(state, block, nblocks, inc);
-		kernel_fpu_end();
-		return true;
-	}
-	return false;
+	simd_put(&simd_context);
+	return true;
 }
