@@ -2553,6 +2553,7 @@ static bool __init chacha20_selftest(void)
 				pr_err("chacha20 self-test %zu (zero check): FAIL\n",
 				       i + 1);
 				success = false;
+				break;
 			}
 		}
 
@@ -2583,6 +2584,7 @@ static bool __init chacha20_selftest(void)
 				pr_err("chacha20 self-test %zu (unaligned, zero check): FAIL\n",
 				       i + 1);
 				success = false;
+				break;
 			}
 		}
 
@@ -2611,6 +2613,7 @@ static bool __init chacha20_selftest(void)
 				pr_err("chacha20 self-test %zu (chunked, zero check): FAIL\n",
 				       i + 1);
 				success = false;
+				break;
 			}
 		}
 
@@ -2640,6 +2643,7 @@ next_test:
 					pr_err("chacha20 self-test %zu (unaligned, slide %zu, zero check): FAIL\n",
 					       i + 1, j);
 					success = false;
+					break;
 				}
 			}
 			for (k = chacha20_testvecs[i].ilen + j;
@@ -2648,6 +2652,7 @@ next_test:
 					pr_err("chacha20 self-test %zu (unaligned, slide %zu, zero check): FAIL\n",
 					       i + 1, j);
 					success = false;
+					break;
 				}
 			}
 		}
