@@ -49,14 +49,16 @@ static inline void simd_put(simd_context_t *ctx)
 	*ctx = HAVE_NO_SIMD;
 }
 
-static inline void simd_relax(simd_context_t *ctx)
+static inline bool simd_relax(simd_context_t *ctx)
 {
 #ifdef CONFIG_PREEMPT
 	if ((*ctx & HAVE_SIMD_IN_USE) && need_resched()) {
 		simd_put(ctx);
 		simd_get(ctx);
+		return true;
 	}
 #endif
+	return false;
 }
 
 static __must_check inline bool simd_use(simd_context_t *ctx)
