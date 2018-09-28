@@ -6,6 +6,11 @@
  * This is based in part on Andy Polyakov's implementation from CRYPTOGAMS.
  */
 
+#if (defined(_MIPS_ARCH_MIPS64R3) || defined(_MIPS_ARCH_MIPS64R5) || \
+     defined(_MIPS_ARCH_MIPS64R6)) && !defined(_MIPS_ARCH_MIPS64R2)
+#define _MIPS_ARCH_MIPS64R2
+#endif
+
 #ifdef __MIPSEB__
 #define MSB 0
 #define LSB 7
@@ -14,7 +19,7 @@
 #define LSB 0
 #endif
 
-#if defined(CONFIG_CPU_MIPS64_R6) || defined(CONFIG_CPU_MIPSR6)
+#if defined(_MIPS_ARCH_MIPS64R6)
 #define dmultu(rs,rt)
 #define mflo(rd,rs,rt)	dmulu	rd,rs,rt
 #define mfhi(rd,rs,rt)	dmuhu	rd,rs,rt
@@ -48,7 +53,7 @@ poly1305_init_mips:
 
 	beqz	$5,.Lno_key
 
-#if defined(CONFIG_CPU_MIPS64_R6) || defined(CONFIG_CPU_MIPSR6)
+#if defined(_MIPS_ARCH_MIPS64R6)
 	ld	$8,0($5)
 	ld	$9,8($5)
 #else
@@ -58,7 +63,7 @@ poly1305_init_mips:
 	ldr	$9,8+LSB($5)
 #endif
 #ifdef	__MIPSEB__
-#if defined(CONFIG_CPU_MIPS64_R2) || defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPS64_R6) || defined(CONFIG_CPU_MIPSR6)
+#if defined(_MIPS_ARCH_MIPS64R2)
 	dsbh	$8,$8		# byte swap
 	 dsbh	$9,$9
 	dshd	$8,$8
@@ -152,7 +157,7 @@ poly1305_blocks_internal:
 	ld	$17,40($4)
 
 .Loop:
-#if defined(CONFIG_CPU_MIPS64_R6) || defined(CONFIG_CPU_MIPSR6)
+#if defined(_MIPS_ARCH_MIPS64R6)
 	ld	$8,0($5)		# load input
 	ld	$9,8($5)
 #else
@@ -164,7 +169,7 @@ poly1305_blocks_internal:
 	daddiu	$6,-1
 	daddiu	$5,16
 #ifdef	__MIPSEB__
-#if defined(CONFIG_CPU_MIPS64_R2) || defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPS64_R6) || defined(CONFIG_CPU_MIPSR6)
+#if defined(_MIPS_ARCH_MIPS64R2)
 	dsbh	$8,$8		# byte swap
 	 dsbh	$9,$9
 	dshd	$8,$8
