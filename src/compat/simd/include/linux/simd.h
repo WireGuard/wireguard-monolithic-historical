@@ -11,7 +11,7 @@
 #include <linux/version.h>
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+#elif defined(CONFIG_KERNEL_MODE_NEON)
 #include <asm/neon.h>
 #include <asm/simd.h>
 #endif
@@ -24,25 +24,15 @@ typedef enum {
 
 static inline void simd_get(simd_context_t *ctx)
 {
-	bool have_simd = false;
-#if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
-	have_simd = irq_fpu_usable();
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_PREEMPT_RT_BASE)
-#if defined(CONFIG_ARM64)
-	have_simd = true; /* ARM64 supports NEON in any context. */
-#elif defined(CONFIG_ARM)
-	have_simd = may_use_simd(); /* ARM doesn't support NEON in interrupt context. */
-#endif
-#endif
-	*ctx = have_simd ? HAVE_FULL_SIMD : HAVE_NO_SIMD;
+	*ctx = !IS_ENABLED(CONFIG_PREEMPT_RT_BASE) && may_use_simd() ? HAVE_FULL_SIMD : HAVE_NO_SIMD;
 }
 
 static inline void simd_put(simd_context_t *ctx)
 {
-#if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
+#if defined(CONFIG_X86_64)
 	if (*ctx & HAVE_SIMD_IN_USE)
 		kernel_fpu_end();
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_PREEMPT_RT_BASE)
+#elif defined(CONFIG_KERNEL_MODE_NEON)
 	if (*ctx & HAVE_SIMD_IN_USE)
 		kernel_neon_end();
 #endif
@@ -67,9 +57,9 @@ static __must_check inline bool simd_use(simd_context_t *ctx)
 		return false;
 	if (*ctx & HAVE_SIMD_IN_USE)
 		return true;
-#if defined(CONFIG_X86_64) && !defined(CONFIG_UML) && !defined(CONFIG_PREEMPT_RT_BASE)
+#if defined(CONFIG_X86_64)
 	kernel_fpu_begin();
-#elif IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !defined(CONFIG_PREEMPT_RT_BASE)
+#elif defined(CONFIG_KERNEL_MODE_NEON)
 	kernel_neon_begin();
 #endif
 	*ctx |= HAVE_SIMD_IN_USE;
