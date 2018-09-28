@@ -59,7 +59,7 @@ struct wireguard_device {
 	bool have_creating_net_ref;
 };
 
-int device_init(void);
-void device_uninit(void);
+int wg_device_init(void);
+void wg_device_uninit(void);
 
 #endif /* _WG_DEVICE_H */

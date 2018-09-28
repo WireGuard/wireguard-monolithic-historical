@@ -19,15 +19,15 @@ static struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table,
 			(HASH_SIZE(table->hashtable) - 1)];
 }
 
-void pubkey_hashtable_init(struct pubkey_hashtable *table)
+void wg_pubkey_hashtable_init(struct pubkey_hashtable *table)
 {
 	get_random_bytes(&table->key, sizeof(table->key));
 	hash_init(table->hashtable);
 	mutex_init(&table->lock);
 }
 
-void pubkey_hashtable_add(struct pubkey_hashtable *table,
-			  struct wireguard_peer *peer)
+void wg_pubkey_hashtable_add(struct pubkey_hashtable *table,
+			     struct wireguard_peer *peer)
 {
 	mutex_lock(&table->lock);
 	hlist_add_head_rcu(&peer->pubkey_hash,
@@ -35,8 +35,8 @@ void pubkey_hashtable_add(struct pubkey_hashtable *table,
 	mutex_unlock(&table->lock);
 }
 
-void pubkey_hashtable_remove(struct pubkey_hashtable *table,
-			     struct wireguard_peer *peer)
+void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
+				struct wireguard_peer *peer)
 {
 	mutex_lock(&table->lock);
 	hlist_del_init_rcu(&peer->pubkey_hash);
@@ -45,8 +45,8 @@ void pubkey_hashtable_remove(struct pubkey_hashtable *table,
 
 /* Returns a strong reference to a peer */
 struct wireguard_peer *
-pubkey_hashtable_lookup(struct pubkey_hashtable *table,
-			const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
+wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
+			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
 {
 	struct wireguard_peer *iter_peer, *peer = NULL;
 
@@ -59,7 +59,7 @@ pubkey_hashtable_lookup(struct pubkey_hashtable *table,
 			break;
 		}
 	}
-	peer = peer_get_maybe_zero(peer);
+	peer = wg_peer_get_maybe_zero(peer);
 	rcu_read_unlock_bh();
 	return peer;
 }
@@ -74,7 +74,7 @@ static struct hlist_head *index_bucket(struct index_hashtable *table,
 				 (HASH_SIZE(table->hashtable) - 1)];
 }
 
-void index_hashtable_init(struct index_hashtable *table)
+void wg_index_hashtable_init(struct index_hashtable *table)
 {
 	hash_init(table->hashtable);
 	spin_lock_init(&table->lock);
@@ -104,8 +104,8 @@ void index_hashtable_init(struct index_hashtable *table)
  * is another thing to consider moving forward.
  */
 
-__le32 index_hashtable_insert(struct index_hashtable *table,
-			      struct index_hashtable_entry *entry)
+__le32 wg_index_hashtable_insert(struct index_hashtable *table,
+				 struct index_hashtable_entry *entry)
 {
 	struct index_hashtable_entry *existing_entry;
 
@@ -151,9 +151,9 @@ search_unused_slot:
 	return entry->index;
 }
 
-bool index_hashtable_replace(struct index_hashtable *table,
-			     struct index_hashtable_entry *old,
-			     struct index_hashtable_entry *new)
+bool wg_index_hashtable_replace(struct index_hashtable *table,
+				struct index_hashtable_entry *old,
+				struct index_hashtable_entry *new)
 {
 	if (unlikely(hlist_unhashed(&old->index_hash)))
 		return false;
@@ -172,8 +172,8 @@ bool index_hashtable_replace(struct index_hashtable *table,
 	return true;
 }
 
-void index_hashtable_remove(struct index_hashtable *table,
-			    struct index_hashtable_entry *entry)
+void wg_index_hashtable_remove(struct index_hashtable *table,
+			       struct index_hashtable_entry *entry)
 {
 	spin_lock_bh(&table->lock);
 	hlist_del_init_rcu(&entry->index_hash);
@@ -182,9 +182,9 @@ void index_hashtable_remove(struct index_hashtable *table,
 
 /* Returns a strong reference to a entry->peer */
 struct index_hashtable_entry *
-index_hashtable_lookup(struct index_hashtable *table,
-		       const enum index_hashtable_type type_mask,
-		       const __le32 index, struct wireguard_peer **peer)
+wg_index_hashtable_lookup(struct index_hashtable *table,
+			  const enum index_hashtable_type type_mask,
+			  const __le32 index, struct wireguard_peer **peer)
 {
 	struct index_hashtable_entry *iter_entry, *entry = NULL;
 
@@ -198,7 +198,7 @@ index_hashtable_lookup(struct index_hashtable *table,
 		}
 	}
 	if (likely(entry)) {
-		entry->peer = peer_get_maybe_zero(entry->peer);
+		entry->peer = wg_peer_get_maybe_zero(entry->peer);
 		if (likely(entry->peer))
 			*peer = entry->peer;
 		else

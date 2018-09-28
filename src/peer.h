@@ -66,22 +66,22 @@ struct wireguard_peer {
 };
 
 struct wireguard_peer *
-peer_create(struct wireguard_device *wg,
-	    const u8 public_key[NOISE_PUBLIC_KEY_LEN],
-	    const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN]);
+wg_peer_create(struct wireguard_device *wg,
+	       const u8 public_key[NOISE_PUBLIC_KEY_LEN],
+	       const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN]);
 
 struct wireguard_peer *__must_check
-peer_get_maybe_zero(struct wireguard_peer *peer);
-static inline struct wireguard_peer *peer_get(struct wireguard_peer *peer)
+wg_peer_get_maybe_zero(struct wireguard_peer *peer);
+static inline struct wireguard_peer *wg_peer_get(struct wireguard_peer *peer)
 {
 	kref_get(&peer->refcount);
 	return peer;
 }
-void peer_put(struct wireguard_peer *peer);
-void peer_remove(struct wireguard_peer *peer);
-void peer_remove_all(struct wireguard_device *wg);
+void wg_peer_put(struct wireguard_peer *peer);
+void wg_peer_remove(struct wireguard_peer *peer);
+void wg_peer_remove_all(struct wireguard_device *wg);
 
-struct wireguard_peer *peer_lookup_by_index(struct wireguard_device *wg,
-					    u32 index);
+struct wireguard_peer *wg_peer_lookup_by_index(struct wireguard_device *wg,
+					       u32 index);
 
 #endif /* _WG_PEER_H */

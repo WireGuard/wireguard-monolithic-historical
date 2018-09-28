@@ -212,7 +212,7 @@ lookup(struct allowedips_node __rcu *root, u8 bits, const void *be_ip)
 retry:
 	node = find_node(rcu_dereference_bh(root), bits, ip);
 	if (node) {
-		peer = peer_get_maybe_zero(rcu_dereference_bh(node->peer));
+		peer = wg_peer_get_maybe_zero(rcu_dereference_bh(node->peer));
 		if (!peer)
 			goto retry;
 	}
@@ -312,13 +312,13 @@ static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *be_key,
 	return 0;
 }
 
-void allowedips_init(struct allowedips *table)
+void wg_allowedips_init(struct allowedips *table)
 {
 	table->root4 = table->root6 = NULL;
 	table->seq = 1;
 }
 
-void allowedips_free(struct allowedips *table, struct mutex *lock)
+void wg_allowedips_free(struct allowedips *table, struct mutex *lock)
 {
 	struct allowedips_node __rcu *old4 = table->root4, *old6 = table->root6;
 	++table->seq;
@@ -332,35 +332,36 @@ void allowedips_free(struct allowedips *table, struct mutex *lock)
 				lockdep_is_held(lock))->rcu, root_free_rcu);
 }
 
-int allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip,
-			 u8 cidr, struct wireguard_peer *peer,
-			 struct mutex *lock)
+int wg_allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip,
+			    u8 cidr, struct wireguard_peer *peer,
+			    struct mutex *lock)
 {
 	++table->seq;
 	return add(&table->root4, 32, (const u8 *)ip, cidr, peer, lock);
 }
 
-int allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
-			 u8 cidr, struct wireguard_peer *peer,
-			 struct mutex *lock)
+int wg_allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
+			    u8 cidr, struct wireguard_peer *peer,
+			    struct mutex *lock)
 {
 	++table->seq;
 	return add(&table->root6, 128, (const u8 *)ip, cidr, peer, lock);
 }
 
-void allowedips_remove_by_peer(struct allowedips *table,
-			       struct wireguard_peer *peer, struct mutex *lock)
+void wg_allowedips_remove_by_peer(struct allowedips *table,
+				  struct wireguard_peer *peer,
+				  struct mutex *lock)
 {
 	++table->seq;
 	walk_remove_by_peer(&table->root4, peer, lock);
 	walk_remove_by_peer(&table->root6, peer, lock);
 }
 
-int allowedips_walk_by_peer(struct allowedips *table,
-			    struct allowedips_cursor *cursor,
-			    struct wireguard_peer *peer,
-			    int (*func)(void *ctx, const u8 *ip, u8 cidr, int family),
-			    void *ctx, struct mutex *lock)
+int wg_allowedips_walk_by_peer(struct allowedips *table,
+			       struct allowedips_cursor *cursor,
+			       struct wireguard_peer *peer,
+			       int (*func)(void *ctx, const u8 *ip, u8 cidr, int family),
+			       void *ctx, struct mutex *lock)
 {
 	int ret;
 
@@ -380,8 +381,8 @@ int allowedips_walk_by_peer(struct allowedips *table,
 }
 
 /* Returns a strong reference to a peer */
-struct wireguard_peer *allowedips_lookup_dst(struct allowedips *table,
-					     struct sk_buff *skb)
+struct wireguard_peer *wg_allowedips_lookup_dst(struct allowedips *table,
+						struct sk_buff *skb)
 {
 	if (skb->protocol == htons(ETH_P_IP))
 		return lookup(table->root4, 32, &ip_hdr(skb)->daddr);
@@ -391,8 +392,8 @@ struct wireguard_peer *allowedips_lookup_dst(struct allowedips *table,
 }
 
 /* Returns a strong reference to a peer */
-struct wireguard_peer *allowedips_lookup_src(struct allowedips *table,
-					     struct sk_buff *skb)
+struct wireguard_peer *wg_allowedips_lookup_src(struct allowedips *table,
+						struct sk_buff *skb)
 {
 	if (skb->protocol == htons(ETH_P_IP))
 		return lookup(table->root4, 32, &ip_hdr(skb)->saddr);

@@ -30,7 +30,7 @@ static __init unsigned int maximum_jiffies_at_index(int index)
 	return msecs_to_jiffies(total_msecs);
 }
 
-bool __init ratelimiter_selftest(void)
+bool __init wg_ratelimiter_selftest(void)
 {
 	int i, test = 0, tries = 0, ret = false;
 	unsigned long loop_start_time;
@@ -47,17 +47,17 @@ bool __init ratelimiter_selftest(void)
 
 	BUILD_BUG_ON(MSEC_PER_SEC % PACKETS_PER_SECOND != 0);
 
-	if (ratelimiter_init())
+	if (wg_ratelimiter_init())
 		goto out;
 	++test;
-	if (ratelimiter_init()) {
-		ratelimiter_uninit();
+	if (wg_ratelimiter_init()) {
+		wg_ratelimiter_uninit();
 		goto out;
 	}
 	++test;
-	if (ratelimiter_init()) {
-		ratelimiter_uninit();
-		ratelimiter_uninit();
+	if (wg_ratelimiter_init()) {
+		wg_ratelimiter_uninit();
+		wg_ratelimiter_uninit();
 		goto out;
 	}
 	++test;
@@ -104,13 +104,13 @@ restart:
 			msleep(expected_results[i].msec_to_sleep_before);
 
 		ensure_time;
-		if (ratelimiter_allow(skb4, &init_net) !=
+		if (wg_ratelimiter_allow(skb4, &init_net) !=
 		    expected_results[i].result)
 			goto err;
 		++test;
 		hdr4->saddr = htonl(ntohl(hdr4->saddr) + i + 1);
 		ensure_time;
-		if (!ratelimiter_allow(skb4, &init_net))
+		if (!wg_ratelimiter_allow(skb4, &init_net))
 			goto err;
 		++test;
 		hdr4->saddr = htonl(ntohl(hdr4->saddr) - i - 1);
@@ -119,14 +119,14 @@ restart:
 		hdr6->saddr.in6_u.u6_addr32[2] =
 			hdr6->saddr.in6_u.u6_addr32[3] = htonl(i);
 		ensure_time;
-		if (ratelimiter_allow(skb6, &init_net) !=
+		if (wg_ratelimiter_allow(skb6, &init_net) !=
 		    expected_results[i].result)
 			goto err;
 		++test;
 		hdr6->saddr.in6_u.u6_addr32[0] =
 			htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) + i + 1);
 		ensure_time;
-		if (!ratelimiter_allow(skb6, &init_net))
+		if (!wg_ratelimiter_allow(skb6, &init_net))
 			goto err;
 		++test;
 		hdr6->saddr.in6_u.u6_addr32[0] =
@@ -146,7 +146,8 @@ restart2:
 
 	for (i = 0; i <= max_entries; ++i) {
 		hdr4->saddr = htonl(i);
-		if (ratelimiter_allow(skb4, &init_net) != (i != max_entries)) {
+		if (wg_ratelimiter_allow(skb4, &init_net) !=
+							(i != max_entries)) {
 			if (++tries < 5000)
 				goto restart2;
 			goto err;
@@ -162,11 +163,11 @@ err:
 	kfree_skb(skb6);
 #endif
 err_nofree:
-	ratelimiter_uninit();
-	ratelimiter_uninit();
-	ratelimiter_uninit();
+	wg_ratelimiter_uninit();
+	wg_ratelimiter_uninit();
+	wg_ratelimiter_uninit();
 	/* Uninit one extra time to check underflow detection. */
-	ratelimiter_uninit();
+	wg_ratelimiter_uninit();
 out:
 	if (ret)
 		pr_info("ratelimiter self-tests: pass\n");

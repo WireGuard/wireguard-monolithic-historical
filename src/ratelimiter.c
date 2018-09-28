@@ -82,7 +82,7 @@ static void gc_entries(struct work_struct *work)
 		queue_delayed_work(system_power_efficient_wq, &gc_work, HZ);
 }
 
-bool ratelimiter_allow(struct sk_buff *skb, struct net *net)
+bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 {
 	struct { __be64 ip; u32 net; } data = {
 		.net = (unsigned long)net & 0xffffffff };
@@ -152,7 +152,7 @@ err_oom:
 	return false;
 }
 
-int ratelimiter_init(void)
+int wg_ratelimiter_init(void)
 {
 	mutex_lock(&init_lock);
 	if (atomic64_inc_return(&refcnt) != 1)
@@ -199,7 +199,7 @@ err:
 	return -ENOMEM;
 }
 
-void ratelimiter_uninit(void)
+void wg_ratelimiter_uninit(void)
 {
 	mutex_lock(&init_lock);
 	if (atomic64_dec_if_positive(&refcnt))

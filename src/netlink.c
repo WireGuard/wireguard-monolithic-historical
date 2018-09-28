@@ -150,9 +150,9 @@ static int get_peer(struct wireguard_peer *peer, unsigned int index,
 	allowedips_nest = nla_nest_start(skb, WGPEER_A_ALLOWEDIPS);
 	if (!allowedips_nest)
 		goto err;
-	if (allowedips_walk_by_peer(&peer->device->peer_allowedips, rt_cursor,
-				    peer, get_allowedips, &ctx,
-				    &peer->device->device_update_lock)) {
+	if (wg_allowedips_walk_by_peer(&peer->device->peer_allowedips,
+				       rt_cursor, peer, get_allowedips, &ctx,
+				       &peer->device->device_update_lock)) {
 		nla_nest_end(skb, allowedips_nest);
 		nla_nest_end(skb, peer_nest);
 		return -EMSGSIZE;
@@ -266,8 +266,8 @@ static int get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 out:
 	if (!ret && !done && next_peer_cursor)
-		peer_get(next_peer_cursor);
-	peer_put(last_peer_cursor);
+		wg_peer_get(next_peer_cursor);
+	wg_peer_put(last_peer_cursor);
 	mutex_unlock(&wg->device_update_lock);
 	rtnl_unlock();
 
@@ -299,7 +299,7 @@ static int get_device_done(struct netlink_callback *cb)
 	if (wg)
 		dev_put(wg->dev);
 	kfree(rt_cursor);
-	peer_put(peer);
+	wg_peer_put(peer);
 	return 0;
 }
 
@@ -310,12 +310,12 @@ static int set_port(struct wireguard_device *wg, u16 port)
 	if (wg->incoming_port == port)
 		return 0;
 	list_for_each_entry (peer, &wg->peer_list, peer_list)
-		socket_clear_peer_endpoint_src(peer);
+		wg_socket_clear_peer_endpoint_src(peer);
 	if (!netif_running(wg->dev)) {
 		wg->incoming_port = port;
 		return 0;
 	}
-	return socket_init(wg, port);
+	return wg_socket_init(wg, port);
 }
 
 static int set_allowedip(struct wireguard_peer *peer, struct nlattr **attrs)
@@ -332,13 +332,13 @@ static int set_allowedip(struct wireguard_peer *peer, struct nlattr **attrs)
 
 	if (family == AF_INET && cidr <= 32 &&
 	    nla_len(attrs[WGALLOWEDIP_A_IPADDR]) == sizeof(struct in_addr))
-		ret = allowedips_insert_v4(
+		ret = wg_allowedips_insert_v4(
 			&peer->device->peer_allowedips,
 			nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer,
 			&peer->device->device_update_lock);
 	else if (family == AF_INET6 && cidr <= 128 &&
 		 nla_len(attrs[WGALLOWEDIP_A_IPADDR]) == sizeof(struct in6_addr))
-		ret = allowedips_insert_v6(
+		ret = wg_allowedips_insert_v6(
 			&peer->device->peer_allowedips,
 			nla_data(attrs[WGALLOWEDIP_A_IPADDR]), cidr, peer,
 			&peer->device->device_update_lock);
@@ -371,8 +371,8 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 			goto out;
 	}
 
-	peer = pubkey_hashtable_lookup(&wg->peer_hashtable,
-				       nla_data(attrs[WGPEER_A_PUBLIC_KEY]));
+	peer = wg_pubkey_hashtable_lookup(&wg->peer_hashtable,
+					  nla_data(attrs[WGPEER_A_PUBLIC_KEY]));
 	if (!peer) { /* Peer doesn't exist yet. Add a new one. */
 		ret = -ENODEV;
 		if (flags & WGPEER_F_REMOVE_ME)
@@ -395,18 +395,18 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 		up_read(&wg->static_identity.lock);
 
 		ret = -ENOMEM;
-		peer = peer_create(wg, public_key, preshared_key);
+		peer = wg_peer_create(wg, public_key, preshared_key);
 		if (!peer)
 			goto out;
 		/* Take additional reference, as though we've just been
 		 * looked up.
 		 */
-		peer_get(peer);
+		wg_peer_get(peer);
 	}
 
 	ret = 0;
 	if (flags & WGPEER_F_REMOVE_ME) {
-		peer_remove(peer);
+		wg_peer_remove(peer);
 		goto out;
 	}
 
@@ -428,13 +428,13 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 			struct endpoint endpoint = { { { 0 } } };
 
 			memcpy(&endpoint.addr, addr, len);
-			socket_set_peer_endpoint(peer, &endpoint);
+			wg_socket_set_peer_endpoint(peer, &endpoint);
 		}
 	}
 
 	if (flags & WGPEER_F_REPLACE_ALLOWEDIPS)
-		allowedips_remove_by_peer(&wg->peer_allowedips, peer,
-					  &wg->device_update_lock);
+		wg_allowedips_remove_by_peer(&wg->peer_allowedips, peer,
+					     &wg->device_update_lock);
 
 	if (attrs[WGPEER_A_ALLOWEDIPS]) {
 		struct nlattr *attr, *allowedip[WGALLOWEDIP_A_MAX + 1];
@@ -461,14 +461,14 @@ static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
 
 		peer->persistent_keepalive_interval = persistent_keepalive_interval;
 		if (send_keepalive)
-			packet_send_keepalive(peer);
+			wg_packet_send_keepalive(peer);
 	}
 
 	if (netif_running(wg->dev))
-		packet_send_staged_packets(peer);
+		wg_packet_send_staged_packets(peer);
 
 out:
-	peer_put(peer);
+	wg_peer_put(peer);
 	if (attrs[WGPEER_A_PRESHARED_KEY])
 		memzero_explicit(nla_data(attrs[WGPEER_A_PRESHARED_KEY]),
 				 nla_len(attrs[WGPEER_A_PRESHARED_KEY]));
@@ -494,7 +494,7 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 
 		wg->fwmark = nla_get_u32(info->attrs[WGDEVICE_A_FWMARK]);
 		list_for_each_entry (peer, &wg->peer_list, peer_list)
-			socket_clear_peer_endpoint_src(peer);
+			wg_socket_clear_peer_endpoint_src(peer);
 	}
 
 	if (info->attrs[WGDEVICE_A_LISTEN_PORT]) {
@@ -507,7 +507,7 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[WGDEVICE_A_FLAGS] &&
 	    nla_get_u32(info->attrs[WGDEVICE_A_FLAGS]) &
 		    WGDEVICE_F_REPLACE_PEERS)
-		peer_remove_all(wg);
+		wg_peer_remove_all(wg);
 
 	if (info->attrs[WGDEVICE_A_PRIVATE_KEY] &&
 	    nla_len(info->attrs[WGDEVICE_A_PRIVATE_KEY]) ==
@@ -520,23 +520,23 @@ static int set_device(struct sk_buff *skb, struct genl_info *info)
 		 * two 25519-genpub ops.
 		 */
 		if (curve25519_generate_public(public_key, private_key)) {
-			peer = pubkey_hashtable_lookup(&wg->peer_hashtable,
-						       public_key);
+			peer = wg_pubkey_hashtable_lookup(&wg->peer_hashtable,
+							  public_key);
 			if (peer) {
-				peer_put(peer);
-				peer_remove(peer);
+				wg_peer_put(peer);
+				wg_peer_remove(peer);
 			}
 		}
 
 		down_write(&wg->static_identity.lock);
-		noise_set_static_identity_private_key(&wg->static_identity,
-						      private_key);
+		wg_noise_set_static_identity_private_key(&wg->static_identity,
+							 private_key);
 		list_for_each_entry_safe (peer, temp, &wg->peer_list,
 					  peer_list) {
-			if (!noise_precompute_static_static(peer))
-				peer_remove(peer);
+			if (!wg_noise_precompute_static_static(peer))
+				wg_peer_remove(peer);
 		}
-		cookie_checker_precompute_device_keys(&wg->cookie_checker);
+		wg_cookie_checker_precompute_device_keys(&wg->cookie_checker);
 		up_write(&wg->static_identity.lock);
 	}
 
@@ -605,12 +605,12 @@ __ro_after_init = {
 	.netnsok = true
 };
 
-int __init genetlink_init(void)
+int __init wg_genetlink_init(void)
 {
 	return genl_register_family(&genl_family);
 }
 
-void __exit genetlink_uninit(void)
+void __exit wg_genetlink_uninit(void)
 {
 	genl_unregister_family(&genl_family);
 }

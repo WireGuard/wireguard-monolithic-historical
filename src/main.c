@@ -28,17 +28,17 @@ static int __init mod_init(void)
 		return ret;
 
 #ifdef DEBUG
-	if (!allowedips_selftest() || !packet_counter_selftest() ||
-	    !ratelimiter_selftest())
+	if (!wg_allowedips_selftest() || !wg_packet_counter_selftest() ||
+	    !wg_ratelimiter_selftest())
 		return -ENOTRECOVERABLE;
 #endif
-	noise_init();
+	wg_noise_init();
 
-	ret = device_init();
+	ret = wg_device_init();
 	if (ret < 0)
 		goto err_device;
 
-	ret = genetlink_init();
+	ret = wg_genetlink_init();
 	if (ret < 0)
 		goto err_netlink;
 
@@ -48,15 +48,15 @@ static int __init mod_init(void)
 	return 0;
 
 err_netlink:
-	device_uninit();
+	wg_device_uninit();
 err_device:
 	return ret;
 }
 
 static void __exit mod_exit(void)
 {
-	genetlink_uninit();
-	device_uninit();
+	wg_genetlink_uninit();
+	wg_device_uninit();
 	pr_debug("WireGuard unloaded\n");
 }
 

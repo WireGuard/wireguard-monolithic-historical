@@ -4,7 +4,7 @@
  */
 
 #ifdef DEBUG
-bool __init packet_counter_selftest(void)
+bool __init wg_packet_counter_selftest(void)
 {
 	unsigned int test_num = 0, i;
 	union noise_counter counter;

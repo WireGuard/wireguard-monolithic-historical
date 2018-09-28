@@ -53,14 +53,14 @@ static int open(struct net_device *dev)
 #endif
 #endif
 
-	ret = socket_init(wg, wg->incoming_port);
+	ret = wg_socket_init(wg, wg->incoming_port);
 	if (ret < 0)
 		return ret;
 	mutex_lock(&wg->device_update_lock);
 	list_for_each_entry (peer, &wg->peer_list, peer_list) {
-		packet_send_staged_packets(peer);
+		wg_packet_send_staged_packets(peer);
 		if (peer->persistent_keepalive_interval)
-			packet_send_keepalive(peer);
+			wg_packet_send_keepalive(peer);
 	}
 	mutex_unlock(&wg->device_update_lock);
 	return 0;
@@ -80,8 +80,8 @@ static int pm_notification(struct notifier_block *nb, unsigned long action,
 	list_for_each_entry (wg, &device_list, device_list) {
 		mutex_lock(&wg->device_update_lock);
 		list_for_each_entry (peer, &wg->peer_list, peer_list) {
-			noise_handshake_clear(&peer->handshake);
-			noise_keypairs_clear(&peer->keypairs);
+			wg_noise_handshake_clear(&peer->handshake);
+			wg_noise_keypairs_clear(&peer->keypairs);
 			if (peer->timers_enabled)
 				del_timer(&peer->timer_zero_key_material);
 		}
@@ -102,16 +102,16 @@ static int stop(struct net_device *dev)
 	mutex_lock(&wg->device_update_lock);
 	list_for_each_entry (peer, &wg->peer_list, peer_list) {
 		skb_queue_purge(&peer->staged_packet_queue);
-		timers_stop(peer);
-		noise_handshake_clear(&peer->handshake);
-		noise_keypairs_clear(&peer->keypairs);
+		wg_timers_stop(peer);
+		wg_noise_handshake_clear(&peer->handshake);
+		wg_noise_keypairs_clear(&peer->keypairs);
 		atomic64_set(&peer->last_sent_handshake,
 			     ktime_get_boot_fast_ns() -
 				     (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC);
 	}
 	mutex_unlock(&wg->device_update_lock);
 	skb_queue_purge(&wg->incoming_handshakes);
-	socket_reinit(wg, NULL, NULL);
+	wg_socket_reinit(wg, NULL, NULL);
 	return 0;
 }
 
@@ -125,13 +125,13 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 mtu;
 	int ret;
 
-	if (unlikely(skb_examine_untrusted_ip_hdr(skb) != skb->protocol)) {
+	if (unlikely(wg_skb_examine_untrusted_ip_hdr(skb) != skb->protocol)) {
 		ret = -EPROTONOSUPPORT;
 		net_dbg_ratelimited("%s: Invalid IP packet\n", dev->name);
 		goto err;
 	}
 
-	peer = allowedips_lookup_dst(&wg->peer_allowedips, skb);
+	peer = wg_allowedips_lookup_dst(&wg->peer_allowedips, skb);
 	if (unlikely(!peer)) {
 		ret = -ENOKEY;
 		if (skb->protocol == htons(ETH_P_IP))
@@ -194,13 +194,13 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_queue_splice_tail(&packets, &peer->staged_packet_queue);
 	spin_unlock_bh(&peer->staged_packet_queue.lock);
 
-	packet_send_staged_packets(peer);
+	wg_packet_send_staged_packets(peer);
 
-	peer_put(peer);
+	wg_peer_put(peer);
 	return NETDEV_TX_OK;
 
 err_peer:
-	peer_put(peer);
+	wg_peer_put(peer);
 err:
 	++dev->stats.tx_errors;
 	if (skb->protocol == htons(ETH_P_IP))
@@ -227,17 +227,17 @@ static void destruct(struct net_device *dev)
 	rtnl_unlock();
 	mutex_lock(&wg->device_update_lock);
 	wg->incoming_port = 0;
-	socket_reinit(wg, NULL, NULL);
-	allowedips_free(&wg->peer_allowedips, &wg->device_update_lock);
+	wg_socket_reinit(wg, NULL, NULL);
+	wg_allowedips_free(&wg->peer_allowedips, &wg->device_update_lock);
 	/* The final references are cleared in the below calls to destroy_workqueue. */
-	peer_remove_all(wg);
+	wg_peer_remove_all(wg);
 	destroy_workqueue(wg->handshake_receive_wq);
 	destroy_workqueue(wg->handshake_send_wq);
 	destroy_workqueue(wg->packet_crypt_wq);
-	packet_queue_free(&wg->decrypt_queue, true);
-	packet_queue_free(&wg->encrypt_queue, true);
+	wg_packet_queue_free(&wg->decrypt_queue, true);
+	wg_packet_queue_free(&wg->encrypt_queue, true);
 	rcu_barrier_bh(); /* Wait for all the peers to be actually freed. */
-	ratelimiter_uninit();
+	wg_ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(wg->static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
 	free_percpu(dev->tstats);
@@ -300,10 +300,10 @@ static int newlink(struct net *src_net, struct net_device *dev,
 	mutex_init(&wg->socket_update_lock);
 	mutex_init(&wg->device_update_lock);
 	skb_queue_head_init(&wg->incoming_handshakes);
-	pubkey_hashtable_init(&wg->peer_hashtable);
-	index_hashtable_init(&wg->index_hashtable);
-	allowedips_init(&wg->peer_allowedips);
-	cookie_checker_init(&wg->cookie_checker, wg);
+	wg_pubkey_hashtable_init(&wg->peer_hashtable);
+	wg_index_hashtable_init(&wg->index_hashtable);
+	wg_allowedips_init(&wg->peer_allowedips);
+	wg_cookie_checker_init(&wg->cookie_checker, wg);
 	INIT_LIST_HEAD(&wg->peer_list);
 	wg->device_update_gen = 1;
 
@@ -311,8 +311,9 @@ static int newlink(struct net *src_net, struct net_device *dev,
 	if (!dev->tstats)
 		goto error_1;
 
-	wg->incoming_handshakes_worker = packet_alloc_percpu_multicore_worker(
-		packet_handshake_receive_worker, wg);
+	wg->incoming_handshakes_worker =
+		wg_packet_alloc_percpu_multicore_worker(
+				wg_packet_handshake_receive_worker, wg);
 	if (!wg->incoming_handshakes_worker)
 		goto error_2;
 
@@ -331,15 +332,15 @@ static int newlink(struct net *src_net, struct net_device *dev,
 	if (!wg->packet_crypt_wq)
 		goto error_5;
 
-	if (packet_queue_init(&wg->encrypt_queue, packet_encrypt_worker, true,
-			      MAX_QUEUED_PACKETS) < 0)
+	if (wg_packet_queue_init(&wg->encrypt_queue, wg_packet_encrypt_worker,
+				 true, MAX_QUEUED_PACKETS) < 0)
 		goto error_6;
 
-	if (packet_queue_init(&wg->decrypt_queue, packet_decrypt_worker, true,
-			      MAX_QUEUED_PACKETS) < 0)
+	if (wg_packet_queue_init(&wg->decrypt_queue, wg_packet_decrypt_worker,
+				 true, MAX_QUEUED_PACKETS) < 0)
 		goto error_7;
 
-	ret = ratelimiter_init();
+	ret = wg_ratelimiter_init();
 	if (ret < 0)
 		goto error_8;
 
@@ -358,11 +359,11 @@ static int newlink(struct net *src_net, struct net_device *dev,
 	return ret;
 
 error_9:
-	ratelimiter_uninit();
+	wg_ratelimiter_uninit();
 error_8:
-	packet_queue_free(&wg->decrypt_queue, true);
+	wg_packet_queue_free(&wg->decrypt_queue, true);
 error_7:
-	packet_queue_free(&wg->encrypt_queue, true);
+	wg_packet_queue_free(&wg->encrypt_queue, true);
 error_6:
 	destroy_workqueue(wg->packet_crypt_wq);
 error_5:
@@ -410,7 +411,7 @@ static struct notifier_block netdevice_notifier = {
 	.notifier_call = netdevice_notification
 };
 
-int __init device_init(void)
+int __init wg_device_init(void)
 {
 	int ret;
 
@@ -439,7 +440,7 @@ error_pm:
 	return ret;
 }
 
-void device_uninit(void)
+void wg_device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
 	unregister_netdevice_notifier(&netdevice_notifier);

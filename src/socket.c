@@ -172,8 +172,8 @@ out:
 #endif
 }
 
-int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb,
-			    u8 ds)
+int wg_socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb,
+			       u8 ds)
 {
 	size_t skb_len = skb->len;
 	int ret = -EAFNOSUPPORT;
@@ -194,8 +194,8 @@ int socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb,
 	return ret;
 }
 
-int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer,
-			       size_t len, u8 ds)
+int wg_socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer,
+				  size_t len, u8 ds)
 {
 	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
 
@@ -205,12 +205,12 @@ int socket_send_buffer_to_peer(struct wireguard_peer *peer, void *buffer,
 	skb_reserve(skb, SKB_HEADER_LEN);
 	skb_set_inner_network_header(skb, 0);
 	skb_put_data(skb, buffer, len);
-	return socket_send_skb_to_peer(peer, skb, ds);
+	return wg_socket_send_skb_to_peer(peer, skb, ds);
 }
 
-int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg,
-				       struct sk_buff *in_skb, void *buffer,
-				       size_t len)
+int wg_socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg,
+					  struct sk_buff *in_skb, void *buffer,
+					  size_t len)
 {
 	int ret = 0;
 	struct sk_buff *skb;
@@ -218,7 +218,7 @@ int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg,
 
 	if (unlikely(!in_skb))
 		return -EINVAL;
-	ret = socket_endpoint_from_skb(&endpoint, in_skb);
+	ret = wg_socket_endpoint_from_skb(&endpoint, in_skb);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -240,8 +240,8 @@ int socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg,
 	return ret;
 }
 
-int socket_endpoint_from_skb(struct endpoint *endpoint,
-			     const struct sk_buff *skb)
+int wg_socket_endpoint_from_skb(struct endpoint *endpoint,
+				const struct sk_buff *skb)
 {
 	memset(endpoint, 0, sizeof(*endpoint));
 	if (skb->protocol == htons(ETH_P_IP)) {
@@ -277,8 +277,8 @@ static bool endpoint_eq(const struct endpoint *a, const struct endpoint *b)
 	       unlikely(!a->addr.sa_family && !b->addr.sa_family);
 }
 
-void socket_set_peer_endpoint(struct wireguard_peer *peer,
-			      const struct endpoint *endpoint)
+void wg_socket_set_peer_endpoint(struct wireguard_peer *peer,
+				 const struct endpoint *endpoint)
 {
 	/* First we check unlocked, in order to optimize, since it's pretty rare
 	 * that an endpoint will change. If we happen to be mid-write, and two
@@ -302,16 +302,16 @@ out:
 	write_unlock_bh(&peer->endpoint_lock);
 }
 
-void socket_set_peer_endpoint_from_skb(struct wireguard_peer *peer,
-				       const struct sk_buff *skb)
+void wg_socket_set_peer_endpoint_from_skb(struct wireguard_peer *peer,
+					  const struct sk_buff *skb)
 {
 	struct endpoint endpoint;
 
-	if (!socket_endpoint_from_skb(&endpoint, skb))
-		socket_set_peer_endpoint(peer, &endpoint);
+	if (!wg_socket_endpoint_from_skb(&endpoint, skb))
+		wg_socket_set_peer_endpoint(peer, &endpoint);
 }
 
-void socket_clear_peer_endpoint_src(struct wireguard_peer *peer)
+void wg_socket_clear_peer_endpoint_src(struct wireguard_peer *peer)
 {
 	write_lock_bh(&peer->endpoint_lock);
 	memset(&peer->endpoint.src6, 0, sizeof(peer->endpoint.src6));
@@ -328,7 +328,7 @@ static int receive(struct sock *sk, struct sk_buff *skb)
 	wg = sk->sk_user_data;
 	if (unlikely(!wg))
 		goto err;
-	packet_receive(wg, skb);
+	wg_packet_receive(wg, skb);
 	return 0;
 
 err:
@@ -351,7 +351,7 @@ static void set_sock_opts(struct socket *sock)
 	sk_set_memalloc(sock->sk);
 }
 
-int socket_init(struct wireguard_device *wg, u16 port)
+int wg_socket_init(struct wireguard_device *wg, u16 port)
 {
 	int ret;
 	struct udp_tunnel_sock_cfg cfg = {
@@ -406,12 +406,12 @@ retry:
 	}
 #endif
 
-	socket_reinit(wg, new4 ? new4->sk : NULL, new6 ? new6->sk : NULL);
+	wg_socket_reinit(wg, new4 ? new4->sk : NULL, new6 ? new6->sk : NULL);
 	return 0;
 }
 
-void socket_reinit(struct wireguard_device *wg, struct sock *new4,
-		   struct sock *new6)
+void wg_socket_reinit(struct wireguard_device *wg, struct sock *new4,
+		      struct sock *new6)
 {
 	struct sock *old4, *old6;
 

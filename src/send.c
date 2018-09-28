@@ -23,7 +23,7 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 {
 	struct message_handshake_initiation packet;
 
-	if (!has_expired(atomic64_read(&peer->last_sent_handshake),
+	if (!wg_birthdate_has_expired(atomic64_read(&peer->last_sent_handshake),
 			 REKEY_TIMEOUT))
 		return; /* This function is rate limited. */
 
@@ -32,29 +32,29 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 			    peer->device->dev->name, peer->internal_id,
 			    &peer->endpoint.addr);
 
-	if (noise_handshake_create_initiation(&packet, &peer->handshake)) {
-		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
-		timers_any_authenticated_packet_traversal(peer);
-		timers_any_authenticated_packet_sent(peer);
+	if (wg_noise_handshake_create_initiation(&packet, &peer->handshake)) {
+		wg_cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
+		wg_timers_any_authenticated_packet_traversal(peer);
+		wg_timers_any_authenticated_packet_sent(peer);
 		atomic64_set(&peer->last_sent_handshake,
 			     ktime_get_boot_fast_ns());
-		socket_send_buffer_to_peer(peer, &packet, sizeof(packet),
-					   HANDSHAKE_DSCP);
-		timers_handshake_initiated(peer);
+		wg_socket_send_buffer_to_peer(peer, &packet, sizeof(packet),
+					      HANDSHAKE_DSCP);
+		wg_timers_handshake_initiated(peer);
 	}
 }
 
-void packet_handshake_send_worker(struct work_struct *work)
+void wg_packet_handshake_send_worker(struct work_struct *work)
 {
 	struct wireguard_peer *peer = container_of(work, struct wireguard_peer,
 						   transmit_handshake_work);
 
 	packet_send_handshake_initiation(peer);
-	peer_put(peer);
+	wg_peer_put(peer);
 }
 
-void packet_send_queued_handshake_initiation(struct wireguard_peer *peer,
-					     bool is_retry)
+void wg_packet_send_queued_handshake_initiation(struct wireguard_peer *peer,
+						bool is_retry)
 {
 	if (!is_retry)
 		peer->timer_handshake_attempts = 0;
@@ -64,11 +64,11 @@ void packet_send_queued_handshake_initiation(struct wireguard_peer *peer,
 	 * we're queueing up, so that we don't queue things if not strictly
 	 * necessary:
 	 */
-	if (!has_expired(atomic64_read(&peer->last_sent_handshake),
-			 REKEY_TIMEOUT) || unlikely(peer->is_dead))
+	if (!wg_birthdate_has_expired(atomic64_read(&peer->last_sent_handshake),
+				      REKEY_TIMEOUT) || unlikely(peer->is_dead))
 		goto out;
 
-	peer_get(peer);
+	wg_peer_get(peer);
 	/* Queues up calling packet_send_queued_handshakes(peer), where we do a
 	 * peer_put(peer) after:
 	 */
@@ -77,12 +77,12 @@ void packet_send_queued_handshake_initiation(struct wireguard_peer *peer,
 		/* If the work was already queued, we want to drop the
 		 * extra reference:
 		 */
-		peer_put(peer);
+		wg_peer_put(peer);
 out:
 	rcu_read_unlock_bh();
 }
 
-void packet_send_handshake_response(struct wireguard_peer *peer)
+void wg_packet_send_handshake_response(struct wireguard_peer *peer)
 {
 	struct message_handshake_response packet;
 
@@ -91,34 +91,34 @@ void packet_send_handshake_response(struct wireguard_peer *peer)
 			    peer->device->dev->name, peer->internal_id,
 			    &peer->endpoint.addr);
 
-	if (noise_handshake_create_response(&packet, &peer->handshake)) {
-		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
-		if (noise_handshake_begin_session(&peer->handshake,
-						  &peer->keypairs)) {
-			timers_session_derived(peer);
-			timers_any_authenticated_packet_traversal(peer);
-			timers_any_authenticated_packet_sent(peer);
+	if (wg_noise_handshake_create_response(&packet, &peer->handshake)) {
+		wg_cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
+		if (wg_noise_handshake_begin_session(&peer->handshake,
+						     &peer->keypairs)) {
+			wg_timers_session_derived(peer);
+			wg_timers_any_authenticated_packet_traversal(peer);
+			wg_timers_any_authenticated_packet_sent(peer);
 			atomic64_set(&peer->last_sent_handshake,
 				     ktime_get_boot_fast_ns());
-			socket_send_buffer_to_peer(peer, &packet,
-						   sizeof(packet),
-						   HANDSHAKE_DSCP);
+			wg_socket_send_buffer_to_peer(peer, &packet,
+						      sizeof(packet),
+						      HANDSHAKE_DSCP);
 		}
 	}
 }
 
-void packet_send_handshake_cookie(struct wireguard_device *wg,
-				  struct sk_buff *initiating_skb,
-				  __le32 sender_index)
+void wg_packet_send_handshake_cookie(struct wireguard_device *wg,
+				     struct sk_buff *initiating_skb,
+				     __le32 sender_index)
 {
 	struct message_handshake_cookie packet;
 
 	net_dbg_skb_ratelimited("%s: Sending cookie response for denied handshake message for %pISpfsc\n",
 				wg->dev->name, initiating_skb);
-	cookie_message_create(&packet, initiating_skb, sender_index,
-			      &wg->cookie_checker);
-	socket_send_buffer_as_reply_to_skb(wg, initiating_skb, &packet,
-					   sizeof(packet));
+	wg_cookie_message_create(&packet, initiating_skb, sender_index,
+				 &wg->cookie_checker);
+	wg_socket_send_buffer_as_reply_to_skb(wg, initiating_skb, &packet,
+					      sizeof(packet));
 }
 
 static void keep_key_fresh(struct wireguard_peer *peer)
@@ -132,13 +132,13 @@ static void keep_key_fresh(struct wireguard_peer *peer)
 	    (unlikely(atomic64_read(&keypair->sending.counter.counter) >
 		      REKEY_AFTER_MESSAGES) ||
 	     (keypair->i_am_the_initiator &&
-	      unlikely(has_expired(keypair->sending.birthdate,
-				   REKEY_AFTER_TIME)))))
+	      unlikely(wg_birthdate_has_expired(keypair->sending.birthdate,
+						REKEY_AFTER_TIME)))))
 		send = true;
 	rcu_read_unlock_bh();
 
 	if (send)
-		packet_send_queued_handshake_initiation(peer, false);
+		wg_packet_send_queued_handshake_initiation(peer, false);
 }
 
 static unsigned int skb_padding(struct sk_buff *skb)
@@ -156,7 +156,7 @@ static unsigned int skb_padding(struct sk_buff *skb)
 	return padded_size - last_unit;
 }
 
-static bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypair,
+static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
 			simd_context_t *simd_context)
 {
 	unsigned int padding_len, plaintext_len, trailer_len;
@@ -212,7 +212,7 @@ static bool skb_encrypt(struct sk_buff *skb, struct noise_keypair *keypair,
 					   keypair->sending.key, simd_context);
 }
 
-void packet_send_keepalive(struct wireguard_peer *peer)
+void wg_packet_send_keepalive(struct wireguard_peer *peer)
 {
 	struct sk_buff *skb;
 
@@ -230,7 +230,7 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 				    &peer->endpoint.addr);
 	}
 
-	packet_send_staged_packets(peer);
+	wg_packet_send_staged_packets(peer);
 }
 
 #define skb_walk_null_queue_safe(first, skb, next)                             \
@@ -250,22 +250,22 @@ static void packet_create_data_done(struct sk_buff *first,
 	struct sk_buff *skb, *next;
 	bool is_keepalive, data_sent = false;
 
-	timers_any_authenticated_packet_traversal(peer);
-	timers_any_authenticated_packet_sent(peer);
+	wg_timers_any_authenticated_packet_traversal(peer);
+	wg_timers_any_authenticated_packet_sent(peer);
 	skb_walk_null_queue_safe (first, skb, next) {
 		is_keepalive = skb->len == message_data_len(0);
-		if (likely(!socket_send_skb_to_peer(peer, skb,
+		if (likely(!wg_socket_send_skb_to_peer(peer, skb,
 				PACKET_CB(skb)->ds) && !is_keepalive))
 			data_sent = true;
 	}
 
 	if (likely(data_sent))
-		timers_data_sent(peer);
+		wg_timers_data_sent(peer);
 
 	keep_key_fresh(peer);
 }
 
-void packet_tx_worker(struct work_struct *work)
+void wg_packet_tx_worker(struct work_struct *work)
 {
 	struct crypt_queue *queue =
 		container_of(work, struct crypt_queue, work);
@@ -286,12 +286,12 @@ void packet_tx_worker(struct work_struct *work)
 		else
 			skb_free_null_queue(first);
 
-		noise_keypair_put(keypair, false);
-		peer_put(peer);
+		wg_noise_keypair_put(keypair, false);
+		wg_peer_put(peer);
 	}
 }
 
-void packet_encrypt_worker(struct work_struct *work)
+void wg_packet_encrypt_worker(struct work_struct *work)
 {
 	struct crypt_queue *queue =
 		container_of(work, struct multicore_worker, work)->ptr;
@@ -303,16 +303,16 @@ void packet_encrypt_worker(struct work_struct *work)
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
 		skb_walk_null_queue_safe (first, skb, next) {
-			if (likely(skb_encrypt(skb, PACKET_CB(first)->keypair,
+			if (likely(encrypt_packet(skb, PACKET_CB(first)->keypair,
 					       &simd_context)))
-				skb_reset(skb);
+				wg_reset_packet(skb);
 			else {
 				state = PACKET_STATE_DEAD;
 				break;
 			}
 		}
-		queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first,
-				       state);
+		wg_queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first,
+					  state);
 
 		simd_relax(&simd_context);
 	}
@@ -329,23 +329,23 @@ static void packet_create_data(struct sk_buff *first)
 	if (unlikely(peer->is_dead))
 		goto err;
 
-	ret = queue_enqueue_per_device_and_peer(&wg->encrypt_queue,
-						&peer->tx_queue, first,
-						wg->packet_crypt_wq,
-						&wg->encrypt_queue.last_cpu);
+	ret = wg_queue_enqueue_per_device_and_peer(&wg->encrypt_queue,
+						   &peer->tx_queue, first,
+						   wg->packet_crypt_wq,
+						   &wg->encrypt_queue.last_cpu);
 	if (unlikely(ret == -EPIPE))
-		queue_enqueue_per_peer(&peer->tx_queue, first,
-				       PACKET_STATE_DEAD);
+		wg_queue_enqueue_per_peer(&peer->tx_queue, first,
+					  PACKET_STATE_DEAD);
 err:
 	rcu_read_unlock_bh();
 	if (likely(!ret || ret == -EPIPE))
 		return;
-	noise_keypair_put(PACKET_CB(first)->keypair, false);
-	peer_put(peer);
+	wg_noise_keypair_put(PACKET_CB(first)->keypair, false);
+	wg_peer_put(peer);
 	skb_free_null_queue(first);
 }
 
-void packet_send_staged_packets(struct wireguard_peer *peer)
+void wg_packet_send_staged_packets(struct wireguard_peer *peer)
 {
 	struct noise_symmetric_key *key;
 	struct noise_keypair *keypair;
@@ -362,7 +362,7 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 
 	/* First we make sure we have a valid reference to a valid key. */
 	rcu_read_lock_bh();
-	keypair = noise_keypair_get(
+	keypair = wg_noise_keypair_get(
 		rcu_dereference_bh(peer->keypairs.current_keypair));
 	rcu_read_unlock_bh();
 	if (unlikely(!keypair))
@@ -370,7 +370,8 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 	key = &keypair->sending;
 	if (unlikely(!key->is_valid))
 		goto out_nokey;
-	if (unlikely(has_expired(key->birthdate, REJECT_AFTER_TIME)))
+	if (unlikely(wg_birthdate_has_expired(
+					key->birthdate, REJECT_AFTER_TIME)))
 		goto out_invalid;
 
 	/* After we know we have a somewhat valid key, we now try to assign
@@ -389,7 +390,7 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 	}
 
 	packets.prev->next = NULL;
-	peer_get(keypair->entry.peer);
+	wg_peer_get(keypair->entry.peer);
 	PACKET_CB(packets.next)->keypair = keypair;
 	packet_create_data(packets.next);
 	return;
@@ -397,7 +398,7 @@ void packet_send_staged_packets(struct wireguard_peer *peer)
 out_invalid:
 	key->is_valid = false;
 out_nokey:
-	noise_keypair_put(keypair, false);
+	wg_noise_keypair_put(keypair, false);
 
 	/* We orphan the packets if we're waiting on a handshake, so that they
 	 * don't block a socket's pool.
@@ -416,5 +417,5 @@ out_nokey:
 	/* If we're exiting because there's something wrong with the key, it
 	 * means we should initiate a new handshake.
 	 */
-	packet_send_queued_handshake_initiation(peer, false);
+	wg_packet_send_queued_handshake_initiation(peer, false);
 }

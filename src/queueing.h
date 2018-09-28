@@ -19,33 +19,33 @@ struct crypt_queue;
 struct sk_buff;
 
 /* queueing.c APIs: */
-int packet_queue_init(struct crypt_queue *queue, work_func_t function,
-		      bool multicore, unsigned int len);
-void packet_queue_free(struct crypt_queue *queue, bool multicore);
+int wg_packet_queue_init(struct crypt_queue *queue, work_func_t function,
+			 bool multicore, unsigned int len);
+void wg_packet_queue_free(struct crypt_queue *queue, bool multicore);
 struct multicore_worker __percpu *
-packet_alloc_percpu_multicore_worker(work_func_t function, void *ptr);
+wg_packet_alloc_percpu_multicore_worker(work_func_t function, void *ptr);
 
 /* receive.c APIs: */
-void packet_receive(struct wireguard_device *wg, struct sk_buff *skb);
-void packet_handshake_receive_worker(struct work_struct *work);
+void wg_packet_receive(struct wireguard_device *wg, struct sk_buff *skb);
+void wg_packet_handshake_receive_worker(struct work_struct *work);
 /* NAPI poll function: */
-int packet_rx_poll(struct napi_struct *napi, int budget);
+int wg_packet_rx_poll(struct napi_struct *napi, int budget);
 /* Workqueue worker: */
-void packet_decrypt_worker(struct work_struct *work);
+void wg_packet_decrypt_worker(struct work_struct *work);
 
 /* send.c APIs: */
-void packet_send_queued_handshake_initiation(struct wireguard_peer *peer,
-					     bool is_retry);
-void packet_send_handshake_response(struct wireguard_peer *peer);
-void packet_send_handshake_cookie(struct wireguard_device *wg,
-				  struct sk_buff *initiating_skb,
-				  __le32 sender_index);
-void packet_send_keepalive(struct wireguard_peer *peer);
-void packet_send_staged_packets(struct wireguard_peer *peer);
+void wg_packet_send_queued_handshake_initiation(struct wireguard_peer *peer,
+						bool is_retry);
+void wg_packet_send_handshake_response(struct wireguard_peer *peer);
+void wg_packet_send_handshake_cookie(struct wireguard_device *wg,
+				     struct sk_buff *initiating_skb,
+				     __le32 sender_index);
+void wg_packet_send_keepalive(struct wireguard_peer *peer);
+void wg_packet_send_staged_packets(struct wireguard_peer *peer);
 /* Workqueue workers: */
-void packet_handshake_send_worker(struct work_struct *work);
-void packet_tx_worker(struct work_struct *work);
-void packet_encrypt_worker(struct work_struct *work);
+void wg_packet_handshake_send_worker(struct work_struct *work);
+void wg_packet_tx_worker(struct work_struct *work);
+void wg_packet_encrypt_worker(struct work_struct *work);
 
 enum packet_state {
 	PACKET_STATE_UNCRYPTED,
@@ -65,7 +65,7 @@ struct packet_cb {
 #define PACKET_CB(skb) ((struct packet_cb *)skb->cb)
 
 /* Returns either the correct skb->protocol value, or 0 if invalid. */
-static inline __be16 skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
+static inline __be16 wg_skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
 {
 	if (skb_network_header(skb) >= skb->head &&
 	    (skb_network_header(skb) + sizeof(struct iphdr)) <=
@@ -80,7 +80,7 @@ static inline __be16 skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
 	return 0;
 }
 
-static inline void skb_reset(struct sk_buff *skb)
+static inline void wg_reset_packet(struct sk_buff *skb)
 {
 	const int pfmemalloc = skb->pfmemalloc;
 	skb_scrub_packet(skb, true);
@@ -104,7 +104,7 @@ static inline void skb_reset(struct sk_buff *skb)
 	skb_reset_inner_headers(skb);
 }
 
-static inline int cpumask_choose_online(int *stored_cpu, unsigned int id)
+static inline int wg_cpumask_choose_online(int *stored_cpu, unsigned int id)
 {
 	unsigned int cpu = *stored_cpu, cpu_index, i;
 
@@ -126,7 +126,7 @@ static inline int cpumask_choose_online(int *stored_cpu, unsigned int id)
  * a bit slower, and it doesn't seem like this potential race actually
  * introduces any performance loss, so we live with it.
  */
-static inline int cpumask_next_online(int *next)
+static inline int wg_cpumask_next_online(int *next)
 {
 	int cpu = *next;
 
@@ -136,7 +136,7 @@ static inline int cpumask_next_online(int *next)
 	return cpu;
 }
 
-static inline int queue_enqueue_per_device_and_peer(
+static inline int wg_queue_enqueue_per_device_and_peer(
 	struct crypt_queue *device_queue, struct crypt_queue *peer_queue,
 	struct sk_buff *skb, struct workqueue_struct *wq, int *next_cpu)
 {
@@ -151,43 +151,43 @@ static inline int queue_enqueue_per_device_and_peer(
 	/* Then we queue it up in the device queue, which consumes the
 	 * packet as soon as it can.
 	 */
-	cpu = cpumask_next_online(next_cpu);
+	cpu = wg_cpumask_next_online(next_cpu);
 	if (unlikely(ptr_ring_produce_bh(&device_queue->ring, skb)))
 		return -EPIPE;
 	queue_work_on(cpu, wq, &per_cpu_ptr(device_queue->worker, cpu)->work);
 	return 0;
 }
 
-static inline void queue_enqueue_per_peer(struct crypt_queue *queue,
-					  struct sk_buff *skb,
-					  enum packet_state state)
+static inline void wg_queue_enqueue_per_peer(struct crypt_queue *queue,
+					     struct sk_buff *skb,
+					     enum packet_state state)
 {
 	/* We take a reference, because as soon as we call atomic_set, the
 	 * peer can be freed from below us.
 	 */
-	struct wireguard_peer *peer = peer_get(PACKET_PEER(skb));
+	struct wireguard_peer *peer = wg_peer_get(PACKET_PEER(skb));
 	atomic_set_release(&PACKET_CB(skb)->state, state);
-	queue_work_on(cpumask_choose_online(&peer->serial_work_cpu,
-					    peer->internal_id),
+	queue_work_on(wg_cpumask_choose_online(&peer->serial_work_cpu,
+					       peer->internal_id),
 		      peer->device->packet_crypt_wq, &queue->work);
-	peer_put(peer);
+	wg_peer_put(peer);
 }
 
-static inline void queue_enqueue_per_peer_napi(struct crypt_queue *queue,
-					       struct sk_buff *skb,
-					       enum packet_state state)
+static inline void wg_queue_enqueue_per_peer_napi(struct crypt_queue *queue,
+						  struct sk_buff *skb,
+						  enum packet_state state)
 {
 	/* We take a reference, because as soon as we call atomic_set, the
 	 * peer can be freed from below us.
 	 */
-	struct wireguard_peer *peer = peer_get(PACKET_PEER(skb));
+	struct wireguard_peer *peer = wg_peer_get(PACKET_PEER(skb));
 	atomic_set_release(&PACKET_CB(skb)->state, state);
 	napi_schedule(&peer->napi);
-	peer_put(peer);
+	wg_peer_put(peer);
 }
 
 #ifdef DEBUG
-bool packet_counter_selftest(void);
+bool wg_packet_counter_selftest(void);
 #endif
 
 #endif /* _WG_QUEUEING_H */

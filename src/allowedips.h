@@ -26,30 +26,31 @@ struct allowedips_cursor {
 	bool second_half;
 };
 
-void allowedips_init(struct allowedips *table);
-void allowedips_free(struct allowedips *table, struct mutex *mutex);
-int allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip,
-			 u8 cidr, struct wireguard_peer *peer,
-			 struct mutex *lock);
-int allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
-			 u8 cidr, struct wireguard_peer *peer,
-			 struct mutex *lock);
-void allowedips_remove_by_peer(struct allowedips *table,
-			       struct wireguard_peer *peer, struct mutex *lock);
-int allowedips_walk_by_peer(struct allowedips *table,
-			    struct allowedips_cursor *cursor,
-			    struct wireguard_peer *peer,
-			    int (*func)(void *ctx, const u8 *ip, u8 cidr, int family),
-			    void *ctx, struct mutex *lock);
+void wg_allowedips_init(struct allowedips *table);
+void wg_allowedips_free(struct allowedips *table, struct mutex *mutex);
+int wg_allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip,
+			    u8 cidr, struct wireguard_peer *peer,
+			    struct mutex *lock);
+int wg_allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
+			    u8 cidr, struct wireguard_peer *peer,
+			    struct mutex *lock);
+void wg_allowedips_remove_by_peer(struct allowedips *table,
+				  struct wireguard_peer *peer,
+				  struct mutex *lock);
+int wg_allowedips_walk_by_peer(struct allowedips *table,
+			       struct allowedips_cursor *cursor,
+			       struct wireguard_peer *peer,
+			       int (*func)(void *ctx, const u8 *ip, u8 cidr, int family),
+			       void *ctx, struct mutex *lock);
 
 /* These return a strong reference to a peer: */
-struct wireguard_peer *allowedips_lookup_dst(struct allowedips *table,
-					     struct sk_buff *skb);
-struct wireguard_peer *allowedips_lookup_src(struct allowedips *table,
-					     struct sk_buff *skb);
+struct wireguard_peer *wg_allowedips_lookup_dst(struct allowedips *table,
+						struct sk_buff *skb);
+struct wireguard_peer *wg_allowedips_lookup_src(struct allowedips *table,
+						struct sk_buff *skb);
 
 #ifdef DEBUG
-bool allowedips_selftest(void);
+bool wg_allowedips_selftest(void);
 #endif
 
 #endif /* _WG_ALLOWEDIPS_H */

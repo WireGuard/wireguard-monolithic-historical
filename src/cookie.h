@@ -38,22 +38,22 @@ enum cookie_mac_state {
 	VALID_MAC_WITH_COOKIE
 };
 
-void cookie_checker_init(struct cookie_checker *checker,
-			 struct wireguard_device *wg);
-void cookie_checker_precompute_device_keys(struct cookie_checker *checker);
-void cookie_checker_precompute_peer_keys(struct wireguard_peer *peer);
-void cookie_init(struct cookie *cookie);
+void wg_cookie_checker_init(struct cookie_checker *checker,
+			    struct wireguard_device *wg);
+void wg_cookie_checker_precompute_device_keys(struct cookie_checker *checker);
+void wg_cookie_checker_precompute_peer_keys(struct wireguard_peer *peer);
+void wg_cookie_init(struct cookie *cookie);
 
-enum cookie_mac_state cookie_validate_packet(struct cookie_checker *checker,
-					     struct sk_buff *skb,
-					     bool check_cookie);
-void cookie_add_mac_to_packet(void *message, size_t len,
-			      struct wireguard_peer *peer);
+enum cookie_mac_state wg_cookie_validate_packet(struct cookie_checker *checker,
+						struct sk_buff *skb,
+						bool check_cookie);
+void wg_cookie_add_mac_to_packet(void *message, size_t len,
+				 struct wireguard_peer *peer);
 
-void cookie_message_create(struct message_handshake_cookie *src,
+void wg_cookie_message_create(struct message_handshake_cookie *src,
 			   struct sk_buff *skb, __le32 index,
 			   struct cookie_checker *checker);
-void cookie_message_consume(struct message_handshake_cookie *src,
-			    struct wireguard_device *wg);
+void wg_cookie_message_consume(struct message_handshake_cookie *src,
+			       struct wireguard_device *wg);
 
 #endif /* _WG_COOKIE_H */
