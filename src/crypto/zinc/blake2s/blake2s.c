@@ -119,7 +119,6 @@ EXPORT_SYMBOL(blake2s_init_key);
 static void __init blake2s_fpu_init(void)
 {
 }
-
 static inline bool blake2s_compress_arch(struct blake2s_state *state,
 					 const u8 *block, size_t nblocks,
 					 const u32 inc)

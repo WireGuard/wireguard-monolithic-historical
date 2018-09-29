@@ -24,7 +24,7 @@
 #elif defined(CONFIG_ZINC_ARCH_ARM)
 #include "curve25519-arm-glue.h"
 #else
-void __init curve25519_fpu_init(void)
+static void __init curve25519_fpu_init(void)
 {
 }
 static inline bool curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],

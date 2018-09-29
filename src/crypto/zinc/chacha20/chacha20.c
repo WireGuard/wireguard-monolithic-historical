@@ -22,7 +22,7 @@
 #elif defined(CONFIG_ZINC_ARCH_MIPS)
 #include "chacha20-mips-glue.h"
 #else
-void __init chacha20_fpu_init(void)
+static void __init chacha20_fpu_init(void)
 {
 }
 static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,

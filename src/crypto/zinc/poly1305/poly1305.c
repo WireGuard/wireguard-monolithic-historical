@@ -39,7 +39,7 @@ static inline bool poly1305_emit_arch(void *ctx, u8 mac[POLY1305_MAC_SIZE],
 {
 	return false;
 }
-void __init poly1305_fpu_init(void)
+static void __init poly1305_fpu_init(void)
 {
 }
 #endif
