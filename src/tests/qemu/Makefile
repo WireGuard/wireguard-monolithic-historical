@@ -192,8 +192,17 @@ else
 QEMU_MACHINE := -machine ppce500
 endif
 CFLAGS += -mcpu=powerpc -mlong-double-64 -msecure-plt
+else ifeq ($(ARCH),m68k)
+QEMU_ARCH := m68k
+KERNEL_ARCH := m68k
+KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host,accel=kvm -machine q800
 else
-$(error I only build: x86_64, i686, arm, armeb, aarch64, aarch64_be, mips, mipsel, mips64, mips64el, powerpc)
+QEMU_MACHINE := -machine q800
+endif
+else
+$(error I only build: x86_64, i686, arm, armeb, aarch64, aarch64_be, mips, mipsel, mips64, mips64el, powerpc, m68k)
 endif
 
 REAL_CC := $(CBUILD)-gcc
