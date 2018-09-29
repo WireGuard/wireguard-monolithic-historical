@@ -172,7 +172,7 @@ static int __init mod_init(void)
 	if (!nosimd)
 		chacha20_fpu_init();
 #ifdef CONFIG_ZINC_SELFTEST
-	if (!chacha20_selftest())
+	if (WARN_ON(!chacha20_selftest()))
 		return -ENOTRECOVERABLE;
 #endif
 	return 0;

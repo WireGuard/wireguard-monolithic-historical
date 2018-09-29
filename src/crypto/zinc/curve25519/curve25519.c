@@ -99,7 +99,7 @@ static int __init mod_init(void)
 	if (!nosimd)
 		curve25519_fpu_init();
 #ifdef CONFIG_ZINC_SELFTEST
-	if (!curve25519_selftest())
+	if (WARN_ON(!curve25519_selftest()))
 		return -ENOTRECOVERABLE;
 #endif
 	return 0;

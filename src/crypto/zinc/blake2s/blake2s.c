@@ -291,7 +291,7 @@ static int __init mod_init(void)
 	if (!nosimd)
 		blake2s_fpu_init();
 #ifdef CONFIG_ZINC_SELFTEST
-	if (!blake2s_selftest())
+	if (WARN_ON(!blake2s_selftest()))
 		return -ENOTRECOVERABLE;
 #endif
 	return 0;

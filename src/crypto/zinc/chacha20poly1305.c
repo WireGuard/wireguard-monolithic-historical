@@ -348,7 +348,7 @@ static int __init mod_init(void)
 #endif
 {
 #ifdef CONFIG_ZINC_SELFTEST
-	if (!chacha20poly1305_selftest())
+	if (WARN_ON(!chacha20poly1305_selftest()))
 		return -ENOTRECOVERABLE;
 #endif
 	return 0;
