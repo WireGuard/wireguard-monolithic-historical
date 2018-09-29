@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
-#include <crypto/algapi.h>
+#include <crypto/algapi.h> // For crypto_xor_cpy.
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
 #include "chacha20-x86_64-glue.h"

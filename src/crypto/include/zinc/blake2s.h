@@ -8,7 +8,6 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <crypto/algapi.h>
 
 enum blake2s_lengths {
 	BLAKE2S_BLOCK_SIZE = 64,

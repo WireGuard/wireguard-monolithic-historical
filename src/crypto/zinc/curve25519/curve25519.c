@@ -17,7 +17,7 @@
 #include <linux/random.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <crypto/algapi.h>
+#include <crypto/algapi.h> // For crypto_memneq.
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
 #include "curve25519-x86_64-glue.h"
