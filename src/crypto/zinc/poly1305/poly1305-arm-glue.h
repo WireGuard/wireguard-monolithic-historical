@@ -18,14 +18,14 @@ static bool poly1305_use_neon __ro_after_init;
 
 static void __init poly1305_fpu_init(void)
 {
-#if defined(CONFIG_ARM64)
+#if defined(CONFIG_ZINC_ARCH_ARM64)
 	poly1305_use_neon = elf_hwcap & HWCAP_ASIMD;
-#elif defined(CONFIG_ARM)
+#elif defined(CONFIG_ZINC_ARCH_ARM)
 	poly1305_use_neon = elf_hwcap & HWCAP_NEON;
 #endif
 }
 
-#if defined(CONFIG_ARM64)
+#if defined(CONFIG_ZINC_ARCH_ARM64)
 struct poly1305_arch_internal {
 	union {
 		u32 h[5];
@@ -36,7 +36,7 @@ struct poly1305_arch_internal {
 	u64 is_base2_26;
 	u64 r[2];
 };
-#elif defined(CONFIG_ARM)
+#elif defined(CONFIG_ZINC_ARCH_ARM)
 struct poly1305_arch_internal {
 	union {
 		u32 h[5];
@@ -65,7 +65,7 @@ static void convert_to_base2_64(void *ctx)
 	state->h0 = ((u64)state->h[2] << 52) | ((u64)state->h[1] << 26) | state->h[0];
 	state->h1 = ((u64)state->h[4] << 40) | ((u64)state->h[3] << 14) | (state->h[2] >> 12);
 	state->h2 = state->h[4] >> 24;
-	if (IS_ENABLED(CONFIG_ARM) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
+	if (IS_ENABLED(CONFIG_ZINC_ARCH_ARM) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
 		state->h0 = rol64(state->h0, 32);
 		state->h1 = rol64(state->h1, 32);
 	}

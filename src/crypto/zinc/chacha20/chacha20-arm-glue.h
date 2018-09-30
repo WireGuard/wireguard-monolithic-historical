@@ -5,7 +5,7 @@
 
 #include <asm/hwcap.h>
 #include <asm/neon.h>
-#if defined(CONFIG_ARM)
+#if defined(CONFIG_ZINC_ARCH_ARM)
 #include <asm/system_info.h>
 #include <asm/cputype.h>
 #endif
@@ -20,9 +20,9 @@ static bool chacha20_use_neon __ro_after_init;
 
 static void __init chacha20_fpu_init(void)
 {
-#if defined(CONFIG_ARM64)
+#if defined(CONFIG_ZINC_ARCH_ARM64)
 	chacha20_use_neon = elf_hwcap & HWCAP_ASIMD;
-#elif defined(CONFIG_ARM)
+#elif defined(CONFIG_ZINC_ARCH_ARM)
 	switch (read_cpuid_part()) {
 	case ARM_CPU_PART_CORTEX_A7:
 	case ARM_CPU_PART_CORTEX_A5:
@@ -73,7 +73,7 @@ static inline bool hchacha20_arch(u32 derived_key[CHACHA20_KEY_WORDS],
 				  const u8 key[HCHACHA20_KEY_SIZE],
 				  simd_context_t *simd_context)
 {
-	if (IS_ENABLED(CONFIG_ARM)) {
+	if (IS_ENABLED(CONFIG_ZINC_ARCH_ARM)) {
 		u32 x[] = { CHACHA20_CONSTANT_EXPA,
 			    CHACHA20_CONSTANT_ND_3,
 			    CHACHA20_CONSTANT_2_BY,
