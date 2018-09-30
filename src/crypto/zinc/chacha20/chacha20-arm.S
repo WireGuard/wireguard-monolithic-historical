@@ -6,6 +6,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 /*
  * The following scalar routine was written by Eric Biggers.
@@ -399,7 +400,7 @@
  */
 ENTRY(chacha20_arm)
 	cmp		r2, #0			// len == 0?
-	bxeq		lr
+	reteq		lr
 
 	push		{r0-r2,r4-r11,lr}
 
