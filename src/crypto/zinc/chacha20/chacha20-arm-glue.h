@@ -37,7 +37,7 @@ static void __init chacha20_fpu_init(void)
 #endif
 }
 
-static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
+static inline bool chacha20_arch(struct chacha20_ctx *ctx, u8 *dst,
 				 const u8 *src, size_t len,
 				 simd_context_t *simd_context)
 {
@@ -50,8 +50,8 @@ static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
 		    len >= CHACHA20_BLOCK_SIZE * 3 && simd_use(simd_context)) {
 			const size_t bytes = min_t(size_t, len, PAGE_SIZE);
 
-			chacha20_neon(dst, src, bytes, state->key, state->counter);
-			state->counter[0] += (bytes + 63) / 64;
+			chacha20_neon(dst, src, bytes, ctx->key, ctx->counter);
+			ctx->counter[0] += (bytes + 63) / 64;
 			len -= bytes;
 			if (!len)
 				break;
@@ -59,8 +59,8 @@ static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
 			src += bytes;
 			simd_relax(simd_context);
 		} else {
-			chacha20_arm(dst, src, len, state->key, state->counter);
-			state->counter[0] += (len + 63) / 64;
+			chacha20_arm(dst, src, len, ctx->key, ctx->counter);
+			ctx->counter[0] += (len + 63) / 64;
 			break;
 		}
 	}

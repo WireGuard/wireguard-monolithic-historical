@@ -50,7 +50,7 @@ static void __init chacha20_fpu_init(void)
 #endif
 }
 
-static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
+static inline bool chacha20_arch(struct chacha20_ctx *ctx, u8 *dst,
 				 const u8 *src, size_t len,
 				 simd_context_t *simd_context)
 {
@@ -67,16 +67,16 @@ static inline bool chacha20_arch(struct chacha20_ctx *state, u8 *dst,
 
 		if (IS_ENABLED(CONFIG_AS_AVX512) && chacha20_use_avx512 &&
 		    len >= CHACHA20_BLOCK_SIZE * 8)
-			chacha20_avx512(dst, src, bytes, state->key, state->counter);
+			chacha20_avx512(dst, src, bytes, ctx->key, ctx->counter);
 		else if (IS_ENABLED(CONFIG_AS_AVX512) && chacha20_use_avx512vl &&
 			 len >= CHACHA20_BLOCK_SIZE * 4)
-			chacha20_avx512vl(dst, src, bytes, state->key, state->counter);
+			chacha20_avx512vl(dst, src, bytes, ctx->key, ctx->counter);
 		else if (IS_ENABLED(CONFIG_AS_AVX2) && chacha20_use_avx2 &&
 			 len >= CHACHA20_BLOCK_SIZE * 4)
-			chacha20_avx2(dst, src, bytes, state->key, state->counter);
+			chacha20_avx2(dst, src, bytes, ctx->key, ctx->counter);
 		else
-			chacha20_ssse3(dst, src, bytes, state->key, state->counter);
-		state->counter[0] += (bytes + 63) / 64;
+			chacha20_ssse3(dst, src, bytes, ctx->key, ctx->counter);
+		ctx->counter[0] += (bytes + 63) / 64;
 		len -= bytes;
 		if (!len)
 			break;

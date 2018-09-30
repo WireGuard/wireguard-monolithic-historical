@@ -29,33 +29,38 @@ enum { /* expand 32-byte k */
 };
 
 struct chacha20_ctx {
-	u32 constant[4];
-	u32 key[8];
-	u32 counter[4];
+	union {
+		u32 state[16];
+		struct {
+			u32 constant[4];
+			u32 key[8];
+			u32 counter[4];
+		};
+	};
 } __aligned(32);
 
-static inline void chacha20_init(struct chacha20_ctx *state,
+static inline void chacha20_init(struct chacha20_ctx *ctx,
 				 const u8 key[CHACHA20_KEY_SIZE],
 				 const u64 nonce)
 {
-	state->constant[0] = CHACHA20_CONSTANT_EXPA;
-	state->constant[1] = CHACHA20_CONSTANT_ND_3;
-	state->constant[2] = CHACHA20_CONSTANT_2_BY;
-	state->constant[3] = CHACHA20_CONSTANT_TE_K;
-	state->key[0] = get_unaligned_le32(key + 0);
-	state->key[1] = get_unaligned_le32(key + 4);
-	state->key[2] = get_unaligned_le32(key + 8);
-	state->key[3] = get_unaligned_le32(key + 12);
-	state->key[4] = get_unaligned_le32(key + 16);
-	state->key[5] = get_unaligned_le32(key + 20);
-	state->key[6] = get_unaligned_le32(key + 24);
-	state->key[7] = get_unaligned_le32(key + 28);
-	state->counter[0] = 0;
-	state->counter[1] = 0;
-	state->counter[2] = nonce & U32_MAX;
-	state->counter[3] = nonce >> 32;
+	ctx->constant[0] = CHACHA20_CONSTANT_EXPA;
+	ctx->constant[1] = CHACHA20_CONSTANT_ND_3;
+	ctx->constant[2] = CHACHA20_CONSTANT_2_BY;
+	ctx->constant[3] = CHACHA20_CONSTANT_TE_K;
+	ctx->key[0] = get_unaligned_le32(key + 0);
+	ctx->key[1] = get_unaligned_le32(key + 4);
+	ctx->key[2] = get_unaligned_le32(key + 8);
+	ctx->key[3] = get_unaligned_le32(key + 12);
+	ctx->key[4] = get_unaligned_le32(key + 16);
+	ctx->key[5] = get_unaligned_le32(key + 20);
+	ctx->key[6] = get_unaligned_le32(key + 24);
+	ctx->key[7] = get_unaligned_le32(key + 28);
+	ctx->counter[0] = 0;
+	ctx->counter[1] = 0;
+	ctx->counter[2] = nonce & U32_MAX;
+	ctx->counter[3] = nonce >> 32;
 }
-void chacha20(struct chacha20_ctx *state, u8 *dst, const u8 *src, u32 len,
+void chacha20(struct chacha20_ctx *ctx, u8 *dst, const u8 *src, u32 len,
 	      simd_context_t *simd_context);
 
 void hchacha20(u32 derived_key[CHACHA20_KEY_WORDS],
