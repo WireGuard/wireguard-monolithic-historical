@@ -50,6 +50,17 @@ struct poly1305_arch_internal {
 };
 #endif
 
+/* The NEON code uses base 2^26, while the scalar code uses base 2^64 on 64-bit
+ * and base 2^32 on 32-bit. If we hit the unfortunate situation of using NEON
+ * and then having to go back to scalar -- because the user is silly and has
+ * called the update function from two separate contexts -- then we need to
+ * convert back to the original base before proceeding. The below function is
+ * written for 64-bit integers, and so we have to swap words at the end on
+ * big-endian 32-bit. It is possible to reason that the initial reduction below
+ * is sufficient given the implementation invariants. However, for an avoidance
+ * of doubt and because this is not performance critical, we do the full
+ * reduction anyway.
+ */
 static void convert_to_base2_64(void *ctx)
 {
 	struct poly1305_arch_internal *state = ctx;
