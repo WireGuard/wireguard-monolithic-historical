@@ -182,6 +182,16 @@ else
 QEMU_MACHINE := -cpu 24Kf -machine malta -smp 1
 CFLAGS += -march=mips32r2 -EL
 endif
+else ifeq ($(ARCH),powerpc64le)
+QEMU_ARCH := ppc64
+KERNEL_ARCH := powerpc
+KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
+ifeq ($(CHOST),$(CBUILD))
+QEMU_MACHINE := -cpu host,accel=kvm -machine pseries
+else
+QEMU_MACHINE := -machine pseries
+endif
+CFLAGS += -mcpu=powerpc64le -mlong-double-64
 else ifeq ($(ARCH),powerpc)
 QEMU_ARCH := ppc
 KERNEL_ARCH := powerpc
@@ -202,7 +212,7 @@ else
 QEMU_MACHINE := -machine q800
 endif
 else
-$(error I only build: x86_64, i686, arm, armeb, aarch64, aarch64_be, mips, mipsel, mips64, mips64el, powerpc, m68k)
+$(error I only build: x86_64, i686, arm, armeb, aarch64, aarch64_be, mips, mipsel, mips64, mips64el, powerpc64le, powerpc, m68k)
 endif
 
 REAL_CC := $(CBUILD)-gcc
@@ -218,7 +228,7 @@ qemu: $(KERNEL_BZIMAGE)
 		-nographic \
 		-smp $(NR_CPUS) \
 		$(QEMU_MACHINE) \
-		-m $$(grep -q CONFIG_DEBUG_KMEMLEAK=y $(KERNEL_PATH)/.config && echo 1G || echo 192M) \
+		-m $$(grep -q CONFIG_DEBUG_KMEMLEAK=y $(KERNEL_PATH)/.config && echo 1G || echo 256M) \
 		-serial stdio \
 		-serial file:$(BUILD_PATH)/result \
 		-no-reboot \
