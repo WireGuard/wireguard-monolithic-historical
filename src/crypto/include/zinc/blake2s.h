@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <asm/bug.h>
 
 enum blake2s_lengths {
 	BLAKE2S_BLOCK_SIZE = 64,
@@ -36,11 +37,9 @@ static inline void blake2s(u8 *out, const u8 *in, const u8 *key,
 {
 	struct blake2s_state state;
 
-#ifdef DEBUG
-	BUG_ON((!in && inlen > 0) || !out || !outlen ||
-	       outlen > BLAKE2S_HASH_SIZE || keylen > BLAKE2S_KEY_SIZE ||
-	       (!key && keylen));
-#endif
+	WARN_ON(IS_ENABLED(DEBUG) && ((!in && inlen > 0) || !out || !outlen ||
+		outlen > BLAKE2S_HASH_SIZE || keylen > BLAKE2S_KEY_SIZE ||
+		(!key && keylen)));
 
 	if (keylen)
 		blake2s_init_key(&state, outlen, key, keylen);

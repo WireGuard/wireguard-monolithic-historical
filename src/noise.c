@@ -291,13 +291,12 @@ static void kdf(u8 *first_dst, u8 *second_dst, u8 *third_dst, const u8 *data,
 	u8 output[BLAKE2S_HASH_SIZE + 1];
 	u8 secret[BLAKE2S_HASH_SIZE];
 
-#ifdef DEBUG
-	BUG_ON(first_len > BLAKE2S_HASH_SIZE || second_len > BLAKE2S_HASH_SIZE ||
-	       third_len > BLAKE2S_HASH_SIZE ||
-	       ((second_len || second_dst || third_len || third_dst) &&
-		(!first_len || !first_dst)) ||
-	       ((third_len || third_dst) && (!second_len || !second_dst)));
-#endif
+	WARN_ON(IS_ENABLED(DEBUG) &&
+		(first_len > BLAKE2S_HASH_SIZE || second_len > BLAKE2S_HASH_SIZE ||
+		 third_len > BLAKE2S_HASH_SIZE ||
+		 ((second_len || second_dst || third_len || third_dst) &&
+		  (!first_len || !first_dst)) ||
+		 ((third_len || third_dst) && (!second_len || !second_dst))));
 
 	/* Extract entropy from data into secret */
 	blake2s_hmac(secret, data, chaining_key, BLAKE2S_HASH_SIZE, data_len,

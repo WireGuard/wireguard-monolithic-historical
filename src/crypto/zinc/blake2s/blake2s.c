@@ -86,9 +86,7 @@ void blake2s_init(struct blake2s_state *state, const size_t outlen)
 		.depth = 1
 	};
 
-#ifdef CONFIG_ZINC_SELFTEST
-	BUG_ON(!outlen || outlen > BLAKE2S_HASH_SIZE);
-#endif
+	WARN_ON(IS_ENABLED(DEBUG) && (!outlen || outlen > BLAKE2S_HASH_SIZE));
 	blake2s_init_param(state, &param);
 }
 EXPORT_SYMBOL(blake2s_init);
@@ -102,10 +100,8 @@ void blake2s_init_key(struct blake2s_state *state, const size_t outlen,
 				.depth = 1 };
 	u8 block[BLAKE2S_BLOCK_SIZE] = { 0 };
 
-#ifdef CONFIG_ZINC_SELFTEST
-	BUG_ON(!outlen || outlen > BLAKE2S_HASH_SIZE || !key || !keylen ||
-	       keylen > BLAKE2S_KEY_SIZE);
-#endif
+	WARN_ON(IS_ENABLED(DEBUG) && (!outlen || outlen > BLAKE2S_HASH_SIZE ||
+		!key || !keylen || keylen > BLAKE2S_KEY_SIZE));
 	blake2s_init_param(state, &param);
 	memcpy(block, key, keylen);
 	blake2s_update(state, block, BLAKE2S_BLOCK_SIZE);
@@ -135,9 +131,8 @@ static inline void blake2s_compress(struct blake2s_state *state,
 	u32 v[16];
 	int i;
 
-#ifdef CONFIG_ZINC_SELFTEST
-	BUG_ON(nblocks > 1 && inc != BLAKE2S_BLOCK_SIZE);
-#endif
+	WARN_ON(IS_ENABLED(DEBUG) &&
+		(nblocks > 1 && inc != BLAKE2S_BLOCK_SIZE));
 
 	if (blake2s_compress_arch(state, block, nblocks, inc))
 		return;
@@ -227,9 +222,8 @@ EXPORT_SYMBOL(blake2s_update);
 
 void blake2s_final(struct blake2s_state *state, u8 *out, const size_t outlen)
 {
-#ifdef CONFIG_ZINC_SELFTEST
-	BUG_ON(!out || !outlen || outlen > BLAKE2S_HASH_SIZE);
-#endif
+	WARN_ON(IS_ENABLED(DEBUG) &&
+		(!out || !outlen || outlen > BLAKE2S_HASH_SIZE));
 	blake2s_set_lastblock(state);
 	memset(state->buf + state->buflen, 0,
 	       BLAKE2S_BLOCK_SIZE - state->buflen); /* Padding */
