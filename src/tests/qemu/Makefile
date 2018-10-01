@@ -146,8 +146,8 @@ ifeq ($(CHOST),$(CBUILD))
 QEMU_MACHINE := -cpu host -machine malta,accel=kvm
 CFLAGS += -EB
 else
-QEMU_MACHINE := -cpu I6400 -machine malta
-CFLAGS += -march=mips64r6 -EB
+QEMU_MACHINE := -cpu MIPS64R2-generic -machine malta -smp 1
+CFLAGS += -march=mips64r2 -EB
 endif
 else ifeq ($(ARCH),mips64el)
 QEMU_ARCH := mips64el
@@ -157,8 +157,8 @@ ifeq ($(CHOST),$(CBUILD))
 QEMU_MACHINE := -cpu host -machine malta,accel=kvm
 CFLAGS += -EL
 else
-QEMU_MACHINE := -cpu I6400 -machine malta
-CFLAGS += -march=mips64r6 -EL
+QEMU_MACHINE := -cpu MIPS64R2-generic -machine malta -smp 1
+CFLAGS += -march=mips64r2 -EL
 endif
 else ifeq ($(ARCH),mips)
 QEMU_ARCH := mips
