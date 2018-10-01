@@ -41,9 +41,8 @@ bool __init wg_ratelimiter_selftest(void)
 	struct sk_buff *skb4;
 	struct iphdr *hdr4;
 
-#if defined(CONFIG_KASAN) || defined(CONFIG_UBSAN)
-	return true;
-#endif
+	if (IS_ENABLED(CONFIG_KASAN) || IS_ENABLED(CONFIG_UBSAN))
+		return true;
 
 	BUILD_BUG_ON(MSEC_PER_SEC % PACKETS_PER_SECOND != 0);
 
