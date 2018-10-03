@@ -39,6 +39,7 @@ static inline bool blake2s_compress_arch(struct blake2s_state *state,
 					 const u32 inc)
 {
 	simd_context_t simd_context;
+	bool used_arch = false;
 
 	/* SIMD disables preemption, so relax after processing each page. */
 	BUILD_BUG_ON(PAGE_SIZE / BLAKE2S_BLOCK_SIZE < 8);
@@ -47,7 +48,8 @@ static inline bool blake2s_compress_arch(struct blake2s_state *state,
 
 	if (!IS_ENABLED(CONFIG_AS_AVX) || !blake2s_use_avx ||
 	    !simd_use(&simd_context))
-		return false;
+		goto out;
+	used_arch = true;
 
 	for (;;) {
 		const size_t blocks = min_t(size_t, nblocks,
@@ -64,6 +66,7 @@ static inline bool blake2s_compress_arch(struct blake2s_state *state,
 		block += blocks * BLAKE2S_BLOCK_SIZE;
 		simd_relax(&simd_context);
 	}
+out:
 	simd_put(&simd_context);
-	return true;
+	return used_arch;
 }
