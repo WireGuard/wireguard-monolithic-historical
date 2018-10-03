@@ -22,6 +22,8 @@ typedef enum {
 	HAVE_SIMD_IN_USE = 1 << 31
 } simd_context_t;
 
+#define DONT_USE_SIMD ((simd_context_t []){ HAVE_NO_SIMD })
+
 static inline void simd_get(simd_context_t *ctx)
 {
 	*ctx = !IS_ENABLED(CONFIG_PREEMPT_RT_BASE) && may_use_simd() ? HAVE_FULL_SIMD : HAVE_NO_SIMD;

@@ -1091,7 +1091,7 @@ static bool __init poly1305_selftest(void)
 			poly1305_update(&poly1305,
 					poly1305_testvecs[i].input + j,
 					poly1305_testvecs[i].ilen - j,
-					(simd_context_t []){ HAVE_NO_SIMD });
+					DONT_USE_SIMD);
 			poly1305_final(&poly1305, out, &simd_context);
 			if (memcmp(out, poly1305_testvecs[i].output,
 				   POLY1305_MAC_SIZE)) {

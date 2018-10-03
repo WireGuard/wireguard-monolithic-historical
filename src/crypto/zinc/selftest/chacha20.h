@@ -2680,8 +2680,7 @@ next_test:
 	chacha20_init(&state, chacha20_testvecs[0].key,
 		      chacha20_testvecs[0].nonce);
 	chacha20(&state, massive_input, massive_input,
-		 OUTRAGEOUSLY_HUGE_BUFFER_LEN,
-		 (simd_context_t []){ HAVE_NO_SIMD });
+		 OUTRAGEOUSLY_HUGE_BUFFER_LEN, DONT_USE_SIMD);
 	for (k = 0; k < OUTRAGEOUSLY_HUGE_BUFFER_LEN; ++k) {
 		if (massive_input[k]) {
 			pr_err("chacha20 self-test massive: FAIL\n");
