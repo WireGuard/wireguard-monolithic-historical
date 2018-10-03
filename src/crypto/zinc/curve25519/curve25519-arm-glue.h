@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
+#include <linux/simd.h>
 #include <asm/hwcap.h>
 #include <asm/neon.h>
-#include <asm/simd.h>
 
 asmlinkage void curve25519_neon(u8 mypublic[CURVE25519_KEY_SIZE],
 				const u8 secret[CURVE25519_KEY_SIZE],
@@ -22,15 +22,18 @@ static inline bool curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
 				   const u8 secret[CURVE25519_KEY_SIZE],
 				   const u8 basepoint[CURVE25519_KEY_SIZE])
 {
+	simd_context_t simd_context;
+	bool used_arch = false;
+
+	simd_get(&simd_context);
 	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
 	    !IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) && curve25519_use_neon &&
-	    may_use_simd()) {
-		kernel_neon_begin();
+	    simd_use(&simd_context)) {
 		curve25519_neon(mypublic, secret, basepoint);
-		kernel_neon_end();
-		return true;
+		used_arch = true;
 	}
-	return false;
+	simd_put(&simd_context);
+	return used_arch;
 }
 
 static inline bool curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
