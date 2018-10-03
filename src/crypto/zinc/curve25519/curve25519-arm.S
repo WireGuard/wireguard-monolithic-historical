@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  *
  * Based on public domain code from Daniel J. Bernstein and Peter Schwabe. This
- * has been built from SUPERCOP's curve25519/neon2/scalarmult.pq using qhasm,
- * but has subsequently been manually reworked for use in kernel space.
+ * began from SUPERCOP's curve25519/neon2/scalarmult.s, but has subsequently been
+ * manually reworked for use in kernel space.
  */
 
 #if defined(CONFIG_KERNEL_MODE_NEON) && !defined(__ARMEB__)
