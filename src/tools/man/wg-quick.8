@@ -205,6 +205,32 @@ Notice the two `Address' lines at the top, and that `SaveConfig' is set to `true
 that the configuration file should be saved on shutdown using the current status of the
 interface.
 
+A combination of the `Table', `PostUp', and `PreDown' fields may be used for policy routing
+as well. For example, the following may be used to send SSH traffic (TCP port 22) traffic
+through the tunnel:
+
+    [Interface]
+.br
+    Address = 10.192.122.1/24
+.br
+    PrivateKey = yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=
+.br
+    ListenPort = 51820
+.br
+    \fBTable = 1234\fP
+.br
+    \fBPostUp = ip rule add ipproto tcp dport 22 table 1234\fP
+.br
+    \fBPreDown = ip rule delete ipproto tcp dport 22 table 1234\fP
+.br
+
+.br
+    [Peer]
+.br
+    PublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=
+.br
+    AllowedIPs = 0.0.0.0/0
+
 These configuration files may be placed in any directory, putting the desired interface name
 in the filename:
 
