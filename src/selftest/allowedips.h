@@ -5,7 +5,6 @@
 
 #ifdef DEBUG
 
-#ifdef DEBUG_PRINT_TRIE_GRAPHVIZ
 #include <linux/siphash.h>
 
 static __init void swap_endian_and_apply_cidr(u8 *dst, const u8 *src, u8 bits,
@@ -66,17 +65,18 @@ static __init void print_tree(struct allowedips_node *top, u8 bits)
 	print_node(top, bits);
 	printk(KERN_DEBUG "}\n");
 }
-#endif
 
-#ifdef DEBUG_RANDOM_TRIE
-#define NUM_PEERS 2000
-#define NUM_RAND_ROUTES 400
-#define NUM_MUTATED_ROUTES 100
-#define NUM_QUERIES (NUM_RAND_ROUTES * NUM_MUTATED_ROUTES * 30)
-#include <linux/random.h>
+enum {
+	NUM_PEERS = 2000,
+	NUM_RAND_ROUTES = 400,
+	NUM_MUTATED_ROUTES = 100,
+	NUM_QUERIES = NUM_RAND_ROUTES * NUM_MUTATED_ROUTES * 30
+};
+
 struct horrible_allowedips {
 	struct hlist_head head;
 };
+
 struct horrible_allowedips_node {
 	struct hlist_node table;
 	union nf_inet_addr ip;
@@ -84,10 +84,12 @@ struct horrible_allowedips_node {
 	uint8_t ip_version;
 	void *value;
 };
+
 static __init void horrible_allowedips_init(struct horrible_allowedips *table)
 {
 	INIT_HLIST_HEAD(&table->head);
 }
+
 static __init void horrible_allowedips_free(struct horrible_allowedips *table)
 {
 	struct horrible_allowedips_node *node;
@@ -98,6 +100,7 @@ static __init void horrible_allowedips_free(struct horrible_allowedips *table)
 		kfree(node);
 	}
 }
+
 static __init inline union nf_inet_addr horrible_cidr_to_mask(uint8_t cidr)
 {
 	union nf_inet_addr mask;
@@ -109,11 +112,13 @@ static __init inline union nf_inet_addr horrible_cidr_to_mask(uint8_t cidr)
 			(0xFFFFFFFFUL << (32 - (cidr % 32))) & 0xFFFFFFFFUL);
 	return mask;
 }
+
 static __init inline uint8_t horrible_mask_to_cidr(union nf_inet_addr subnet)
 {
 	return hweight32(subnet.all[0]) + hweight32(subnet.all[1]) +
 	       hweight32(subnet.all[2]) + hweight32(subnet.all[3]);
 }
+
 static __init inline void
 horrible_mask_self(struct horrible_allowedips_node *node)
 {
@@ -126,12 +131,14 @@ horrible_mask_self(struct horrible_allowedips_node *node)
 		node->ip.ip6[3] &= node->mask.ip6[3];
 	}
 }
+
 static __init inline bool
 horrible_match_v4(const struct horrible_allowedips_node *node,
 		  struct in_addr *ip)
 {
 	return (ip->s_addr & node->mask.ip) == node->ip.ip;
 }
+
 static __init inline bool
 horrible_match_v6(const struct horrible_allowedips_node *node,
 		  struct in6_addr *ip)
@@ -144,6 +151,7 @@ horrible_match_v6(const struct horrible_allowedips_node *node,
 		       node->ip.ip6[2] &&
 	       (ip->in6_u.u6_addr32[3] & node->mask.ip6[3]) == node->ip.ip6[3];
 }
+
 static __init void
 horrible_insert_ordered(struct horrible_allowedips *table,
 			struct horrible_allowedips_node *node)
@@ -172,6 +180,7 @@ horrible_insert_ordered(struct horrible_allowedips *table,
 	else
 		hlist_add_before(&node->table, &where->table);
 }
+
 static __init int
 horrible_allowedips_insert_v4(struct horrible_allowedips *table,
 			      struct in_addr *ip, uint8_t cidr, void *value)
@@ -189,6 +198,7 @@ horrible_allowedips_insert_v4(struct horrible_allowedips *table,
 	horrible_insert_ordered(table, node);
 	return 0;
 }
+
 static __init int
 horrible_allowedips_insert_v6(struct horrible_allowedips *table,
 			      struct in6_addr *ip, uint8_t cidr, void *value)
@@ -206,6 +216,7 @@ horrible_allowedips_insert_v6(struct horrible_allowedips *table,
 	horrible_insert_ordered(table, node);
 	return 0;
 }
+
 static __init void *
 horrible_allowedips_lookup_v4(struct horrible_allowedips *table,
 			      struct in_addr *ip)
@@ -223,6 +234,7 @@ horrible_allowedips_lookup_v4(struct horrible_allowedips *table,
 	}
 	return ret;
 }
+
 static __init void *
 horrible_allowedips_lookup_v6(struct horrible_allowedips *table,
 			      struct in6_addr *ip)
@@ -363,10 +375,10 @@ static __init bool randomized_test(void)
 
 	mutex_unlock(&mutex);
 
-#ifdef DEBUG_PRINT_TRIE_GRAPHVIZ
-	print_tree(t.root4, 32);
-	print_tree(t.root6, 128);
-#endif
+	if (IS_ENABLED(DEBUG_PRINT_TRIE_GRAPHVIZ)) {
+		print_tree(t.root4, 32);
+		print_tree(t.root6, 128);
+	}
 
 	for (i = 0; i < NUM_QUERIES; ++i) {
 		prandom_bytes(ip, 4);
@@ -399,7 +411,6 @@ free:
 	kfree(peers);
 	return ret;
 }
-#endif
 
 static __init inline struct in_addr *ip4(u8 a, u8 b, u8 c, u8 d)
 {
@@ -411,6 +422,7 @@ static __init inline struct in_addr *ip4(u8 a, u8 b, u8 c, u8 d)
 	split[3] = d;
 	return &ip;
 }
+
 static __init inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 {
 	static struct in6_addr ip;
@@ -555,10 +567,10 @@ bool __init wg_allowedips_selftest(void)
 	insert(4, c, 10, 1, 0, 8, 29);
 	insert(4, d, 10, 1, 0, 16, 29);
 
-#ifdef DEBUG_PRINT_TRIE_GRAPHVIZ
-	print_tree(t.root4, 32);
-	print_tree(t.root6, 128);
-#endif
+	if (IS_ENABLED(DEBUG_PRINT_TRIE_GRAPHVIZ)) {
+		print_tree(t.root4, 32);
+		print_tree(t.root6, 128);
+	}
 
 	success = true;
 
@@ -637,10 +649,8 @@ bool __init wg_allowedips_selftest(void)
 	test_boolean(wctx.found_e);
 	test_boolean(!wctx.found_other);
 
-#ifdef DEBUG_RANDOM_TRIE
-	if (success)
+	if (IS_ENABLED(DEBUG_RANDOM_TRIE) && success)
 		success = randomized_test();
-#endif
 
 	if (success)
 		pr_info("allowedips self-tests: pass\n");
