@@ -10,6 +10,7 @@
  */
 
 #include <zinc/blake2s.h>
+#include "../selftest/run.h"
 
 #include <linux/types.h>
 #include <linux/string.h>
@@ -112,6 +113,7 @@ EXPORT_SYMBOL(blake2s_init_key);
 #if defined(CONFIG_ZINC_ARCH_X86_64)
 #include "blake2s-x86_64-glue.c"
 #else
+static bool *const blake2s_nobs[] __initconst = { };
 static void __init blake2s_fpu_init(void)
 {
 }
@@ -283,10 +285,9 @@ static int __init mod_init(void)
 {
 	if (!nosimd)
 		blake2s_fpu_init();
-#ifdef CONFIG_ZINC_SELFTEST
-	if (WARN_ON(!blake2s_selftest()))
+	if (!selftest_run("blake2s", blake2s_selftest, blake2s_nobs,
+			  ARRAY_SIZE(blake2s_nobs)))
 		return -ENOTRECOVERABLE;
-#endif
 	return 0;
 }
 

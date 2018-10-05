@@ -17,6 +17,7 @@ asmlinkage void blake2s_compress_avx512(struct blake2s_state *state,
 
 static bool blake2s_use_avx __ro_after_init;
 static bool blake2s_use_avx512 __ro_after_init;
+static bool *const blake2s_nobs[] __initconst = { &blake2s_use_avx512 };
 
 static void __init blake2s_fpu_init(void)
 {

@@ -15,6 +15,7 @@ asmlinkage void poly1305_blocks_neon(void *ctx, const u8 *inp, const size_t len,
 asmlinkage void poly1305_emit_neon(void *ctx, u8 mac[16], const u32 nonce[4]);
 
 static bool poly1305_use_neon __ro_after_init;
+static bool *const poly1305_nobs[] __initconst = { &poly1305_use_neon };
 
 static void __init poly1305_fpu_init(void)
 {

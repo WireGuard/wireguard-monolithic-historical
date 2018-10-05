@@ -8,6 +8,7 @@
  */
 
 #include <zinc/poly1305.h>
+#include "../selftest/run.h"
 
 #include <asm/unaligned.h>
 #include <linux/kernel.h>
@@ -39,6 +40,7 @@ static inline bool poly1305_emit_arch(void *ctx, u8 mac[POLY1305_MAC_SIZE],
 {
 	return false;
 }
+static bool *const poly1305_nobs[] __initconst = { };
 static void __init poly1305_fpu_init(void)
 {
 }
@@ -146,10 +148,9 @@ static int __init mod_init(void)
 {
 	if (!nosimd)
 		poly1305_fpu_init();
-#ifdef CONFIG_ZINC_SELFTEST
-	if (WARN_ON(!poly1305_selftest()))
+	if (!selftest_run("poly1305", poly1305_selftest, poly1305_nobs,
+			  ARRAY_SIZE(poly1305_nobs)))
 		return -ENOTRECOVERABLE;
-#endif
 	return 0;
 }
 

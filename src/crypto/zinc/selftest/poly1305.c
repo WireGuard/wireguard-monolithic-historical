@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef CONFIG_ZINC_SELFTEST
 struct poly1305_testvec {
 	const u8 *input, *output, *key;
 	size_t ilen;
@@ -1104,9 +1103,5 @@ static bool __init poly1305_selftest(void)
 	}
 	simd_put(&simd_context);
 
-	if (success)
-		pr_info("poly1305 self-tests: pass\n");
-
 	return success;
 }
-#endif

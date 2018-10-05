@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef CONFIG_ZINC_SELFTEST
 struct chacha20poly1305_testvec {
 	const u8 *input, *output, *assoc, *nonce, *key;
 	size_t ilen, alen, nlen;
@@ -9027,12 +9026,9 @@ static bool __init chacha20poly1305_selftest(void)
 			success = false;
 		}
 	}
-	if (success)
-		pr_info("chacha20poly1305 self-tests: pass\n");
 
 out:
 	kfree(heap_src);
 	kfree(computed_output);
 	return success;
 }
-#endif

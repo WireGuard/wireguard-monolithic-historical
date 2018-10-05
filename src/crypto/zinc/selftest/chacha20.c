@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef CONFIG_ZINC_SELFTEST
 struct chacha20_testvec {
 	const u8 *input, *output, *key;
 	u64 nonce;
@@ -2690,8 +2689,6 @@ next_test:
 	}
 
 	simd_put(&simd_context);
-	if (success)
-		pr_info("chacha20 self-tests: pass\n");
 
 out:
 	kfree(offset_input);
@@ -2699,4 +2696,3 @@ out:
 	vfree(massive_input);
 	return success;
 }
-#endif

@@ -8,6 +8,7 @@ asmlinkage void poly1305_blocks_mips(void *ctx, const u8 *inp, const size_t len,
 				     const u32 padbit);
 asmlinkage void poly1305_emit_mips(void *ctx, u8 mac[16], const u32 nonce[4]);
 
+static bool *const poly1305_nobs[] __initconst = { };
 static void __init poly1305_fpu_init(void)
 {
 }

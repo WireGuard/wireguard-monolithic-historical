@@ -5,7 +5,7 @@
 
 asmlinkage void chacha20_mips(u32 state[16], u8 *out, const u8 *in,
 			      const size_t len);
-
+static bool *const chacha20_nobs[] __initconst = { };
 static void __init chacha20_fpu_init(void)
 {
 }

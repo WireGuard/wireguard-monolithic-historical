@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef CONFIG_ZINC_SELFTEST
 struct curve25519_test_vector {
 	u8 private[CURVE25519_KEY_SIZE];
 	u8 public[CURVE25519_KEY_SIZE];
@@ -1312,8 +1311,5 @@ static bool __init curve25519_selftest(void)
 		}
 	}
 
-	if (success)
-		pr_info("curve25519 self-tests: pass\n");
 	return success;
 }
-#endif

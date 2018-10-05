@@ -8,6 +8,7 @@
  */
 
 #include <zinc/chacha20.h>
+#include "../selftest/run.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -22,6 +23,7 @@
 #elif defined(CONFIG_ZINC_ARCH_MIPS)
 #include "chacha20-mips-glue.c"
 #else
+static bool *const chacha20_nobs[] __initconst = { };
 static void __init chacha20_fpu_init(void)
 {
 }
@@ -171,10 +173,9 @@ static int __init mod_init(void)
 {
 	if (!nosimd)
 		chacha20_fpu_init();
-#ifdef CONFIG_ZINC_SELFTEST
-	if (WARN_ON(!chacha20_selftest()))
+	if (!selftest_run("chacha20", chacha20_selftest, chacha20_nobs,
+			  ARRAY_SIZE(chacha20_nobs)))
 		return -ENOTRECOVERABLE;
-#endif
 	return 0;
 }
 

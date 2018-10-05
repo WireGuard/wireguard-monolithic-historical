@@ -17,7 +17,7 @@ asmlinkage void chacha20_neon(u8 *out, const u8 *in, const size_t len,
 			      const u32 key[8], const u32 counter[4]);
 
 static bool chacha20_use_neon __ro_after_init;
-
+static bool *const chacha20_nobs[] __initconst = { &chacha20_use_neon };
 static void __init chacha20_fpu_init(void)
 {
 #if defined(CONFIG_ZINC_ARCH_ARM64)

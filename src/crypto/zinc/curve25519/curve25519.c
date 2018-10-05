@@ -10,6 +10,7 @@
  */
 
 #include <zinc/curve25519.h>
+#include "../selftest/run.h"
 
 #include <asm/unaligned.h>
 #include <linux/version.h>
@@ -24,6 +25,7 @@
 #elif defined(CONFIG_ZINC_ARCH_ARM)
 #include "curve25519-arm-glue.c"
 #else
+static bool *const curve25519_nobs[] __initconst = { };
 static void __init curve25519_fpu_init(void)
 {
 }
@@ -98,10 +100,9 @@ static int __init mod_init(void)
 {
 	if (!nosimd)
 		curve25519_fpu_init();
-#ifdef CONFIG_ZINC_SELFTEST
-	if (WARN_ON(!curve25519_selftest()))
+	if (!selftest_run("curve25519", curve25519_selftest, curve25519_nobs,
+			  ARRAY_SIZE(curve25519_nobs)))
 		return -ENOTRECOVERABLE;
-#endif
 	return 0;
 }
 

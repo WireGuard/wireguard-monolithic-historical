@@ -10,6 +10,8 @@
 #include <zinc/chacha20poly1305.h>
 #include <zinc/chacha20.h>
 #include <zinc/poly1305.h>
+#include "selftest/run.h"
+
 #include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -347,10 +349,9 @@ int __init chacha20poly1305_mod_init(void)
 static int __init mod_init(void)
 #endif
 {
-#ifdef CONFIG_ZINC_SELFTEST
-	if (WARN_ON(!chacha20poly1305_selftest()))
+	if (!selftest_run("chacha20poly1305", chacha20poly1305_selftest,
+			  NULL, 0))
 		return -ENOTRECOVERABLE;
-#endif
 	return 0;
 }
 

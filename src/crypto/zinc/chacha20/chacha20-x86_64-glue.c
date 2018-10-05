@@ -23,6 +23,9 @@ static bool chacha20_use_ssse3 __ro_after_init;
 static bool chacha20_use_avx2 __ro_after_init;
 static bool chacha20_use_avx512 __ro_after_init;
 static bool chacha20_use_avx512vl __ro_after_init;
+static bool *const chacha20_nobs[] __initconst = {
+	&chacha20_use_ssse3, &chacha20_use_avx2, &chacha20_use_avx512,
+	&chacha20_use_avx512vl };
 
 static void __init chacha20_fpu_init(void)
 {

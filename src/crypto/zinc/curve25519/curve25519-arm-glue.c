@@ -12,7 +12,7 @@ asmlinkage void curve25519_neon(u8 mypublic[CURVE25519_KEY_SIZE],
 				const u8 basepoint[CURVE25519_KEY_SIZE]);
 
 static bool curve25519_use_neon __ro_after_init;
-
+static bool *const curve25519_nobs[] __initconst = { &curve25519_use_neon };
 static void __init curve25519_fpu_init(void)
 {
 	curve25519_use_neon = elf_hwcap & HWCAP_NEON;

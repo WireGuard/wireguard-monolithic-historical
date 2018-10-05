@@ -25,6 +25,8 @@ asmlinkage void poly1305_blocks_avx512(void *ctx, const u8 *inp,
 static bool poly1305_use_avx __ro_after_init;
 static bool poly1305_use_avx2 __ro_after_init;
 static bool poly1305_use_avx512 __ro_after_init;
+static bool *const poly1305_nobs[] __initconst = {
+	&poly1305_use_avx, &poly1305_use_avx2, &poly1305_use_avx512 };
 
 static void __init poly1305_fpu_init(void)
 {

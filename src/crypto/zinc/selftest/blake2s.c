@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifdef CONFIG_ZINC_SELFTEST
 static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
 	{ 0x69, 0x21, 0x7a, 0x30, 0x79, 0x90, 0x80, 0x94,
 	  0xe1, 0x11, 0x21, 0xd0, 0x42, 0x35, 0x4a, 0x7c,
@@ -2087,9 +2086,5 @@ static bool __init blake2s_selftest(void)
 			success = false;
 		}
 	}
-
-	if (success)
-		pr_info("blake2s self-tests: pass\n");
 	return success;
 }
-#endif
