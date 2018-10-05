@@ -217,4 +217,4 @@ out:
 	mutex_unlock(&init_lock);
 }
 
-#include "selftest/ratelimiter.h"
+#include "selftest/ratelimiter.c"

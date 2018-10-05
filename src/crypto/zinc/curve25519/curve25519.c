@@ -20,9 +20,9 @@
 #include <crypto/algapi.h> // For crypto_memneq.
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
-#include "curve25519-x86_64-glue.h"
+#include "curve25519-x86_64-glue.c"
 #elif defined(CONFIG_ZINC_ARCH_ARM)
-#include "curve25519-arm-glue.h"
+#include "curve25519-arm-glue.c"
 #else
 static void __init curve25519_fpu_init(void)
 {
@@ -86,7 +86,7 @@ void curve25519_generate_secret(u8 secret[CURVE25519_KEY_SIZE])
 }
 EXPORT_SYMBOL(curve25519_generate_secret);
 
-#include "../selftest/curve25519.h"
+#include "../selftest/curve25519.c"
 
 static bool nosimd __initdata = false;
 

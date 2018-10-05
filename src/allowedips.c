@@ -402,4 +402,4 @@ struct wireguard_peer *wg_allowedips_lookup_src(struct allowedips *table,
 	return NULL;
 }
 
-#include "selftest/allowedips.h"
+#include "selftest/allowedips.c"

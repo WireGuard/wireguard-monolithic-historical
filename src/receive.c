@@ -335,7 +335,7 @@ out:
 	spin_unlock_bh(&counter->receive.lock);
 	return ret;
 }
-#include "selftest/counter.h"
+#include "selftest/counter.c"
 
 static void packet_consume_data_done(struct wireguard_peer *peer,
 				     struct sk_buff *skb,

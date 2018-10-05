@@ -16,11 +16,11 @@
 #include <linux/init.h>
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
-#include "poly1305-x86_64-glue.h"
+#include "poly1305-x86_64-glue.c"
 #elif defined(CONFIG_ZINC_ARCH_ARM) || defined(CONFIG_ZINC_ARCH_ARM64)
-#include "poly1305-arm-glue.h"
+#include "poly1305-arm-glue.c"
 #elif defined(CONFIG_ZINC_ARCH_MIPS) || defined(CONFIG_ZINC_ARCH_MIPS64)
-#include "poly1305-mips-glue.h"
+#include "poly1305-mips-glue.c"
 #else
 static inline bool poly1305_init_arch(void *ctx,
 				      const u8 key[POLY1305_KEY_SIZE])
@@ -134,7 +134,7 @@ void poly1305_final(struct poly1305_ctx *ctx, u8 mac[POLY1305_MAC_SIZE],
 }
 EXPORT_SYMBOL(poly1305_final);
 
-#include "../selftest/poly1305.h"
+#include "../selftest/poly1305.c"
 
 static bool nosimd __initdata = false;
 

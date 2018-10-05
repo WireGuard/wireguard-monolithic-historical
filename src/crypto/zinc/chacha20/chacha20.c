@@ -16,11 +16,11 @@
 #include <crypto/algapi.h> // For crypto_xor_cpy.
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
-#include "chacha20-x86_64-glue.h"
+#include "chacha20-x86_64-glue.c"
 #elif defined(CONFIG_ZINC_ARCH_ARM) || defined(CONFIG_ZINC_ARCH_ARM64)
-#include "chacha20-arm-glue.h"
+#include "chacha20-arm-glue.c"
 #elif defined(CONFIG_ZINC_ARCH_MIPS)
-#include "chacha20-mips-glue.h"
+#include "chacha20-mips-glue.c"
 #else
 static void __init chacha20_fpu_init(void)
 {
@@ -159,7 +159,7 @@ void hchacha20(u32 derived_key[CHACHA20_KEY_WORDS],
 }
 EXPORT_SYMBOL(hchacha20);
 
-#include "../selftest/chacha20.h"
+#include "../selftest/chacha20.c"
 
 static bool nosimd __initdata = false;
 

@@ -110,7 +110,7 @@ void blake2s_init_key(struct blake2s_state *state, const size_t outlen,
 EXPORT_SYMBOL(blake2s_init_key);
 
 #if defined(CONFIG_ZINC_ARCH_X86_64)
-#include "blake2s-x86_64-glue.h"
+#include "blake2s-x86_64-glue.c"
 #else
 static void __init blake2s_fpu_init(void)
 {
@@ -271,7 +271,7 @@ void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const size_t outlen,
 }
 EXPORT_SYMBOL(blake2s_hmac);
 
-#include "../selftest/blake2s.h"
+#include "../selftest/blake2s.c"
 
 static bool nosimd __initdata = false;
 
