@@ -33,8 +33,8 @@ ifeq ($(wildcard $(srctree)/arch/x86/include/asm/fpu/api.h)$(CONFIG_X86),y)
 ccflags-y += -I$(src)/compat/fpu-x86/include
 endif
 
-ifeq ($(wildcard $(srctree)/arch/x86/include/asm/simd.h)$(CONFIG_X86),y)
-ccflags-y += -I$(src)/compat/simd-x86/include
+ifeq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/simd.h)$(shell grep -F "generic-y += simd.h" "$(srctree)/arch/$(SRCARCH)/Kbuild"),)
+ccflags-y += -I$(src)/compat/simd-asm/include
 endif
 
 ifeq ($(wildcard $(srctree)/include/linux/simd.h),)

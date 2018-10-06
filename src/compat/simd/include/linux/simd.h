@@ -7,13 +7,12 @@
 #define _WG_SIMD_H
 
 #include <linux/sched.h>
+#include <asm/simd.h>
 #if defined(CONFIG_X86_64)
 #include <linux/version.h>
 #include <asm/fpu/api.h>
-#include <asm/simd.h>
 #elif defined(CONFIG_KERNEL_MODE_NEON)
 #include <asm/neon.h>
-#include <asm/simd.h>
 #endif
 
 typedef enum {

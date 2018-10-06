@@ -737,24 +737,6 @@ static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 #define read_cpuid_part() read_cpuid_part_number()
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0) || (!defined(CONFIG_X86_64) && !defined(CONFIG_ARM64) && !defined(CONFIG_ARM))
-#if defined(CONFIG_X86_64)
-#include <asm/fpu/api.h>
-#endif
-static __must_check inline bool may_use_simd(void)
-{
-#if defined(CONFIG_X86_64)
-	return irq_fpu_usable();
-#elif defined(CONFIG_ARM64) && defined(CONFIG_KERNEL_MODE_NEON)
-	return true;
-#elif defined(CONFIG_ARM) && defined(CONFIG_KERNEL_MODE_NEON)
-	return !in_nmi() && !in_irq() && !in_serving_softirq();
-#else
-	return false;
-#endif
-}
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
 #define hlist_add_behind(a, b) hlist_add_after(b, a)
 #endif
