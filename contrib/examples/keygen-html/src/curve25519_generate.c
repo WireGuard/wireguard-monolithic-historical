@@ -44,7 +44,7 @@ static __always_inline void normalize_secret(u8 secret[CURVE25519_KEY_SIZE])
 	secret[31] |= 64;
 }
 
-#include "../../../../src/crypto/zinc/curve25519/curve25519-fiat32.h"
+#include "../../../../src/crypto/zinc/curve25519/curve25519-fiat32.c"
 
 EMSCRIPTEN_KEEPALIVE void curve25519_generate_public(u8 public[static 32], const u8 private[static 32])
 {

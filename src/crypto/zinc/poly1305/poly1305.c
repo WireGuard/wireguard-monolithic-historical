@@ -47,9 +47,9 @@ static void __init poly1305_fpu_init(void)
 #endif
 
 #if defined(CONFIG_ARCH_SUPPORTS_INT128) && defined(__SIZEOF_INT128__)
-#include "poly1305-donna64.h"
+#include "poly1305-donna64.c"
 #else
-#include "poly1305-donna32.h"
+#include "poly1305-donna32.c"
 #endif
 
 void poly1305_init(struct poly1305_ctx *ctx, const u8 key[POLY1305_KEY_SIZE])

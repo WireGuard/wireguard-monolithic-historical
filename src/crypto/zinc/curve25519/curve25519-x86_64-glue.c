@@ -6,7 +6,7 @@
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 
-#include "curve25519-x86_64.h"
+#include "curve25519-x86_64.c"
 
 static bool curve25519_use_bmi2 __ro_after_init;
 static bool curve25519_use_adx __ro_after_init;

@@ -50,9 +50,9 @@ static __always_inline void normalize_secret(u8 secret[CURVE25519_KEY_SIZE])
 }
 
 #if defined(CONFIG_ARCH_SUPPORTS_INT128) && defined(__SIZEOF_INT128__)
-#include "curve25519-hacl64.h"
+#include "curve25519-hacl64.c"
 #else
-#include "curve25519-fiat32.h"
+#include "curve25519-fiat32.c"
 #endif
 
 static const u8 null_point[CURVE25519_KEY_SIZE] = { 0 };

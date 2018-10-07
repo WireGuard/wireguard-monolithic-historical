@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 OR LGPL-2.1 */
+// SPDX-License-Identifier: GPL-2.0 OR LGPL-2.1
 /*
  * Copyright (c) 2017 Armando Faz <armfazh@ic.unicamp.br>. All Rights Reserved.
  * Copyright (C) 2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
