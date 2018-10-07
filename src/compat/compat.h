@@ -741,6 +741,13 @@ static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 #define hlist_add_behind(a, b) hlist_add_after(b, a)
 #endif
 
+/* https://github.com/ClangBuiltLinux/linux/issues/7 */
+#ifdef __clang__
+#include <linux/bug.h>
+#undef BUILD_BUG_ON
+#define BUILD_BUG_ON(x)
+#endif
+
 /* https://lkml.kernel.org/r/20170624021727.17835-1-Jason@zx2c4.com */
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <linux/ip.h>
