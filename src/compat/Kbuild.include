@@ -33,7 +33,7 @@ ifeq ($(wildcard $(srctree)/arch/x86/include/asm/fpu/api.h)$(CONFIG_X86),y)
 ccflags-y += -I$(src)/compat/fpu-x86/include
 endif
 
-ifeq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/simd.h)$(shell grep -F "generic-y += simd.h" "$(srctree)/arch/$(SRCARCH)/Kbuild"),)
+ifeq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/simd.h)$(shell grep -s -F "generic-y += simd.h" "$(srctree)/arch/$(SRCARCH)/Kbuild"),)
 ccflags-y += -I$(src)/compat/simd-asm/include
 endif
 
@@ -46,7 +46,7 @@ ccflags-y += -I$(src)/compat/udp_tunnel/include
 wireguard-y += compat/udp_tunnel/udp_tunnel.o
 endif
 
-ifeq ($(shell grep -F "int crypto_memneq" "$(srctree)/include/crypto/algapi.h"),)
+ifeq ($(shell grep -s -F "int crypto_memneq" "$(srctree)/include/crypto/algapi.h"),)
 ccflags-y += -include $(cmd_include_path_prefix)/compat/memneq/include.h
 wireguard-y += compat/memneq/memneq.o
 endif
