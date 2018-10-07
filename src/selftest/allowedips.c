@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ *
+ * This contains some basic static unit tests for the allowedips data structure.
+ * It also has two additional modes that are disabled and meant to be used by
+ * folks directly playing with this file. If you define the macro
+ * DEBUG_PRINT_TRIE_GRAPHVIZ to be 1, then every time there's a full tree in
+ * memory, it will be printed out as KERN_DEBUG in a format that can be passed
+ * to graphviz (the dot command) to visualize it. If you define the macro
+ * DEBUG_RANDOM_TRIE to be 1, then there will be an extremely costly set of
+ * randomized tests done against a trivial implementation, which may take
+ * upwards of a half-hour to complete. There's no set of users who should be
+ * enabling these, and the only developers that should go anywhere near these
+ * nobs are the ones who are reading this comment.
  */
 
 #ifdef DEBUG
