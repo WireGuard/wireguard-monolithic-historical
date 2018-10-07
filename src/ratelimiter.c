@@ -16,8 +16,8 @@ static DEFINE_MUTEX(init_lock);
 static atomic64_t refcnt = ATOMIC64_INIT(0);
 static atomic_t total_entries = ATOMIC_INIT(0);
 static unsigned int max_entries, table_size;
-static void gc_entries(struct work_struct *);
-static DECLARE_DEFERRABLE_WORK(gc_work, gc_entries);
+static void wg_ratelimiter_gc_entries(struct work_struct *);
+static DECLARE_DEFERRABLE_WORK(gc_work, wg_ratelimiter_gc_entries);
 static struct hlist_head *table_v4;
 #if IS_ENABLED(CONFIG_IPV6)
 static struct hlist_head *table_v6;
@@ -53,7 +53,7 @@ static void entry_uninit(struct ratelimiter_entry *entry)
 }
 
 /* Calling this function with a NULL work uninits all entries. */
-static void gc_entries(struct work_struct *work)
+static void wg_ratelimiter_gc_entries(struct work_struct *work)
 {
 	const u64 now = ktime_get_boot_fast_ns();
 	struct ratelimiter_entry *entry;
@@ -206,7 +206,7 @@ void wg_ratelimiter_uninit(void)
 		goto out;
 
 	cancel_delayed_work_sync(&gc_work);
-	gc_entries(NULL);
+	wg_ratelimiter_gc_entries(NULL);
 	rcu_barrier();
 	kvfree(table_v4);
 #if IS_ENABLED(CONFIG_IPV6)

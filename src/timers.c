@@ -53,7 +53,7 @@ static inline void del_peer_timer(struct wireguard_peer *peer,
 	rcu_read_unlock_bh();
 }
 
-static void expired_retransmit_handshake(struct timer_list *timer)
+static void wg_expired_retransmit_handshake(struct timer_list *timer)
 {
 	peer_get_from_timer(timer_retransmit_handshake);
 
@@ -91,7 +91,7 @@ static void expired_retransmit_handshake(struct timer_list *timer)
 	wg_peer_put(peer);
 }
 
-static void expired_send_keepalive(struct timer_list *timer)
+static void wg_expired_send_keepalive(struct timer_list *timer)
 {
 	peer_get_from_timer(timer_send_keepalive);
 
@@ -104,7 +104,7 @@ static void expired_send_keepalive(struct timer_list *timer)
 	wg_peer_put(peer);
 }
 
-static void expired_new_handshake(struct timer_list *timer)
+static void wg_expired_new_handshake(struct timer_list *timer)
 {
 	peer_get_from_timer(timer_new_handshake);
 
@@ -119,7 +119,7 @@ static void expired_new_handshake(struct timer_list *timer)
 	wg_peer_put(peer);
 }
 
-static void expired_zero_key_material(struct timer_list *timer)
+static void wg_expired_zero_key_material(struct timer_list *timer)
 {
 	peer_get_from_timer(timer_zero_key_material);
 
@@ -133,7 +133,7 @@ static void expired_zero_key_material(struct timer_list *timer)
 	}
 	rcu_read_unlock_bh();
 }
-static void queued_expired_zero_key_material(struct work_struct *work)
+static void wg_queued_expired_zero_key_material(struct work_struct *work)
 {
 	struct wireguard_peer *peer =
 		container_of(work, struct wireguard_peer, clear_peer_work);
@@ -146,7 +146,7 @@ static void queued_expired_zero_key_material(struct work_struct *work)
 	wg_peer_put(peer);
 }
 
-static void expired_send_persistent_keepalive(struct timer_list *timer)
+static void wg_expired_send_persistent_keepalive(struct timer_list *timer)
 {
 	peer_get_from_timer(timer_persistent_keepalive);
 
@@ -194,10 +194,9 @@ void wg_timers_any_authenticated_packet_received(struct wireguard_peer *peer)
 /* Should be called after a handshake initiation message is sent. */
 void wg_timers_handshake_initiated(struct wireguard_peer *peer)
 {
-	mod_peer_timer(
-		peer, &peer->timer_retransmit_handshake,
-		jiffies + REKEY_TIMEOUT * HZ +
-			prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX_JIFFIES));
+	mod_peer_timer(peer, &peer->timer_retransmit_handshake,
+		       jiffies + REKEY_TIMEOUT * HZ +
+		       prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX_JIFFIES));
 }
 
 /* Should be called after a handshake response message is received and processed
@@ -233,13 +232,13 @@ void wg_timers_any_authenticated_packet_traversal(struct wireguard_peer *peer)
 void wg_timers_init(struct wireguard_peer *peer)
 {
 	timer_setup(&peer->timer_retransmit_handshake,
-		    expired_retransmit_handshake, 0);
-	timer_setup(&peer->timer_send_keepalive, expired_send_keepalive, 0);
-	timer_setup(&peer->timer_new_handshake, expired_new_handshake, 0);
-	timer_setup(&peer->timer_zero_key_material, expired_zero_key_material, 0);
+		    wg_expired_retransmit_handshake, 0);
+	timer_setup(&peer->timer_send_keepalive, wg_expired_send_keepalive, 0);
+	timer_setup(&peer->timer_new_handshake, wg_expired_new_handshake, 0);
+	timer_setup(&peer->timer_zero_key_material, wg_expired_zero_key_material, 0);
 	timer_setup(&peer->timer_persistent_keepalive,
-		    expired_send_persistent_keepalive, 0);
-	INIT_WORK(&peer->clear_peer_work, queued_expired_zero_key_material);
+		    wg_expired_send_persistent_keepalive, 0);
+	INIT_WORK(&peer->clear_peer_work, wg_queued_expired_zero_key_material);
 	peer->timer_handshake_attempts = 0;
 	peer->sent_lastminute_handshake = false;
 	peer->timer_need_another_keepalive = false;

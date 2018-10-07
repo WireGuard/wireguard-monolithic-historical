@@ -18,7 +18,7 @@
 #include <net/ip_tunnels.h>
 
 /* Must be called with bh disabled. */
-static void rx_stats(struct wireguard_peer *peer, size_t len)
+static void update_rx_stats(struct wireguard_peer *peer, size_t len)
 {
 	struct pcpu_sw_netstats *tstats =
 		get_cpu_ptr(peer->device->dev->tstats);
@@ -52,7 +52,7 @@ static size_t validate_header_len(struct sk_buff *skb)
 	return 0;
 }
 
-static int skb_prepare_header(struct sk_buff *skb, struct wireguard_device *wg)
+static int prepare_skb_header(struct sk_buff *skb, struct wireguard_device *wg)
 {
 	size_t data_offset, data_len, header_len;
 	struct udphdr *udp;
@@ -97,8 +97,8 @@ static int skb_prepare_header(struct sk_buff *skb, struct wireguard_device *wg)
 	return 0;
 }
 
-static void receive_handshake_packet(struct wireguard_device *wg,
-				     struct sk_buff *skb)
+static void wg_receive_handshake_packet(struct wireguard_device *wg,
+					struct sk_buff *skb)
 {
 	struct wireguard_peer *peer = NULL;
 	enum cookie_mac_state mac_state;
@@ -200,7 +200,7 @@ static void receive_handshake_packet(struct wireguard_device *wg,
 	}
 
 	local_bh_disable();
-	rx_stats(peer, skb->len);
+	update_rx_stats(peer, skb->len);
 	local_bh_enable();
 
 	wg_timers_any_authenticated_packet_received(peer);
@@ -215,7 +215,7 @@ void wg_packet_handshake_receive_worker(struct work_struct *work)
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&wg->incoming_handshakes)) != NULL) {
-		receive_handshake_packet(wg, skb);
+		wg_receive_handshake_packet(wg, skb);
 		dev_kfree_skb(skb);
 		cond_resched();
 	}
@@ -337,9 +337,9 @@ out:
 }
 #include "selftest/counter.c"
 
-static void packet_consume_data_done(struct wireguard_peer *peer,
-				     struct sk_buff *skb,
-				     struct endpoint *endpoint)
+static void wg_packet_consume_data_done(struct wireguard_peer *peer,
+					struct sk_buff *skb,
+					struct endpoint *endpoint)
 {
 	struct net_device *dev = peer->device->dev;
 	struct wireguard_peer *routed_peer;
@@ -360,7 +360,7 @@ static void packet_consume_data_done(struct wireguard_peer *peer,
 
 	/* A packet with length 0 is a keepalive packet */
 	if (unlikely(!skb->len)) {
-		rx_stats(peer, message_data_len(0));
+		update_rx_stats(peer, message_data_len(0));
 		net_dbg_ratelimited("%s: Receiving keepalive packet from peer %llu (%pISpfsc)\n",
 				    dev->name, peer->internal_id,
 				    &peer->endpoint.addr);
@@ -413,7 +413,7 @@ static void packet_consume_data_done(struct wireguard_peer *peer,
 				    dev->name, peer->internal_id,
 				    &peer->endpoint.addr);
 	} else
-		rx_stats(peer, message_data_len(len_before_trim));
+		update_rx_stats(peer, message_data_len(len_before_trim));
 	return;
 
 dishonest_packet_peer:
@@ -478,7 +478,7 @@ int wg_packet_rx_poll(struct napi_struct *napi, int budget)
 			goto next;
 
 		wg_reset_packet(skb);
-		packet_consume_data_done(peer, skb, &endpoint);
+		wg_packet_consume_data_done(peer, skb, &endpoint);
 		free = false;
 
 next:
@@ -556,7 +556,7 @@ err_keypair:
 
 void wg_packet_receive(struct wireguard_device *wg, struct sk_buff *skb)
 {
-	if (unlikely(skb_prepare_header(skb, wg) < 0))
+	if (unlikely(prepare_skb_header(skb, wg) < 0))
 		goto err;
 	switch (SKB_TYPE_LE32(skb)) {
 	case cpu_to_le32(MESSAGE_HANDSHAKE_INITIATION):

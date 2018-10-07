@@ -166,7 +166,7 @@ err:
 	return -EMSGSIZE;
 }
 
-static int get_device_start(struct netlink_callback *cb)
+static int wg_get_device_start(struct netlink_callback *cb)
 {
 	struct nlattr **attrs = genl_family_attrbuf(&genl_family);
 	struct wireguard_device *wg;
@@ -190,7 +190,7 @@ static int get_device_start(struct netlink_callback *cb)
 	return 0;
 }
 
-static int get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
+static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct wireguard_peer *peer, *next_peer_cursor, *last_peer_cursor;
 	struct allowedips_cursor *rt_cursor;
@@ -289,7 +289,7 @@ out:
 	 */
 }
 
-static int get_device_done(struct netlink_callback *cb)
+static int wg_get_device_done(struct netlink_callback *cb)
 {
 	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0];
 	struct wireguard_peer *peer = (struct wireguard_peer *)cb->args[1];
@@ -475,7 +475,7 @@ out:
 	return ret;
 }
 
-static int set_device(struct sk_buff *skb, struct genl_info *info)
+static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 {
 	struct wireguard_device *wg = lookup_interface(info->attrs, skb);
 	int ret;
@@ -576,15 +576,15 @@ struct genl_ops genl_ops[] = {
 	{
 		.cmd = WG_CMD_GET_DEVICE,
 #ifndef COMPAT_CANNOT_USE_NETLINK_START
-		.start = get_device_start,
+		.start = wg_get_device_start,
 #endif
-		.dumpit = get_device_dump,
-		.done = get_device_done,
+		.dumpit = wg_get_device_dump,
+		.done = wg_get_device_done,
 		.policy = device_policy,
 		.flags = GENL_UNS_ADMIN_PERM
 	}, {
 		.cmd = WG_CMD_SET_DEVICE,
-		.doit = set_device,
+		.doit = wg_set_device,
 		.policy = device_policy,
 		.flags = GENL_UNS_ADMIN_PERM
 	}

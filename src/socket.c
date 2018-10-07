@@ -319,7 +319,7 @@ void wg_socket_clear_peer_endpoint_src(struct wireguard_peer *peer)
 	write_unlock_bh(&peer->endpoint_lock);
 }
 
-static int receive(struct sock *sk, struct sk_buff *skb)
+static int wg_receive(struct sock *sk, struct sk_buff *skb)
 {
 	struct wireguard_device *wg;
 
@@ -357,7 +357,7 @@ int wg_socket_init(struct wireguard_device *wg, u16 port)
 	struct udp_tunnel_sock_cfg cfg = {
 		.sk_user_data = wg,
 		.encap_type = 1,
-		.encap_rcv = receive
+		.encap_rcv = wg_receive
 	};
 	struct socket *new4 = NULL, *new6 = NULL;
 	struct udp_port_cfg port4 = {

@@ -92,7 +92,7 @@ restart:
 					   maximum_jiffies_at_index(i))) { \
 			if (++tries >= 5000)                               \
 				goto err;                                  \
-			gc_entries(NULL);                                  \
+			wg_ratelimiter_gc_entries(NULL);                   \
 			rcu_barrier();                                     \
 			msleep(500);                                       \
 			goto restart;                                      \
@@ -136,7 +136,7 @@ restart:
 
 	tries = 0;
 restart2:
-	gc_entries(NULL);
+	wg_ratelimiter_gc_entries(NULL);
 	rcu_barrier();
 
 	if (atomic_read(&total_entries))
