@@ -282,13 +282,13 @@ static __init bool randomized_test(void)
 
 	peers = kcalloc(NUM_PEERS, sizeof(*peers), GFP_KERNEL);
 	if (unlikely(!peers)) {
-		pr_info("allowedips random self-test: out of memory\n");
+		pr_err("allowedips random self-test malloc: FAIL\n");
 		goto free;
 	}
 	for (i = 0; i < NUM_PEERS; ++i) {
 		peers[i] = kzalloc(sizeof(*peers[i]), GFP_KERNEL);
 		if (unlikely(!peers[i])) {
-			pr_info("allowedips random self-test: out of memory\n");
+			pr_err("allowedips random self-test malloc: FAIL\n");
 			goto free;
 		}
 		kref_init(&peers[i]->refcount);
@@ -302,12 +302,12 @@ static __init bool randomized_test(void)
 		peer = peers[prandom_u32_max(NUM_PEERS)];
 		if (wg_allowedips_insert_v4(&t, (struct in_addr *)ip, cidr,
 					    peer, &mutex) < 0) {
-			pr_info("allowedips random self-test: out of memory\n");
+			pr_err("allowedips random self-test malloc: FAIL\n");
 			goto free;
 		}
 		if (horrible_allowedips_insert_v4(&h, (struct in_addr *)ip,
 						  cidr, peer) < 0) {
-			pr_info("allowedips random self-test: out of memory\n");
+			pr_err("allowedips random self-test malloc: FAIL\n");
 			goto free;
 		}
 		for (j = 0; j < NUM_MUTATED_ROUTES; ++j) {
@@ -329,12 +329,12 @@ static __init bool randomized_test(void)
 			if (wg_allowedips_insert_v4(&t,
 						    (struct in_addr *)mutated,
 						    cidr, peer, &mutex) < 0) {
-				pr_info("allowedips random self-test: out of memory\n");
+				pr_err("allowedips random malloc: FAIL\n");
 				goto free;
 			}
 			if (horrible_allowedips_insert_v4(&h,
 				(struct in_addr *)mutated, cidr, peer)) {
-				pr_info("allowedips random self-test: out of memory\n");
+				pr_err("allowedips random self-test malloc: FAIL\n");
 				goto free;
 			}
 		}
@@ -346,12 +346,12 @@ static __init bool randomized_test(void)
 		peer = peers[prandom_u32_max(NUM_PEERS)];
 		if (wg_allowedips_insert_v6(&t, (struct in6_addr *)ip, cidr,
 					    peer, &mutex) < 0) {
-			pr_info("allowedips random self-test: out of memory\n");
+			pr_err("allowedips random self-test malloc: FAIL\n");
 			goto free;
 		}
 		if (horrible_allowedips_insert_v6(&h, (struct in6_addr *)ip,
 						  cidr, peer) < 0) {
-			pr_info("allowedips random self-test: out of memory\n");
+			pr_err("allowedips random self-test malloc: FAIL\n");
 			goto free;
 		}
 		for (j = 0; j < NUM_MUTATED_ROUTES; ++j) {
@@ -373,13 +373,13 @@ static __init bool randomized_test(void)
 			if (wg_allowedips_insert_v6(&t,
 						    (struct in6_addr *)mutated,
 						    cidr, peer, &mutex) < 0) {
-				pr_info("allowedips random self-test: out of memory\n");
+				pr_err("allowedips random self-test malloc: FAIL\n");
 				goto free;
 			}
 			if (horrible_allowedips_insert_v6(
 				    &h, (struct in6_addr *)mutated, cidr,
 				    peer)) {
-				pr_info("allowedips random self-test: out of memory\n");
+				pr_err("allowedips random self-test malloc: FAIL\n");
 				goto free;
 			}
 		}
@@ -396,7 +396,7 @@ static __init bool randomized_test(void)
 		prandom_bytes(ip, 4);
 		if (lookup(t.root4, 32, ip) !=
 		    horrible_allowedips_lookup_v4(&h, (struct in_addr *)ip)) {
-			pr_info("allowedips random self-test: FAIL\n");
+			pr_err("allowedips random self-test: FAIL\n");
 			goto free;
 		}
 	}
@@ -405,7 +405,7 @@ static __init bool randomized_test(void)
 		prandom_bytes(ip, 16);
 		if (lookup(t.root6, 128, ip) !=
 		    horrible_allowedips_lookup_v6(&h, (struct in6_addr *)ip)) {
-			pr_info("allowedips random self-test: FAIL\n");
+			pr_err("allowedips random self-test: FAIL\n");
 			goto free;
 		}
 	}
@@ -481,13 +481,10 @@ static __init int walk_callback(void *ctx, const u8 *ip, u8 cidr, int family)
 	return 0;
 }
 
-#define init_peer(name) do {                                               \
-		name = kzalloc(sizeof(*name), GFP_KERNEL);                 \
-		if (unlikely(!name)) {                                     \
-			pr_info("allowedips self-test: out of memory\n");  \
-			goto free;                                         \
-		}                                                          \
-		kref_init(&name->refcount);                                \
+#define init_peer(name) do {                               \
+		name = kzalloc(sizeof(*name), GFP_KERNEL); \
+		if (name)                                  \
+			kref_init(&name->refcount);        \
 	} while (0)
 
 #define insert(version, mem, ipa, ipb, ipc, ipd, cidr)                       \
@@ -523,7 +520,7 @@ bool __init wg_allowedips_selftest(void)
 {
 	struct wireguard_peer *a = NULL, *b = NULL, *c = NULL, *d = NULL,
 			      *e = NULL, *f = NULL, *g = NULL, *h = NULL;
-	struct allowedips_cursor *cursor;
+	struct allowedips_cursor *cursor = NULL;
 	struct walk_ctx wctx = { 0 };
 	bool success = false;
 	struct allowedips t;
@@ -531,12 +528,6 @@ bool __init wg_allowedips_selftest(void)
 	struct in6_addr ip;
 	size_t i = 0;
 	__be64 part;
-
-	cursor = kzalloc(sizeof(*cursor), GFP_KERNEL);
-	if (!cursor) {
-		pr_info("allowedips self-test malloc: FAIL\n");
-		return false;
-	}
 
 	mutex_init(&mutex);
 	mutex_lock(&mutex);
@@ -550,6 +541,12 @@ bool __init wg_allowedips_selftest(void)
 	init_peer(f);
 	init_peer(g);
 	init_peer(h);
+	cursor = kzalloc(sizeof(*cursor), GFP_KERNEL);
+
+	if (!cursor || !a || !b || !c || !d || !e || !f || !g || !h) {
+		pr_err("allowedips self-test malloc: FAIL\n");
+		goto free;
+	}
 
 	insert(4, a, 192, 168, 4, 0, 24);
 	insert(4, b, 192, 168, 4, 4, 32);

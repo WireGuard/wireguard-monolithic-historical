@@ -171,7 +171,7 @@ out:
 	if (ret)
 		pr_info("ratelimiter self-tests: pass\n");
 	else
-		pr_info("ratelimiter self-test %d: fail\n", test);
+		pr_err("ratelimiter self-test %d: FAIL\n", test);
 
 	return ret;
 }

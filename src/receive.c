@@ -481,7 +481,7 @@ int wg_packet_rx_poll(struct napi_struct *napi, int budget)
 		packet_consume_data_done(peer, skb, &endpoint);
 		free = false;
 
-	next:
+next:
 		wg_noise_keypair_put(keypair, false);
 		wg_peer_put(peer);
 		if (unlikely(free))
