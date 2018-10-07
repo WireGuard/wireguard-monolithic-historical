@@ -27,7 +27,7 @@ static inline bool selftest_run(const char *name, bool (*selftest)(void),
 
 	do {
 		for (i = 0; i < nobs_len; ++i)
-			*nobs[i] = (subset >> i) & 1;
+			*nobs[i] = BIT(i) & subset;
 		if (selftest())
 			largest_subset = max(subset, largest_subset);
 		else
@@ -37,7 +37,7 @@ static inline bool selftest_run(const char *name, bool (*selftest)(void),
 	} while (subset);
 
 	for (i = 0; i < nobs_len; ++i)
-		*nobs[i] = (largest_subset >> i) & 1;
+		*nobs[i] = BIT(i) & largest_subset;
 
 	if (largest_subset == set)
 		pr_info("%s self-tests: pass\n", name);
