@@ -13,9 +13,8 @@
 static inline bool selftest_run(const char *name, bool (*selftest)(void),
 				bool *const nobs[], unsigned int nobs_len)
 {
-	unsigned long subset = 0, set = 0;
+	unsigned long set = 0, subset = 0, largest_subset = 0;
 	unsigned int i;
-	bool ret = true;
 
 	BUILD_BUG_ON(!__builtin_constant_p(nobs_len) ||
 		     nobs_len >= BITS_PER_LONG);
@@ -29,21 +28,21 @@ static inline bool selftest_run(const char *name, bool (*selftest)(void),
 	do {
 		for (i = 0; i < nobs_len; ++i)
 			*nobs[i] = (subset >> i) & 1;
-		if (!selftest()) {
-			pr_err("%s self-test combo 0x%lx: FAIL\n", name,
+		if (selftest())
+			largest_subset = max(subset, largest_subset);
+		else
+			pr_err("%s self-test combination 0x%lx: FAIL\n", name,
 			       subset);
-			ret = false;
-		}
 		subset = (subset - set) & set;
 	} while (subset);
 
 	for (i = 0; i < nobs_len; ++i)
-		*nobs[i] = (set >> i) & 1;
+		*nobs[i] = (largest_subset >> i) & 1;
 
-	if (ret)
+	if (largest_subset == set)
 		pr_info("%s self-tests: pass\n", name);
 
-	return !WARN_ON(!ret);
+	return !WARN_ON(largest_subset != set);
 }
 
 #endif
