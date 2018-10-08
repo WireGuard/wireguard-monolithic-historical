@@ -87,7 +87,8 @@ struct noise_handshake {
 	__le32 remote_index;
 
 	/* Protects all members except the immutable (after noise_handshake_
-	 * init): remote_static, precomputed_static_static, static_identity. */
+	 * init): remote_static, precomputed_static_static, static_identity.
+	 */
 	struct rw_semaphore lock;
 };
 

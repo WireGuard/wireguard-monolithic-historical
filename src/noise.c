@@ -206,8 +206,8 @@ static void add_new_keypair(struct noise_keypairs *keypairs,
 					   next_keypair);
 			wg_noise_keypair_put(current_keypair, true);
 		} else /* If there wasn't an existing next keypair, we replace
-			 * the previous with the current one.
-			 */
+			* the previous with the current one.
+			*/
 			rcu_assign_pointer(keypairs->previous_keypair,
 					   current_keypair);
 		/* At this point we can get rid of the old previous keypair, and
@@ -292,7 +292,8 @@ static void kdf(u8 *first_dst, u8 *second_dst, u8 *third_dst, const u8 *data,
 	u8 secret[BLAKE2S_HASH_SIZE];
 
 	WARN_ON(IS_ENABLED(DEBUG) &&
-		(first_len > BLAKE2S_HASH_SIZE || second_len > BLAKE2S_HASH_SIZE ||
+		(first_len > BLAKE2S_HASH_SIZE ||
+		 second_len > BLAKE2S_HASH_SIZE ||
 		 third_len > BLAKE2S_HASH_SIZE ||
 		 ((second_len || second_dst || third_len || third_dst) &&
 		  (!first_len || !first_dst)) ||

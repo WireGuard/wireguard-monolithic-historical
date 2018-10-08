@@ -24,7 +24,7 @@ static void wg_packet_send_handshake_initiation(struct wg_peer *peer)
 	struct message_handshake_initiation packet;
 
 	if (!wg_birthdate_has_expired(atomic64_read(&peer->last_sent_handshake),
-			 REKEY_TIMEOUT))
+				      REKEY_TIMEOUT))
 		return; /* This function is rate limited. */
 
 	atomic64_set(&peer->last_sent_handshake, ktime_get_boot_fast_ns());
@@ -240,7 +240,7 @@ static void skb_free_null_queue(struct sk_buff *first)
 {
 	struct sk_buff *skb, *next;
 
-	skb_walk_null_queue_safe (first, skb, next)
+	skb_walk_null_queue_safe(first, skb, next)
 		dev_kfree_skb(skb);
 }
 
@@ -252,7 +252,7 @@ static void wg_packet_create_data_done(struct sk_buff *first,
 
 	wg_timers_any_authenticated_packet_traversal(peer);
 	wg_timers_any_authenticated_packet_sent(peer);
-	skb_walk_null_queue_safe (first, skb, next) {
+	skb_walk_null_queue_safe(first, skb, next) {
 		is_keepalive = skb->len == message_data_len(0);
 		if (likely(!wg_socket_send_skb_to_peer(peer, skb,
 				PACKET_CB(skb)->ds) && !is_keepalive))
@@ -302,9 +302,10 @@ void wg_packet_encrypt_worker(struct work_struct *work)
 	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
-		skb_walk_null_queue_safe (first, skb, next) {
-			if (likely(encrypt_packet(skb, PACKET_CB(first)->keypair,
-					       &simd_context)))
+		skb_walk_null_queue_safe(first, skb, next) {
+			if (likely(encrypt_packet(skb,
+						  PACKET_CB(first)->keypair,
+						  &simd_context)))
 				wg_reset_packet(skb);
 			else {
 				state = PACKET_STATE_DEAD;
@@ -370,8 +371,8 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 	key = &keypair->sending;
 	if (unlikely(!key->is_valid))
 		goto out_nokey;
-	if (unlikely(wg_birthdate_has_expired(
-					key->birthdate, REJECT_AFTER_TIME)))
+	if (unlikely(wg_birthdate_has_expired(key->birthdate,
+					      REJECT_AFTER_TIME)))
 		goto out_invalid;
 
 	/* After we know we have a somewhat valid key, we now try to assign
@@ -379,7 +380,7 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 	 * for all of them, we just consider it a failure and wait for the next
 	 * handshake.
 	 */
-	skb_queue_walk (&packets, skb) {
+	skb_queue_walk(&packets, skb) {
 		/* 0 for no outer TOS: no leak. TODO: at some later point, we
 		 * might consider using flowi->tos as outer instead.
 		 */
@@ -404,7 +405,7 @@ out_nokey:
 	/* We orphan the packets if we're waiting on a handshake, so that they
 	 * don't block a socket's pool.
 	 */
-	skb_queue_walk (&packets, skb)
+	skb_queue_walk(&packets, skb)
 		skb_orphan(skb);
 	/* Then we put them back on the top of the queue. We're not too
 	 * concerned about accidentally getting things a little out of order if

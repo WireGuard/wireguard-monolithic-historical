@@ -248,7 +248,7 @@ static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 	lockdep_assert_held(&wg->device_update_lock);
 	peer = list_prepare_entry(last_peer_cursor, &wg->peer_list, peer_list);
-	list_for_each_entry_continue (peer, &wg->peer_list, peer_list) {
+	list_for_each_entry_continue(peer, &wg->peer_list, peer_list) {
 		if (get_peer(peer, rt_cursor, skb)) {
 			done = false;
 			break;
@@ -302,7 +302,7 @@ static int set_port(struct wg_device *wg, u16 port)
 
 	if (wg->incoming_port == port)
 		return 0;
-	list_for_each_entry (peer, &wg->peer_list, peer_list)
+	list_for_each_entry(peer, &wg->peer_list, peer_list)
 		wg_socket_clear_peer_endpoint_src(peer);
 	if (!netif_running(wg->dev)) {
 		wg->incoming_port = port;
@@ -433,7 +433,7 @@ static int set_peer(struct wg_device *wg, struct nlattr **attrs)
 		struct nlattr *attr, *allowedip[WGALLOWEDIP_A_MAX + 1];
 		int rem;
 
-		nla_for_each_nested (attr, attrs[WGPEER_A_ALLOWEDIPS], rem) {
+		nla_for_each_nested(attr, attrs[WGPEER_A_ALLOWEDIPS], rem) {
 			ret = nla_parse_nested(allowedip, WGALLOWEDIP_A_MAX,
 					       attr, allowedip_policy, NULL);
 			if (ret < 0)
@@ -486,7 +486,7 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 		struct wg_peer *peer;
 
 		wg->fwmark = nla_get_u32(info->attrs[WGDEVICE_A_FWMARK]);
-		list_for_each_entry (peer, &wg->peer_list, peer_list)
+		list_for_each_entry(peer, &wg->peer_list, peer_list)
 			wg_socket_clear_peer_endpoint_src(peer);
 	}
 
@@ -524,8 +524,8 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 		down_write(&wg->static_identity.lock);
 		wg_noise_set_static_identity_private_key(&wg->static_identity,
 							 private_key);
-		list_for_each_entry_safe (peer, temp, &wg->peer_list,
-					  peer_list) {
+		list_for_each_entry_safe(peer, temp, &wg->peer_list,
+					 peer_list) {
 			if (!wg_noise_precompute_static_static(peer))
 				wg_peer_remove(peer);
 		}
@@ -537,7 +537,7 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 		struct nlattr *attr, *peer[WGPEER_A_MAX + 1];
 		int rem;
 
-		nla_for_each_nested (attr, info->attrs[WGDEVICE_A_PEERS], rem) {
+		nla_for_each_nested(attr, info->attrs[WGDEVICE_A_PEERS], rem) {
 			ret = nla_parse_nested(peer, WGPEER_A_MAX, attr,
 					       peer_policy, NULL);
 			if (ret < 0)

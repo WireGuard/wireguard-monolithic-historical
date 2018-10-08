@@ -15,7 +15,7 @@ wg_packet_alloc_percpu_multicore_worker(work_func_t function, void *ptr)
 	if (!worker)
 		return NULL;
 
-	for_each_possible_cpu (cpu) {
+	for_each_possible_cpu(cpu) {
 		per_cpu_ptr(worker, cpu)->ptr = ptr;
 		INIT_WORK(&per_cpu_ptr(worker, cpu)->work, function);
 	}

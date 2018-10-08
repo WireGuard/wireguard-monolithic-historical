@@ -61,8 +61,8 @@ struct packet_cb {
 	u8 ds;
 };
 
-#define PACKET_PEER(skb) (((struct packet_cb *)skb->cb)->keypair->entry.peer)
-#define PACKET_CB(skb) ((struct packet_cb *)skb->cb)
+#define PACKET_CB(skb) ((struct packet_cb *)((skb)->cb))
+#define PACKET_PEER(skb) (PACKET_CB(skb)->keypair->entry.peer)
 
 /* Returns either the correct skb->protocol value, or 0 if invalid. */
 static inline __be16 wg_skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
@@ -83,6 +83,7 @@ static inline __be16 wg_skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
 static inline void wg_reset_packet(struct sk_buff *skb)
 {
 	const int pfmemalloc = skb->pfmemalloc;
+
 	skb_scrub_packet(skb, true);
 	memset(&skb->headers_start, 0,
 	       offsetof(struct sk_buff, headers_end) -
@@ -166,6 +167,7 @@ static inline void wg_queue_enqueue_per_peer(struct crypt_queue *queue,
 	 * peer can be freed from below us.
 	 */
 	struct wg_peer *peer = wg_peer_get(PACKET_PEER(skb));
+
 	atomic_set_release(&PACKET_CB(skb)->state, state);
 	queue_work_on(wg_cpumask_choose_online(&peer->serial_work_cpu,
 					       peer->internal_id),
@@ -181,6 +183,7 @@ static inline void wg_queue_enqueue_per_peer_napi(struct crypt_queue *queue,
 	 * peer can be freed from below us.
 	 */
 	struct wg_peer *peer = wg_peer_get(PACKET_PEER(skb));
+
 	atomic_set_release(&PACKET_CB(skb)->state, state);
 	napi_schedule(&peer->napi);
 	wg_peer_put(peer);

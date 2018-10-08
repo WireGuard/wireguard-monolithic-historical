@@ -149,6 +149,7 @@ void wg_peer_remove(struct wg_peer *peer)
 static void rcu_release(struct rcu_head *rcu)
 {
 	struct wg_peer *peer = container_of(rcu, struct wg_peer, rcu);
+
 	dst_cache_destroy(&peer->endpoint_cache);
 	wg_packet_queue_free(&peer->rx_queue, false);
 	wg_packet_queue_free(&peer->tx_queue, false);
@@ -158,6 +159,7 @@ static void rcu_release(struct rcu_head *rcu)
 static void kref_release(struct kref *refcount)
 {
 	struct wg_peer *peer = container_of(refcount, struct wg_peer, refcount);
+
 	pr_debug("%s: Peer %llu (%pISpfsc) destroyed\n",
 		 peer->device->dev->name, peer->internal_id,
 		 &peer->endpoint.addr);
@@ -186,6 +188,6 @@ void wg_peer_remove_all(struct wg_device *wg)
 	struct wg_peer *peer, *temp;
 
 	lockdep_assert_held(&wg->device_update_lock);
-	list_for_each_entry_safe (peer, temp, &wg->peer_list, peer_list)
+	list_for_each_entry_safe(peer, temp, &wg->peer_list, peer_list)
 		wg_peer_remove(peer);
 }

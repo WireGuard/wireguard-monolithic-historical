@@ -57,7 +57,7 @@ static int wg_open(struct net_device *dev)
 	if (ret < 0)
 		return ret;
 	mutex_lock(&wg->device_update_lock);
-	list_for_each_entry (peer, &wg->peer_list, peer_list) {
+	list_for_each_entry(peer, &wg->peer_list, peer_list) {
 		wg_packet_send_staged_packets(peer);
 		if (peer->persistent_keepalive_interval)
 			wg_packet_send_keepalive(peer);
@@ -77,9 +77,9 @@ static int wg_pm_notification(struct notifier_block *nb, unsigned long action,
 		return 0;
 
 	rtnl_lock();
-	list_for_each_entry (wg, &device_list, device_list) {
+	list_for_each_entry(wg, &device_list, device_list) {
 		mutex_lock(&wg->device_update_lock);
-		list_for_each_entry (peer, &wg->peer_list, peer_list) {
+		list_for_each_entry(peer, &wg->peer_list, peer_list) {
 			wg_noise_handshake_clear(&peer->handshake);
 			wg_noise_keypairs_clear(&peer->keypairs);
 			if (peer->timers_enabled)
@@ -100,7 +100,7 @@ static int wg_stop(struct net_device *dev)
 	struct wg_peer *peer;
 
 	mutex_lock(&wg->device_update_lock);
-	list_for_each_entry (peer, &wg->peer_list, peer_list) {
+	list_for_each_entry(peer, &wg->peer_list, peer_list) {
 		skb_queue_purge(&peer->staged_packet_queue);
 		wg_timers_stop(peer);
 		wg_noise_handshake_clear(&peer->handshake);

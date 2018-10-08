@@ -335,6 +335,7 @@ out:
 	spin_unlock_bh(&counter->receive.lock);
 	return ret;
 }
+
 #include "selftest/counter.c"
 
 static void wg_packet_consume_data_done(struct wg_peer *peer,

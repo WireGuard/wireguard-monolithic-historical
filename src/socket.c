@@ -60,8 +60,8 @@ static int send4(struct wg_device *wg, struct sk_buff *skb,
 		}
 		rt = ip_route_output_flow(sock_net(sock), &fl, sock);
 		if (unlikely(endpoint->src_if4 && ((IS_ERR(rt) &&
-				PTR_ERR(rt) == -EINVAL) || (!IS_ERR(rt) &&
-				rt->dst.dev->ifindex != endpoint->src_if4)))) {
+			     PTR_ERR(rt) == -EINVAL) || (!IS_ERR(rt) &&
+			     rt->dst.dev->ifindex != endpoint->src_if4)))) {
 			endpoint->src4.s_addr = 0;
 			*(__force __be32 *)&endpoint->src_if4 = 0;
 			fl.saddr = 0;

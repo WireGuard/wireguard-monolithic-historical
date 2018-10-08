@@ -133,6 +133,7 @@ static void wg_expired_zero_key_material(struct timer_list *timer)
 	}
 	rcu_read_unlock_bh();
 }
+
 static void wg_queued_expired_zero_key_material(struct work_struct *work)
 {
 	struct wg_peer *peer = container_of(work, struct wg_peer,
