@@ -309,44 +309,46 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		goto error_1;
+		return ret;
 
 	wg->incoming_handshakes_worker =
 		wg_packet_alloc_percpu_multicore_worker(
 				wg_packet_handshake_receive_worker, wg);
 	if (!wg->incoming_handshakes_worker)
-		goto error_2;
+		goto err_free_tstats;
 
 	wg->handshake_receive_wq = alloc_workqueue("wg-kex-%s",
 			WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
 	if (!wg->handshake_receive_wq)
-		goto error_3;
+		goto err_free_incoming_handshakes;
 
 	wg->handshake_send_wq = alloc_workqueue("wg-kex-%s",
 			WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
 	if (!wg->handshake_send_wq)
-		goto error_4;
+		goto err_destroy_handshake_receive;
 
 	wg->packet_crypt_wq = alloc_workqueue("wg-crypt-%s",
 			WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
 	if (!wg->packet_crypt_wq)
-		goto error_5;
+		goto err_destroy_handshake_send;
 
-	if (wg_packet_queue_init(&wg->encrypt_queue, wg_packet_encrypt_worker,
-				 true, MAX_QUEUED_PACKETS) < 0)
-		goto error_6;
+	ret = wg_packet_queue_init(&wg->encrypt_queue, wg_packet_encrypt_worker,
+				   true, MAX_QUEUED_PACKETS);
+	if (ret < 0)
+		goto err_destroy_packet_crypt;
 
-	if (wg_packet_queue_init(&wg->decrypt_queue, wg_packet_decrypt_worker,
-				 true, MAX_QUEUED_PACKETS) < 0)
-		goto error_7;
+	ret = wg_packet_queue_init(&wg->decrypt_queue, wg_packet_decrypt_worker,
+				   true, MAX_QUEUED_PACKETS);
+	if (ret < 0)
+		goto err_free_encrypt_queue;
 
 	ret = wg_ratelimiter_init();
 	if (ret < 0)
-		goto error_8;
+		goto err_free_decrypt_queue;
 
 	ret = register_netdevice(dev);
 	if (ret < 0)
-		goto error_9;
+		goto err_uninit_ratelimiter;
 
 	list_add(&wg->device_list, &device_list);
 
@@ -358,23 +360,22 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 	pr_debug("%s: Interface created\n", dev->name);
 	return ret;
 
-error_9:
+err_uninit_ratelimiter:
 	wg_ratelimiter_uninit();
-error_8:
+err_free_decrypt_queue:
 	wg_packet_queue_free(&wg->decrypt_queue, true);
-error_7:
+err_free_encrypt_queue:
 	wg_packet_queue_free(&wg->encrypt_queue, true);
-error_6:
+err_destroy_packet_crypt:
 	destroy_workqueue(wg->packet_crypt_wq);
-error_5:
+err_destroy_handshake_send:
 	destroy_workqueue(wg->handshake_send_wq);
-error_4:
+err_destroy_handshake_receive:
 	destroy_workqueue(wg->handshake_receive_wq);
-error_3:
+err_free_incoming_handshakes:
 	free_percpu(wg->incoming_handshakes_worker);
-error_2:
+err_free_tstats:
 	free_percpu(dev->tstats);
-error_1:
 	return ret;
 }
 
