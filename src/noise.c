@@ -206,8 +206,8 @@ static void add_new_keypair(struct noise_keypairs *keypairs,
 					   next_keypair);
 			wg_noise_keypair_put(current_keypair, true);
 		} else /* If there wasn't an existing next keypair, we replace
-			 * the previous with the current one.
-			 */
+			* the previous with the current one.
+			*/
 			rcu_assign_pointer(keypairs->previous_keypair,
 					   current_keypair);
 		/* At this point we can get rid of the old previous keypair, and

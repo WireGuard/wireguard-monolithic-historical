@@ -48,6 +48,7 @@ static __init void print_node(struct allowedips_node *node, u8 bits)
 	}
 	if (node->peer) {
 		hsiphash_key_t key = { 0 };
+
 		memcpy(&key, &node->peer, sizeof(node->peer));
 		color = hsiphash_1u32(0xdeadbeef, &key) % 200 << 16 |
 			hsiphash_1u32(0xbabecafe, &key) % 200 << 8 |
@@ -427,6 +428,7 @@ free:
 static __init inline struct in_addr *ip4(u8 a, u8 b, u8 c, u8 d)
 {
 	static struct in_addr ip;
+
 	u8 *split = (u8 *)&ip;
 	split[0] = a;
 	split[1] = b;
@@ -438,6 +440,7 @@ static __init inline struct in_addr *ip4(u8 a, u8 b, u8 c, u8 d)
 static __init inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 {
 	static struct in6_addr ip;
+
 	__be32 *split = (__be32 *)&ip;
 	split[0] = cpu_to_be32(a);
 	split[1] = cpu_to_be32(b);
