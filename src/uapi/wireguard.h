@@ -43,13 +43,13 @@
  *                    WGALLOWEDIP_A_FAMILY: NLA_U16
  *                    WGALLOWEDIP_A_IPADDR: struct in_addr or struct in6_addr
  *                    WGALLOWEDIP_A_CIDR_MASK: NLA_U8
- *                1: NLA_NESTED
+ *                0: NLA_NESTED
  *                    ...
- *                2: NLA_NESTED
+ *                0: NLA_NESTED
  *                    ...
  *                ...
  *            WGPEER_A_PROTOCOL_VERSION: NLA_U32
- *        1: NLA_NESTED
+ *        0: NLA_NESTED
  *            ...
  *        ...
  *
@@ -99,9 +99,9 @@
  *                    WGALLOWEDIP_A_FAMILY: NLA_U16
  *                    WGALLOWEDIP_A_IPADDR: struct in_addr or struct in6_addr
  *                    WGALLOWEDIP_A_CIDR_MASK: NLA_U8
- *                1: NLA_NESTED
+ *                0: NLA_NESTED
  *                    ...
- *                2: NLA_NESTED
+ *                0: NLA_NESTED
  *                    ...
  *                ...
  *            WGPEER_A_PROTOCOL_VERSION: NLA_U32, should not be set or used at
@@ -109,7 +109,7 @@
  *                                       most recent protocol will be used when
  *                                       this is unset. Otherwise, must be set
  *                                       to 1.
- *        1: NLA_NESTED
+ *        0: NLA_NESTED
  *            ...
  *        ...
  *
