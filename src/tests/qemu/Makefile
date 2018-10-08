@@ -223,7 +223,7 @@ USERSPACE_DEPS := $(MUSL_CC) $(BUILD_PATH)/include/.installed $(BUILD_PATH)/incl
 build: $(KERNEL_BZIMAGE)
 qemu: $(KERNEL_BZIMAGE)
 	rm -f $(BUILD_PATH)/result
-	qemu-system-$(QEMU_ARCH) \
+	timeout --foreground 20m qemu-system-$(QEMU_ARCH) \
 		-nodefaults \
 		-nographic \
 		-smp $(NR_CPUS) \
