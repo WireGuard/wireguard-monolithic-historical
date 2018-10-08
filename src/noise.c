@@ -777,8 +777,9 @@ bool wg_noise_handshake_begin_session(struct noise_handshake *handshake,
 		ret = wg_index_hashtable_replace(
 			&handshake->entry.peer->device->index_hashtable,
 			&handshake->entry, &new_keypair->entry);
-	} else
+	} else {
 		kzfree(new_keypair);
+	}
 	rcu_read_unlock_bh();
 
 out:

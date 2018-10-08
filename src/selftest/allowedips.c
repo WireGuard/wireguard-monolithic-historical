@@ -72,6 +72,7 @@ static __init void print_node(struct allowedips_node *node, u8 bits)
 		print_node(node->bit[1], bits);
 	}
 }
+
 static __init void print_tree(struct allowedips_node *top, u8 bits)
 {
 	printk(KERN_DEBUG "digraph trie {\n");
@@ -135,9 +136,9 @@ static __init inline u8 horrible_mask_to_cidr(union nf_inet_addr subnet)
 static __init inline void
 horrible_mask_self(struct horrible_allowedips_node *node)
 {
-	if (node->ip_version == 4)
+	if (node->ip_version == 4) {
 		node->ip.ip &= node->mask.ip;
-	else if (node->ip_version == 6) {
+	} else if (node->ip_version == 6) {
 		node->ip.ip6[0] &= node->mask.ip6[0];
 		node->ip.ip6[1] &= node->mask.ip6[1];
 		node->ip.ip6[2] &= node->mask.ip6[2];
@@ -487,6 +488,7 @@ static __init int walk_callback(void *ctx, const u8 *ip, u8 cidr, int family)
 static __init struct wg_peer *init_peer(void)
 {
 	struct wg_peer *peer = kzalloc(sizeof(*peer), GFP_KERNEL);
+
 	if (peer)
 		kref_init(&peer->refcount);
 	return peer;

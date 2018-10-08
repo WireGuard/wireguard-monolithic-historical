@@ -126,11 +126,11 @@ static void wg_receive_handshake_packet(struct wg_device *wg,
 	mac_state = wg_cookie_validate_packet(&wg->cookie_checker, skb,
 					      under_load);
 	if ((under_load && mac_state == VALID_MAC_WITH_COOKIE) ||
-	    (!under_load && mac_state == VALID_MAC_BUT_NO_COOKIE))
+	    (!under_load && mac_state == VALID_MAC_BUT_NO_COOKIE)) {
 		packet_needs_cookie = false;
-	else if (under_load && mac_state == VALID_MAC_BUT_NO_COOKIE)
+	} else if (under_load && mac_state == VALID_MAC_BUT_NO_COOKIE) {
 		packet_needs_cookie = true;
-	else {
+	} else {
 		net_dbg_skb_ratelimited("%s: Invalid MAC of handshake, dropping packet from %pISpfsc\n",
 					wg->dev->name, skb);
 		return;
@@ -392,8 +392,9 @@ static void wg_packet_consume_data_done(struct wg_peer *peer,
 		      sizeof(struct ipv6hdr);
 		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
 			IP6_ECN_set_ce(skb, ipv6_hdr(skb));
-	} else
+	} else {
 		goto dishonest_packet_type;
+	}
 
 	if (unlikely(len > skb->len))
 		goto dishonest_packet_size;
@@ -413,8 +414,9 @@ static void wg_packet_consume_data_done(struct wg_peer *peer,
 		net_dbg_ratelimited("%s: Failed to give packet to userspace from peer %llu (%pISpfsc)\n",
 				    dev->name, peer->internal_id,
 				    &peer->endpoint.addr);
-	} else
+	} else {
 		update_rx_stats(peer, message_data_len(len_before_trim));
+	}
 	return;
 
 dishonest_packet_peer:

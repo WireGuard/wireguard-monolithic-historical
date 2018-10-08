@@ -14,9 +14,9 @@ static struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table,
 	 * the bits are uniformly distributed, we can then mask off to get the
 	 * bits we need.
 	 */
-	return &table->hashtable[
-		siphash(pubkey, NOISE_PUBLIC_KEY_LEN, &table->key) &
-			(HASH_SIZE(table->hashtable) - 1)];
+	const u64 hash = siphash(pubkey, NOISE_PUBLIC_KEY_LEN, &table->key);
+
+	return &table->hashtable[hash & (HASH_SIZE(table->hashtable) - 1)];
 }
 
 void wg_pubkey_hashtable_init(struct pubkey_hashtable *table)

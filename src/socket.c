@@ -256,8 +256,9 @@ int wg_socket_endpoint_from_skb(struct endpoint *endpoint,
 		endpoint->addr6.sin6_scope_id = ipv6_iface_scope_id(
 			&ipv6_hdr(skb)->saddr, skb->skb_iif);
 		endpoint->src6 = ipv6_hdr(skb)->daddr;
-	} else
+	} else {
 		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -294,8 +295,9 @@ void wg_socket_set_peer_endpoint(struct wg_peer *peer,
 	} else if (endpoint->addr.sa_family == AF_INET6) {
 		peer->endpoint.addr6 = endpoint->addr6;
 		peer->endpoint.src6 = endpoint->src6;
-	} else
+	} else {
 		goto out;
+	}
 	dst_cache_reset(&peer->endpoint_cache);
 out:
 	write_unlock_bh(&peer->endpoint_lock);

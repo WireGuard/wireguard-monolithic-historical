@@ -91,6 +91,7 @@ static int wg_pm_notification(struct notifier_block *nb, unsigned long action,
 	rcu_barrier_bh();
 	return 0;
 }
+
 static struct notifier_block pm_notifier = { .notifier_call = wg_pm_notification };
 #endif
 
@@ -154,9 +155,9 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 	mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
 	__skb_queue_head_init(&packets);
-	if (!skb_is_gso(skb))
+	if (!skb_is_gso(skb)) {
 		skb->next = NULL;
-	else {
+	} else {
 		struct sk_buff *segs = skb_gso_segment(skb, 0);
 
 		if (unlikely(IS_ERR(segs))) {

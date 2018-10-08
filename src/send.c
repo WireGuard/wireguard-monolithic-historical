@@ -305,9 +305,9 @@ void wg_packet_encrypt_worker(struct work_struct *work)
 		skb_walk_null_queue_safe(first, skb, next) {
 			if (likely(encrypt_packet(skb,
 						  PACKET_CB(first)->keypair,
-						  &simd_context)))
+						  &simd_context))) {
 				wg_reset_packet(skb);
-			else {
+			} else {
 				state = PACKET_STATE_DEAD;
 				break;
 			}

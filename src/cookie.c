@@ -226,9 +226,10 @@ void wg_cookie_message_consume(struct message_handshake_cookie *src,
 		peer->latest_cookie.is_valid = true;
 		peer->latest_cookie.have_sent_mac1 = false;
 		up_write(&peer->latest_cookie.lock);
-	} else
+	} else {
 		net_dbg_ratelimited("%s: Could not decrypt invalid cookie response\n",
 				    wg->dev->name);
+	}
 
 out:
 	wg_peer_put(peer);

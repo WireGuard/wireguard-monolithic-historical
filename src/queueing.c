@@ -37,8 +37,9 @@ int wg_packet_queue_init(struct crypt_queue *queue, work_func_t function,
 				function, queue);
 			if (!queue->worker)
 				return -ENOMEM;
-		} else
+		} else {
 			INIT_WORK(&queue->work, function);
+		}
 	}
 	return 0;
 }
