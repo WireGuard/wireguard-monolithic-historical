@@ -11,24 +11,24 @@
 #include <linux/if_vlan.h>
 #include <linux/if_ether.h>
 
-int wg_socket_init(struct wireguard_device *wg, u16 port);
-void wg_socket_reinit(struct wireguard_device *wg, struct sock *new4,
+int wg_socket_init(struct wg_device *wg, u16 port);
+void wg_socket_reinit(struct wg_device *wg, struct sock *new4,
 		      struct sock *new6);
-int wg_socket_send_buffer_to_peer(struct wireguard_peer *peer, void *data,
+int wg_socket_send_buffer_to_peer(struct wg_peer *peer, void *data,
 				  size_t len, u8 ds);
-int wg_socket_send_skb_to_peer(struct wireguard_peer *peer, struct sk_buff *skb,
+int wg_socket_send_skb_to_peer(struct wg_peer *peer, struct sk_buff *skb,
 			       u8 ds);
-int wg_socket_send_buffer_as_reply_to_skb(struct wireguard_device *wg,
+int wg_socket_send_buffer_as_reply_to_skb(struct wg_device *wg,
 					  struct sk_buff *in_skb,
 					  void *out_buffer, size_t len);
 
 int wg_socket_endpoint_from_skb(struct endpoint *endpoint,
 				const struct sk_buff *skb);
-void wg_socket_set_peer_endpoint(struct wireguard_peer *peer,
+void wg_socket_set_peer_endpoint(struct wg_peer *peer,
 				 const struct endpoint *endpoint);
-void wg_socket_set_peer_endpoint_from_skb(struct wireguard_peer *peer,
+void wg_socket_set_peer_endpoint_from_skb(struct wg_peer *peer,
 					  const struct sk_buff *skb);
-void wg_socket_clear_peer_endpoint_src(struct wireguard_peer *peer);
+void wg_socket_clear_peer_endpoint_src(struct wg_peer *peer);
 
 #if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
 #define net_dbg_skb_ratelimited(fmt, dev, skb, ...) do {                       \

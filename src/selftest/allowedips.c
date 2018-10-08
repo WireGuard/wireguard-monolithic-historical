@@ -269,7 +269,7 @@ static __init bool randomized_test(void)
 {
 	unsigned int i, j, k, mutate_amount, cidr;
 	u8 ip[16], mutate_mask[16], mutated[16];
-	struct wireguard_peer **peers, *peer;
+	struct wg_peer **peers, *peer;
 	struct horrible_allowedips h;
 	DEFINE_MUTEX(mutex);
 	struct allowedips t;
@@ -518,8 +518,8 @@ static __init int walk_callback(void *ctx, const u8 *ip, u8 cidr, int family)
 
 bool __init wg_allowedips_selftest(void)
 {
-	struct wireguard_peer *a = NULL, *b = NULL, *c = NULL, *d = NULL,
-			      *e = NULL, *f = NULL, *g = NULL, *h = NULL;
+	struct wg_peer *a = NULL, *b = NULL, *c = NULL, *d = NULL, *e = NULL,
+		       *f = NULL, *g = NULL, *h = NULL;
 	struct allowedips_cursor *cursor = NULL;
 	struct walk_ctx wctx = { 0 };
 	bool success = false;

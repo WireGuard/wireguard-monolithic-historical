@@ -44,7 +44,7 @@ void __init wg_noise_init(void)
 }
 
 /* Must hold peer->handshake.static_identity->lock */
-bool wg_noise_precompute_static_static(struct wireguard_peer *peer)
+bool wg_noise_precompute_static_static(struct wg_peer *peer)
 {
 	bool ret = true;
 
@@ -65,7 +65,7 @@ bool wg_noise_handshake_init(struct noise_handshake *handshake,
 			   struct noise_static_identity *static_identity,
 			   const u8 peer_public_key[NOISE_PUBLIC_KEY_LEN],
 			   const u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN],
-			   struct wireguard_peer *peer)
+			   struct wg_peer *peer)
 {
 	memset(handshake, 0, sizeof(*handshake));
 	init_rwsem(&handshake->lock);
@@ -103,7 +103,7 @@ void wg_noise_handshake_clear(struct noise_handshake *handshake)
 			&handshake->entry);
 }
 
-static struct noise_keypair *keypair_create(struct wireguard_peer *peer)
+static struct noise_keypair *keypair_create(struct wg_peer *peer)
 {
 	struct noise_keypair *keypair = kzalloc(sizeof(*keypair), GFP_KERNEL);
 
@@ -514,11 +514,11 @@ out:
 	return ret;
 }
 
-struct wireguard_peer *
+struct wg_peer *
 wg_noise_handshake_consume_initiation(struct message_handshake_initiation *src,
-				      struct wireguard_device *wg)
+				      struct wg_device *wg)
 {
-	struct wireguard_peer *peer = NULL, *ret_peer = NULL;
+	struct wg_peer *peer = NULL, *ret_peer = NULL;
 	struct noise_handshake *handshake;
 	bool replay_attack, flood_attack;
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
@@ -597,8 +597,8 @@ out:
 bool wg_noise_handshake_create_response(struct message_handshake_response *dst,
 					struct noise_handshake *handshake)
 {
-	bool ret = false;
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
+	bool ret = false;
 
 	/* We need to wait for crng _before_ taking any locks, since
 	 * curve25519_generate_secret uses get_random_bytes_wait.
@@ -654,19 +654,19 @@ out:
 	return ret;
 }
 
-struct wireguard_peer *
+struct wg_peer *
 wg_noise_handshake_consume_response(struct message_handshake_response *src,
-				    struct wireguard_device *wg)
+				    struct wg_device *wg)
 {
+	enum noise_handshake_state state = HANDSHAKE_ZEROED;
+	struct wg_peer *peer = NULL, *ret_peer = NULL;
 	struct noise_handshake *handshake;
-	struct wireguard_peer *peer = NULL, *ret_peer = NULL;
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	u8 hash[NOISE_HASH_LEN];
 	u8 chaining_key[NOISE_HASH_LEN];
 	u8 e[NOISE_PUBLIC_KEY_LEN];
 	u8 ephemeral_private[NOISE_PUBLIC_KEY_LEN];
 	u8 static_private[NOISE_PUBLIC_KEY_LEN];
-	enum noise_handshake_state state = HANDSHAKE_ZEROED;
 
 	down_read(&wg->static_identity.lock);
 
@@ -766,7 +766,7 @@ bool wg_noise_handshake_begin_session(struct noise_handshake *handshake,
 
 	handshake_zero(handshake);
 	rcu_read_lock_bh();
-	if (likely(!container_of(handshake, struct wireguard_peer,
+	if (likely(!container_of(handshake, struct wg_peer,
 				 handshake)->is_dead)) {
 		add_new_keypair(keypairs, new_keypair);
 		net_dbg_ratelimited("%s: Keypair %llu created for peer %llu\n",

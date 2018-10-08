@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/siphash.h>
 
-struct wireguard_peer;
+struct wg_peer;
 
 struct pubkey_hashtable {
 	/* TODO: move to rhashtable */
@@ -23,10 +23,10 @@ struct pubkey_hashtable {
 
 void wg_pubkey_hashtable_init(struct pubkey_hashtable *table);
 void wg_pubkey_hashtable_add(struct pubkey_hashtable *table,
-			     struct wireguard_peer *peer);
+			     struct wg_peer *peer);
 void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
-				struct wireguard_peer *peer);
-struct wireguard_peer *
+				struct wg_peer *peer);
+struct wg_peer *
 wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
 			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN]);
 
@@ -42,7 +42,7 @@ enum index_hashtable_type {
 };
 
 struct index_hashtable_entry {
-	struct wireguard_peer *peer;
+	struct wg_peer *peer;
 	struct hlist_node index_hash;
 	enum index_hashtable_type type;
 	__le32 index;
@@ -59,6 +59,6 @@ void wg_index_hashtable_remove(struct index_hashtable *table,
 struct index_hashtable_entry *
 wg_index_hashtable_lookup(struct index_hashtable *table,
 			  const enum index_hashtable_type type_mask,
-			  const __le32 index, struct wireguard_peer **peer);
+			  const __le32 index, struct wg_peer **peer);
 
 #endif /* _WG_HASHTABLES_H */

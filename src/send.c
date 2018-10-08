@@ -19,7 +19,7 @@
 #include <net/udp.h>
 #include <net/sock.h>
 
-static void wg_packet_send_handshake_initiation(struct wireguard_peer *peer)
+static void wg_packet_send_handshake_initiation(struct wg_peer *peer)
 {
 	struct message_handshake_initiation packet;
 
@@ -46,14 +46,14 @@ static void wg_packet_send_handshake_initiation(struct wireguard_peer *peer)
 
 void wg_packet_handshake_send_worker(struct work_struct *work)
 {
-	struct wireguard_peer *peer = container_of(work, struct wireguard_peer,
-						   transmit_handshake_work);
+	struct wg_peer *peer = container_of(work, struct wg_peer,
+					    transmit_handshake_work);
 
 	wg_packet_send_handshake_initiation(peer);
 	wg_peer_put(peer);
 }
 
-void wg_packet_send_queued_handshake_initiation(struct wireguard_peer *peer,
+void wg_packet_send_queued_handshake_initiation(struct wg_peer *peer,
 						bool is_retry)
 {
 	if (!is_retry)
@@ -82,7 +82,7 @@ out:
 	rcu_read_unlock_bh();
 }
 
-void wg_packet_send_handshake_response(struct wireguard_peer *peer)
+void wg_packet_send_handshake_response(struct wg_peer *peer)
 {
 	struct message_handshake_response packet;
 
@@ -107,7 +107,7 @@ void wg_packet_send_handshake_response(struct wireguard_peer *peer)
 	}
 }
 
-void wg_packet_send_handshake_cookie(struct wireguard_device *wg,
+void wg_packet_send_handshake_cookie(struct wg_device *wg,
 				     struct sk_buff *initiating_skb,
 				     __le32 sender_index)
 {
@@ -121,7 +121,7 @@ void wg_packet_send_handshake_cookie(struct wireguard_device *wg,
 					      sizeof(packet));
 }
 
-static void keep_key_fresh(struct wireguard_peer *peer)
+static void keep_key_fresh(struct wg_peer *peer)
 {
 	struct noise_keypair *keypair;
 	bool send = false;
@@ -212,7 +212,7 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
 					   keypair->sending.key, simd_context);
 }
 
-void wg_packet_send_keepalive(struct wireguard_peer *peer)
+void wg_packet_send_keepalive(struct wg_peer *peer)
 {
 	struct sk_buff *skb;
 
@@ -245,7 +245,7 @@ static void skb_free_null_queue(struct sk_buff *first)
 }
 
 static void wg_packet_create_data_done(struct sk_buff *first,
-				       struct wireguard_peer *peer)
+				       struct wg_peer *peer)
 {
 	struct sk_buff *skb, *next;
 	bool is_keepalive, data_sent = false;
@@ -267,12 +267,12 @@ static void wg_packet_create_data_done(struct sk_buff *first,
 
 void wg_packet_tx_worker(struct work_struct *work)
 {
-	struct crypt_queue *queue =
-		container_of(work, struct crypt_queue, work);
-	struct wireguard_peer *peer;
+	struct crypt_queue *queue = container_of(work, struct crypt_queue,
+						 work);
 	struct noise_keypair *keypair;
-	struct sk_buff *first;
 	enum packet_state state;
+	struct sk_buff *first;
+	struct wg_peer *peer;
 
 	while ((first = __ptr_ring_peek(&queue->ring)) != NULL &&
 	       (state = atomic_read_acquire(&PACKET_CB(first)->state)) !=
@@ -293,8 +293,8 @@ void wg_packet_tx_worker(struct work_struct *work)
 
 void wg_packet_encrypt_worker(struct work_struct *work)
 {
-	struct crypt_queue *queue =
-		container_of(work, struct multicore_worker, work)->ptr;
+	struct crypt_queue *queue = container_of(work, struct multicore_worker,
+						 work)->ptr;
 	struct sk_buff *first, *skb, *next;
 	simd_context_t simd_context;
 
@@ -321,8 +321,8 @@ void wg_packet_encrypt_worker(struct work_struct *work)
 
 static void wg_packet_create_data(struct sk_buff *first)
 {
-	struct wireguard_peer *peer = PACKET_PEER(first);
-	struct wireguard_device *wg = peer->device;
+	struct wg_peer *peer = PACKET_PEER(first);
+	struct wg_device *wg = peer->device;
 	int ret = -EINVAL;
 
 	rcu_read_lock_bh();
@@ -345,7 +345,7 @@ err:
 	skb_free_null_queue(first);
 }
 
-void wg_packet_send_staged_packets(struct wireguard_peer *peer)
+void wg_packet_send_staged_packets(struct wg_peer *peer)
 {
 	struct noise_symmetric_key *key;
 	struct noise_keypair *keypair;

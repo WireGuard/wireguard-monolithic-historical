@@ -8,18 +8,18 @@
 
 #include <linux/ktime.h>
 
-struct wireguard_peer;
+struct wg_peer;
 
-void wg_timers_init(struct wireguard_peer *peer);
-void wg_timers_stop(struct wireguard_peer *peer);
-void wg_timers_data_sent(struct wireguard_peer *peer);
-void wg_timers_data_received(struct wireguard_peer *peer);
-void wg_timers_any_authenticated_packet_sent(struct wireguard_peer *peer);
-void wg_timers_any_authenticated_packet_received(struct wireguard_peer *peer);
-void wg_timers_handshake_initiated(struct wireguard_peer *peer);
-void wg_timers_handshake_complete(struct wireguard_peer *peer);
-void wg_timers_session_derived(struct wireguard_peer *peer);
-void wg_timers_any_authenticated_packet_traversal(struct wireguard_peer *peer);
+void wg_timers_init(struct wg_peer *peer);
+void wg_timers_stop(struct wg_peer *peer);
+void wg_timers_data_sent(struct wg_peer *peer);
+void wg_timers_data_received(struct wg_peer *peer);
+void wg_timers_any_authenticated_packet_sent(struct wg_peer *peer);
+void wg_timers_any_authenticated_packet_received(struct wg_peer *peer);
+void wg_timers_handshake_initiated(struct wg_peer *peer);
+void wg_timers_handshake_complete(struct wg_peer *peer);
+void wg_timers_session_derived(struct wg_peer *peer);
+void wg_timers_any_authenticated_packet_traversal(struct wg_peer *peer);
 
 static inline bool wg_birthdate_has_expired(u64 birthday_nanoseconds,
 					    u64 expiration_seconds)

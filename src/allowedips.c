@@ -7,7 +7,7 @@
 #include "peer.h"
 
 struct allowedips_node {
-	struct wireguard_peer __rcu *peer;
+	struct wg_peer __rcu *peer;
 	struct rcu_head rcu;
 	struct allowedips_node __rcu *bit[2];
 	/* While it may seem scandalous that we waste space for v4,
@@ -69,7 +69,7 @@ static void root_free_rcu(struct rcu_head *rcu)
 
 static int
 walk_by_peer(struct allowedips_node __rcu *top, u8 bits,
-	     struct allowedips_cursor *cursor, struct wireguard_peer *peer,
+	     struct allowedips_cursor *cursor, struct wg_peer *peer,
 	     int (*func)(void *ctx, const u8 *ip, u8 cidr, int family),
 	     void *ctx, struct mutex *lock)
 {
@@ -113,7 +113,7 @@ walk_by_peer(struct allowedips_node __rcu *top, u8 bits,
 		stack[len++] = p;                                              \
 	})
 static void walk_remove_by_peer(struct allowedips_node __rcu **top,
-				struct wireguard_peer *peer, struct mutex *lock)
+				struct wg_peer *peer, struct mutex *lock)
 {
 	struct allowedips_node __rcu **stack[128], **nptr;
 	struct allowedips_node *node, *prev;
@@ -199,12 +199,12 @@ find_node(struct allowedips_node *trie, u8 bits, const u8 *key)
 }
 
 /* Returns a strong reference to a peer */
-static __always_inline struct wireguard_peer *
+static __always_inline struct wg_peer *
 lookup(struct allowedips_node __rcu *root, u8 bits, const void *be_ip)
 {
 	u8 ip[16] __aligned(__alignof(u64));
-	struct wireguard_peer *peer = NULL;
 	struct allowedips_node *node;
+	struct wg_peer *peer = NULL;
 
 	swap_endian(ip, be_ip, bits);
 
@@ -243,7 +243,7 @@ node_placement(struct allowedips_node __rcu *trie, const u8 *key, u8 cidr,
 }
 
 static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *be_key,
-	       u8 cidr, struct wireguard_peer *peer, struct mutex *lock)
+	       u8 cidr, struct wg_peer *peer, struct mutex *lock)
 {
 	struct allowedips_node *node, *parent, *down, *newnode;
 	u8 key[16] __aligned(__alignof(u64));
@@ -333,7 +333,7 @@ void wg_allowedips_free(struct allowedips *table, struct mutex *lock)
 }
 
 int wg_allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip,
-			    u8 cidr, struct wireguard_peer *peer,
+			    u8 cidr, struct wg_peer *peer,
 			    struct mutex *lock)
 {
 	++table->seq;
@@ -341,7 +341,7 @@ int wg_allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip,
 }
 
 int wg_allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
-			    u8 cidr, struct wireguard_peer *peer,
+			    u8 cidr, struct wg_peer *peer,
 			    struct mutex *lock)
 {
 	++table->seq;
@@ -349,7 +349,7 @@ int wg_allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
 }
 
 void wg_allowedips_remove_by_peer(struct allowedips *table,
-				  struct wireguard_peer *peer,
+				  struct wg_peer *peer,
 				  struct mutex *lock)
 {
 	++table->seq;
@@ -359,8 +359,9 @@ void wg_allowedips_remove_by_peer(struct allowedips *table,
 
 int wg_allowedips_walk_by_peer(struct allowedips *table,
 			       struct allowedips_cursor *cursor,
-			       struct wireguard_peer *peer,
-			       int (*func)(void *ctx, const u8 *ip, u8 cidr, int family),
+			       struct wg_peer *peer,
+			       int (*func)(void *ctx, const u8 *ip, u8 cidr,
+					   int family),
 			       void *ctx, struct mutex *lock)
 {
 	int ret;
@@ -371,7 +372,8 @@ int wg_allowedips_walk_by_peer(struct allowedips *table,
 		return 0;
 
 	if (!cursor->second_half) {
-		ret = walk_by_peer(table->root4, 32, cursor, peer, func, ctx, lock);
+		ret = walk_by_peer(table->root4, 32, cursor, peer, func, ctx,
+				   lock);
 		if (ret)
 			return ret;
 		cursor->len = 0;
@@ -381,8 +383,8 @@ int wg_allowedips_walk_by_peer(struct allowedips *table,
 }
 
 /* Returns a strong reference to a peer */
-struct wireguard_peer *wg_allowedips_lookup_dst(struct allowedips *table,
-						struct sk_buff *skb)
+struct wg_peer *wg_allowedips_lookup_dst(struct allowedips *table,
+					 struct sk_buff *skb)
 {
 	if (skb->protocol == htons(ETH_P_IP))
 		return lookup(table->root4, 32, &ip_hdr(skb)->daddr);
@@ -392,8 +394,8 @@ struct wireguard_peer *wg_allowedips_lookup_dst(struct allowedips *table,
 }
 
 /* Returns a strong reference to a peer */
-struct wireguard_peer *wg_allowedips_lookup_src(struct allowedips *table,
-						struct sk_buff *skb)
+struct wg_peer *wg_allowedips_lookup_src(struct allowedips *table,
+					 struct sk_buff *skb)
 {
 	if (skb->protocol == htons(ETH_P_IP))
 		return lookup(table->root4, 32, &ip_hdr(skb)->saddr);

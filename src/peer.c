@@ -17,12 +17,11 @@
 
 static atomic64_t peer_counter = ATOMIC64_INIT(0);
 
-struct wireguard_peer *
-wg_peer_create(struct wireguard_device *wg,
-	       const u8 public_key[NOISE_PUBLIC_KEY_LEN],
-	       const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN])
+struct wg_peer *wg_peer_create(struct wg_device *wg,
+			       const u8 public_key[NOISE_PUBLIC_KEY_LEN],
+			       const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN])
 {
-	struct wireguard_peer *peer;
+	struct wg_peer *peer;
 
 	lockdep_assert_held(&wg->device_update_lock);
 
@@ -79,7 +78,7 @@ err_1:
 	return NULL;
 }
 
-struct wireguard_peer *wg_peer_get_maybe_zero(struct wireguard_peer *peer)
+struct wg_peer *wg_peer_get_maybe_zero(struct wg_peer *peer)
 {
 	RCU_LOCKDEP_WARN(!rcu_read_lock_bh_held(),
 			 "Taking peer reference without holding the RCU read lock");
@@ -92,7 +91,7 @@ struct wireguard_peer *wg_peer_get_maybe_zero(struct wireguard_peer *peer)
  * because peer_list, clearing handshakes, and flushing all require mutexes
  * which requires sleeping, which must only be done from certain contexts.
  */
-void wg_peer_remove(struct wireguard_peer *peer)
+void wg_peer_remove(struct wg_peer *peer)
 {
 	if (unlikely(!peer))
 		return;
@@ -149,8 +148,7 @@ void wg_peer_remove(struct wireguard_peer *peer)
 
 static void rcu_release(struct rcu_head *rcu)
 {
-	struct wireguard_peer *peer =
-		container_of(rcu, struct wireguard_peer, rcu);
+	struct wg_peer *peer = container_of(rcu, struct wg_peer, rcu);
 	dst_cache_destroy(&peer->endpoint_cache);
 	wg_packet_queue_free(&peer->rx_queue, false);
 	wg_packet_queue_free(&peer->tx_queue, false);
@@ -159,8 +157,7 @@ static void rcu_release(struct rcu_head *rcu)
 
 static void kref_release(struct kref *refcount)
 {
-	struct wireguard_peer *peer =
-		container_of(refcount, struct wireguard_peer, refcount);
+	struct wg_peer *peer = container_of(refcount, struct wg_peer, refcount);
 	pr_debug("%s: Peer %llu (%pISpfsc) destroyed\n",
 		 peer->device->dev->name, peer->internal_id,
 		 &peer->endpoint.addr);
@@ -177,16 +174,16 @@ static void kref_release(struct kref *refcount)
 	call_rcu_bh(&peer->rcu, rcu_release);
 }
 
-void wg_peer_put(struct wireguard_peer *peer)
+void wg_peer_put(struct wg_peer *peer)
 {
 	if (unlikely(!peer))
 		return;
 	kref_put(&peer->refcount, kref_release);
 }
 
-void wg_peer_remove_all(struct wireguard_device *wg)
+void wg_peer_remove_all(struct wg_device *wg)
 {
-	struct wireguard_peer *peer, *temp;
+	struct wg_peer *peer, *temp;
 
 	lockdep_assert_held(&wg->device_update_lock);
 	list_for_each_entry_safe (peer, temp, &wg->peer_list, peer_list)

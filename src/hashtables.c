@@ -27,7 +27,7 @@ void wg_pubkey_hashtable_init(struct pubkey_hashtable *table)
 }
 
 void wg_pubkey_hashtable_add(struct pubkey_hashtable *table,
-			     struct wireguard_peer *peer)
+			     struct wg_peer *peer)
 {
 	mutex_lock(&table->lock);
 	hlist_add_head_rcu(&peer->pubkey_hash,
@@ -36,7 +36,7 @@ void wg_pubkey_hashtable_add(struct pubkey_hashtable *table,
 }
 
 void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
-				struct wireguard_peer *peer)
+				struct wg_peer *peer)
 {
 	mutex_lock(&table->lock);
 	hlist_del_init_rcu(&peer->pubkey_hash);
@@ -44,11 +44,11 @@ void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
 }
 
 /* Returns a strong reference to a peer */
-struct wireguard_peer *
+struct wg_peer *
 wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
 			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
 {
-	struct wireguard_peer *iter_peer, *peer = NULL;
+	struct wg_peer *iter_peer, *peer = NULL;
 
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu_bh (iter_peer, pubkey_bucket(table, pubkey),
@@ -184,7 +184,7 @@ void wg_index_hashtable_remove(struct index_hashtable *table,
 struct index_hashtable_entry *
 wg_index_hashtable_lookup(struct index_hashtable *table,
 			  const enum index_hashtable_type type_mask,
-			  const __le32 index, struct wireguard_peer **peer)
+			  const __le32 index, struct wg_peer **peer)
 {
 	struct index_hashtable_entry *iter_entry, *entry = NULL;
 

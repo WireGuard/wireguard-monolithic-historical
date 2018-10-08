@@ -561,7 +561,7 @@ static inline struct nlattr **genl_family_attrbuf(const struct genl_family *fami
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 8) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 25) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 87)
 #define wg_get_device_dump(a, b) wg_get_device_dump_real(a, b); \
 static int wg_get_device_dump(a, b) { \
-	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0]; \
+	struct wg_device *wg = (struct wg_device *)cb->args[0]; \
 	if (!wg) { \
 		int ret = wg_get_device_start(cb); \
 		if (ret) \

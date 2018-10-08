@@ -46,8 +46,8 @@ static const struct nla_policy allowedip_policy[WGALLOWEDIP_A_MAX + 1] = {
 	[WGALLOWEDIP_A_CIDR_MASK]	= { .type = NLA_U8 }
 };
 
-static struct wireguard_device *lookup_interface(struct nlattr **attrs,
-						 struct sk_buff *skb)
+static struct wg_device *lookup_interface(struct nlattr **attrs,
+					  struct sk_buff *skb)
 {
 	struct net_device *dev = NULL;
 
@@ -90,8 +90,8 @@ static int get_allowedips(void *ctx, const u8 *ip, u8 cidr, int family)
 	return 0;
 }
 
-static int get_peer(struct wireguard_peer *peer,
-		    struct allowedips_cursor *rt_cursor, struct sk_buff *skb)
+static int get_peer(struct wg_peer *peer, struct allowedips_cursor *rt_cursor,
+		    struct sk_buff *skb)
 {
 	struct nlattr *allowedips_nest, *peer_nest = nla_nest_start(skb, 0);
 	bool fail;
@@ -163,7 +163,7 @@ err:
 static int wg_get_device_start(struct netlink_callback *cb)
 {
 	struct nlattr **attrs = genl_family_attrbuf(&genl_family);
-	struct wireguard_device *wg;
+	struct wg_device *wg;
 	int ret;
 
 	ret = nlmsg_parse(cb->nlh, GENL_HDRLEN + genl_family.hdrsize, attrs,
@@ -186,17 +186,17 @@ static int wg_get_device_start(struct netlink_callback *cb)
 
 static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct wireguard_peer *peer, *next_peer_cursor, *last_peer_cursor;
+	struct wg_peer *peer, *next_peer_cursor, *last_peer_cursor;
 	struct allowedips_cursor *rt_cursor;
-	struct wireguard_device *wg;
 	struct nlattr *peers_nest;
+	struct wg_device *wg;
 	int ret = -EMSGSIZE;
 	bool done = true;
 	void *hdr;
 
-	wg = (struct wireguard_device *)cb->args[0];
-	next_peer_cursor = (struct wireguard_peer *)cb->args[1];
-	last_peer_cursor = (struct wireguard_peer *)cb->args[1];
+	wg = (struct wg_device *)cb->args[0];
+	next_peer_cursor = (struct wg_peer *)cb->args[1];
+	last_peer_cursor = (struct wg_peer *)cb->args[1];
 	rt_cursor = (struct allowedips_cursor *)cb->args[2];
 
 	rtnl_lock();
@@ -284,8 +284,8 @@ out:
 
 static int wg_get_device_done(struct netlink_callback *cb)
 {
-	struct wireguard_device *wg = (struct wireguard_device *)cb->args[0];
-	struct wireguard_peer *peer = (struct wireguard_peer *)cb->args[1];
+	struct wg_device *wg = (struct wg_device *)cb->args[0];
+	struct wg_peer *peer = (struct wg_peer *)cb->args[1];
 	struct allowedips_cursor *rt_cursor =
 		(struct allowedips_cursor *)cb->args[2];
 
@@ -296,9 +296,9 @@ static int wg_get_device_done(struct netlink_callback *cb)
 	return 0;
 }
 
-static int set_port(struct wireguard_device *wg, u16 port)
+static int set_port(struct wg_device *wg, u16 port)
 {
-	struct wireguard_peer *peer;
+	struct wg_peer *peer;
 
 	if (wg->incoming_port == port)
 		return 0;
@@ -311,7 +311,7 @@ static int set_port(struct wireguard_device *wg, u16 port)
 	return wg_socket_init(wg, port);
 }
 
-static int set_allowedip(struct wireguard_peer *peer, struct nlattr **attrs)
+static int set_allowedip(struct wg_peer *peer, struct nlattr **attrs)
 {
 	int ret = -EINVAL;
 	u16 family;
@@ -339,10 +339,10 @@ static int set_allowedip(struct wireguard_peer *peer, struct nlattr **attrs)
 	return ret;
 }
 
-static int set_peer(struct wireguard_device *wg, struct nlattr **attrs)
+static int set_peer(struct wg_device *wg, struct nlattr **attrs)
 {
 	u8 *public_key = NULL, *preshared_key = NULL;
-	struct wireguard_peer *peer = NULL;
+	struct wg_peer *peer = NULL;
 	u32 flags = 0;
 	int ret;
 
@@ -470,7 +470,7 @@ out:
 
 static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 {
-	struct wireguard_device *wg = lookup_interface(info->attrs, skb);
+	struct wg_device *wg = lookup_interface(info->attrs, skb);
 	int ret;
 
 	if (IS_ERR(wg)) {
@@ -483,7 +483,7 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 	++wg->device_update_gen;
 
 	if (info->attrs[WGDEVICE_A_FWMARK]) {
-		struct wireguard_peer *peer;
+		struct wg_peer *peer;
 
 		wg->fwmark = nla_get_u32(info->attrs[WGDEVICE_A_FWMARK]);
 		list_for_each_entry (peer, &wg->peer_list, peer_list)
@@ -507,7 +507,7 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 		    NOISE_PUBLIC_KEY_LEN) {
 		u8 *private_key = nla_data(info->attrs[WGDEVICE_A_PRIVATE_KEY]);
 		u8 public_key[NOISE_PUBLIC_KEY_LEN];
-		struct wireguard_peer *peer, *temp;
+		struct wg_peer *peer, *temp;
 
 		/* We remove before setting, to prevent race, which means doing
 		 * two 25519-genpub ops.
