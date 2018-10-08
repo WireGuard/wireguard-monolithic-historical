@@ -30,10 +30,96 @@ static __init unsigned int maximum_jiffies_at_index(int index)
 	return msecs_to_jiffies(total_msecs);
 }
 
+static __init int timings_test(struct sk_buff *skb4, struct iphdr *hdr4,
+			       struct sk_buff *skb6, struct ipv6hdr *hdr6,
+			       int *test)
+{
+	unsigned long loop_start_time;
+	int i;
+
+	wg_ratelimiter_gc_entries(NULL);
+	rcu_barrier();
+	loop_start_time = jiffies;
+
+	for (i = 0; i < ARRAY_SIZE(expected_results); ++i) {
+		if (expected_results[i].msec_to_sleep_before)
+			msleep(expected_results[i].msec_to_sleep_before);
+
+		if (time_is_before_jiffies(loop_start_time +
+					   maximum_jiffies_at_index(i)))
+			return -ETIMEDOUT;
+		if (wg_ratelimiter_allow(skb4, &init_net) !=
+					expected_results[i].result)
+			return -EXFULL;
+		++(*test);
+
+		hdr4->saddr = htonl(ntohl(hdr4->saddr) + i + 1);
+		if (time_is_before_jiffies(loop_start_time +
+					   maximum_jiffies_at_index(i)))
+			return -ETIMEDOUT;
+		if (!wg_ratelimiter_allow(skb4, &init_net))
+			return -EXFULL;
+		++(*test);
+
+		hdr4->saddr = htonl(ntohl(hdr4->saddr) - i - 1);
+
+#if IS_ENABLED(CONFIG_IPV6)
+		hdr6->saddr.in6_u.u6_addr32[2] = htonl(i);
+		hdr6->saddr.in6_u.u6_addr32[3] = htonl(i);
+		if (time_is_before_jiffies(loop_start_time +
+					   maximum_jiffies_at_index(i)))
+			return -ETIMEDOUT;
+		if (wg_ratelimiter_allow(skb6, &init_net) !=
+					expected_results[i].result)
+			return -EXFULL;
+		++(*test);
+
+		hdr6->saddr.in6_u.u6_addr32[0] =
+			htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) + i + 1);
+		if (time_is_before_jiffies(loop_start_time +
+					   maximum_jiffies_at_index(i)))
+			return -ETIMEDOUT;
+		if (!wg_ratelimiter_allow(skb6, &init_net))
+			return -EXFULL;
+		++(*test);
+
+		hdr6->saddr.in6_u.u6_addr32[0] =
+			htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) - i - 1);
+
+		if (time_is_before_jiffies(loop_start_time +
+					   maximum_jiffies_at_index(i)))
+			return -ETIMEDOUT;
+#endif
+	}
+	return 0;
+}
+
+static __init int capacity_test(struct sk_buff *skb4, struct iphdr *hdr4,
+				int *test)
+{
+	int i;
+
+	wg_ratelimiter_gc_entries(NULL);
+	rcu_barrier();
+
+	if (atomic_read(&total_entries))
+		return -EXFULL;
+	++(*test);
+
+	for (i = 0; i <= max_entries; ++i) {
+		hdr4->saddr = htonl(i);
+		if (wg_ratelimiter_allow(skb4, &init_net) != (i != max_entries))
+			return -EXFULL;
+		++(*test);
+	}
+	return 0;
+}
+
 bool __init wg_ratelimiter_selftest(void)
 {
-	int i, test = 0, tries = 0, ret = false;
-	unsigned long loop_start_time;
+	enum { TRIALS_BEFORE_GIVING_UP = 5000 };
+	bool success = false;
+	int test = 0, trials;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct sk_buff *skb6;
 	struct ipv6hdr *hdr6;
@@ -84,77 +170,42 @@ bool __init wg_ratelimiter_selftest(void)
 	++test;
 #endif
 
-restart:
-	loop_start_time = jiffies;
-	for (i = 0; i < ARRAY_SIZE(expected_results); ++i) {
-#define ensure_time do {                                                   \
-		if (time_is_before_jiffies(loop_start_time +               \
-					   maximum_jiffies_at_index(i))) { \
-			if (++tries >= 5000)                               \
-				goto err;                                  \
-			wg_ratelimiter_gc_entries(NULL);                   \
-			rcu_barrier();                                     \
-			msleep(500);                                       \
-			goto restart;                                      \
-		}                                                          \
-	} while (0)
+	for (trials = TRIALS_BEFORE_GIVING_UP;;) {
+		int test_count = 0, ret;
 
-		if (expected_results[i].msec_to_sleep_before)
-			msleep(expected_results[i].msec_to_sleep_before);
-
-		ensure_time;
-		if (wg_ratelimiter_allow(skb4, &init_net) !=
-		    expected_results[i].result)
+		ret = timings_test(skb4, hdr4, skb6, hdr6, &test_count);
+		if (ret == -ETIMEDOUT) {
+			if (!trials--) {
+				test += test_count;
+				goto err;
+			}
+			msleep(500);
+			continue;
+		} else if (ret < 0) {
+			test += test_count;
 			goto err;
-		++test;
-		hdr4->saddr = htonl(ntohl(hdr4->saddr) + i + 1);
-		ensure_time;
-		if (!wg_ratelimiter_allow(skb4, &init_net))
-			goto err;
-		++test;
-		hdr4->saddr = htonl(ntohl(hdr4->saddr) - i - 1);
-
-#if IS_ENABLED(CONFIG_IPV6)
-		hdr6->saddr.in6_u.u6_addr32[2] =
-			hdr6->saddr.in6_u.u6_addr32[3] = htonl(i);
-		ensure_time;
-		if (wg_ratelimiter_allow(skb6, &init_net) !=
-		    expected_results[i].result)
-			goto err;
-		++test;
-		hdr6->saddr.in6_u.u6_addr32[0] =
-			htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) + i + 1);
-		ensure_time;
-		if (!wg_ratelimiter_allow(skb6, &init_net))
-			goto err;
-		++test;
-		hdr6->saddr.in6_u.u6_addr32[0] =
-			htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) - i - 1);
-		ensure_time;
-#endif
-	}
-
-	tries = 0;
-restart2:
-	wg_ratelimiter_gc_entries(NULL);
-	rcu_barrier();
-
-	if (atomic_read(&total_entries))
-		goto err;
-	++test;
-
-	for (i = 0; i <= max_entries; ++i) {
-		hdr4->saddr = htonl(i);
-		if (wg_ratelimiter_allow(skb4, &init_net) !=
-							(i != max_entries)) {
-			if (++tries < 5000)
-				goto restart2;
-			goto err;
+		} else {
+			test += test_count;
+			break;
 		}
-		++test;
 	}
 
-	ret = true;
+	for (trials = TRIALS_BEFORE_GIVING_UP;;) {
+		int test_count = 0;
+
+		if (capacity_test(skb4, hdr4, &test_count) < 0) {
+			if (!trials--) {
+				test += test_count;
+				goto err;
+			}
+			msleep(50);
+			continue;
+		}
+		test += test_count;
+		break;
+	}
+
+	success = true;
 
 err:
 	kfree_skb(skb4);
@@ -168,11 +219,11 @@ err_nofree:
 	/* Uninit one extra time to check underflow detection. */
 	wg_ratelimiter_uninit();
 out:
-	if (ret)
+	if (success)
 		pr_info("ratelimiter self-tests: pass\n");
 	else
 		pr_err("ratelimiter self-test %d: FAIL\n", test);
 
-	return ret;
+	return success;
 }
 #endif
