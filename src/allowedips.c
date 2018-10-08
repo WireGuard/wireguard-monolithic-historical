@@ -242,16 +242,13 @@ node_placement(struct allowedips_node __rcu *trie, const u8 *key, u8 cidr,
 	return exact;
 }
 
-static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *be_key,
+static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *key,
 	       u8 cidr, struct wg_peer *peer, struct mutex *lock)
 {
 	struct allowedips_node *node, *parent, *down, *newnode;
-	u8 key[16] __aligned(__alignof(u64));
 
 	if (unlikely(cidr > bits || !peer))
 		return -EINVAL;
-
-	swap_endian(key, be_key, bits);
 
 	if (!rcu_access_pointer(*trie)) {
 		node = kzalloc(sizeof(*node), GFP_KERNEL);
@@ -336,16 +333,22 @@ int wg_allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip,
 			    u8 cidr, struct wg_peer *peer,
 			    struct mutex *lock)
 {
+	u8 key[4] __aligned(__alignof(u32));
+
 	++table->seq;
-	return add(&table->root4, 32, (const u8 *)ip, cidr, peer, lock);
+	swap_endian(key, (const u8 *)ip, 32);
+	return add(&table->root4, 32, key, cidr, peer, lock);
 }
 
 int wg_allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
 			    u8 cidr, struct wg_peer *peer,
 			    struct mutex *lock)
 {
+	u8 key[16] __aligned(__alignof(u64));
+
 	++table->seq;
-	return add(&table->root6, 128, (const u8 *)ip, cidr, peer, lock);
+	swap_endian(key, (const u8 *)ip, 128);
+	return add(&table->root6, 128, key, cidr, peer, lock);
 }
 
 void wg_allowedips_remove_by_peer(struct allowedips *table,
