@@ -26,8 +26,7 @@ static inline bool curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
 	bool used_arch = false;
 
 	simd_get(&simd_context);
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
-	    !IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) && curve25519_use_neon &&
+	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && curve25519_use_neon &&
 	    simd_use(&simd_context)) {
 		curve25519_neon(mypublic, secret, basepoint);
 		used_arch = true;

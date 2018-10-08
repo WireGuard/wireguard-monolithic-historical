@@ -7,8 +7,9 @@
  * manually reworked for use in kernel space.
  */
 
-#if defined(CONFIG_KERNEL_MODE_NEON) && !defined(__ARMEB__)
+#if defined(CONFIG_KERNEL_MODE_NEON)
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 .text
 .fpu neon
@@ -18,6 +19,7 @@
 ENTRY(curve25519_neon)
 	push		{r4-r11, lr}
 	mov		ip, sp
+ARM_BE8(setend		le)
 	sub		r3, sp, #704
 	and		r3, r3, #0xfffffff0
 	mov		sp, r3
@@ -2058,6 +2060,7 @@ ENTRY(curve25519_neon)
 	str		r8, [r0, #24]
 	str		r1, [r0, #28]
 	movw		r0, #0
+ARM_BE8(setend		be)
 	mov		sp, ip
 	pop		{r4-r11, pc}
 ENDPROC(curve25519_neon)
