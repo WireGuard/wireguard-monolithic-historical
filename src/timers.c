@@ -26,13 +26,13 @@
  * specified seconds.
  */
 
-#define peer_get_from_timer(timer_name)                                        \
+#define peer_get_from_timer(timer_name) ({                                     \
 	struct wg_peer *peer;                                                  \
 	rcu_read_lock_bh();                                                    \
 	peer = wg_peer_get_maybe_zero(from_timer(peer, timer, timer_name));    \
 	rcu_read_unlock_bh();                                                  \
-	if (unlikely(!peer))                                                   \
-		return;
+	peer;                                                                  \
+})
 
 static inline void mod_peer_timer(struct wg_peer *peer,
 				  struct timer_list *timer,
@@ -55,7 +55,10 @@ static inline void del_peer_timer(struct wg_peer *peer,
 
 static void wg_expired_retransmit_handshake(struct timer_list *timer)
 {
-	peer_get_from_timer(timer_retransmit_handshake);
+	struct wg_peer *peer = peer_get_from_timer(timer_retransmit_handshake);
+
+	if (unlikely(!peer))
+		return;
 
 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
 		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d attempts, giving up\n",
@@ -93,7 +96,10 @@ static void wg_expired_retransmit_handshake(struct timer_list *timer)
 
 static void wg_expired_send_keepalive(struct timer_list *timer)
 {
-	peer_get_from_timer(timer_send_keepalive);
+	struct wg_peer *peer = peer_get_from_timer(timer_send_keepalive);
+
+	if (unlikely(!peer))
+		return;
 
 	wg_packet_send_keepalive(peer);
 	if (peer->timer_need_another_keepalive) {
@@ -106,7 +112,10 @@ static void wg_expired_send_keepalive(struct timer_list *timer)
 
 static void wg_expired_new_handshake(struct timer_list *timer)
 {
-	peer_get_from_timer(timer_new_handshake);
+	struct wg_peer *peer = peer_get_from_timer(timer_new_handshake);
+
+	if (unlikely(!peer))
+		return;
 
 	pr_debug("%s: Retrying handshake with peer %llu (%pISpfsc) because we stopped hearing back after %d seconds\n",
 		 peer->device->dev->name, peer->internal_id,
@@ -121,7 +130,10 @@ static void wg_expired_new_handshake(struct timer_list *timer)
 
 static void wg_expired_zero_key_material(struct timer_list *timer)
 {
-	peer_get_from_timer(timer_zero_key_material);
+	struct wg_peer *peer = peer_get_from_timer(timer_zero_key_material);
+
+	if (unlikely(!peer))
+		return;
 
 	rcu_read_lock_bh();
 	if (!peer->is_dead) {
@@ -149,7 +161,10 @@ static void wg_queued_expired_zero_key_material(struct work_struct *work)
 
 static void wg_expired_send_persistent_keepalive(struct timer_list *timer)
 {
-	peer_get_from_timer(timer_persistent_keepalive);
+	struct wg_peer *peer = peer_get_from_timer(timer_persistent_keepalive);
+
+	if (unlikely(!peer))
+		return;
 
 	if (likely(peer->persistent_keepalive_interval))
 		wg_packet_send_keepalive(peer);
