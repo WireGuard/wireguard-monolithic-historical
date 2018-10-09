@@ -8,6 +8,16 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifndef __BYTE_ORDER__
+#include <sys/param.h>
+#if !defined(BYTE_ORDER) || !defined(BIG_ENDIAN) || !defined(LITTLE_ENDIAN)
+#error "Unable to determine endianness."
+#endif
+#define __BYTE_ORDER__ BYTE_ORDER
+#define __ORDER_BIG_ENDIAN__ BIG_ENDIAN
+#define __ORDER_LITTLE_ENDIAN__ LITTLE_ENDIAN
+#endif
+
 #ifdef __linux__
 #include <linux/types.h>
 typedef __u64 u64;
