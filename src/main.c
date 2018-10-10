@@ -57,7 +57,6 @@ static void __exit mod_exit(void)
 {
 	wg_genetlink_uninit();
 	wg_device_uninit();
-	pr_debug("WireGuard unloaded\n");
 }
 
 module_init(mod_init);
