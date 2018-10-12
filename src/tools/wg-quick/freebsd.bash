@@ -137,8 +137,17 @@ del_routes() {
 }
 
 del_if() {
+	local line monitor_pid
 	[[ $HAVE_SET_DNS -eq 0 ]] || unset_dns
+	exec 39< <(exec route -n monitor 2>/dev/null)
+	monitor_pid=$!
 	cmd rm -f "/var/run/wireguard/$INTERFACE.sock"
+	while ifconfig "$INTERFACE" >/dev/null 2>&1; do
+		while read -r line; do
+			[[ $line =~ ^RTM_IFANNOUNCE:.* ]] && break
+		done <&39
+	done
+	kill $monitor_pid
 }
 
 up_if() {
