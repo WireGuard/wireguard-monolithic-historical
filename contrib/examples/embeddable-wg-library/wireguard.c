@@ -998,8 +998,15 @@ another:
 		goto cleanup;
 	}
 	if ((len = mnl_cb_run(rtnl_buffer, len, seq, portid, read_devices_cb, buffer)) < 0) {
-		ret = -errno;
-		goto cleanup;
+		/* Netlink returns NLM_F_DUMP_INTR if the set of all tunnels changed
+		 * during the dump. That's unfortunate, but is pretty common on busy
+		 * systems that are adding and removing tunnels all the time. Rather
+		 * than retrying, potentially indefinitely, we just work with the
+		 * partial results. */
+		if (errno != EINTR) {
+			ret = -errno;
+			goto cleanup;
+		}
 	}
 	if (len == MNL_CB_OK + 1)
 		goto another;
