@@ -13,7 +13,7 @@ static struct kmem_cache *entry_cache;
 static hsiphash_key_t key;
 static spinlock_t table_lock = __SPIN_LOCK_UNLOCKED("ratelimiter_table_lock");
 static DEFINE_MUTEX(init_lock);
-static atomic64_t refcnt = ATOMIC64_INIT(0);
+static u64 init_refcnt; /* Protected by init_lock, hence not atomic. */
 static atomic_t total_entries = ATOMIC_INIT(0);
 static unsigned int max_entries, table_size;
 static void wg_ratelimiter_gc_entries(struct work_struct *);
@@ -155,7 +155,7 @@ err_oom:
 int wg_ratelimiter_init(void)
 {
 	mutex_lock(&init_lock);
-	if (atomic64_inc_return(&refcnt) != 1)
+	if (++init_refcnt != 1)
 		goto out;
 
 	entry_cache = KMEM_CACHE(ratelimiter_entry, 0);
@@ -194,7 +194,7 @@ out:
 err_kmemcache:
 	kmem_cache_destroy(entry_cache);
 err:
-	atomic64_dec(&refcnt);
+	--init_refcnt;
 	mutex_unlock(&init_lock);
 	return -ENOMEM;
 }
@@ -202,7 +202,7 @@ err:
 void wg_ratelimiter_uninit(void)
 {
 	mutex_lock(&init_lock);
-	if (atomic64_dec_if_positive(&refcnt))
+	if (!init_refcnt || --init_refcnt)
 		goto out;
 
 	cancel_delayed_work_sync(&gc_work);
