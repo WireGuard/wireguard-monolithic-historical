@@ -231,7 +231,7 @@ static void keep_key_fresh(struct wg_peer *peer)
 
 	rcu_read_lock_bh();
 	keypair = rcu_dereference_bh(peer->keypairs.current_keypair);
-	if (likely(keypair && keypair->sending.is_valid) &&
+	if (likely(keypair && READ_ONCE(keypair->sending.is_valid)) &&
 	    keypair->i_am_the_initiator &&
 	    unlikely(wg_birthdate_has_expired(keypair->sending.birthdate,
 			REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - REKEY_TIMEOUT)))
@@ -255,10 +255,10 @@ static bool decrypt_packet(struct sk_buff *skb, struct noise_symmetric_key *key,
 	if (unlikely(!key))
 		return false;
 
-	if (unlikely(!key->is_valid ||
+	if (unlikely(!READ_ONCE(key->is_valid) ||
 		  wg_birthdate_has_expired(key->birthdate, REJECT_AFTER_TIME) ||
 		  key->counter.receive.counter >= REJECT_AFTER_MESSAGES)) {
-		key->is_valid = false;
+		WRITE_ONCE(key->is_valid, false);
 		return false;
 	}
 
@@ -534,7 +534,7 @@ static void wg_packet_consume_data(struct wg_device *wg, struct sk_buff *skb)
 	if (unlikely(!wg_noise_keypair_get(PACKET_CB(skb)->keypair)))
 		goto err_keypair;
 
-	if (unlikely(peer->is_dead))
+	if (unlikely(READ_ONCE(peer->is_dead)))
 		goto err;
 
 	ret = wg_queue_enqueue_per_device_and_peer(&wg->decrypt_queue,

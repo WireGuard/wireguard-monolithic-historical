@@ -65,7 +65,8 @@ void wg_packet_send_queued_handshake_initiation(struct wg_peer *peer,
 	 * necessary:
 	 */
 	if (!wg_birthdate_has_expired(atomic64_read(&peer->last_sent_handshake),
-				      REKEY_TIMEOUT) || unlikely(peer->is_dead))
+				      REKEY_TIMEOUT) ||
+			unlikely(READ_ONCE(peer->is_dead)))
 		goto out;
 
 	wg_peer_get(peer);
@@ -128,7 +129,7 @@ static void keep_key_fresh(struct wg_peer *peer)
 
 	rcu_read_lock_bh();
 	keypair = rcu_dereference_bh(peer->keypairs.current_keypair);
-	if (likely(keypair && keypair->sending.is_valid) &&
+	if (likely(keypair && READ_ONCE(keypair->sending.is_valid)) &&
 	    (unlikely(atomic64_read(&keypair->sending.counter.counter) >
 		      REKEY_AFTER_MESSAGES) ||
 	     (keypair->i_am_the_initiator &&
@@ -327,7 +328,7 @@ static void wg_packet_create_data(struct sk_buff *first)
 	int ret = -EINVAL;
 
 	rcu_read_lock_bh();
-	if (unlikely(peer->is_dead))
+	if (unlikely(READ_ONCE(peer->is_dead)))
 		goto err;
 
 	ret = wg_queue_enqueue_per_device_and_peer(&wg->encrypt_queue,
@@ -369,7 +370,7 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 	if (unlikely(!keypair))
 		goto out_nokey;
 	key = &keypair->sending;
-	if (unlikely(!key->is_valid))
+	if (unlikely(!READ_ONCE(key->is_valid)))
 		goto out_nokey;
 	if (unlikely(wg_birthdate_has_expired(key->birthdate,
 					      REJECT_AFTER_TIME)))
@@ -398,7 +399,7 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 	return;
 
 out_invalid:
-	key->is_valid = false;
+	WRITE_ONCE(key->is_valid, false);
 out_nokey:
 	wg_noise_keypair_put(keypair, false);
 

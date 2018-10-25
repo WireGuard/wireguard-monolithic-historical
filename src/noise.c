@@ -775,8 +775,8 @@ bool wg_noise_handshake_begin_session(struct noise_handshake *handshake,
 
 	handshake_zero(handshake);
 	rcu_read_lock_bh();
-	if (likely(!container_of(handshake, struct wg_peer,
-				 handshake)->is_dead)) {
+	if (likely(!READ_ONCE(container_of(handshake, struct wg_peer,
+					   handshake)->is_dead))) {
 		add_new_keypair(keypairs, new_keypair);
 		net_dbg_ratelimited("%s: Keypair %llu created for peer %llu\n",
 				    handshake->entry.peer->device->dev->name,

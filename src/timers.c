@@ -39,7 +39,8 @@ static inline void mod_peer_timer(struct wg_peer *peer,
 				  unsigned long expires)
 {
 	rcu_read_lock_bh();
-	if (likely(netif_running(peer->device->dev) && !peer->is_dead))
+	if (likely(netif_running(peer->device->dev) &&
+		   !READ_ONCE(peer->is_dead)))
 		mod_timer(timer, expires);
 	rcu_read_unlock_bh();
 }
@@ -48,7 +49,8 @@ static inline void del_peer_timer(struct wg_peer *peer,
 				  struct timer_list *timer)
 {
 	rcu_read_lock_bh();
-	if (likely(netif_running(peer->device->dev) && !peer->is_dead))
+	if (likely(netif_running(peer->device->dev) &&
+		   !READ_ONCE(peer->is_dead)))
 		del_timer(timer);
 	rcu_read_unlock_bh();
 }
@@ -136,7 +138,7 @@ static void wg_expired_zero_key_material(struct timer_list *timer)
 		return;
 
 	rcu_read_lock_bh();
-	if (!peer->is_dead) {
+	if (!READ_ONCE(peer->is_dead)) {
 		 /* Should take our reference. */
 		if (!queue_work(peer->device->handshake_send_wq,
 				&peer->clear_peer_work))
