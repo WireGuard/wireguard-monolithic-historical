@@ -102,7 +102,7 @@ static int wg_stop(struct net_device *dev)
 
 	mutex_lock(&wg->device_update_lock);
 	list_for_each_entry(peer, &wg->peer_list, peer_list) {
-		skb_queue_purge(&peer->staged_packet_queue);
+		wg_packet_purge_staged_packets(peer);
 		wg_timers_stop(peer);
 		wg_noise_handshake_clear(&peer->handshake);
 		wg_noise_keypairs_clear(&peer->keypairs);
@@ -190,8 +190,10 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * until it's small again. We do this before adding the new packet, so
 	 * we don't remove GSO segments that are in excess.
 	 */
-	while (skb_queue_len(&peer->staged_packet_queue) > MAX_STAGED_PACKETS)
+	while (skb_queue_len(&peer->staged_packet_queue) > MAX_STAGED_PACKETS) {
 		dev_kfree_skb(__skb_dequeue(&peer->staged_packet_queue));
+		++dev->stats.tx_dropped;
+	}
 	skb_queue_splice_tail(&packets, &peer->staged_packet_queue);
 	spin_unlock_bh(&peer->staged_packet_queue.lock);
 

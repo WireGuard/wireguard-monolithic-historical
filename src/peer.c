@@ -192,7 +192,7 @@ static void kref_release(struct kref *refcount)
 	/* Remove any lingering packets that didn't have a chance to be
 	 * transmitted.
 	 */
-	skb_queue_purge(&peer->staged_packet_queue);
+	wg_packet_purge_staged_packets(peer);
 
 	/* Free the memory used. */
 	call_rcu_bh(&peer->rcu, rcu_release);

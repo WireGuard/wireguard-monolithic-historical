@@ -71,7 +71,7 @@ static void wg_expired_retransmit_handshake(struct timer_list *timer)
 		/* We drop all packets without a keypair and don't try again,
 		 * if we try unsuccessfully for too long to make a handshake.
 		 */
-		skb_queue_purge(&peer->staged_packet_queue);
+		wg_packet_purge_staged_packets(peer);
 
 		/* We set a timer for destroying any residue that might be left
 		 * of a partial exchange.

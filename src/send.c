@@ -347,6 +347,14 @@ err:
 	skb_free_null_queue(first);
 }
 
+void wg_packet_purge_staged_packets(struct wg_peer *peer)
+{
+	spin_lock_bh(&peer->staged_packet_queue.lock);
+	peer->device->dev->stats.tx_dropped += peer->staged_packet_queue.qlen;
+	__skb_queue_purge(&peer->staged_packet_queue);
+	spin_unlock_bh(&peer->staged_packet_queue.lock);
+}
+
 void wg_packet_send_staged_packets(struct wg_peer *peer)
 {
 	struct noise_symmetric_key *key;
