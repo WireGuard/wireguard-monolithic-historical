@@ -24,8 +24,7 @@ static struct hlist_head *table_v6;
 #endif
 
 struct ratelimiter_entry {
-	u64 last_time_ns, tokens;
-	__be64 ip;
+	u64 last_time_ns, tokens, ip;
 	void *net;
 	spinlock_t lock;
 	struct hlist_node hash;
@@ -84,21 +83,25 @@ static void wg_ratelimiter_gc_entries(struct work_struct *work)
 
 bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 {
-	struct { __be64 ip; u32 net; } data = {
-		.net = (unsigned long)net & 0xffffffff };
+	/* We only take the bottom half of the net pointer, so that we can hash
+	 * 3 words in the end. This way, siphash's len param fits into the final
+	 * u32, and we don't incur an extra round.
+	 */
+	const u32 net_word = (unsigned long)net;
 	struct ratelimiter_entry *entry;
 	struct hlist_head *bucket;
+	u64 ip;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
-		data.ip = (__force __be64)ip_hdr(skb)->saddr;
-		bucket = &table_v4[hsiphash(&data, sizeof(u32) * 3, &key) &
+		ip = (u64 __force)ip_hdr(skb)->saddr;
+		bucket = &table_v4[hsiphash_2u32(net_word, ip, &key) &
 				   (table_size - 1)];
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (skb->protocol == htons(ETH_P_IPV6)) {
-		memcpy(&data.ip, &ipv6_hdr(skb)->saddr,
-		       sizeof(__be64)); /* Only 64 bits */
-		bucket = &table_v6[hsiphash(&data, sizeof(u32) * 3, &key) &
+		/* Only use 64 bits, so as to ratelimit the whole /64. */
+		memcpy(&ip, &ipv6_hdr(skb)->saddr, sizeof(ip));
+		bucket = &table_v6[hsiphash_3u32(net_word, ip >> 32, ip, &key) &
 				   (table_size - 1)];
 	}
 #endif
@@ -106,7 +109,7 @@ bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 		return false;
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(entry, bucket, hash) {
-		if (entry->net == net && entry->ip == data.ip) {
+		if (entry->net == net && entry->ip == ip) {
 			u64 now, tokens;
 			bool ret;
 			/* Quasi-inspired by nft_limit.c, but this is actually a
@@ -137,7 +140,7 @@ bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 		goto err_oom;
 
 	entry->net = net;
-	entry->ip = data.ip;
+	entry->ip = ip;
 	INIT_HLIST_NODE(&entry->hash);
 	spin_lock_init(&entry->lock);
 	entry->last_time_ns = ktime_get_boot_fast_ns();
