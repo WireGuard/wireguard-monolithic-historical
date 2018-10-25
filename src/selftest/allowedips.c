@@ -47,7 +47,7 @@ static __init void print_node(struct allowedips_node *node, u8 bits)
 			"\t\"%pI6/%d\"[style=%s, color=\"#%06x\"];\n";
 	}
 	if (node->peer) {
-		hsiphash_key_t key = { 0 };
+		hsiphash_key_t key = { { 0 } };
 
 		memcpy(&key, &node->peer, sizeof(node->peer));
 		color = hsiphash_1u32(0xdeadbeef, &key) % 200 << 16 |
@@ -58,25 +58,27 @@ static __init void print_node(struct allowedips_node *node, u8 bits)
 	swap_endian_and_apply_cidr(ip1, node->bits, bits, node->cidr);
 	printk(fmt_declaration, ip1, node->cidr, style, color);
 	if (node->bit[0]) {
-		swap_endian_and_apply_cidr(ip2, node->bit[0]->bits, bits,
-					   node->cidr);
+		swap_endian_and_apply_cidr(ip2,
+				rcu_dereference_raw(node->bit[0])->bits, bits,
+				node->cidr);
 		printk(fmt_connection, ip1, node->cidr, ip2,
-		       node->bit[0]->cidr);
-		print_node(node->bit[0], bits);
+		       rcu_dereference_raw(node->bit[0])->cidr);
+		print_node(rcu_dereference_raw(node->bit[0]), bits);
 	}
 	if (node->bit[1]) {
-		swap_endian_and_apply_cidr(ip2, node->bit[1]->bits, bits,
-					   node->cidr);
+		swap_endian_and_apply_cidr(ip2,
+				rcu_dereference_raw(node->bit[1])->bits,
+				bits, node->cidr);
 		printk(fmt_connection, ip1, node->cidr, ip2,
-		       node->bit[1]->cidr);
-		print_node(node->bit[1], bits);
+		       rcu_dereference_raw(node->bit[1])->cidr);
+		print_node(rcu_dereference_raw(node->bit[1]), bits);
 	}
 }
 
-static __init void print_tree(struct allowedips_node *top, u8 bits)
+static __init void print_tree(struct allowedips_node __rcu *top, u8 bits)
 {
 	printk(KERN_DEBUG "digraph trie {\n");
-	print_node(top, bits);
+	print_node(rcu_dereference_raw(top), bits);
 	printk(KERN_DEBUG "}\n");
 }
 
@@ -122,7 +124,7 @@ static __init inline union nf_inet_addr horrible_cidr_to_mask(u8 cidr)
 	memset(&mask, 0x00, 128 / 8);
 	memset(&mask, 0xff, cidr / 8);
 	if (cidr % 32)
-		mask.all[cidr / 32] = htonl(
+		mask.all[cidr / 32] = (__force u32)htonl(
 			(0xFFFFFFFFUL << (32 - (cidr % 32))) & 0xFFFFFFFFUL);
 	return mask;
 }
