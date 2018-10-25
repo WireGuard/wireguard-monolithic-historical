@@ -26,14 +26,6 @@
  * specified seconds.
  */
 
-#define peer_get_from_timer(timer_name) ({                                     \
-	struct wg_peer *peer;                                                  \
-	rcu_read_lock_bh();                                                    \
-	peer = wg_peer_get_maybe_zero(from_timer(peer, timer, timer_name));    \
-	rcu_read_unlock_bh();                                                  \
-	peer;                                                                  \
-})
-
 static inline void mod_peer_timer(struct wg_peer *peer,
 				  struct timer_list *timer,
 				  unsigned long expires)
@@ -57,10 +49,8 @@ static inline void del_peer_timer(struct wg_peer *peer,
 
 static void wg_expired_retransmit_handshake(struct timer_list *timer)
 {
-	struct wg_peer *peer = peer_get_from_timer(timer_retransmit_handshake);
-
-	if (unlikely(!peer))
-		return;
+	struct wg_peer *peer = from_timer(peer, timer,
+					  timer_retransmit_handshake);
 
 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
 		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d attempts, giving up\n",
@@ -93,15 +83,11 @@ static void wg_expired_retransmit_handshake(struct timer_list *timer)
 
 		wg_packet_send_queued_handshake_initiation(peer, true);
 	}
-	wg_peer_put(peer);
 }
 
 static void wg_expired_send_keepalive(struct timer_list *timer)
 {
-	struct wg_peer *peer = peer_get_from_timer(timer_send_keepalive);
-
-	if (unlikely(!peer))
-		return;
+	struct wg_peer *peer = from_timer(peer, timer, timer_send_keepalive);
 
 	wg_packet_send_keepalive(peer);
 	if (peer->timer_need_another_keepalive) {
@@ -109,15 +95,11 @@ static void wg_expired_send_keepalive(struct timer_list *timer)
 		mod_peer_timer(peer, &peer->timer_send_keepalive,
 			       jiffies + KEEPALIVE_TIMEOUT * HZ);
 	}
-	wg_peer_put(peer);
 }
 
 static void wg_expired_new_handshake(struct timer_list *timer)
 {
-	struct wg_peer *peer = peer_get_from_timer(timer_new_handshake);
-
-	if (unlikely(!peer))
-		return;
+	struct wg_peer *peer = from_timer(peer, timer, timer_new_handshake);
 
 	pr_debug("%s: Retrying handshake with peer %llu (%pISpfsc) because we stopped hearing back after %d seconds\n",
 		 peer->device->dev->name, peer->internal_id,
@@ -127,22 +109,20 @@ static void wg_expired_new_handshake(struct timer_list *timer)
 	 */
 	wg_socket_clear_peer_endpoint_src(peer);
 	wg_packet_send_queued_handshake_initiation(peer, false);
-	wg_peer_put(peer);
 }
 
 static void wg_expired_zero_key_material(struct timer_list *timer)
 {
-	struct wg_peer *peer = peer_get_from_timer(timer_zero_key_material);
-
-	if (unlikely(!peer))
-		return;
+	struct wg_peer *peer = from_timer(peer, timer, timer_zero_key_material);
 
 	rcu_read_lock_bh();
 	if (!READ_ONCE(peer->is_dead)) {
-		 /* Should take our reference. */
+		wg_peer_get(peer);
 		if (!queue_work(peer->device->handshake_send_wq,
 				&peer->clear_peer_work))
-			/* If the work was already on the queue, we want to drop the extra reference */
+			/* If the work was already on the queue, we want to drop
+			 * the extra reference.
+			 */
 			wg_peer_put(peer);
 	}
 	rcu_read_unlock_bh();
@@ -163,14 +143,11 @@ static void wg_queued_expired_zero_key_material(struct work_struct *work)
 
 static void wg_expired_send_persistent_keepalive(struct timer_list *timer)
 {
-	struct wg_peer *peer = peer_get_from_timer(timer_persistent_keepalive);
-
-	if (unlikely(!peer))
-		return;
+	struct wg_peer *peer = from_timer(peer, timer,
+					  timer_persistent_keepalive);
 
 	if (likely(peer->persistent_keepalive_interval))
 		wg_packet_send_keepalive(peer);
-	wg_peer_put(peer);
 }
 
 /* Should be called after an authenticated data packet is sent. */
@@ -253,7 +230,8 @@ void wg_timers_init(struct wg_peer *peer)
 		    wg_expired_retransmit_handshake, 0);
 	timer_setup(&peer->timer_send_keepalive, wg_expired_send_keepalive, 0);
 	timer_setup(&peer->timer_new_handshake, wg_expired_new_handshake, 0);
-	timer_setup(&peer->timer_zero_key_material, wg_expired_zero_key_material, 0);
+	timer_setup(&peer->timer_zero_key_material,
+		    wg_expired_zero_key_material, 0);
 	timer_setup(&peer->timer_persistent_keepalive,
 		    wg_expired_send_persistent_keepalive, 0);
 	INIT_WORK(&peer->clear_peer_work, wg_queued_expired_zero_key_material);
