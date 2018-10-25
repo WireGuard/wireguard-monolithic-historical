@@ -23,9 +23,9 @@ static void poly1305_init_generic(void *ctx, const u8 key[16])
 	t0 = get_unaligned_le64(&key[0]);
 	t1 = get_unaligned_le64(&key[8]);
 
-	st->r[0] = t0 & 0xffc0fffffff;
-	st->r[1] = ((t0 >> 44) | (t1 << 20)) & 0xfffffc0ffff;
-	st->r[2] = ((t1 >> 24)) & 0x00ffffffc0f;
+	st->r[0] = t0 & 0xffc0fffffffULL;
+	st->r[1] = ((t0 >> 44) | (t1 << 20)) & 0xfffffc0ffffULL;
+	st->r[2] = ((t1 >> 24)) & 0x00ffffffc0fULL;
 
 	/* s = 20*r */
 	st->s[0] = st->r[1] * 20;
@@ -66,9 +66,9 @@ static void poly1305_blocks_generic(void *ctx, const u8 *input, size_t len,
 		t0 = get_unaligned_le64(&input[0]);
 		t1 = get_unaligned_le64(&input[8]);
 
-		h0 += t0 & 0xfffffffffff;
-		h1 += ((t0 >> 44) | (t1 << 20)) & 0xfffffffffff;
-		h2 += (((t1 >> 24)) & 0x3ffffffffff) | hibit;
+		h0 += t0 & 0xfffffffffffULL;
+		h1 += ((t0 >> 44) | (t1 << 20)) & 0xfffffffffffULL;
+		h2 += (((t1 >> 24)) & 0x3ffffffffffULL) | hibit;
 
 		/* h *= r */
 		d0 = (u128)h0 * r0;
@@ -89,16 +89,16 @@ static void poly1305_blocks_generic(void *ctx, const u8 *input, size_t len,
 
 		/* (partial) h %= p */
 		c = (u64)(d0 >> 44);
-		h0 = (u64)d0 & 0xfffffffffff;
+		h0 = (u64)d0 & 0xfffffffffffULL;
 		d1 += c;
 		c = (u64)(d1 >> 44);
-		h1 = (u64)d1 & 0xfffffffffff;
+		h1 = (u64)d1 & 0xfffffffffffULL;
 		d2 += c;
 		c = (u64)(d2 >> 42);
-		h2 = (u64)d2 & 0x3ffffffffff;
+		h2 = (u64)d2 & 0x3ffffffffffULL;
 		h0 += c * 5;
 		c = h0 >> 44;
-		h0 = h0 & 0xfffffffffff;
+		h0 = h0 & 0xfffffffffffULL;
 		h1 += c;
 
 		input += POLY1305_BLOCK_SIZE;
@@ -123,31 +123,31 @@ static void poly1305_emit_generic(void *ctx, u8 mac[16], const u32 nonce[4])
 	h2 = st->h[2];
 
 	c = h1 >> 44;
-	h1 &= 0xfffffffffff;
+	h1 &= 0xfffffffffffULL;
 	h2 += c;
 	c = h2 >> 42;
-	h2 &= 0x3ffffffffff;
+	h2 &= 0x3ffffffffffULL;
 	h0 += c * 5;
 	c = h0 >> 44;
-	h0 &= 0xfffffffffff;
+	h0 &= 0xfffffffffffULL;
 	h1 += c;
 	c = h1 >> 44;
-	h1 &= 0xfffffffffff;
+	h1 &= 0xfffffffffffULL;
 	h2 += c;
 	c = h2 >> 42;
-	h2 &= 0x3ffffffffff;
+	h2 &= 0x3ffffffffffULL;
 	h0 += c * 5;
 	c = h0 >> 44;
-	h0 &= 0xfffffffffff;
+	h0 &= 0xfffffffffffULL;
 	h1 += c;
 
 	/* compute h + -p */
 	g0 = h0 + 5;
 	c  = g0 >> 44;
-	g0 &= 0xfffffffffff;
+	g0 &= 0xfffffffffffULL;
 	g1 = h1 + c;
 	c  = g1 >> 44;
-	g1 &= 0xfffffffffff;
+	g1 &= 0xfffffffffffULL;
 	g2 = h2 + c - (1ULL << 42);
 
 	/* select h if h < p, or h + -p if h >= p */
@@ -164,14 +164,14 @@ static void poly1305_emit_generic(void *ctx, u8 mac[16], const u32 nonce[4])
 	t0 = ((u64)nonce[1] << 32) | nonce[0];
 	t1 = ((u64)nonce[3] << 32) | nonce[2];
 
-	h0 += t0 & 0xfffffffffff;
+	h0 += t0 & 0xfffffffffffULL;
 	c = h0 >> 44;
-	h0 &= 0xfffffffffff;
-	h1 += (((t0 >> 44) | (t1 << 20)) & 0xfffffffffff) + c;
+	h0 &= 0xfffffffffffULL;
+	h1 += (((t0 >> 44) | (t1 << 20)) & 0xfffffffffffULL) + c;
 	c = h1 >> 44;
-	h1 &= 0xfffffffffff;
-	h2 += (((t1 >> 24)) & 0x3ffffffffff) + c;
-	h2 &= 0x3ffffffffff;
+	h1 &= 0xfffffffffffULL;
+	h2 += (((t1 >> 24)) & 0x3ffffffffffULL) + c;
+	h2 &= 0x3ffffffffffULL;
 
 	/* mac = h % (2^128) */
 	h0 = h0 | (h1 << 44);
