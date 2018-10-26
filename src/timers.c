@@ -37,16 +37,6 @@ static inline void mod_peer_timer(struct wg_peer *peer,
 	rcu_read_unlock_bh();
 }
 
-static inline void del_peer_timer(struct wg_peer *peer,
-				  struct timer_list *timer)
-{
-	rcu_read_lock_bh();
-	if (likely(netif_running(peer->device->dev) &&
-		   !READ_ONCE(peer->is_dead)))
-		del_timer(timer);
-	rcu_read_unlock_bh();
-}
-
 static void wg_expired_retransmit_handshake(struct timer_list *timer)
 {
 	struct wg_peer *peer = from_timer(peer, timer,
@@ -57,7 +47,7 @@ static void wg_expired_retransmit_handshake(struct timer_list *timer)
 			 peer->device->dev->name, peer->internal_id,
 			 &peer->endpoint.addr, MAX_TIMER_HANDSHAKES + 2);
 
-		del_peer_timer(peer, &peer->timer_send_keepalive);
+		del_timer(&peer->timer_send_keepalive);
 		/* We drop all packets without a keypair and don't try again,
 		 * if we try unsuccessfully for too long to make a handshake.
 		 */
@@ -175,7 +165,7 @@ void wg_timers_data_received(struct wg_peer *peer)
  */
 void wg_timers_any_authenticated_packet_sent(struct wg_peer *peer)
 {
-	del_peer_timer(peer, &peer->timer_send_keepalive);
+	del_timer(&peer->timer_send_keepalive);
 }
 
 /* Should be called after any type of authenticated packet is received, whether
@@ -183,7 +173,7 @@ void wg_timers_any_authenticated_packet_sent(struct wg_peer *peer)
  */
 void wg_timers_any_authenticated_packet_received(struct wg_peer *peer)
 {
-	del_peer_timer(peer, &peer->timer_new_handshake);
+	del_timer(&peer->timer_new_handshake);
 }
 
 /* Should be called after a handshake initiation message is sent. */
@@ -199,7 +189,7 @@ void wg_timers_handshake_initiated(struct wg_peer *peer)
  */
 void wg_timers_handshake_complete(struct wg_peer *peer)
 {
-	del_peer_timer(peer, &peer->timer_retransmit_handshake);
+	del_timer(&peer->timer_retransmit_handshake);
 	peer->timer_handshake_attempts = 0;
 	peer->sent_lastminute_handshake = false;
 	getnstimeofday(&peer->walltime_last_handshake);
