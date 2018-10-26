@@ -66,12 +66,19 @@ static int wg_open(struct net_device *dev)
 	return 0;
 }
 
-#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
+#ifdef CONFIG_PM_SLEEP
 static int wg_pm_notification(struct notifier_block *nb, unsigned long action,
 			      void *data)
 {
 	struct wg_device *wg;
 	struct wg_peer *peer;
+
+	/* If the machine is constantly suspending and resuming, as part of
+	 * its normal operation rather than as a somewhat rare event, then we
+	 * don't actually want to clear keys.
+	 */
+	if (IS_ENABLED(CONFIG_PM_AUTOSLEEP) || IS_ENABLED(CONFIG_ANDROID))
+		return 0;
 
 	if (action != PM_HIBERNATION_PREPARE && action != PM_SUSPEND_PREPARE)
 		return 0;
@@ -418,7 +425,7 @@ int __init wg_device_init(void)
 {
 	int ret;
 
-#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
+#ifdef CONFIG_PM_SLEEP
 	ret = register_pm_notifier(&pm_notifier);
 	if (ret)
 		return ret;
@@ -437,7 +444,7 @@ int __init wg_device_init(void)
 error_netdevice:
 	unregister_netdevice_notifier(&netdevice_notifier);
 error_pm:
-#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
+#ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&pm_notifier);
 #endif
 	return ret;
@@ -447,7 +454,7 @@ void wg_device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
 	unregister_netdevice_notifier(&netdevice_notifier);
-#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_ANDROID)
+#ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&pm_notifier);
 #endif
 	rcu_barrier_bh();
