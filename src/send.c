@@ -187,11 +187,10 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
 	if (unlikely(skb_cow_head(skb, DATA_PACKET_HEAD_ROOM) < 0))
 		return false;
 
-	/* We have to remember to add the checksum to the innerpacket, in case
-	 * the receiver forwards it.
-	 */
-	if (likely(!skb_checksum_setup(skb, true)))
-		skb_checksum_help(skb);
+	/* Finalize checksum calculation for the inner packet, if required. */
+	if (unlikely(skb->ip_summed == CHECKSUM_PARTIAL &&
+		     skb_checksum_help(skb)))
+		return false;
 
 	/* Only after checksumming can we safely add on the padding at the end
 	 * and the header.
