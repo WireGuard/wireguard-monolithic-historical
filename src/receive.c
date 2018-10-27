@@ -379,7 +379,14 @@ static void wg_packet_consume_data_done(struct wg_peer *peer,
 		goto dishonest_packet_type;
 
 	skb->dev = dev;
+	/* We've already verified the Poly1305 auth tag, which means this packet
+	 * was not modified in transit. We can therefore tell the networking
+	 * stack that all checksums of every layer of encapsulation have already
+	 * been checked "by the hardware" and therefore is unneccessary to check
+	 * again in software.
+	 */
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->csum_level = ~0; /* All levels */
 	skb->protocol = wg_skb_examine_untrusted_ip_hdr(skb);
 	if (skb->protocol == htons(ETH_P_IP)) {
 		len = ntohs(ip_hdr(skb)->tot_len);
