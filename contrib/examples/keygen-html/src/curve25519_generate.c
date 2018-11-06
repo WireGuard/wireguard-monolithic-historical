@@ -30,6 +30,7 @@ enum { CURVE25519_KEY_SIZE = 32 };
 #else
 #define le32_to_cpup(a) __builtin_bswap32(*(a))
 #endif
+#define get_unaligned_le32(a) le32_to_cpup((u32 *)(a))
 
 #define memset(a, b, c) __builtin_memset(a, b, c)
 #define memcpy(a, b, c) __builtin_memcpy(a, b, c)
