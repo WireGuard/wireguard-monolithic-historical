@@ -7,7 +7,7 @@ shopt -s globstar
 
 WG="$(readlink -f "$(dirname "$(readlink -f "$0")")/../../src/")"
 
-for i in "$WG"/**/{*.c,*.h,*.S,*.include} "$WG/Kbuild" "$WG/Kconfig"; do
+for i in "$WG"/**/{*.c,*.h,*.S,*.S_shipped,*.include} "$WG/Kbuild" "$WG/Kconfig"; do
 	[[ $i == "$WG/tools/"* || $i == "$WG/tests/"* ]] && continue
 	diff -u /dev/null "$i" | sed "s:${WG}:b/net/wireguard:;s:Kbuild:Makefile:"
 done

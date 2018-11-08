@@ -16,7 +16,7 @@ endif
 
 zinc-y += chacha20/chacha20.o
 zinc-$(CONFIG_ZINC_ARCH_X86_64) += chacha20/chacha20-x86_64.o
-zinc-$(CONFIG_ZINC_ARCH_ARM) += chacha20/chacha20-arm.o
+zinc-$(CONFIG_ZINC_ARCH_ARM) += chacha20/chacha20-arm.o chacha20/chacha20-unrolled-arm.o
 zinc-$(CONFIG_ZINC_ARCH_ARM64) += chacha20/chacha20-arm64.o
 zinc-$(CONFIG_ZINC_ARCH_MIPS) += chacha20/chacha20-mips.o
 AFLAGS_chacha20-mips.o += -O2 # This is required to fill the branch delay slots
@@ -36,6 +36,12 @@ zinc-$(CONFIG_ZINC_ARCH_X86_64) += blake2s/blake2s-x86_64.o
 
 zinc-y += curve25519/curve25519.o
 zinc-$(CONFIG_ZINC_ARCH_ARM) += curve25519/curve25519-arm.o
+
+quiet_cmd_perlasm = PERLASM $@
+      cmd_perlasm = $(PERL) $< > $@
+%.S: %.pl
+	$(call cmd,perlasm)
+targets += $(patsubst %.o,crypto/zinc/%.S,$(zinc-y))
 
 wireguard-y += $(addprefix crypto/zinc/,$(zinc-y))
 ccflags-y += -I$(src)/crypto/include
