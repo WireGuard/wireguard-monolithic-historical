@@ -385,7 +385,7 @@ my ($a,$b,$c,$d,$t)=@_;
 }
 
 $code.=<<___;
-
+#if !defined(__KERNEL__) || defined(CONFIG_KERNEL_MODE_NEON)
 #ifdef __KERNEL__
 .globl  ChaCha20_neon
 .type   ChaCha20_neon,%function
@@ -1135,6 +1135,7 @@ $code.=<<___;
 	ldp	x29,x30,[sp],#96
 	ret
 .size	ChaCha20_512_neon,.-ChaCha20_512_neon
+#endif
 #endif
 ___
 }

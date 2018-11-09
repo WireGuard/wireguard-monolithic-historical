@@ -68,11 +68,6 @@ $code.=<<___;
 // forward "declarations" are required for Apple
 .globl	poly1305_blocks
 .globl	poly1305_emit
-#ifdef	__KERNEL__
-.globl	poly1305_blocks_neon
-.globl	poly1305_emit_neon
-#endif
-
 .globl	poly1305_init
 .type	poly1305_init,%function
 .align	5
@@ -300,6 +295,12 @@ __poly1305_splat:
 
 	ret
 .size	__poly1305_splat,.-__poly1305_splat
+
+#if !defined(__KERNEL__) || defined(CONFIG_KERNEL_MODE_NEON)
+#ifdef	__KERNEL__
+.globl	poly1305_blocks_neon
+.globl	poly1305_emit_neon
+#endif
 
 .type	poly1305_blocks_neon,%function
 .align	5
@@ -933,6 +934,7 @@ poly1305_emit_neon:
 
 	ret
 .size	poly1305_emit_neon,.-poly1305_emit_neon
+#endif
 
 .align	5
 .Lzeros:
