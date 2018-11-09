@@ -693,7 +693,7 @@ my ($a,$b,$c,$d,$t)=@_;
 }
 
 $code.=<<___;
-#if __ARM_MAX_ARCH__>=7
+#if (defined(__KERNEL__) && defined(CONFIG_KERNEL_MODE_NEON)) || (!defined(__KERNEL__) && __ARM_MAX_ARCH__>=7)
 .arch	armv7-a
 .fpu	neon
 

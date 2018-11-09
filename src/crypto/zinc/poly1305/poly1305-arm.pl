@@ -460,7 +460,7 @@ my ($T0,$T1,$MASK) = map("q$_",(15,4,0));
 my ($in2,$zeros,$tbl0,$tbl1) = map("r$_",(4..7));
 
 $code.=<<___;
-#if	__ARM_MAX_ARCH__>=7
+#if (defined(__KERNEL__) && defined(CONFIG_KERNEL_MODE_NEON)) || (!defined(__KERNEL__) && __ARM_MAX_ARCH__>=7)
 .fpu	neon
 
 .type	poly1305_init_neon,%function
