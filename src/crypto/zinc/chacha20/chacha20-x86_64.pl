@@ -272,7 +272,7 @@ my @x=map("\"$_\"",@x);
 
 ########################################################################
 # Generic code path that handles all lengths on pre-SSSE3 processors.
-&declare_function("ChaCha20_ctr32", 64);
+&declare_function("chacha20_sse2", 64);
 $code.=<<___;
 .cfi_startproc
 	cmp	\$0,$len
@@ -465,7 +465,7 @@ $code.=<<___;
 	ret
 .cfi_endproc
 ___
-&end_function("ChaCha20_ctr32");
+&end_function("chacha20_sse2");
 
 ########################################################################
 # SSSE3 code path that handles shorter lengths
@@ -3967,9 +3967,9 @@ simd_handler:
 
 .section	.pdata
 .align	4
-	.rva	.LSEH_begin_ChaCha20_ctr32
-	.rva	.LSEH_end_ChaCha20_ctr32
-	.rva	.LSEH_info_ChaCha20_ctr32
+	.rva	.LSEH_begin_chacha20_sse2
+	.rva	.LSEH_end_chacha20_sse2
+	.rva	.LSEH_info_chacha20_sse2
 
 	.rva	.LSEH_begin_ChaCha20_ssse3
 	.rva	.LSEH_end_ChaCha20_ssse3
@@ -4013,7 +4013,7 @@ ___
 $code.=<<___;
 .section	.xdata
 .align	8
-.LSEH_info_ChaCha20_ctr32:
+.LSEH_info_chacha20_sse2:
 	.byte	9,0,0,0
 	.rva	se_handler
 
