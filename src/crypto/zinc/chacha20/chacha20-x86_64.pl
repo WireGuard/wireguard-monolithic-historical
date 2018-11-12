@@ -497,7 +497,7 @@ sub SSSE3ROUND {	# critical path is 20 "SIMD ticks" per round
 	&por	($b,$t);
 }
 
-my $xframe = $win64 ? 32 : 0;
+my $xframe = $win64 ? 32+8 : 8;
 
 if($kernel) {
 	$code .= "#ifdef CONFIG_AS_SSSE3\n";
@@ -561,8 +561,8 @@ $code.=<<___;
 	and \$-16,%rsp
 ___
 $code.=<<___	if ($win64);
-	movaps	%xmm6,-0x20(%r10)
-	movaps	%xmm7,-0x10(%r10)
+	movaps	%xmm6,-0x30(%r10)
+	movaps	%xmm7,-0x20(%r10)
 .Lssse3_body:
 ___
 $code.=<<___;
@@ -658,8 +658,8 @@ $code.=<<___;
 .Ldone_ssse3:
 ___
 $code.=<<___	if ($win64);
-	movaps	-0x28(%r10),%xmm6
-	movaps	-0x18(%r10),%xmm7
+	movaps	-0x30(%r10),%xmm6
+	movaps	-0x20(%r10),%xmm7
 ___
 $code.=<<___;
 	lea	-8(%r10),%rsp
@@ -719,7 +719,7 @@ sub SSSE3ROUND_2x {
 	 &por	($b1,$t1);
 }
 
-my $xframe = $win64 ? 0x60 : 0;
+my $xframe = $win64 ? 0x68 : 8;
 
 $code.=<<___;
 .type	ChaCha20_128,\@function,5
@@ -733,12 +733,12 @@ ChaCha20_128:
 	and \$-16,%rsp
 ___
 $code.=<<___	if ($win64);
-	movaps	%xmm6,-0x60(%r10)
-	movaps	%xmm7,-0x50(%r10)
-	movaps	%xmm8,-0x40(%r10)
-	movaps	%xmm9,-0x30(%r10)
-	movaps	%xmm10,-0x20(%r10)
-	movaps	%xmm11,-0x10(%r10)
+	movaps	%xmm6,-0x70(%r10)
+	movaps	%xmm7,-0x60(%r10)
+	movaps	%xmm8,-0x50(%r10)
+	movaps	%xmm9,-0x40(%r10)
+	movaps	%xmm10,-0x30(%r10)
+	movaps	%xmm11,-0x20(%r10)
 .L128_body:
 ___
 $code.=<<___;
@@ -821,12 +821,12 @@ $code.=<<___;
 	movdqu	$d1,0x70($out)
 ___
 $code.=<<___	if ($win64);
-	movaps	-0x60(%r10),%xmm6
-	movaps	-0x50(%r10),%xmm7
-	movaps	-0x40(%r10),%xmm8
-	movaps	-0x30(%r10),%xmm9
-	movaps	-0x20(%r10),%xmm10
-	movaps	-0x10(%r10),%xmm11
+	movaps	-0x70(%r10),%xmm6
+	movaps	-0x60(%r10),%xmm7
+	movaps	-0x50(%r10),%xmm8
+	movaps	-0x40(%r10),%xmm9
+	movaps	-0x30(%r10),%xmm10
+	movaps	-0x20(%r10),%xmm11
 ___
 $code.=<<___;
 	lea	-8(%r10),%rsp
@@ -969,7 +969,7 @@ my @x=map("\"$_\"",@xx);
 	);
 }
 
-my $xframe = $win64 ? 0xa0 : 0;
+my $xframe = $win64 ? 0xa8 : 8;
 
 $code.=<<___;
 .type	ChaCha20_4x,\@function,5
@@ -1011,16 +1011,16 @@ ___
 	# ...
 	# +0x140
 $code.=<<___	if ($win64);
-	movaps		%xmm6,-0xa0(%r9)
-	movaps		%xmm7,-0x90(%r9)
-	movaps		%xmm8,-0x80(%r9)
-	movaps		%xmm9,-0x70(%r9)
-	movaps		%xmm10,-0x60(%r9)
-	movaps		%xmm11,-0x50(%r9)
-	movaps		%xmm12,-0x40(%r9)
-	movaps		%xmm13,-0x30(%r9)
-	movaps		%xmm14,-0x20(%r9)
-	movaps		%xmm15,-0x10(%r9)
+	movaps		%xmm6,-0xb0(%r10)
+	movaps		%xmm7,-0xa0(%r10)
+	movaps		%xmm8,-0x90(%r10)
+	movaps		%xmm9,-0x80(%r10)
+	movaps		%xmm10,-0x70(%r10)
+	movaps		%xmm11,-0x60(%r10)
+	movaps		%xmm12,-0x50(%r10)
+	movaps		%xmm13,-0x40(%r10)
+	movaps		%xmm14,-0x30(%r10)
+	movaps		%xmm15,-0x20(%r10)
 .L4x_body:
 ___
 $code.=<<___;
@@ -1410,16 +1410,16 @@ $code.=<<___;
 .Ldone4x:
 ___
 $code.=<<___	if ($win64);
-	movaps		-0xa0(%r10),%xmm6
-	movaps		-0x90(%r10),%xmm7
-	movaps		-0x80(%r10),%xmm8
-	movaps		-0x70(%r10),%xmm9
-	movaps		-0x60(%r10),%xmm10
-	movaps		-0x50(%r10),%xmm11
-	movaps		-0x40(%r10),%xmm12
-	movaps		-0x30(%r10),%xmm13
-	movaps		-0x20(%r10),%xmm14
-	movaps		-0x10(%r10),%xmm15
+	movaps		-0xb0(%r10),%xmm6
+	movaps		-0xa0(%r10),%xmm7
+	movaps		-0x90(%r10),%xmm8
+	movaps		-0x80(%r10),%xmm9
+	movaps		-0x70(%r10),%xmm10
+	movaps		-0x60(%r10),%xmm11
+	movaps		-0x50(%r10),%xmm12
+	movaps		-0x40(%r10),%xmm13
+	movaps		-0x30(%r10),%xmm14
+	movaps		-0x20(%r10),%xmm15
 ___
 $code.=<<___;
 	lea		-8(%r10),%rsp
@@ -1510,7 +1510,7 @@ my @x=map("\"$_\"",@xx);
 	);
 }
 
-my $xframe = $win64 ? 0xa0 : 0;
+my $xframe = $win64 ? 0xa8 : 8;
 
 &declare_function("chacha20_xop", 32);
 $code.=<<___;
@@ -1530,16 +1530,16 @@ ___
 	# ...
 	# +0x140
 $code.=<<___	if ($win64);
-	movaps		%xmm6,-0xa0(%r10)
-	movaps		%xmm7,-0x90(%r10)
-	movaps		%xmm8,-0x80(%r10)
-	movaps		%xmm9,-0x70(%r10)
-	movaps		%xmm10,-0x60(%r10)
-	movaps		%xmm11,-0x50(%r10)
-	movaps		%xmm12,-0x40(%r10)
-	movaps		%xmm13,-0x30(%r10)
-	movaps		%xmm14,-0x20(%r10)
-	movaps		%xmm15,-0x10(%r10)
+	movaps		%xmm6,-0xb0(%r10)
+	movaps		%xmm7,-0xa0(%r10)
+	movaps		%xmm8,-0x90(%r10)
+	movaps		%xmm9,-0x80(%r10)
+	movaps		%xmm10,-0x70(%r10)
+	movaps		%xmm11,-0x60(%r10)
+	movaps		%xmm12,-0x50(%r10)
+	movaps		%xmm13,-0x40(%r10)
+	movaps		%xmm14,-0x30(%r10)
+	movaps		%xmm15,-0x20(%r10)
 .L4xop_body:
 ___
 $code.=<<___;
@@ -1868,16 +1868,16 @@ $code.=<<___;
 	vzeroupper
 ___
 $code.=<<___	if ($win64);
-	movaps		-0xa0(%r10),%xmm6
-	movaps		-0x90(%r10),%xmm7
-	movaps		-0x80(%r10),%xmm8
-	movaps		-0x70(%r10),%xmm9
-	movaps		-0x60(%r10),%xmm10
-	movaps		-0x50(%r10),%xmm11
-	movaps		-0x40(%r10),%xmm12
-	movaps		-0x30(%r10),%xmm13
-	movaps		-0x20(%r10),%xmm14
-	movaps		-0x10(%r10),%xmm15
+	movaps		-0xb0(%r10),%xmm6
+	movaps		-0xa0(%r10),%xmm7
+	movaps		-0x90(%r10),%xmm8
+	movaps		-0x80(%r10),%xmm9
+	movaps		-0x70(%r10),%xmm10
+	movaps		-0x60(%r10),%xmm11
+	movaps		-0x50(%r10),%xmm12
+	movaps		-0x40(%r10),%xmm13
+	movaps		-0x30(%r10),%xmm14
+	movaps		-0x20(%r10),%xmm15
 ___
 $code.=<<___;
 	lea		-8(%r10),%rsp
@@ -2028,16 +2028,16 @@ $code.=<<___;
 	and		\$-32,%rsp
 ___
 $code.=<<___	if ($win64);
-	movaps		%xmm6,-0xa0(%r10)
-	movaps		%xmm7,-0x90(%r10)
-	movaps		%xmm8,-0x80(%r10)
-	movaps		%xmm9,-0x70(%r10)
-	movaps		%xmm10,-0x60(%r10)
-	movaps		%xmm11,-0x50(%r10)
-	movaps		%xmm12,-0x40(%r10)
-	movaps		%xmm13,-0x30(%r10)
-	movaps		%xmm14,-0x20(%r10)
-	movaps		%xmm15,-0x10(%r10)
+	movaps		%xmm6,-0xb0(%r10)
+	movaps		%xmm7,-0xa0(%r10)
+	movaps		%xmm8,-0x90(%r10)
+	movaps		%xmm9,-0x80(%r10)
+	movaps		%xmm10,-0x70(%r10)
+	movaps		%xmm11,-0x60(%r10)
+	movaps		%xmm12,-0x50(%r10)
+	movaps		%xmm13,-0x40(%r10)
+	movaps		%xmm14,-0x30(%r10)
+	movaps		%xmm15,-0x20(%r10)
 .L8x_body:
 ___
 $code.=<<___;
@@ -2516,16 +2516,16 @@ $code.=<<___;
 	vzeroall
 ___
 $code.=<<___	if ($win64);
-	movaps		-0xa0(%r10),%xmm6
-	movaps		-0x90(%r10),%xmm7
-	movaps		-0x80(%r10),%xmm8
-	movaps		-0x70(%r10),%xmm9
-	movaps		-0x60(%r10),%xmm10
-	movaps		-0x50(%r10),%xmm11
-	movaps		-0x40(%r10),%xmm12
-	movaps		-0x30(%r10),%xmm13
-	movaps		-0x20(%r10),%xmm14
-	movaps		-0x10(%r10),%xmm15
+	movaps		-0xb0(%r10),%xmm6
+	movaps		-0xa0(%r10),%xmm7
+	movaps		-0x90(%r10),%xmm8
+	movaps		-0x80(%r10),%xmm9
+	movaps		-0x70(%r10),%xmm10
+	movaps		-0x60(%r10),%xmm11
+	movaps		-0x50(%r10),%xmm12
+	movaps		-0x40(%r10),%xmm13
+	movaps		-0x30(%r10),%xmm14
+	movaps		-0x20(%r10),%xmm15
 ___
 $code.=<<___;
 	lea		-8(%r10),%rsp
@@ -2534,10 +2534,10 @@ $code.=<<___;
 	ret
 .cfi_endproc
 ___
-}
 &end_function("chacha20_avx2");
 if($kernel) {
 	$code .= "#endif\n";
+}
 }
 
 ########################################################################
@@ -2597,8 +2597,8 @@ $code.=<<___;
 	and \$-64,%rsp
 ___
 $code.=<<___	if ($win64);
-	movaps	%xmm6,-0x20(%r10)
-	movaps	%xmm7,-0x10(%r10)
+	movaps	%xmm6,-0x30(%r10)
+	movaps	%xmm7,-0x20(%r10)
 .Lavx512_body:
 ___
 $code.=<<___;
@@ -2765,8 +2765,8 @@ $code.=<<___;
 	vzeroall
 ___
 $code.=<<___	if ($win64);
-	movaps	-0x28(%r10),%xmm6
-	movaps	-0x18(%r10),%xmm7
+	movaps	-0x30(%r10),%xmm6
+	movaps	-0x20(%r10),%xmm7
 ___
 $code.=<<___;
 	lea	-8(%r10),%rsp
@@ -2792,8 +2792,8 @@ $code.=<<___;
 	and \$-32,%rsp
 ___
 $code.=<<___	if ($win64);
-	movaps	%xmm6,-0x20(%r10)
-	movaps	%xmm7,-0x10(%r10)
+	movaps	%xmm6,-0x30(%r10)
+	movaps	%xmm7,-0x20(%r10)
 .Lavx512vl_body:
 ___
 $code.=<<___;
@@ -2917,8 +2917,8 @@ $code.=<<___;
 	vzeroall
 ___
 $code.=<<___	if ($win64);
-	movaps	-0x20(%r10),%xmm6
-	movaps	-0x10(%r10),%xmm7
+	movaps	-0x30(%r10),%xmm6
+	movaps	-0x20(%r10),%xmm7
 ___
 $code.=<<___;
 	lea	-8(%r10),%rsp
@@ -3014,16 +3014,16 @@ ChaCha20_16x:
 	and		\$-64,%rsp
 ___
 $code.=<<___	if ($win64);
-	movaps		%xmm6,-0xa0(%r10)
-	movaps		%xmm7,-0x90(%r10)
-	movaps		%xmm8,-0x80(%r10)
-	movaps		%xmm9,-0x70(%r10)
-	movaps		%xmm10,-0x60(%r10)
-	movaps		%xmm11,-0x50(%r10)
-	movaps		%xmm12,-0x40(%r10)
-	movaps		%xmm13,-0x30(%r10)
-	movaps		%xmm14,-0x20(%r10)
-	movaps		%xmm15,-0x10(%r10)
+	movaps		%xmm6,-0xb0(%r10)
+	movaps		%xmm7,-0xa0(%r10)
+	movaps		%xmm8,-0x90(%r10)
+	movaps		%xmm9,-0x80(%r10)
+	movaps		%xmm10,-0x70(%r10)
+	movaps		%xmm11,-0x60(%r10)
+	movaps		%xmm12,-0x50(%r10)
+	movaps		%xmm13,-0x40(%r10)
+	movaps		%xmm14,-0x30(%r10)
+	movaps		%xmm15,-0x20(%r10)
 .L16x_body:
 ___
 $code.=<<___;
@@ -3414,16 +3414,16 @@ $code.=<<___;
 	vzeroall
 ___
 $code.=<<___	if ($win64);
-	movaps		-0xa0(%r10),%xmm6
-	movaps		-0x90(%r10),%xmm7
-	movaps		-0x80(%r10),%xmm8
-	movaps		-0x70(%r10),%xmm9
-	movaps		-0x60(%r10),%xmm10
-	movaps		-0x50(%r10),%xmm11
-	movaps		-0x40(%r10),%xmm12
-	movaps		-0x30(%r10),%xmm13
-	movaps		-0x20(%r10),%xmm14
-	movaps		-0x10(%r10),%xmm15
+	movaps		-0xb0(%r10),%xmm6
+	movaps		-0xa0(%r10),%xmm7
+	movaps		-0x90(%r10),%xmm8
+	movaps		-0x80(%r10),%xmm9
+	movaps		-0x70(%r10),%xmm10
+	movaps		-0x60(%r10),%xmm11
+	movaps		-0x50(%r10),%xmm12
+	movaps		-0x40(%r10),%xmm13
+	movaps		-0x30(%r10),%xmm14
+	movaps		-0x20(%r10),%xmm15
 ___
 $code.=<<___;
 	lea		-8(%r10),%rsp
@@ -3454,16 +3454,16 @@ ChaCha20_8xvl:
 	and		\$-64,%rsp
 ___
 $code.=<<___	if ($win64);
-	movaps		%xmm6,-0xa0(%r10)
-	movaps		%xmm7,-0x90(%r10)
-	movaps		%xmm8,-0x80(%r10)
-	movaps		%xmm9,-0x70(%r10)
-	movaps		%xmm10,-0x60(%r10)
-	movaps		%xmm11,-0x50(%r10)
-	movaps		%xmm12,-0x40(%r10)
-	movaps		%xmm13,-0x30(%r10)
-	movaps		%xmm14,-0x20(%r10)
-	movaps		%xmm15,-0x10(%r10)
+	movaps		%xmm6,-0xb0(%r10)
+	movaps		%xmm7,-0xa0(%r10)
+	movaps		%xmm8,-0x90(%r10)
+	movaps		%xmm9,-0x80(%r10)
+	movaps		%xmm10,-0x70(%r10)
+	movaps		%xmm11,-0x60(%r10)
+	movaps		%xmm12,-0x50(%r10)
+	movaps		%xmm13,-0x40(%r10)
+	movaps		%xmm14,-0x30(%r10)
+	movaps		%xmm15,-0x20(%r10)
 .L8xvl_body:
 ___
 $code.=<<___;
@@ -3804,16 +3804,16 @@ $code.=<<___;
 	vzeroall
 ___
 $code.=<<___	if ($win64);
-	movaps		-0xa0(%r10),%xmm6
-	movaps		-0x90(%r10),%xmm7
-	movaps		-0x80(%r10),%xmm8
-	movaps		-0x70(%r10),%xmm9
-	movaps		-0x60(%r10),%xmm10
-	movaps		-0x50(%r10),%xmm11
-	movaps		-0x40(%r10),%xmm12
-	movaps		-0x30(%r10),%xmm13
-	movaps		-0x20(%r10),%xmm14
-	movaps		-0x10(%r10),%xmm15
+	movaps		-0xb0(%r10),%xmm6
+	movaps		-0xa0(%r10),%xmm7
+	movaps		-0x90(%r10),%xmm8
+	movaps		-0x80(%r10),%xmm9
+	movaps		-0x70(%r10),%xmm10
+	movaps		-0x60(%r10),%xmm11
+	movaps		-0x50(%r10),%xmm12
+	movaps		-0x40(%r10),%xmm13
+	movaps		-0x30(%r10),%xmm14
+	movaps		-0x20(%r10),%xmm15
 ___
 $code.=<<___;
 	lea		-8(%r10),%rsp
