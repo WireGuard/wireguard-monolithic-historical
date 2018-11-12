@@ -448,22 +448,20 @@ $code.=<<___;
 	jnz	.Loop_tail
 
 .Ldone:
-	lea	64+24+48(%rsp),%rsi
-.cfi_def_cfa	%rsi,8
-	mov	-48(%rsi),%r15
+	add	\$64+24,%rsp
+.cfi_adjust_cfa_offset	-64-24
+	pop			%r15
 .cfi_restore	%r15
-	mov	-40(%rsi),%r14
+	pop			%r14
 .cfi_restore	%r14
-	mov	-32(%rsi),%r13
+	pop			%r13
 .cfi_restore	%r13
-	mov	-24(%rsi),%r12
+	pop			%r12
 .cfi_restore	%r12
-	mov	-16(%rsi),%rbp
+	pop			%rbp
 .cfi_restore	%rbp
-	mov	-8(%rsi),%rbx
+	pop			%rbx
 .cfi_restore	%rbx
-	lea	(%rsi),%rsp
-.cfi_def_cfa_register	%rsp
 .Lno_data:
 	ret
 .cfi_endproc
