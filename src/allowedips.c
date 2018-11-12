@@ -39,7 +39,7 @@ static void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src,
 	node->bit_at_b = 7U - (cidr % 8U);
 	memcpy(node->bits, src, bits / 8U);
 }
-#define CHOOSE_NODE(parent, key)                                               \
+#define CHOOSE_NODE(parent, key) \
 	parent->bit[(key[parent->bit_at_a] >> parent->bit_at_b) & 1]
 
 static void node_free_rcu(struct rcu_head *rcu)
@@ -338,8 +338,7 @@ void wg_allowedips_free(struct allowedips *table, struct mutex *lock)
 }
 
 int wg_allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip,
-			    u8 cidr, struct wg_peer *peer,
-			    struct mutex *lock)
+			    u8 cidr, struct wg_peer *peer, struct mutex *lock)
 {
 	/* Aligned so it can be passed to fls */
 	u8 key[4] __aligned(__alignof(u32));
@@ -350,8 +349,7 @@ int wg_allowedips_insert_v4(struct allowedips *table, const struct in_addr *ip,
 }
 
 int wg_allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
-			    u8 cidr, struct wg_peer *peer,
-			    struct mutex *lock)
+			    u8 cidr, struct wg_peer *peer, struct mutex *lock)
 {
 	/* Aligned so it can be passed to fls64 */
 	u8 key[16] __aligned(__alignof(u64));
@@ -362,8 +360,7 @@ int wg_allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
 }
 
 void wg_allowedips_remove_by_peer(struct allowedips *table,
-				  struct wg_peer *peer,
-				  struct mutex *lock)
+				  struct wg_peer *peer, struct mutex *lock)
 {
 	++table->seq;
 	walk_remove_by_peer(&table->root4, peer, lock);

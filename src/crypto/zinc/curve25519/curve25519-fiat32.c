@@ -618,7 +618,7 @@ static __always_inline void fe_invert(fe *out, const fe *z)
 static __always_inline void fe_cswap(fe *f, fe *g, unsigned int b)
 {
 	unsigned i;
-	b = 0-b;
+	b = 0 - b;
 	for (i = 0; i < 10; i++) {
 		u32 x = f->v[i] ^ g->v[i];
 		x &= b;

@@ -125,6 +125,7 @@ static void keypair_free_kref(struct kref *kref)
 {
 	struct noise_keypair *keypair =
 		container_of(kref, struct noise_keypair, refcount);
+
 	net_dbg_ratelimited("%s: Keypair %llu destroyed for peer %llu\n",
 			    keypair->entry.peer->device->dev->name,
 			    keypair->internal_id,

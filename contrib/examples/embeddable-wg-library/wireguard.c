@@ -87,39 +87,39 @@ enum wgallowedip_attribute {
 #define MNL_ATTR_HDRLEN MNL_ALIGN(sizeof(struct nlattr))
 
 enum mnl_attr_data_type {
-        MNL_TYPE_UNSPEC,
-        MNL_TYPE_U8,
-        MNL_TYPE_U16,
-        MNL_TYPE_U32,
-        MNL_TYPE_U64,
-        MNL_TYPE_STRING,
-        MNL_TYPE_FLAG,
-        MNL_TYPE_MSECS,
-        MNL_TYPE_NESTED,
-        MNL_TYPE_NESTED_COMPAT,
-        MNL_TYPE_NUL_STRING,
-        MNL_TYPE_BINARY,
-        MNL_TYPE_MAX,
+	MNL_TYPE_UNSPEC,
+	MNL_TYPE_U8,
+	MNL_TYPE_U16,
+	MNL_TYPE_U32,
+	MNL_TYPE_U64,
+	MNL_TYPE_STRING,
+	MNL_TYPE_FLAG,
+	MNL_TYPE_MSECS,
+	MNL_TYPE_NESTED,
+	MNL_TYPE_NESTED_COMPAT,
+	MNL_TYPE_NUL_STRING,
+	MNL_TYPE_BINARY,
+	MNL_TYPE_MAX,
 };
 
 #define mnl_attr_for_each(attr, nlh, offset) \
-        for ((attr) = mnl_nlmsg_get_payload_offset((nlh), (offset)); \
-             mnl_attr_ok((attr), (char *)mnl_nlmsg_get_payload_tail(nlh) - (char *)(attr)); \
-             (attr) = mnl_attr_next(attr))
+	for ((attr) = mnl_nlmsg_get_payload_offset((nlh), (offset)); \
+	     mnl_attr_ok((attr), (char *)mnl_nlmsg_get_payload_tail(nlh) - (char *)(attr)); \
+	     (attr) = mnl_attr_next(attr))
 
 #define mnl_attr_for_each_nested(attr, nest) \
-        for ((attr) = mnl_attr_get_payload(nest); \
-             mnl_attr_ok((attr), (char *)mnl_attr_get_payload(nest) + mnl_attr_get_payload_len(nest) - (char *)(attr)); \
-             (attr) = mnl_attr_next(attr))
+	for ((attr) = mnl_attr_get_payload(nest); \
+	     mnl_attr_ok((attr), (char *)mnl_attr_get_payload(nest) + mnl_attr_get_payload_len(nest) - (char *)(attr)); \
+	     (attr) = mnl_attr_next(attr))
 
 #define mnl_attr_for_each_payload(payload, payload_size) \
-        for ((attr) = (payload); \
-             mnl_attr_ok((attr), (char *)(payload) + payload_size - (char *)(attr)); \
-             (attr) = mnl_attr_next(attr))
+	for ((attr) = (payload); \
+	     mnl_attr_ok((attr), (char *)(payload) + payload_size - (char *)(attr)); \
+	     (attr) = mnl_attr_next(attr))
 
-#define MNL_CB_ERROR            -1
-#define MNL_CB_STOP              0
-#define MNL_CB_OK                1
+#define MNL_CB_ERROR	-1
+#define MNL_CB_STOP	0
+#define MNL_CB_OK	1
 
 typedef int (*mnl_attr_cb_t)(const struct nlattr *attr, void *data);
 typedef int (*mnl_cb_t)(const struct nlmsghdr *nlh, void *data);

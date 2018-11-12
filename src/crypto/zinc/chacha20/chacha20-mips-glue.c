@@ -18,7 +18,6 @@ static inline bool chacha20_arch(struct chacha20_ctx *ctx, u8 *dst,
 	return true;
 }
 
-
 static inline bool hchacha20_arch(u32 derived_key[CHACHA20_KEY_WORDS],
 				  const u8 nonce[HCHACHA20_NONCE_SIZE],
 				  const u8 key[HCHACHA20_KEY_SIZE],

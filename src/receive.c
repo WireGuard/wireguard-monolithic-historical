@@ -85,7 +85,7 @@ static int prepare_skb_header(struct sk_buff *skb, struct wg_device *wg)
 		return -EINVAL;
 	skb_pull(skb, data_offset);
 	if (unlikely(skb->len != data_len))
-		 /* Final len does not agree with calculated len */
+		/* Final len does not agree with calculated len */
 		return -EINVAL;
 	header_len = validate_header_len(skb);
 	if (unlikely(!header_len))
@@ -179,7 +179,7 @@ static void wg_receive_handshake_packet(struct wg_device *wg,
 				    wg->dev->name, peer->internal_id,
 				    &peer->endpoint.addr);
 		if (wg_noise_handshake_begin_session(&peer->handshake,
-						  &peer->keypairs)) {
+						     &peer->keypairs)) {
 			wg_timers_session_derived(peer);
 			wg_timers_handshake_complete(peer);
 			/* Calling this function will either send any existing

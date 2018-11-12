@@ -203,9 +203,9 @@ void wg_cookie_message_consume(struct message_handshake_cookie *src,
 	bool ret;
 
 	if (unlikely(!wg_index_hashtable_lookup(&wg->index_hashtable,
-					     INDEX_HASHTABLE_HANDSHAKE |
-					     INDEX_HASHTABLE_KEYPAIR,
-					     src->receiver_index, &peer)))
+						INDEX_HASHTABLE_HANDSHAKE |
+						INDEX_HASHTABLE_KEYPAIR,
+						src->receiver_index, &peer)))
 		return;
 
 	down_read(&peer->latest_cookie.lock);
