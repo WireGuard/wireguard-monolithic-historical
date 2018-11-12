@@ -504,6 +504,45 @@ my $xframe = $win64 ? 32+8 : 8;
 if($kernel) {
 	$code .= "#ifdef CONFIG_AS_SSSE3\n";
 }
+
+if($kernel) {
+&declare_function("hchacha20_ssse3", 32);
+$code.=<<___;
+	movdqa	.Lsigma(%rip),$a
+	movdqu	($len),$b
+	movdqu	16($len),$c
+	movdqu	($inp),$d
+	# This code is only used when targeting kernel.
+	# If targeting win64, xmm{6,7} preserving needs to be added.
+	movdqa	.Lrot16(%rip),$rot16
+	movdqa	.Lrot24(%rip),$rot24
+	mov	\$10,$counter		# reuse $counter
+	jmp	1f
+.align	32
+1:
+___
+	&SSSE3ROUND();
+	&pshufd	($c,$c,0b01001110);
+	&pshufd	($b,$b,0b00111001);
+	&pshufd	($d,$d,0b10010011);
+	&nop	();
+
+	&SSSE3ROUND();
+	&pshufd	($c,$c,0b01001110);
+	&pshufd	($b,$b,0b10010011);
+	&pshufd	($d,$d,0b00111001);
+
+	&dec	($counter);
+	&jnz	("1b");
+
+$code.=<<___;
+	movdqu $a, ($out)
+	movdqu $d, 16($out)
+	ret
+___
+&end_function("hchacha20_ssse3");
+}
+
 &declare_function("chacha20_ssse3", 32);
 $code.=<<___;
 .cfi_startproc
