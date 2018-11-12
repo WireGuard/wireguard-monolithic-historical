@@ -273,7 +273,7 @@ my @x=map("\"$_\"",@x);
 
 ########################################################################
 # Generic code path that handles all lengths on pre-SSSE3 processors.
-&declare_function("ChaCha20_ctr32", 64);
+&declare_function("chacha20_ctr32", 64);
 $code.=<<___;
 .cfi_startproc
 	cmp	\$0,$len
@@ -285,13 +285,13 @@ $code.=<<___;
 ___
 $code.=<<___	if ($avx>2);
 	bt	\$48,%r9		# check for AVX512F
-	jc	.LChaCha20_avx512
+	jc	.Lchacha20_avx512
 	test	%r9,%r9		# check for AVX512VL
-	js	.LChaCha20_avx512vl
+	js	.Lchacha20_avx512vl
 ___
 $code.=<<___;
 	test	\$`1<<(41-32)`,%r9d
-	jnz	.LChaCha20_ssse3
+	jnz	.Lchacha20_ssse3
 ___
 }
 $code.=<<___;
@@ -466,7 +466,7 @@ $code.=<<___;
 	ret
 .cfi_endproc
 ___
-&end_function("ChaCha20_ctr32");
+&end_function("chacha20_ctr32");
 
 ########################################################################
 # SSSE3 code path that handles shorter lengths
@@ -549,12 +549,12 @@ $code.=<<___;
 ___
 $code.=<<___	if ($avx && !$kernel);
 	test	\$`1<<(43-32)`,%r10d
-	jnz	.LChaCha20_4xop		# XOP is fastest even if we use 1/4
+	jnz	.Lchacha20_4xop		# XOP is fastest even if we use 1/4
 ___
 $code.=<<___;
 	cmp	\$128,$len		# we might throw away some data,
-	je	.LChaCha20_128
-	ja	.LChaCha20_4x		# but overall it won't be slower
+	je	.Lchacha20_128
+	ja	.Lchacha20_4x		# but overall it won't be slower
 
 .Ldo_ssse3_after_all:
 	sub	\$64+$xframe,%rsp
@@ -722,11 +722,11 @@ sub SSSE3ROUND_2x {
 my $xframe = $win64 ? 0x68 : 8;
 
 $code.=<<___;
-.type	ChaCha20_128,\@function,5
+.type	chacha20_128,\@function,5
 .align	32
-ChaCha20_128:
+chacha20_128:
 .cfi_startproc
-.LChaCha20_128:
+.Lchacha20_128:
 	lea	8(%rsp),%r10		# frame pointer
 .cfi_def_cfa_register	%r10
 	sub	\$64+$xframe,%rsp
@@ -834,7 +834,7 @@ $code.=<<___;
 .L128_epilogue:
 	ret
 .cfi_endproc
-.size	ChaCha20_128,.-ChaCha20_128
+.size	chacha20_128,.-chacha20_128
 ___
 }
 
@@ -972,11 +972,11 @@ my @x=map("\"$_\"",@xx);
 my $xframe = $win64 ? 0xa8 : 8;
 
 $code.=<<___;
-.type	ChaCha20_4x,\@function,5
+.type	chacha20_4x,\@function,5
 .align	32
-ChaCha20_4x:
+chacha20_4x:
 .cfi_startproc
-.LChaCha20_4x:
+.Lchacha20_4x:
 	lea		8(%rsp),%r10		# frame pointer
 .cfi_def_cfa_register	%r10
 ___
@@ -986,7 +986,7 @@ ___
 $code.=<<___	if ($avx>1 && !$kernel);
 	shr		\$32,%r9		# OPENSSL_ia32cap_P+8
 	test		\$`1<<5`,%r9		# test AVX2
-	jnz		.LChaCha20_8x
+	jnz		.Lchacha20_8x
 ___
 $code.=<<___;
 	cmp		\$192,$len
@@ -1427,7 +1427,7 @@ $code.=<<___;
 .L4x_epilogue:
 	ret
 .cfi_endproc
-.size	ChaCha20_4x,.-ChaCha20_4x
+.size	chacha20_4x,.-chacha20_4x
 ___
 }
 if($kernel) {
@@ -1515,7 +1515,7 @@ my $xframe = $win64 ? 0xa8 : 8;
 &declare_function("chacha20_xop", 32);
 $code.=<<___;
 .cfi_startproc
-.LChaCha20_4xop:
+.Lchacha20_4xop:
 	lea		8(%rsp),%r10		# frame pointer
 .cfi_def_cfa_register	%r10
 	sub		\$0x140+$xframe,%rsp
@@ -2021,7 +2021,7 @@ my $xframe = $win64 ? 0xa8 : 8;
 &declare_function("chacha20_avx2");
 $code.=<<___;
 .cfi_startproc
-.LChaCha20_8x:
+.Lchacha20_8x:
 	lea		8(%rsp),%r10		# frame register
 .cfi_def_cfa_register	%r10
 	sub		\$0x280+$xframe,%rsp
@@ -2587,11 +2587,11 @@ my $xframe = $win64 ? 32+8 : 8;
 &declare_function("chacha20_avx512");
 $code.=<<___;
 .cfi_startproc
-.LChaCha20_avx512:
+.Lchacha20_avx512:
 	lea	8(%rsp),%r10		# frame pointer
 .cfi_def_cfa_register	%r10
 	cmp	\$512,$len
-	ja	.LChaCha20_16x
+	ja	.Lchacha20_16x
 
 	sub	\$64+$xframe,%rsp
 	and \$-64,%rsp
@@ -2782,11 +2782,11 @@ map(s/%z/%y/, $a,$b,$c,$d, $a_,$b_,$c_,$d_,$fourz);
 &declare_function("chacha20_avx512vl", 32);
 $code.=<<___;
 .cfi_startproc
-.LChaCha20_avx512vl:
+.Lchacha20_avx512vl:
 	lea	8(%rsp),%r10		# frame pointer
 .cfi_def_cfa_register	%r10
 	cmp	\$128,$len
-	ja	.LChaCha20_8xvl
+	ja	.Lchacha20_8xvl
 
 	sub	\$64+$xframe,%rsp
 	and \$-32,%rsp
@@ -3003,11 +3003,11 @@ my @x=map("\"$_\"",@xx);
 my $xframe = $win64 ? 0xa8 : 8;
 
 $code.=<<___;
-.type	ChaCha20_16x,\@function,5
+.type	chacha20_16x,\@function,5
 .align	32
-ChaCha20_16x:
+chacha20_16x:
 .cfi_startproc
-.LChaCha20_16x:
+.Lchacha20_16x:
 	lea		8(%rsp),%r10		# frame register
 .cfi_def_cfa_register	%r10
 	sub		\$64+$xframe,%rsp
@@ -3431,7 +3431,7 @@ $code.=<<___;
 .L16x_epilogue:
 	ret
 .cfi_endproc
-.size	ChaCha20_16x,.-ChaCha20_16x
+.size	chacha20_16x,.-chacha20_16x
 ___
 
 # switch to %ymm domain
@@ -3443,11 +3443,11 @@ ___
 ($xt0,$xt1,$xt2,$xt3)=@key[0..3];
 
 $code.=<<___;
-.type	ChaCha20_8xvl,\@function,5
+.type	chacha20_8xvl,\@function,5
 .align	32
-ChaCha20_8xvl:
+chacha20_8xvl:
 .cfi_startproc
-.LChaCha20_8xvl:
+.Lchacha20_8xvl:
 	lea		8(%rsp),%r10		# frame register
 .cfi_def_cfa_register	%r10
 	sub		\$64+$xframe,%rsp
@@ -3821,7 +3821,7 @@ $code.=<<___;
 .L8xvl_epilogue:
 	ret
 .cfi_endproc
-.size	ChaCha20_8xvl,.-ChaCha20_8xvl
+.size	chacha20_8xvl,.-chacha20_8xvl
 ___
 if($kernel) {
 	$code .= "#endif\n";
@@ -3968,108 +3968,108 @@ simd_handler:
 
 .section	.pdata
 .align	4
-	.rva	.LSEH_begin_ChaCha20_ctr32
-	.rva	.LSEH_end_ChaCha20_ctr32
-	.rva	.LSEH_info_ChaCha20_ctr32
+	.rva	.LSEH_begin_chacha20_ctr32
+	.rva	.LSEH_end_chacha20_ctr32
+	.rva	.LSEH_info_chacha20_ctr32
 
-	.rva	.LSEH_begin_ChaCha20_ssse3
-	.rva	.LSEH_end_ChaCha20_ssse3
-	.rva	.LSEH_info_ChaCha20_ssse3
+	.rva	.LSEH_begin_chacha20_ssse3
+	.rva	.LSEH_end_chacha20_ssse3
+	.rva	.LSEH_info_chacha20_ssse3
 
-	.rva	.LSEH_begin_ChaCha20_128
-	.rva	.LSEH_end_ChaCha20_128
-	.rva	.LSEH_info_ChaCha20_128
+	.rva	.LSEH_begin_chacha20_128
+	.rva	.LSEH_end_chacha20_128
+	.rva	.LSEH_info_chacha20_128
 
-	.rva	.LSEH_begin_ChaCha20_4x
-	.rva	.LSEH_end_ChaCha20_4x
-	.rva	.LSEH_info_ChaCha20_4x
+	.rva	.LSEH_begin_chacha20_4x
+	.rva	.LSEH_end_chacha20_4x
+	.rva	.LSEH_info_chacha20_4x
 ___
 $code.=<<___ if ($avx);
-	.rva	.LSEH_begin_ChaCha20_4xop
-	.rva	.LSEH_end_ChaCha20_4xop
-	.rva	.LSEH_info_ChaCha20_4xop
+	.rva	.LSEH_begin_chacha20_xop
+	.rva	.LSEH_end_chacha20_xop
+	.rva	.LSEH_info_chacha20_xop
 ___
 $code.=<<___ if ($avx>1);
-	.rva	.LSEH_begin_ChaCha20_8x
-	.rva	.LSEH_end_ChaCha20_8x
-	.rva	.LSEH_info_ChaCha20_8x
+	.rva	.LSEH_begin_chacha20_avx2
+	.rva	.LSEH_end_chacha20_avx2
+	.rva	.LSEH_info_chacha20_avx2
 ___
 $code.=<<___ if ($avx>2);
-	.rva	.LSEH_begin_ChaCha20_avx512
-	.rva	.LSEH_end_ChaCha20_avx512
-	.rva	.LSEH_info_ChaCha20_avx512
+	.rva	.LSEH_begin_chacha20_avx512
+	.rva	.LSEH_end_chacha20_avx512
+	.rva	.LSEH_info_chacha20_avx512
 
-	.rva	.LSEH_begin_ChaCha20_avx512vl
-	.rva	.LSEH_end_ChaCha20_avx512vl
-	.rva	.LSEH_info_ChaCha20_avx512vl
+	.rva	.LSEH_begin_chacha20_avx512vl
+	.rva	.LSEH_end_chacha20_avx512vl
+	.rva	.LSEH_info_chacha20_avx512vl
 
-	.rva	.LSEH_begin_ChaCha20_16x
-	.rva	.LSEH_end_ChaCha20_16x
-	.rva	.LSEH_info_ChaCha20_16x
+	.rva	.LSEH_begin_chacha20_16x
+	.rva	.LSEH_end_chacha20_16x
+	.rva	.LSEH_info_chacha20_16x
 
-	.rva	.LSEH_begin_ChaCha20_8xvl
-	.rva	.LSEH_end_ChaCha20_8xvl
-	.rva	.LSEH_info_ChaCha20_8xvl
+	.rva	.LSEH_begin_chacha20_8xvl
+	.rva	.LSEH_end_chacha20_8xvl
+	.rva	.LSEH_info_chacha20_8xvl
 ___
 $code.=<<___;
 .section	.xdata
 .align	8
-.LSEH_info_ChaCha20_ctr32:
+.LSEH_info_chacha20_ctr32:
 	.byte	9,0,0,0
 	.rva	se_handler
 
-.LSEH_info_ChaCha20_ssse3:
+.LSEH_info_chacha20_ssse3:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.Lssse3_body,.Lssse3_epilogue
 	.long	0x20,0
 
-.LSEH_info_ChaCha20_128:
+.LSEH_info_chacha20_128:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.L128_body,.L128_epilogue
 	.long	0x60,0
 
-.LSEH_info_ChaCha20_4x:
+.LSEH_info_chacha20_4x:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.L4x_body,.L4x_epilogue
 	.long	0xa0,0
 ___
 $code.=<<___ if ($avx);
-.LSEH_info_ChaCha20_4xop:
+.LSEH_info_chacha20_xop:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.L4xop_body,.L4xop_epilogue		# HandlerData[]
 	.long	0xa0,0
 ___
 $code.=<<___ if ($avx>1);
-.LSEH_info_ChaCha20_8x:
+.LSEH_info_chacha20_8x:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.L8x_body,.L8x_epilogue			# HandlerData[]
 	.long	0xa0,0
 ___
 $code.=<<___ if ($avx>2);
-.LSEH_info_ChaCha20_avx512:
+.LSEH_info_chacha20_avx512:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.Lavx512_body,.Lavx512_epilogue		# HandlerData[]
 	.long	0x20,0
 
-.LSEH_info_ChaCha20_avx512vl:
+.LSEH_info_chacha20_avx512vl:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.Lavx512vl_body,.Lavx512vl_epilogue	# HandlerData[]
 	.long	0x20,0
 
-.LSEH_info_ChaCha20_16x:
+.LSEH_info_chacha20_16x:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.L16x_body,.L16x_epilogue		# HandlerData[]
 	.long	0xa0,0
 
-.LSEH_info_ChaCha20_8xvl:
+.LSEH_info_chacha20_8xvl:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.L8xvl_body,.L8xvl_epilogue		# HandlerData[]
