@@ -70,6 +70,7 @@ if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
 open STDOUT,">$output" || die "can't open $output: $!"
 	if (defined($output));
 
+my $kernel=0; $kernel=1 if ($flavour =~ /linux/);
 my $gas=1;	$gas=0 if ($output =~ /\.asm$/);
 my $elf=1;	$elf=0 if (!$gas);
 my $win64=0;
@@ -1134,7 +1135,7 @@ while(defined(my $line=<>)) {
 
     $line =~ s|\R$||;           # Better chomp
 
-    $line =~ s|[#!].*$||;	# get rid of asm-style comments...
+    $line =~ s|[#!](?!include)(?!ifdef)(?!endif).*$||;	# get rid of asm-style comments...
     $line =~ s|/\*.*\*/||;	# ... and C-style comments...
     $line =~ s|^\s+||;		# ... and skip white spaces in beginning
     $line =~ s|\s+$||;		# ... and at the end

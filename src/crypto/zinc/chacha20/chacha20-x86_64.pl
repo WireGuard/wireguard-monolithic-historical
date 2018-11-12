@@ -63,6 +63,7 @@ $output  = shift;
 if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
 
 $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
+$kernel=0; $kernel=1 if ($flavour =~ /linux/);
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
@@ -95,42 +96,67 @@ open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 # input parameter block
 ($out,$inp,$len,$key,$counter)=("%rdi","%rsi","%rdx","%rcx","%r8");
 
+$code.=<<___ if $kernel;
+#include <linux/linkage.h>
+___
+
+sub declare_variable() {
+	my ($name, $size, $type, $payload) = @_;
+	if($kernel) {
+		$code.=".section .rodata.cst${size}.L${name}, \"aM\", \@progbits, ${size}\n";
+		$code.=".align ${size}\n";
+		$code.=".L${name}:\n";
+		$code.=".${type} ${payload}\n";
+	} else {
+		$code.=".L${name}:\n";
+		$code.=".${type} ${payload}\n";
+	}
+}
+
+sub declare_function() {
+	my ($name, $align) = @_;
+	if($kernel) {
+		$code .= ".align ${align}\n";
+		$code .= "ENTRY( ${name} )\n"; # xlate thinks it's an address without the spaces between ()
+		$code .= ".L${name}:\n";
+	} else {
+		$code .= ".globl	${name}\n";
+		$code .= ".type	${name},\@function,5\n";
+		$code .= ".align	${align}\n";
+		$code .= "${name}:\n";
+	}
+}
+
+sub end_function() {
+	my ($name) = @_;
+	if($kernel) {
+		$code .= "ENDPROC( ${name} )\n";
+	} else {
+		$code .= ".size   ${name},.-${name}\n";
+	}
+}
+
+if(!$kernel) {
+	$code .= ".text\n";
+}
+&declare_variable('zero', 16, 'long', '0,0,0,0');
+&declare_variable('one', 16, 'long', '1,0,0,0');
+&declare_variable('inc', 16, 'long', '0,1,2,3');
+&declare_variable('four', 16, 'long', '4,4,4,4');
+&declare_variable('incy', 32, 'long', '0,2,4,6,1,3,5,7');
+&declare_variable('eight', 32, 'long', '8,8,8,8,8,8,8,8');
+&declare_variable('rot16', 16, 'byte', '0x2,0x3,0x0,0x1, 0x6,0x7,0x4,0x5, 0xa,0xb,0x8,0x9, 0xe,0xf,0xc,0xd');
+&declare_variable('rot24', 16, 'byte', '0x3,0x0,0x1,0x2, 0x7,0x4,0x5,0x6, 0xb,0x8,0x9,0xa, 0xf,0xc,0xd,0xe');
+&declare_variable('twoy', 32, 'long', '2,0,0,0, 2,0,0,0');
+&declare_variable('zeroz', 64, 'long', '0,0,0,0, 1,0,0,0, 2,0,0,0, 3,0,0,0');
+&declare_variable('fourz', 64, 'long', '4,0,0,0, 4,0,0,0, 4,0,0,0, 4,0,0,0');
+&declare_variable('incz', 64, 'long', '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15');
+&declare_variable('sixteen', 64, 'long', '16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16');
+&declare_variable('sigma', 16, 'ascii', '"expand 32-byte k"');
+
 $code.=<<___;
+.asciz "ChaCha20 for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
 .text
-
-.extern OPENSSL_ia32cap_P
-
-.align	64
-.Lzero:
-.long	0,0,0,0
-.Lone:
-.long	1,0,0,0
-.Linc:
-.long	0,1,2,3
-.Lfour:
-.long	4,4,4,4
-.Lincy:
-.long	0,2,4,6,1,3,5,7
-.Leight:
-.long	8,8,8,8,8,8,8,8
-.Lrot16:
-.byte	0x2,0x3,0x0,0x1, 0x6,0x7,0x4,0x5, 0xa,0xb,0x8,0x9, 0xe,0xf,0xc,0xd
-.Lrot24:
-.byte	0x3,0x0,0x1,0x2, 0x7,0x4,0x5,0x6, 0xb,0x8,0x9,0xa, 0xf,0xc,0xd,0xe
-.Ltwoy:
-.long	2,0,0,0, 2,0,0,0
-.align	64
-.Lzeroz:
-.long	0,0,0,0, 1,0,0,0, 2,0,0,0, 3,0,0,0
-.Lfourz:
-.long	4,0,0,0, 4,0,0,0, 4,0,0,0, 4,0,0,0
-.Lincz:
-.long	0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-.Lsixteen:
-.long	16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16
-.Lsigma:
-.asciz	"expand 32-byte k"
-.asciz	"ChaCha20 for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 
 sub AUTOLOAD()          # thunk [simplified] 32-bit style perlasm
@@ -247,14 +273,14 @@ my @x=map("\"$_\"",@x);
 
 ########################################################################
 # Generic code path that handles all lengths on pre-SSSE3 processors.
+&declare_function("ChaCha20_ctr32", 64);
 $code.=<<___;
-.globl	ChaCha20_ctr32
-.type	ChaCha20_ctr32,\@function,5
-.align	64
-ChaCha20_ctr32:
 .cfi_startproc
 	cmp	\$0,$len
 	je	.Lno_data
+___
+if(!kernel) {
+$code.=<<___;
 	mov	OPENSSL_ia32cap_P+4(%rip),%r10
 ___
 $code.=<<___	if ($avx>2);
@@ -266,7 +292,9 @@ ___
 $code.=<<___;
 	test	\$`1<<(41-32)`,%r10d
 	jnz	.LChaCha20_ssse3
-
+___
+}
+$code.=<<___;
 	push	%rbx
 .cfi_push	%rbx
 	push	%rbp
@@ -439,8 +467,8 @@ $code.=<<___;
 .Lno_data:
 	ret
 .cfi_endproc
-.size	ChaCha20_ctr32,.-ChaCha20_ctr32
 ___
+&end_function("ChaCha20_ctr32");
 
 ########################################################################
 # SSSE3 code path that handles shorter lengths
@@ -473,16 +501,16 @@ sub SSSE3ROUND {	# critical path is 20 "SIMD ticks" per round
 
 my $xframe = $win64 ? 32+8 : 8;
 
+if($kernel) {
+	$code .= "#ifdef CONFIG_AS_SSSE3\n";
+}
+&declare_function("chacha20_ssse3", 32);
 $code.=<<___;
-.type	ChaCha20_ssse3,\@function,5
-.align	32
-ChaCha20_ssse3:
 .cfi_startproc
-.LChaCha20_ssse3:
 	mov	%rsp,%r9		# frame pointer
 .cfi_def_cfa_register	%r9
 ___
-$code.=<<___	if ($avx);
+$code.=<<___	if ($avx && !$kernel);
 	test	\$`1<<(43-32)`,%r10d
 	jnz	.LChaCha20_4xop		# XOP is fastest even if we use 1/4
 ___
@@ -491,8 +519,9 @@ $code.=<<___;
 	je	.LChaCha20_128
 	ja	.LChaCha20_4x		# but overall it won't be slower
 
-.Ldo_sse3_after_all:
+.Ldo_ssse3_after_all:
 	sub	\$64+$xframe,%rsp
+	and \$-16,%rsp
 ___
 $code.=<<___	if ($win64);
 	movaps	%xmm6,-0x28(%r9)
@@ -601,9 +630,9 @@ $code.=<<___;
 .Lssse3_epilogue:
 	ret
 .cfi_endproc
-.size	ChaCha20_ssse3,.-ChaCha20_ssse3
 ___
 }
+&end_function("chacha20_ssse3");
 
 ########################################################################
 # SSSE3 code path that handles 128-byte inputs
@@ -664,6 +693,7 @@ ChaCha20_128:
 	mov	%rsp,%r9		# frame pointer
 .cfi_def_cfa_register	%r9
 	sub	\$64+$xframe,%rsp
+	and \$-16,%rsp
 ___
 $code.=<<___	if ($win64);
 	movaps	%xmm6,-0x68(%r9)
@@ -912,9 +942,11 @@ ChaCha20_4x:
 .LChaCha20_4x:
 	mov		%rsp,%r9		# frame pointer
 .cfi_def_cfa_register	%r9
+___
+$code.=<<___ if (!$kernel);
 	mov		%r10,%r11
 ___
-$code.=<<___	if ($avx>1);
+$code.=<<___	if ($avx>1 && !$kernel);
 	shr		\$32,%r10		# OPENSSL_ia32cap_P+8
 	test		\$`1<<5`,%r10		# test AVX2
 	jnz		.LChaCha20_8x
@@ -922,13 +954,16 @@ ___
 $code.=<<___;
 	cmp		\$192,$len
 	ja		.Lproceed4x
-
+___
+$code.=<<___ if (!$kernel);
 	and		\$`1<<26|1<<22`,%r11	# isolate XSAVE+MOVBE
 	cmp		\$`1<<22`,%r11		# check for MOVBE without XSAVE
-	je		.Ldo_sse3_after_all	# to detect Atom
-
+	je		.Ldo_ssse3_after_all	# to detect Atom
+___
+$code.=<<___;
 .Lproceed4x:
 	sub		\$0x140+$xframe,%rsp
+	and		\$-16,%rsp
 ___
 	################ stack layout
 	# +0x00		SIMD equivalent of @x[8-12]
@@ -1358,10 +1393,13 @@ $code.=<<___;
 .size	ChaCha20_4x,.-ChaCha20_4x
 ___
 }
+if($kernel) {
+	$code .= "#endif\n";
+}
 
 ########################################################################
 # XOP code path that handles all lengths.
-if ($avx) {
+if ($avx && !$kernel) {
 # There is some "anomaly" observed depending on instructions' size or
 # alignment. If you look closely at below code you'll notice that
 # sometimes argument order varies. The order affects instruction
@@ -1818,6 +1856,11 @@ ___
 ########################################################################
 # AVX2 code path
 if ($avx>1) {
+
+if($kernel) {
+	$code .= "#ifdef CONFIG_AS_AVX2\n";
+}
+
 my ($xb0,$xb1,$xb2,$xb3, $xd0,$xd1,$xd2,$xd3,
     $xa0,$xa1,$xa2,$xa3, $xt0,$xt1,$xt2,$xt3)=map("%ymm$_",(0..15));
 my @xx=($xa0,$xa1,$xa2,$xa3, $xb0,$xb1,$xb2,$xb3,
@@ -1939,10 +1982,8 @@ my @x=map("\"$_\"",@xx);
 
 my $xframe = $win64 ? 0xa8 : 8;
 
+&declare_function("chacha20_avx2");
 $code.=<<___;
-.type	ChaCha20_8x,\@function,5
-.align	32
-ChaCha20_8x:
 .cfi_startproc
 .LChaCha20_8x:
 	mov		%rsp,%r9		# frame register
@@ -2456,14 +2497,20 @@ $code.=<<___;
 .L8x_epilogue:
 	ret
 .cfi_endproc
-.size	ChaCha20_8x,.-ChaCha20_8x
 ___
+}
+&end_function("chacha20_avx2");
+if($kernel) {
+	$code .= "#endif\n";
 }
 
 ########################################################################
 # AVX512 code paths
 if ($avx>2) {
 # This one handles shorter inputs...
+if($kernel) {
+	$code .= "#ifdef CONFIG_AS_AVX512\n";
+}
 
 my ($a,$b,$c,$d, $a_,$b_,$c_,$d_,$fourz) = map("%zmm$_",(0..3,16..20));
 my ($t0,$t1,$t2,$t3) = map("%xmm$_",(4..7));
@@ -2501,10 +2548,8 @@ sub AVX512ROUND {	# critical path is 14 "SIMD ticks" per round
 
 my $xframe = $win64 ? 32+8 : 8;
 
+&declare_function("chacha20_avx512");
 $code.=<<___;
-.type	ChaCha20_avx512,\@function,5
-.align	32
-ChaCha20_avx512:
 .cfi_startproc
 .LChaCha20_avx512:
 	mov	%rsp,%r9		# frame pointer
@@ -2513,6 +2558,7 @@ ChaCha20_avx512:
 	ja	.LChaCha20_16x
 
 	sub	\$64+$xframe,%rsp
+	and \$-64,%rsp
 ___
 $code.=<<___	if ($win64);
 	movaps	%xmm6,-0x28(%r9)
@@ -2692,15 +2738,13 @@ $code.=<<___;
 .Lavx512_epilogue:
 	ret
 .cfi_endproc
-.size	ChaCha20_avx512,.-ChaCha20_avx512
 ___
+&end_function("chacha20_avx512");
 
 map(s/%z/%y/, $a,$b,$c,$d, $a_,$b_,$c_,$d_,$fourz);
 
+&declare_function("chacha20_avx512vl", 32);
 $code.=<<___;
-.type	ChaCha20_avx512vl,\@function,5
-.align	32
-ChaCha20_avx512vl:
 .cfi_startproc
 .LChaCha20_avx512vl:
 	mov	%rsp,%r9		# frame pointer
@@ -2709,6 +2753,7 @@ ChaCha20_avx512vl:
 	ja	.LChaCha20_8xvl
 
 	sub	\$64+$xframe,%rsp
+	and \$-32,%rsp
 ___
 $code.=<<___	if ($win64);
 	movaps	%xmm6,-0x28(%r9)
@@ -2845,10 +2890,9 @@ $code.=<<___;
 .Lavx512vl_epilogue:
 	ret
 .cfi_endproc
-.size	ChaCha20_avx512vl,.-ChaCha20_avx512vl
 ___
-}
-if ($avx>2) {
+&end_function("chacha20_avx512vl");
+
 # This one handles longer inputs...
 
 my ($xa0,$xa1,$xa2,$xa3, $xb0,$xb1,$xb2,$xb3,
@@ -3743,6 +3787,9 @@ $code.=<<___;
 .cfi_endproc
 .size	ChaCha20_8xvl,.-ChaCha20_8xvl
 ___
+if($kernel) {
+	$code .= "#endif\n";
+}
 }
 
 # EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,
