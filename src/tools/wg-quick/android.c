@@ -512,8 +512,11 @@ static void set_routes(const char *iface, unsigned int netid)
 		if (!start)
 			continue;
 		++start;
-		for (char *allowedip = strtok(start, " \n"); allowedip; allowedip = strtok(NULL, " \n"))
+		for (char *allowedip = strtok(start, " \n"); allowedip; allowedip = strtok(NULL, " \n")) {
+			if (!strcmp(allowedip, "(none)"))
+				continue;
 			add_route(iface, netid, allowedip);
+		}
 	}
 }
 
