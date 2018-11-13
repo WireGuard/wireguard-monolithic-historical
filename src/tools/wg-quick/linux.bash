@@ -93,20 +93,15 @@ add_if() {
 }
 
 del_if() {
-	local table
+	local group
 	[[ $HAVE_SET_DNS -eq 0 ]] || unset_dns
-	if [[ -z $TABLE || $TABLE == auto ]] && get_fwmark table && [[ $(wg show "$INTERFACE" allowed-ips) =~ /0(\ |$'\n'|$) ]]; then
-		while [[ $(ip -4 rule show) == *"lookup $table"* ]]; do
-			cmd ip -4 rule delete table $table
+	if [[ -z $TABLE || $TABLE == auto ]] && get_fwmark group && [[ $(wg show "$INTERFACE" allowed-ips) =~ /0(\ |$'\n'|$) ]]; then
+		group="$(printf 0x%x $group)"
+		while [[ $(ip -4 rule show) == *"from all fwmark $group"* ]]; do
+			cmd ip -4 rule delete fwmark $group
 		done
-		while [[ $(ip -4 rule show) == *"from all lookup main suppress_prefixlength 0"* ]]; do
-			cmd ip -4 rule delete table main suppress_prefixlength 0
-		done
-		while [[ $(ip -6 rule show) == *"lookup $table"* ]]; do
-			cmd ip -6 rule delete table $table
-		done
-		while [[ $(ip -6 rule show) == *"from all lookup main suppress_prefixlength 0"* ]]; do
-			cmd ip -6 rule delete table main suppress_prefixlength 0
+		while [[ $(ip -6 rule show) == *"from all fwmark $group"* ]]; do
+			cmd ip -6 rule delete fwmark $group
 		done
 	fi
 	cmd ip link delete dev "$INTERFACE"
@@ -181,22 +176,26 @@ get_fwmark() {
 }
 
 add_default() {
-	local table proto key value
-	if ! get_fwmark table; then
-		table=51820
-		while [[ -n $(ip -4 route show table $table) || -n $(ip -6 route show table $table) ]]; do
-			((table++))
+	local proto key value group
+	if [[ $(ip link show "$INTERFACE") =~ group\ ([0-9]+)\  ]]; then
+		group="${BASH_REMATCH[1]}"
+	else
+		get_fwmark group || group=51820
+		while [[ -n $(ip link show group $group) ]]; do
+			((group++))
 		done
-		cmd wg set "$INTERFACE" fwmark $table
 	fi
-	proto=-4
-	[[ $1 == *:* ]] && proto=-6
-	cmd ip $proto route add "$1" dev "$INTERFACE" table $table
-	cmd ip $proto rule add not fwmark $table table $table
-	cmd ip $proto rule add table main suppress_prefixlength 0
-	while read -r key _ value; do
-		[[ $value -eq 1 ]] && sysctl -q "$key=2"
-	done < <(sysctl -a -r '^net\.ipv4.conf\.[^ .=]+\.rp_filter$')
+	cmd wg set "$INTERFACE" fwmark $group
+	cmd ip link set group $group dev "$INTERFACE"
+	if [[ $1 == *:* ]]; then
+		cmd ip -6 rule add fwmark $group suppress_ifgroup $group
+		cmd ip -6 route add 8000::/1 dev "$INTERFACE"
+		cmd ip -6 route add ::/1 dev "$INTERFACE"
+	else
+		cmd ip -4 rule add fwmark $group suppress_ifgroup $group
+		cmd ip -4 route add 0.0.0.0/1 dev "$INTERFACE"
+		cmd ip -4 route add 128.0.0.0/1 dev "$INTERFACE"
+	fi
 	return 0
 }
 
