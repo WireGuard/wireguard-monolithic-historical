@@ -59,7 +59,7 @@
 # 9. .init segment is allowed to contain calls to functions only.
 # a. If function accepts more than 4 arguments *and* >4th argument
 #    is declared as non 64-bit value, do clear its upper part.
-
+
 
 use strict;
 
@@ -587,7 +587,7 @@ my %globals;
 	my $val = shift;
 
 	if ($val >= 0 && $val < 32) {
-            return ($DW_OP_complex{lit0}+$val);
+	    return ($DW_OP_complex{lit0}+$val);
 	}
 	return ($DW_OP_complex{consts}, sleb128($val));
     }
@@ -1133,7 +1133,7 @@ ___
 }
 while(defined(my $line=<>)) {
 
-    $line =~ s|\R$||;           # Better chomp
+    $line =~ s|\R$||;	   	# Better chomp
 
     $line =~ s|[#!](?!include)(?!ifdef)(?!endif).*$||;	# get rid of asm-style comments...
     $line =~ s|/\*.*\*/||;	# ... and C-style comments...
@@ -1204,7 +1204,7 @@ print "END\n"				if ($masm);
 
 close STDOUT;
 
-#################################################
+#################################################
 # Cross-reference x86_64 ABI "card"
 #
 # 		Unix		Win64
@@ -1269,7 +1269,7 @@ close STDOUT;
 # endif
 #	ret
 #
-#################################################
+#################################################
 # Win64 SEH, Structured Exception Handling.
 #
 # Unlike on Unix systems(*) lack of Win64 stack unwinding information
