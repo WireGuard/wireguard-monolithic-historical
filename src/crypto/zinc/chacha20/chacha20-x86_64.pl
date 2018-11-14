@@ -103,36 +103,36 @@ ___
 sub declare_variable() {
 	my ($name, $size, $type, $payload) = @_;
 	if($kernel) {
-		$code.=".section .rodata.cst${size}.L${name}, \"aM\", \@progbits, ${size}\n";
-		$code.=".align ${size}\n";
-		$code.=".L${name}:\n";
-		$code.=".${type} ${payload}\n";
+		$code.=".section .rodata.cst$size.L$name, \"aM\", \@progbits, $size\n";
+		$code.=".align $size\n";
+		$code.=".L$name:\n";
+		$code.=".$type $payload\n";
 	} else {
-		$code.=".L${name}:\n";
-		$code.=".${type} ${payload}\n";
+		$code.=".L$name:\n";
+		$code.=".$type $payload\n";
 	}
 }
 
 sub declare_function() {
-	my ($name, $align) = @_;
+	my ($name, $align, $nargs) = @_;
 	if($kernel) {
-		$code .= ".align ${align}\n";
-		$code .= "ENTRY( ${name} )\n"; # xlate thinks it's an address without the spaces between ()
-		$code .= ".L${name}:\n";
+		$code .= ".align $align\n";
+		$code .= "ENTRY( $name )\n"; # xlate thinks it's an address without the spaces between ()
+		$code .= ".L$name:\n";
 	} else {
-		$code .= ".globl	${name}\n";
-		$code .= ".type	${name},\@function,5\n";
-		$code .= ".align	${align}\n";
-		$code .= "${name}:\n";
+		$code .= ".globl	$name\n";
+		$code .= ".type	$name,\@function,$nargs\n";
+		$code .= ".align	$align\n";
+		$code .= "$name:\n";
 	}
 }
 
 sub end_function() {
 	my ($name) = @_;
 	if($kernel) {
-		$code .= "ENDPROC( ${name} )\n";
+		$code .= "ENDPROC( $name )\n";
 	} else {
-		$code .= ".size   ${name},.-${name}\n";
+		$code .= ".size   $name,.-$name\n";
 	}
 }
 
@@ -273,7 +273,7 @@ my @x=map("\"$_\"",@x);
 
 ########################################################################
 # Generic code path that handles all lengths on pre-SSSE3 processors.
-&declare_function("chacha20_ctr32", 64);
+&declare_function("chacha20_ctr32", 64, 5);
 $code.=<<___;
 .cfi_startproc
 	cmp	\$0,$len
@@ -504,7 +504,7 @@ if($kernel) {
 }
 
 if($kernel) {
-&declare_function("hchacha20_ssse3", 32);
+&declare_function("hchacha20_ssse3", 32, 5);
 $code.=<<___;
 	movdqa	.Lsigma(%rip),$a
 	movdqu	($len),$b
@@ -541,7 +541,7 @@ ___
 &end_function("hchacha20_ssse3");
 }
 
-&declare_function("chacha20_ssse3", 32);
+&declare_function("chacha20_ssse3", 32, 5);
 $code.=<<___;
 .cfi_startproc
 	lea	8(%rsp),%r10		# frame pointer
@@ -1512,7 +1512,7 @@ my @x=map("\"$_\"",@xx);
 
 my $xframe = $win64 ? 0xa8 : 8;
 
-&declare_function("chacha20_xop", 32);
+&declare_function("chacha20_xop", 32, 5);
 $code.=<<___;
 .cfi_startproc
 .Lchacha20_4xop:
@@ -2018,7 +2018,7 @@ my @x=map("\"$_\"",@xx);
 
 my $xframe = $win64 ? 0xa8 : 8;
 
-&declare_function("chacha20_avx2");
+&declare_function("chacha20_avx2", 32, 5);
 $code.=<<___;
 .cfi_startproc
 .Lchacha20_8x:
@@ -2584,7 +2584,7 @@ sub AVX512ROUND {	# critical path is 14 "SIMD ticks" per round
 
 my $xframe = $win64 ? 32+8 : 8;
 
-&declare_function("chacha20_avx512");
+&declare_function("chacha20_avx512", 32, 5);
 $code.=<<___;
 .cfi_startproc
 .Lchacha20_avx512:
@@ -2779,7 +2779,7 @@ ___
 
 map(s/%z/%y/, $a,$b,$c,$d, $a_,$b_,$c_,$d_,$fourz);
 
-&declare_function("chacha20_avx512vl", 32);
+&declare_function("chacha20_avx512vl", 32, 5);
 $code.=<<___;
 .cfi_startproc
 .Lchacha20_avx512vl:
