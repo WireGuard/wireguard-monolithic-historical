@@ -1,11 +1,13 @@
-#! /usr/bin/env perl
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+#!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
-
+# Copyright (C) 2017-2018 Samuel Neves <sneves@dei.uc.pt>. All Rights Reserved.
+# Copyright (C) 2006-2017 CRYPTOGAMS by <appro@openssl.org>. All Rights Reserved.
+#
+# This code is taken from the OpenSSL project but the author, Andy Polyakov,
+# has relicensed it under the licenses specified in the SPDX header above.
+# The original headers, including the original license headers, are
+# included below for completeness.
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -58,7 +60,7 @@
 # (vi)	even though Skylake-X can execute AVX512F code and deliver 0.57
 #	cpb in single thread, the corresponding capability is suppressed;
 
-$flavour = shift;
+$flavour = "linux"; # shift;
 $output  = shift;
 if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
 
@@ -66,8 +68,7 @@ $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
 $kernel=0; $kernel=1 if ($flavour =~ /linux/);
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
-( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
-( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
+( $xlate="${dir}../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
@@ -154,10 +155,10 @@ if(!$kernel) {
 &declare_variable('sixteen', 64, 'long', '16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16');
 &declare_variable('sigma', 16, 'ascii', '"expand 32-byte k"');
 
-$code.=<<___;
+$code.=<<___ if !$kernel;
 .asciz "ChaCha20 for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
-.text
 ___
+$code.=".text\n";
 
 sub AUTOLOAD()          # thunk [simplified] 32-bit style perlasm
 { my $opcode = $AUTOLOAD; $opcode =~ s/.*:://;
@@ -4076,6 +4077,14 @@ $code.=<<___ if ($avx>2);
 	.long	0xa0,0
 ___
 }
+
+open SELF,$0;
+while(<SELF>) {
+	next if (/^#!/);
+	last if (!s/^#/\/\// and !/^$/);
+	print;
+}
+close SELF;
 
 foreach (split("\n",$code)) {
 	s/\`([^\`]*)\`/eval $1/ge;
