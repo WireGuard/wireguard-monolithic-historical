@@ -128,7 +128,7 @@ ___
 
 if ($avx) {
 $code.=<<___ if $kernel;
-.section .rodata # .cst192.Lconst, "aM", @progbits, 192
+.section .rodata
 ___
 $code.=<<___;
 .align	64
@@ -231,12 +231,12 @@ ___
 $code.=<<___ if (!$kernel);
 .extern	OPENSSL_ia32cap_P
 
-.globl	poly1305_init
-.hidden	poly1305_init
-.globl	poly1305_blocks
-.hidden	poly1305_blocks
-.globl	poly1305_emit
-.hidden	poly1305_emit
+.globl	poly1305_init_x86_64
+.hidden	poly1305_init_x86_64
+.globl	poly1305_blocks_x86_64
+.hidden	poly1305_blocks_x86_64
+.globl	poly1305_emit_x86_64
+.hidden	poly1305_emit_x86_64
 ___
 &declare_function("poly1305_init_x86_64", 32, 3);
 $code.=<<___;
@@ -249,10 +249,10 @@ $code.=<<___;
 	je	.Lno_key
 ___
 $code.=<<___ if (!$kernel);
-	lea	poly1305_blocks(%rip),%r10
-	lea	poly1305_emit(%rip),%r11
+	lea	poly1305_blocks_x86_64(%rip),%r10
+	lea	poly1305_emit_x86_64(%rip),%r11
 ___
-$code.=<<___	if (!$kernel && $avx);
+$code.=<<___	if (!$kernel && $avx && 1);
 	mov	OPENSSL_ia32cap_P+4(%rip),%r9
 	lea	poly1305_blocks_avx(%rip),%rax
 	lea	poly1305_emit_avx(%rip),%rcx
@@ -260,12 +260,12 @@ $code.=<<___	if (!$kernel && $avx);
 	cmovc	%rax,%r10
 	cmovc	%rcx,%r11
 ___
-$code.=<<___	if (!$kernel && $avx>1);
+$code.=<<___	if (!$kernel && $avx>1 && 1);
 	lea	poly1305_blocks_avx2(%rip),%rax
 	bt	\$`5+32`,%r9		# AVX2?
 	cmovc	%rax,%r10
 ___
-$code.=<<___	if (!$kernel && $avx>3);
+$code.=<<___	if (!$kernel && $avx>3 && 0);
 	mov	\$`(1<<31|1<<21|1<<16)`,%rax
 	shr	\$32,%r9
 	and	%rax,%r9
@@ -2187,6 +2187,7 @@ $code.=<<___	if ($win64);
 	vmovdqa		-0x40(%r10),%xmm13
 	vmovdqa		-0x30(%r10),%xmm14
 	vmovdqa		-0x20(%r10),%xmm15
+	lea		-8(%r10),%rsp
 .Ldo_avx2_epilogue$suffix:
 ___
 $code.=<<___	if (!$win64);
@@ -2778,6 +2779,7 @@ $code.=<<___	if ($win64);
 	movdqa		-0x40(%r10),%xmm13
 	movdqa		-0x30(%r10),%xmm14
 	movdqa		-0x20(%r10),%xmm15
+	lea		-8(%r10),%rsp
 .Ldo_avx512_epilogue:
 ___
 $code.=<<___	if (!$win64);
@@ -4110,17 +4112,17 @@ avx_handler:
 
 .section	.pdata
 .align	4
-	.rva	.LSEH_begin_poly1305_init
-	.rva	.LSEH_end_poly1305_init
-	.rva	.LSEH_info_poly1305_init
+	.rva	.LSEH_begin_poly1305_init_x86_64
+	.rva	.LSEH_end_poly1305_init_x86_64
+	.rva	.LSEH_info_poly1305_init_x86_64
 
-	.rva	.LSEH_begin_poly1305_blocks
-	.rva	.LSEH_end_poly1305_blocks
-	.rva	.LSEH_info_poly1305_blocks
+	.rva	.LSEH_begin_poly1305_blocks_x86_64
+	.rva	.LSEH_end_poly1305_blocks_x86_64
+	.rva	.LSEH_info_poly1305_blocks_x86_64
 
-	.rva	.LSEH_begin_poly1305_emit
-	.rva	.LSEH_end_poly1305_emit
-	.rva	.LSEH_info_poly1305_emit
+	.rva	.LSEH_begin_poly1305_emit_x86_64
+	.rva	.LSEH_end_poly1305_emit_x86_64
+	.rva	.LSEH_info_poly1305_emit_x86_64
 ___
 $code.=<<___ if ($avx);
 	.rva	.LSEH_begin_poly1305_blocks_avx
@@ -4160,20 +4162,20 @@ ___
 $code.=<<___;
 .section	.xdata
 .align	8
-.LSEH_info_poly1305_init:
+.LSEH_info_poly1305_init_x86_64:
 	.byte	9,0,0,0
 	.rva	se_handler
-	.rva	.LSEH_begin_poly1305_init,.LSEH_begin_poly1305_init
+	.rva	.LSEH_begin_poly1305_init_x86_64,.LSEH_begin_poly1305_init_x86_64
 
-.LSEH_info_poly1305_blocks:
+.LSEH_info_poly1305_blocks_x86_64:
 	.byte	9,0,0,0
 	.rva	se_handler
 	.rva	.Lblocks_body,.Lblocks_epilogue
 
-.LSEH_info_poly1305_emit:
+.LSEH_info_poly1305_emit_x86_64:
 	.byte	9,0,0,0
 	.rva	se_handler
-	.rva	.LSEH_begin_poly1305_emit,.LSEH_begin_poly1305_emit
+	.rva	.LSEH_begin_poly1305_emit_x86_64,.LSEH_begin_poly1305_emit_x86_64
 ___
 $code.=<<___ if ($avx);
 .LSEH_info_poly1305_blocks_avx_1:

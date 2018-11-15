@@ -4045,7 +4045,7 @@ $code.=<<___ if ($avx);
 	.long	0xa0,0
 ___
 $code.=<<___ if ($avx>1);
-.LSEH_info_chacha20_8x:
+.LSEH_info_chacha20_avx2:
 	.byte	9,0,0,0
 	.rva	simd_handler
 	.rva	.L8x_body,.L8x_epilogue			# HandlerData[]
