@@ -68,6 +68,7 @@ $output  = shift;
 if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
 
 $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
+$kernel=0; $kernel=1 if ($flavour =~ /linux/);
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
@@ -97,10 +98,80 @@ if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([
 open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
+sub declare_function() {
+	my ($name, $align, $nargs) = @_;
+	if($kernel) {
+		$code .= ".align $align\n";
+		$code .= "ENTRY( $name )\n"; # xlate thinks it's an address without the spaces between ()
+		$code .= ".L$name:\n";
+	} else {
+		$code .= ".globl	$name\n";
+		$code .= ".type	$name,\@function,$nargs\n";
+		$code .= ".align	$align\n";
+		$code .= "$name:\n";
+	}
+}
+
+sub end_function() {
+	my ($name) = @_;
+	if($kernel) {
+		$code .= "ENDPROC( $name )\n";
+	} else {
+		$code .= ".size   $name,.-$name\n";
+	}
+}
+
+$code.=<<___ if $kernel;
+#include <linux/linkage.h>
+___
+
+if ($avx) {
+$code.=<<___ if $kernel;
+.section .rodata # .cst192.Lconst, "aM", @progbits, 192
+___
+$code.=<<___;
+.align	64
+.Lconst:
+.Lmask24:
+.long	0x0ffffff,0,0x0ffffff,0,0x0ffffff,0,0x0ffffff,0
+.L129:
+.long	`1<<24`,0,`1<<24`,0,`1<<24`,0,`1<<24`,0
+.Lmask26:
+.long	0x3ffffff,0,0x3ffffff,0,0x3ffffff,0,0x3ffffff,0
+.Lpermd_avx2:
+.long	2,2,2,3,2,0,2,1
+.Lpermd_avx512:
+.long	0,0,0,1, 0,2,0,3, 0,4,0,5, 0,6,0,7
+
+.L2_44_inp_permd:
+.long	0,1,1,2,2,3,7,7
+.L2_44_inp_shift:
+.quad	0,12,24,64
+.L2_44_mask:
+.quad	0xfffffffffff,0xfffffffffff,0x3ffffffffff,0xffffffffffffffff
+.L2_44_shift_rgt:
+.quad	44,44,42,64
+.L2_44_shift_lft:
+.quad	8,8,10,64
+
+.align	64
+.Lx_mask44:
+.quad	0xfffffffffff,0xfffffffffff,0xfffffffffff,0xfffffffffff
+.quad	0xfffffffffff,0xfffffffffff,0xfffffffffff,0xfffffffffff
+.Lx_mask42:
+.quad	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
+.quad	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
+___
+}
+$code.=<<___;
+.asciz	"Poly1305 for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
+.align	16
+___
+
 my ($ctx,$inp,$len,$padbit)=("%rdi","%rsi","%rdx","%rcx");
 my ($mac,$nonce)=($inp,$len);	# *_emit arguments
-my ($d1,$d2,$d3, $r0,$r1,$s1)=map("%r$_",(8..13));
-my ($h0,$h1,$h2)=("%r14","%rbx","%rbp");
+my ($d1,$d2,$d3, $r0,$r1,$s1)=("%r8","%r9","%rdi","%r11","%r12","%r13");
+my ($h0,$h1,$h2)=("%r14","%rbx","%r10");
 
 sub poly1305_iteration {
 # input:	copy of $r1 in %rax, $h0-$h2, $r0-$r1
@@ -155,7 +226,8 @@ ___
 
 $code.=<<___;
 .text
-
+___
+$code.=<<___ if (!$kernel);
 .extern	OPENSSL_ia32cap_P
 
 .globl	poly1305_init
@@ -164,10 +236,9 @@ $code.=<<___;
 .hidden	poly1305_blocks
 .globl	poly1305_emit
 .hidden	poly1305_emit
-
-.type	poly1305_init,\@function,3
-.align	32
-poly1305_init:
+___
+&declare_function("poly1305_init_x86_64", 32, 3);
+$code.=<<___;
 	xor	%rax,%rax
 	mov	%rax,0($ctx)		# initialize hash value
 	mov	%rax,8($ctx)
@@ -175,11 +246,12 @@ poly1305_init:
 
 	cmp	\$0,$inp
 	je	.Lno_key
-
+___
+$code.=<<___ if (!$kernel);
 	lea	poly1305_blocks(%rip),%r10
 	lea	poly1305_emit(%rip),%r11
 ___
-$code.=<<___	if ($avx);
+$code.=<<___	if (!$kernel && $avx);
 	mov	OPENSSL_ia32cap_P+4(%rip),%r9
 	lea	poly1305_blocks_avx(%rip),%rax
 	lea	poly1305_emit_avx(%rip),%rcx
@@ -187,12 +259,12 @@ $code.=<<___	if ($avx);
 	cmovc	%rax,%r10
 	cmovc	%rcx,%r11
 ___
-$code.=<<___	if ($avx>1);
+$code.=<<___	if (!$kernel && $avx>1);
 	lea	poly1305_blocks_avx2(%rip),%rax
 	bt	\$`5+32`,%r9		# AVX2?
 	cmovc	%rax,%r10
 ___
-$code.=<<___	if ($avx>3);
+$code.=<<___	if (!$kernel && $avx>3);
 	mov	\$`(1<<31|1<<21|1<<16)`,%rax
 	shr	\$32,%r9
 	and	%rax,%r9
@@ -207,11 +279,11 @@ $code.=<<___;
 	mov	%rax,24($ctx)
 	mov	%rcx,32($ctx)
 ___
-$code.=<<___	if ($flavour !~ /elf32/);
+$code.=<<___	if (!$kernel && $flavour !~ /elf32/);
 	mov	%r10,0(%rdx)
 	mov	%r11,8(%rdx)
 ___
-$code.=<<___	if ($flavour =~ /elf32/);
+$code.=<<___	if (!$kernel && $flavour =~ /elf32/);
 	mov	%r10d,0(%rdx)
 	mov	%r11d,4(%rdx)
 ___
@@ -219,11 +291,11 @@ $code.=<<___;
 	mov	\$1,%eax
 .Lno_key:
 	ret
-.size	poly1305_init,.-poly1305_init
+___
+&end_function("poly1305_init_x86_64");
 
-.type	poly1305_blocks,\@function,4
-.align	32
-poly1305_blocks:
+&declare_function("poly1305_blocks_x86_64", 32, 4);
+$code.=<<___;
 .cfi_startproc
 .Lblocks:
 	shr	\$4,$len
@@ -231,8 +303,6 @@ poly1305_blocks:
 
 	push	%rbx
 .cfi_push	%rbx
-	push	%rbp
-.cfi_push	%rbp
 	push	%r12
 .cfi_push	%r12
 	push	%r13
@@ -241,6 +311,8 @@ poly1305_blocks:
 .cfi_push	%r14
 	push	%r15
 .cfi_push	%r15
+	push	$ctx
+.cfi_push	$ctx
 .Lblocks_body:
 
 	mov	$len,%r15		# reassign $len
@@ -265,26 +337,29 @@ poly1305_blocks:
 	lea	16($inp),$inp
 	adc	$padbit,$h2
 ___
+
 	&poly1305_iteration();
+
 $code.=<<___;
 	mov	$r1,%rax
 	dec	%r15			# len-=16
 	jnz	.Loop
 
+	mov	0(%rsp),$ctx
+.cfi_restore	$ctx
+
 	mov	$h0,0($ctx)		# store hash value
 	mov	$h1,8($ctx)
 	mov	$h2,16($ctx)
 
-	mov	0(%rsp),%r15
+	mov	8(%rsp),%r15
 .cfi_restore	%r15
-	mov	8(%rsp),%r14
+	mov	16(%rsp),%r14
 .cfi_restore	%r14
-	mov	16(%rsp),%r13
+	mov	24(%rsp),%r13
 .cfi_restore	%r13
-	mov	24(%rsp),%r12
+	mov	32(%rsp),%r12
 .cfi_restore	%r12
-	mov	32(%rsp),%rbp
-.cfi_restore	%rbp
 	mov	40(%rsp),%rbx
 .cfi_restore	%rbx
 	lea	48(%rsp),%rsp
@@ -293,11 +368,11 @@ $code.=<<___;
 .Lblocks_epilogue:
 	ret
 .cfi_endproc
-.size	poly1305_blocks,.-poly1305_blocks
+___
+&end_function("poly1305_blocks_x86_64");
 
-.type	poly1305_emit,\@function,3
-.align	32
-poly1305_emit:
+&declare_function("poly1305_emit_x86_64", 32, 3);
+$code.=<<___;
 .Lemit:
 	mov	0($ctx),%r8	# load hash value
 	mov	8($ctx),%r9
@@ -318,9 +393,13 @@ poly1305_emit:
 	mov	%rcx,8($mac)
 
 	ret
-.size	poly1305_emit,.-poly1305_emit
 ___
+&end_function("poly1305_emit_x86_64");
 if ($avx) {
+
+if($kernel) {
+	$code .= "#ifdef CONFIG_AS_AVX\n";
+}
 
 ########################################################################
 # Layout of opaque area is following.
@@ -342,9 +421,11 @@ $code.=<<___;
 .type	__poly1305_block,\@abi-omnipotent
 .align	32
 __poly1305_block:
+	push $ctx
 ___
 	&poly1305_iteration();
 $code.=<<___;
+	pop $ctx
 	ret
 .size	__poly1305_block,.-__poly1305_block
 
@@ -509,10 +590,10 @@ __poly1305_init_avx:
 	lea	-48-64($ctx),$ctx	# size [de-]optimization
 	ret
 .size	__poly1305_init_avx,.-__poly1305_init_avx
+___
 
-.type	poly1305_blocks_avx,\@function,4
-.align	32
-poly1305_blocks_avx:
+&declare_function("poly1305_blocks_avx", 32, 4);
+$code.=<<___;
 .cfi_startproc
 	mov	20($ctx),%r8d		# is_base2_26
 	cmp	\$128,$len
@@ -534,8 +615,6 @@ poly1305_blocks_avx:
 
 	push	%rbx
 .cfi_push	%rbx
-	push	%rbp
-.cfi_push	%rbp
 	push	%r12
 .cfi_push	%r12
 	push	%r13
@@ -653,12 +732,10 @@ poly1305_blocks_avx:
 .cfi_restore	%r13
 	mov	24(%rsp),%r12
 .cfi_restore	%r12
-	mov	32(%rsp),%rbp
-.cfi_restore	%rbp
-	mov	40(%rsp),%rbx
+	mov	32(%rsp),%rbx
 .cfi_restore	%rbx
-	lea	48(%rsp),%rsp
-.cfi_adjust_cfa_offset	-48
+	lea	40(%rsp),%rsp
+.cfi_adjust_cfa_offset	-40
 .Lno_data_avx:
 .Lblocks_avx_epilogue:
 	ret
@@ -669,8 +746,6 @@ poly1305_blocks_avx:
 .cfi_startproc
 	push	%rbx
 .cfi_push	%rbx
-	push	%rbp
-.cfi_push	%rbp
 	push	%r12
 .cfi_push	%r12
 	push	%r13
@@ -745,13 +820,11 @@ poly1305_blocks_avx:
 .cfi_restore	%r13
 	mov	24(%rsp),%r12
 .cfi_restore	%r12
-	mov	32(%rsp),%rbp
-.cfi_restore	%rbp
-	mov	40(%rsp),%rbx
+	mov	32(%rsp),%rbx
 .cfi_restore	%rbx
-	lea	48(%rsp),%rax
-	lea	48(%rsp),%rsp
-.cfi_adjust_cfa_offset	-48
+	lea	40(%rsp),%rax
+	lea	40(%rsp),%rsp
+.cfi_adjust_cfa_offset	-40
 .Lbase2_64_avx_epilogue:
 	jmp	.Ldo_avx
 .cfi_endproc
@@ -768,9 +841,13 @@ poly1305_blocks_avx:
 .Ldo_avx:
 ___
 $code.=<<___	if (!$win64);
+	lea		8(%rsp),%r10
+.cfi_def_cfa_register	%r10
+	and		\$-32,%rsp
+	sub		\$-8,%rsp
 	lea		-0x58(%rsp),%r11
-.cfi_def_cfa		%r11,0x60
 	sub		\$0x178,%rsp
+	
 ___
 $code.=<<___	if ($win64);
 	lea		-0xf8(%rsp),%r11
@@ -1361,18 +1438,18 @@ $code.=<<___	if ($win64);
 .Ldo_avx_epilogue:
 ___
 $code.=<<___	if (!$win64);
-	lea		0x58(%r11),%rsp
-.cfi_def_cfa		%rsp,8
+	lea		-8(%r10),%rsp
+.cfi_def_cfa_register	%rsp
 ___
 $code.=<<___;
 	vzeroupper
 	ret
 .cfi_endproc
-.size	poly1305_blocks_avx,.-poly1305_blocks_avx
+___
+&end_function("poly1305_blocks_avx");
 
-.type	poly1305_emit_avx,\@function,3
-.align	32
-poly1305_emit_avx:
+&declare_function("poly1305_emit_avx", 32, 3);
+$code.=<<___;
 	cmpl	\$0,20($ctx)	# is_base2_26?
 	je	.Lemit
 
@@ -1423,41 +1500,48 @@ poly1305_emit_avx:
 	mov	%rcx,8($mac)
 
 	ret
-.size	poly1305_emit_avx,.-poly1305_emit_avx
 ___
+&end_function("poly1305_emit_avx");
+
+if ($kernel) {
+	$code .= "#endif\n";
+}
 
 if ($avx>1) {
+
+if ($kernel) {
+	$code .= "#ifdef CONFIG_AS_AVX2\n";
+}
+
 my ($H0,$H1,$H2,$H3,$H4, $MASK, $T4,$T0,$T1,$T2,$T3, $D0,$D1,$D2,$D3,$D4) =
     map("%ymm$_",(0..15));
 my $S4=$MASK;
 
+sub poly1305_blocks_avxN {
+	my ($avx512) = @_;
+	my $suffix = $avx512 ? "_avx512" : "";
 $code.=<<___;
-.type	poly1305_blocks_avx2,\@function,4
-.align	32
-poly1305_blocks_avx2:
 .cfi_startproc
 	mov	20($ctx),%r8d		# is_base2_26
 	cmp	\$128,$len
-	jae	.Lblocks_avx2
+	jae	.Lblocks_avx2$suffix
 	test	%r8d,%r8d
 	jz	.Lblocks
 
-.Lblocks_avx2:
+.Lblocks_avx2$suffix:
 	and	\$-16,$len
-	jz	.Lno_data_avx2
+	jz	.Lno_data_avx2$suffix
 
 	vzeroupper
 
 	test	%r8d,%r8d
-	jz	.Lbase2_64_avx2
+	jz	.Lbase2_64_avx2$suffix
 
 	test	\$63,$len
-	jz	.Leven_avx2
+	jz	.Leven_avx2$suffix
 
 	push	%rbx
 .cfi_push	%rbx
-	push	%rbp
-.cfi_push	%rbp
 	push	%r12
 .cfi_push	%r12
 	push	%r13
@@ -1466,7 +1550,7 @@ poly1305_blocks_avx2:
 .cfi_push	%r14
 	push	%r15
 .cfi_push	%r15
-.Lblocks_avx2_body:
+.Lblocks_avx2_body$suffix:
 
 	mov	$len,%r15		# reassign $len
 
@@ -1513,7 +1597,7 @@ poly1305_blocks_avx2:
 	shr	\$2,$s1
 	add	$r1,$s1			# s1 = r1 + (r1 >> 2)
 
-.Lbase2_26_pre_avx2:
+.Lbase2_26_pre_avx2$suffix:
 	add	0($inp),$h0		# accumulate input
 	adc	8($inp),$h1
 	lea	16($inp),$inp
@@ -1524,10 +1608,10 @@ poly1305_blocks_avx2:
 	mov	$r1,%rax
 
 	test	\$63,%r15
-	jnz	.Lbase2_26_pre_avx2
+	jnz	.Lbase2_26_pre_avx2$suffix
 
 	test	$padbit,$padbit		# if $padbit is zero,
-	jz	.Lstore_base2_64_avx2	# store hash in base 2^64 format
+	jz	.Lstore_base2_64_avx2$suffix	# store hash in base 2^64 format
 
 	################################# base 2^64 -> base 2^26
 	mov	$h0,%rax
@@ -1548,31 +1632,31 @@ poly1305_blocks_avx2:
 	or	$r1,$h2			# h[4]
 
 	test	%r15,%r15
-	jz	.Lstore_base2_26_avx2
+	jz	.Lstore_base2_26_avx2$suffix
 
 	vmovd	%rax#d,%x#$H0
 	vmovd	%rdx#d,%x#$H1
 	vmovd	$h0#d,%x#$H2
 	vmovd	$h1#d,%x#$H3
 	vmovd	$h2#d,%x#$H4
-	jmp	.Lproceed_avx2
+	jmp	.Lproceed_avx2$suffix
 
 .align	32
-.Lstore_base2_64_avx2:
+.Lstore_base2_64_avx2$suffix:
 	mov	$h0,0($ctx)
 	mov	$h1,8($ctx)
 	mov	$h2,16($ctx)		# note that is_base2_26 is zeroed
-	jmp	.Ldone_avx2
+	jmp	.Ldone_avx2$suffix
 
 .align	16
-.Lstore_base2_26_avx2:
+.Lstore_base2_26_avx2$suffix:
 	mov	%rax#d,0($ctx)		# store hash value base 2^26
 	mov	%rdx#d,4($ctx)
 	mov	$h0#d,8($ctx)
 	mov	$h1#d,12($ctx)
 	mov	$h2#d,16($ctx)
 .align	16
-.Ldone_avx2:
+.Ldone_avx2$suffix:
 	mov	0(%rsp),%r15
 .cfi_restore	%r15
 	mov	8(%rsp),%r14
@@ -1581,24 +1665,20 @@ poly1305_blocks_avx2:
 .cfi_restore	%r13
 	mov	24(%rsp),%r12
 .cfi_restore	%r12
-	mov	32(%rsp),%rbp
-.cfi_restore	%rbp
-	mov	40(%rsp),%rbx
+	mov	32(%rsp),%rbx
 .cfi_restore	%rbx
-	lea	48(%rsp),%rsp
-.cfi_adjust_cfa_offset	-48
-.Lno_data_avx2:
-.Lblocks_avx2_epilogue:
+	lea	40(%rsp),%rsp
+.cfi_adjust_cfa_offset	-40
+.Lno_data_avx2$suffix:
+.Lblocks_avx2_epilogue$suffix:
 	ret
 .cfi_endproc
 
 .align	32
-.Lbase2_64_avx2:
+.Lbase2_64_avx2$suffix:
 .cfi_startproc
 	push	%rbx
 .cfi_push	%rbx
-	push	%rbp
-.cfi_push	%rbp
 	push	%r12
 .cfi_push	%r12
 	push	%r13
@@ -1607,7 +1687,7 @@ poly1305_blocks_avx2:
 .cfi_push	%r14
 	push	%r15
 .cfi_push	%r15
-.Lbase2_64_avx2_body:
+.Lbase2_64_avx2_body$suffix:
 
 	mov	$len,%r15		# reassign $len
 
@@ -1624,9 +1704,9 @@ poly1305_blocks_avx2:
 	add	$r1,$s1			# s1 = r1 + (r1 >> 2)
 
 	test	\$63,$len
-	jz	.Linit_avx2
+	jz	.Linit_avx2$suffix
 
-.Lbase2_64_pre_avx2:
+.Lbase2_64_pre_avx2$suffix:
 	add	0($inp),$h0		# accumulate input
 	adc	8($inp),$h1
 	lea	16($inp),$inp
@@ -1637,9 +1717,9 @@ poly1305_blocks_avx2:
 	mov	$r1,%rax
 
 	test	\$63,%r15
-	jnz	.Lbase2_64_pre_avx2
+	jnz	.Lbase2_64_pre_avx2$suffix
 
-.Linit_avx2:
+.Linit_avx2$suffix:
 	################################# base 2^64 -> base 2^26
 	mov	$h0,%rax
 	mov	$h0,%rdx
@@ -1667,11 +1747,14 @@ poly1305_blocks_avx2:
 
 	call	__poly1305_init_avx
 
-.Lproceed_avx2:
+.Lproceed_avx2$suffix:
 	mov	%r15,$len			# restore $len
-	mov	OPENSSL_ia32cap_P+8(%rip),%r10d
+___
+$code.=<<___ if (!$kernel);
+	mov	OPENSSL_ia32cap_P+8(%rip),%r9d
 	mov	\$`(1<<31|1<<30|1<<16)`,%r11d
-
+___
+$code.=<<___;
 	mov	0(%rsp),%r15
 .cfi_restore	%r15
 	mov	8(%rsp),%r14
@@ -1680,56 +1763,62 @@ poly1305_blocks_avx2:
 .cfi_restore	%r13
 	mov	24(%rsp),%r12
 .cfi_restore	%r12
-	mov	32(%rsp),%rbp
-.cfi_restore	%rbp
-	mov	40(%rsp),%rbx
+	mov	32(%rsp),%rbx
 .cfi_restore	%rbx
-	lea	48(%rsp),%rax
-	lea	48(%rsp),%rsp
-.cfi_adjust_cfa_offset	-48
-.Lbase2_64_avx2_epilogue:
-	jmp	.Ldo_avx2
+	lea	40(%rsp),%rax
+	lea	40(%rsp),%rsp
+.cfi_adjust_cfa_offset	-40
+.Lbase2_64_avx2_epilogue$suffix:
+	jmp	.Ldo_avx2$suffix
 .cfi_endproc
 
 .align	32
-.Leven_avx2:
+.Leven_avx2$suffix:
 .cfi_startproc
-	mov		OPENSSL_ia32cap_P+8(%rip),%r10d
+___
+$code.=<<___ if (!$kernel);
+	mov		OPENSSL_ia32cap_P+8(%rip),%r9d
+___
+$code.=<<___;
 	vmovd		4*0($ctx),%x#$H0	# load hash value base 2^26
 	vmovd		4*1($ctx),%x#$H1
 	vmovd		4*2($ctx),%x#$H2
 	vmovd		4*3($ctx),%x#$H3
 	vmovd		4*4($ctx),%x#$H4
 
-.Ldo_avx2:
+.Ldo_avx2$suffix:
 ___
-$code.=<<___		if ($avx>2);
+$code.=<<___		if (!$kernel && $avx>2);
 	cmp		\$512,$len
 	jb		.Lskip_avx512
-	and		%r11d,%r10d
-	test		\$`1<<16`,%r10d		# check for AVX512F
+	and		%r11d,%r9d
+	test		\$`1<<16`,%r9d		# check for AVX512F
 	jnz		.Lblocks_avx512
-.Lskip_avx512:
+.Lskip_avx512$suffix:
+___
+$code.=<<___ if ($avx > 2 && $avx512 && $kernel);
+	cmp		\$512,$len
+	jae		.Lblocks_avx512
 ___
 $code.=<<___	if (!$win64);
-	lea		-8(%rsp),%r11
-.cfi_def_cfa		%r11,16
+	lea		8(%rsp),%r10
+.cfi_def_cfa_register	%r10
 	sub		\$0x128,%rsp
 ___
 $code.=<<___	if ($win64);
-	lea		-0xf8(%rsp),%r11
+	lea		8(%rsp),%r10
 	sub		\$0x1c8,%rsp
-	vmovdqa		%xmm6,0x50(%r11)
-	vmovdqa		%xmm7,0x60(%r11)
-	vmovdqa		%xmm8,0x70(%r11)
-	vmovdqa		%xmm9,0x80(%r11)
-	vmovdqa		%xmm10,0x90(%r11)
-	vmovdqa		%xmm11,0xa0(%r11)
-	vmovdqa		%xmm12,0xb0(%r11)
-	vmovdqa		%xmm13,0xc0(%r11)
-	vmovdqa		%xmm14,0xd0(%r11)
-	vmovdqa		%xmm15,0xe0(%r11)
-.Ldo_avx2_body:
+	vmovdqa		%xmm6,-0xb0(%r10)
+	vmovdqa		%xmm7,-0xa0(%r10)
+	vmovdqa		%xmm8,-0x90(%r10)
+	vmovdqa		%xmm9,-0x80(%r10)
+	vmovdqa		%xmm10,-0x70(%r10)
+	vmovdqa		%xmm11,-0x60(%r10)
+	vmovdqa		%xmm12,-0x50(%r10)
+	vmovdqa		%xmm13,-0x40(%r10)
+	vmovdqa		%xmm14,-0x30(%r10)
+	vmovdqa		%xmm15,-0x20(%r10)
+.Ldo_avx2_body$suffix:
 ___
 $code.=<<___;
 	lea		.Lconst(%rip),%rcx
@@ -1794,11 +1883,11 @@ $code.=<<___;
 
 	vpaddq		$H2,$T2,$H2		# accumulate input
 	sub		\$64,$len
-	jz		.Ltail_avx2
-	jmp		.Loop_avx2
+	jz		.Ltail_avx2$suffix
+	jmp		.Loop_avx2$suffix
 
 .align	32
-.Loop_avx2:
+.Loop_avx2$suffix:
 	################################################################
 	# ((inp[0]*r^4+inp[4])*r^4+inp[ 8])*r^4
 	# ((inp[1]*r^4+inp[5])*r^4+inp[ 9])*r^3
@@ -1946,10 +2035,10 @@ $code.=<<___;
 	 vpor		32(%rcx),$T4,$T4	# padbit, yes, always
 
 	sub		\$64,$len
-	jnz		.Loop_avx2
+	jnz		.Loop_avx2$suffix
 
 	.byte		0x66,0x90
-.Ltail_avx2:
+.Ltail_avx2$suffix:
 	################################################################
 	# while above multiplications were by r^4 in all lanes, in last
 	# iteration we multiply least significant lane by r^4 and most
@@ -2087,37 +2176,28 @@ $code.=<<___;
 	vmovd		%x#$H4,`4*4-48-64`($ctx)
 ___
 $code.=<<___	if ($win64);
-	vmovdqa		0x50(%r11),%xmm6
-	vmovdqa		0x60(%r11),%xmm7
-	vmovdqa		0x70(%r11),%xmm8
-	vmovdqa		0x80(%r11),%xmm9
-	vmovdqa		0x90(%r11),%xmm10
-	vmovdqa		0xa0(%r11),%xmm11
-	vmovdqa		0xb0(%r11),%xmm12
-	vmovdqa		0xc0(%r11),%xmm13
-	vmovdqa		0xd0(%r11),%xmm14
-	vmovdqa		0xe0(%r11),%xmm15
-	lea		0xf8(%r11),%rsp
-.Ldo_avx2_epilogue:
+	vmovdqa		-0xb0(%r10),%xmm6
+	vmovdqa		-0xa0(%r10),%xmm7
+	vmovdqa		-0x90(%r10),%xmm8
+	vmovdqa		-0x80(%r10),%xmm9
+	vmovdqa		-0x70(%r10),%xmm10
+	vmovdqa		-0x60(%r10),%xmm11
+	vmovdqa		-0x50(%r10),%xmm12
+	vmovdqa		-0x40(%r10),%xmm13
+	vmovdqa		-0x30(%r10),%xmm14
+	vmovdqa		-0x20(%r10),%xmm15
+.Ldo_avx2_epilogue$suffix:
 ___
 $code.=<<___	if (!$win64);
-	lea		8(%r11),%rsp
-.cfi_def_cfa		%rsp,8
+	lea		-8(%r10),%rsp
+.cfi_def_cfa_register	%rsp
 ___
 $code.=<<___;
 	vzeroupper
 	ret
 .cfi_endproc
-.size	poly1305_blocks_avx2,.-poly1305_blocks_avx2
 ___
-#######################################################################
-if ($avx>2) {
-# On entry we have input length divisible by 64. But since inner loop
-# processes 128 bytes per iteration, cases when length is not divisible
-# by 128 are handled by passing tail 64 bytes to .Ltail_avx2. For this
-# reason stack layout is kept identical to poly1305_blocks_avx2. If not
-# for this tail, we wouldn't have to even allocate stack frame...
-
+if($avx > 2 && $avx512) {
 my ($R0,$R1,$R2,$R3,$R4, $S1,$S2,$S3,$S4) = map("%zmm$_",(16..24));
 my ($M0,$M1,$M2,$M3,$M4) = map("%zmm$_",(25..29));
 my $PADBIT="%zmm30";
@@ -2128,32 +2208,29 @@ map(s/%y/%z/,($H0,$H1,$H2,$H3,$H4));
 map(s/%y/%z/,($MASK));
 
 $code.=<<___;
-.type	poly1305_blocks_avx512,\@function,4
-.align	32
-poly1305_blocks_avx512:
 .cfi_startproc
 .Lblocks_avx512:
 	mov		\$15,%eax
 	kmovw		%eax,%k2
 ___
 $code.=<<___	if (!$win64);
-	lea		-8(%rsp),%r11
-.cfi_def_cfa		%r11,16
+	lea		8(%rsp),%r10
+.cfi_def_cfa_register	%r10
 	sub		\$0x128,%rsp
 ___
 $code.=<<___	if ($win64);
-	lea		-0xf8(%rsp),%r11
+	lea		8(%rsp),%r10
 	sub		\$0x1c8,%rsp
-	vmovdqa		%xmm6,0x50(%r11)
-	vmovdqa		%xmm7,0x60(%r11)
-	vmovdqa		%xmm8,0x70(%r11)
-	vmovdqa		%xmm9,0x80(%r11)
-	vmovdqa		%xmm10,0x90(%r11)
-	vmovdqa		%xmm11,0xa0(%r11)
-	vmovdqa		%xmm12,0xb0(%r11)
-	vmovdqa		%xmm13,0xc0(%r11)
-	vmovdqa		%xmm14,0xd0(%r11)
-	vmovdqa		%xmm15,0xe0(%r11)
+	vmovdqa		%xmm6,-0xb0(%r10)
+	vmovdqa		%xmm7,-0xa0(%r10)
+	vmovdqa		%xmm8,-0x90(%r10)
+	vmovdqa		%xmm9,-0x80(%r10)
+	vmovdqa		%xmm10,-0x70(%r10)
+	vmovdqa		%xmm11,-0x60(%r10)
+	vmovdqa		%xmm12,-0x50(%r10)
+	vmovdqa		%xmm13,-0x40(%r10)
+	vmovdqa		%xmm14,-0x30(%r10)
+	vmovdqa		%xmm15,-0x20(%r10)
 .Ldo_avx512_body:
 ___
 $code.=<<___;
@@ -2679,7 +2756,7 @@ $code.=<<___;
 
 	lea		0x90(%rsp),%rax		# size optimization for .Ltail_avx2
 	add		\$64,$len
-	jnz		.Ltail_avx2
+	jnz		.Ltail_avx2$suffix
 
 	vpsubq		$T2,$H2,$H2		# undo input accumulation
 	vmovd		%x#$H0,`4*0-48-64`($ctx)# save partially reduced
@@ -2690,29 +2767,60 @@ $code.=<<___;
 	vzeroall
 ___
 $code.=<<___	if ($win64);
-	movdqa		0x50(%r11),%xmm6
-	movdqa		0x60(%r11),%xmm7
-	movdqa		0x70(%r11),%xmm8
-	movdqa		0x80(%r11),%xmm9
-	movdqa		0x90(%r11),%xmm10
-	movdqa		0xa0(%r11),%xmm11
-	movdqa		0xb0(%r11),%xmm12
-	movdqa		0xc0(%r11),%xmm13
-	movdqa		0xd0(%r11),%xmm14
-	movdqa		0xe0(%r11),%xmm15
-	lea		0xf8(%r11),%rsp
+	movdqa		-0xb0(%r10),%xmm6
+	movdqa		-0xa0(%r10),%xmm7
+	movdqa		-0x90(%r10),%xmm8
+	movdqa		-0x80(%r10),%xmm9
+	movdqa		-0x70(%r10),%xmm10
+	movdqa		-0x60(%r10),%xmm11
+	movdqa		-0x50(%r10),%xmm12
+	movdqa		-0x40(%r10),%xmm13
+	movdqa		-0x30(%r10),%xmm14
+	movdqa		-0x20(%r10),%xmm15
 .Ldo_avx512_epilogue:
 ___
 $code.=<<___	if (!$win64);
-	lea		8(%r11),%rsp
-.cfi_def_cfa		%rsp,8
+	lea		-8(%r10),%rsp
+.cfi_def_cfa_register	%rsp
 ___
 $code.=<<___;
 	ret
 .cfi_endproc
-.size	poly1305_blocks_avx512,.-poly1305_blocks_avx512
 ___
-if ($avx>3) {
+
+}
+
+}
+
+&declare_function("poly1305_blocks_avx2", 32, 4);
+poly1305_blocks_avxN(0);
+&end_function("poly1305_blocks_avx2");
+
+if($kernel) {
+	$code .= "#endif\n";
+}
+
+#######################################################################
+if ($avx>2) {
+# On entry we have input length divisible by 64. But since inner loop
+# processes 128 bytes per iteration, cases when length is not divisible
+# by 128 are handled by passing tail 64 bytes to .Ltail_avx2. For this
+# reason stack layout is kept identical to poly1305_blocks_avx2. If not
+# for this tail, we wouldn't have to even allocate stack frame...
+
+if($kernel) {
+	$code .= "#ifdef CONFIG_AS_AVX512\n";
+}
+
+&declare_function("poly1305_blocks_avx512", 32, 4);
+poly1305_blocks_avxN(1);
+&end_function("poly1305_blocks_avx512");
+
+if ($kernel) {
+	$code .= "#endif\n";
+}
+
+if (!$kernel && $avx>3) {
 ########################################################################
 # VPMADD52 version using 2^44 radix.
 #
@@ -3753,44 +3861,7 @@ poly1305_emit_base2_44:
 .size	poly1305_emit_base2_44,.-poly1305_emit_base2_44
 ___
 }	}	}
-$code.=<<___;
-.align	64
-.Lconst:
-.Lmask24:
-.long	0x0ffffff,0,0x0ffffff,0,0x0ffffff,0,0x0ffffff,0
-.L129:
-.long	`1<<24`,0,`1<<24`,0,`1<<24`,0,`1<<24`,0
-.Lmask26:
-.long	0x3ffffff,0,0x3ffffff,0,0x3ffffff,0,0x3ffffff,0
-.Lpermd_avx2:
-.long	2,2,2,3,2,0,2,1
-.Lpermd_avx512:
-.long	0,0,0,1, 0,2,0,3, 0,4,0,5, 0,6,0,7
-
-.L2_44_inp_permd:
-.long	0,1,1,2,2,3,7,7
-.L2_44_inp_shift:
-.quad	0,12,24,64
-.L2_44_mask:
-.quad	0xfffffffffff,0xfffffffffff,0x3ffffffffff,0xffffffffffffffff
-.L2_44_shift_rgt:
-.quad	44,44,42,64
-.L2_44_shift_lft:
-.quad	8,8,10,64
-
-.align	64
-.Lx_mask44:
-.quad	0xfffffffffff,0xfffffffffff,0xfffffffffff,0xfffffffffff
-.quad	0xfffffffffff,0xfffffffffff,0xfffffffffff,0xfffffffffff
-.Lx_mask42:
-.quad	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
-.quad	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
-___
 }
-$code.=<<___;
-.asciz	"Poly1305 for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
-.align	16
-___
 
 {	# chacha20-poly1305 helpers
 my ($out,$inp,$otp,$len)=$win64 ? ("%rcx","%rdx","%r8", "%r9") :  # Win64 order
