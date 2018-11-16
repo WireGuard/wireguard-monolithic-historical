@@ -252,7 +252,7 @@ $code.=<<___ if (!$kernel);
 	lea	poly1305_blocks_x86_64(%rip),%r10
 	lea	poly1305_emit_x86_64(%rip),%r11
 ___
-$code.=<<___	if (!$kernel && $avx && 1);
+$code.=<<___	if (!$kernel && $avx);
 	mov	OPENSSL_ia32cap_P+4(%rip),%r9
 	lea	poly1305_blocks_avx(%rip),%rax
 	lea	poly1305_emit_avx(%rip),%rcx
@@ -260,12 +260,12 @@ $code.=<<___	if (!$kernel && $avx && 1);
 	cmovc	%rax,%r10
 	cmovc	%rcx,%r11
 ___
-$code.=<<___	if (!$kernel && $avx>1 && 1);
+$code.=<<___	if (!$kernel && $avx>1);
 	lea	poly1305_blocks_avx2(%rip),%rax
 	bt	\$`5+32`,%r9		# AVX2?
 	cmovc	%rax,%r10
 ___
-$code.=<<___	if (!$kernel && $avx>3 && 0);
+$code.=<<___	if (!$kernel && $avx>3);
 	mov	\$`(1<<31|1<<21|1<<16)`,%rax
 	shr	\$32,%r9
 	and	%rax,%r9
