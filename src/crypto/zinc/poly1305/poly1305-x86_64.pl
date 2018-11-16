@@ -76,24 +76,28 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-		=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-	$avx = ($1>=2.19) + ($1>=2.22) + ($1>=2.25) + ($1>=2.26);
-}
+if ($kernel) {
+	$avx = 4; # The kernel uses ifdefs for this.
+} else {
+	if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
+			=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
+		$avx = ($1>=2.19) + ($1>=2.22) + ($1>=2.25) + ($1>=2.26);
+	}
 
-if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
-	   `nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?/) {
-	$avx = ($1>=2.09) + ($1>=2.10) + 2 * ($1>=2.12);
-	$avx += 2 if ($1==2.11 && $2>=8);
-}
+	if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
+		`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?/) {
+		$avx = ($1>=2.09) + ($1>=2.10) + 2 * ($1>=2.12);
+		$avx += 2 if ($1==2.11 && $2>=8);
+	}
 
-if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
-	   `ml64 2>&1` =~ /Version ([0-9]+)\./) {
-	$avx = ($1>=10) + ($1>=12);
-}
+	if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
+		`ml64 2>&1` =~ /Version ([0-9]+)\./) {
+		$avx = ($1>=10) + ($1>=12);
+	}
 
-if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/) {
-	$avx = ($2>=3.0) + ($2>3.0);
+	if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/) {
+		$avx = ($2>=3.0) + ($2>3.0);
+	}
 }
 
 open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
@@ -3866,6 +3870,7 @@ ___
 }	}	}
 }
 
+if (!$kernel)
 {	# chacha20-poly1305 helpers
 my ($out,$inp,$otp,$len)=$win64 ? ("%rcx","%rdx","%r8", "%r9") :  # Win64 order
                                   ("%rdi","%rsi","%rdx","%rcx");  # Unix order
