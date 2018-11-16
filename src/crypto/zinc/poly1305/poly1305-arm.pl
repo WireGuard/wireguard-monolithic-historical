@@ -53,8 +53,6 @@ $code.=<<___;
 # define poly1305_init   poly1305_init_arm
 # define poly1305_blocks poly1305_blocks_arm
 # define poly1305_emit   poly1305_emit_arm
-.globl	poly1305_emit_neon
-.globl	poly1305_blocks_neon
 #endif
 
 .text
@@ -678,6 +676,9 @@ poly1305_init_neon:
 	ret				@ bx	lr
 .size	poly1305_init_neon,.-poly1305_init_neon
 
+#ifdef __KERNEL__
+.globl	poly1305_blocks_neon
+#endif
 .type	poly1305_blocks_neon,%function
 .align	5
 poly1305_blocks_neon:
@@ -1164,6 +1165,9 @@ poly1305_blocks_neon:
 	ret					@ bx	lr
 .size	poly1305_blocks_neon,.-poly1305_blocks_neon
 
+#ifdef __KERNEL__
+.globl	poly1305_emit_neon
+#endif
 .type	poly1305_emit_neon,%function
 .align	5
 poly1305_emit_neon:
