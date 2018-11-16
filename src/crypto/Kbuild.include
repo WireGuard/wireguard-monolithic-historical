@@ -41,7 +41,12 @@ quiet_cmd_perlasm = PERLASM $@
       cmd_perlasm = $(PERL) $< > $@
 %.S: %.pl
 	$(call cmd,perlasm)
-targets += $(patsubst %.o,crypto/zinc/%.S,$(zinc-y))
+ifeq ($(wildcard $(src)/compat/compat.h),)
+target_path_prefix := $(srctree)/$(src)
+else
+target_path_prefix := $(src)
+endif
+.SECONDARY: $(addprefix $(target_path_prefix)/,$(patsubst %.o,crypto/zinc/%.S,$(zinc-y)))
 
 wireguard-y += $(addprefix crypto/zinc/,$(zinc-y))
 ccflags-y += -I$(src)/crypto/include
