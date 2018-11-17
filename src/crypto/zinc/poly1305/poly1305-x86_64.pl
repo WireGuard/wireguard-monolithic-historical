@@ -437,6 +437,8 @@ $code.=<<___;
 .type	__poly1305_init_avx,\@abi-omnipotent
 .align	32
 __poly1305_init_avx:
+	push %rbp
+	mov %rsp,%rbp
 	mov	$r0,$h0
 	mov	$r1,$h1
 	xor	$h2,$h2
@@ -593,6 +595,7 @@ __poly1305_init_avx:
 	mov	$d1#d,`16*8+8-64`($ctx)
 
 	lea	-48-64($ctx),$ctx	# size [de-]optimization
+	pop %rbp
 	ret
 .size	__poly1305_init_avx,.-__poly1305_init_avx
 ___
@@ -618,6 +621,9 @@ $code.=<<___;
 	test	\$31,$len
 	jz	.Leven_avx
 
+	push	%rbp
+.cfi_push	%rbp
+	mov 	%rsp,%rbp
 	push	%rbx
 .cfi_push	%rbx
 	push	%r12
@@ -729,18 +735,18 @@ $code.=<<___;
 	mov	$h2#d,16($ctx)
 .align	16
 .Ldone_avx:
-	mov	0(%rsp),%r15
+	pop 		%r15
 .cfi_restore	%r15
-	mov	8(%rsp),%r14
+	pop 		%r14
 .cfi_restore	%r14
-	mov	16(%rsp),%r13
+	pop 		%r13
 .cfi_restore	%r13
-	mov	24(%rsp),%r12
+	pop 		%r12
 .cfi_restore	%r12
-	mov	32(%rsp),%rbx
+	pop 		%rbx
 .cfi_restore	%rbx
-	lea	40(%rsp),%rsp
-.cfi_adjust_cfa_offset	-40
+	pop 		%rbp
+.cfi_restore	%rbp
 .Lno_data_avx:
 .Lblocks_avx_epilogue:
 	ret
@@ -749,6 +755,9 @@ $code.=<<___;
 .align	32
 .Lbase2_64_avx:
 .cfi_startproc
+	push	%rbp
+.cfi_push	%rbp
+	mov 	%rsp,%rbp
 	push	%rbx
 .cfi_push	%rbx
 	push	%r12
@@ -816,20 +825,18 @@ $code.=<<___;
 
 .Lproceed_avx:
 	mov	%r15,$len
-
-	mov	0(%rsp),%r15
+	pop 		%r15
 .cfi_restore	%r15
-	mov	8(%rsp),%r14
+	pop 		%r14
 .cfi_restore	%r14
-	mov	16(%rsp),%r13
+	pop 		%r13
 .cfi_restore	%r13
-	mov	24(%rsp),%r12
+	pop 		%r12
 .cfi_restore	%r12
-	mov	32(%rsp),%rbx
+	pop 		%rbx
 .cfi_restore	%rbx
-	lea	40(%rsp),%rax
-	lea	40(%rsp),%rsp
-.cfi_adjust_cfa_offset	-40
+	pop 		%rbp
+.cfi_restore	%rbp
 .Lbase2_64_avx_epilogue:
 	jmp	.Ldo_avx
 .cfi_endproc
@@ -1545,6 +1552,9 @@ $code.=<<___;
 	test	\$63,$len
 	jz	.Leven_avx2$suffix
 
+	push	%rbp
+.cfi_push	%rbp
+	mov 	%rsp,%rbp
 	push	%rbx
 .cfi_push	%rbx
 	push	%r12
@@ -1662,18 +1672,18 @@ $code.=<<___;
 	mov	$h2#d,16($ctx)
 .align	16
 .Ldone_avx2$suffix:
-	mov	0(%rsp),%r15
+	pop 		%r15
 .cfi_restore	%r15
-	mov	8(%rsp),%r14
+	pop 		%r14
 .cfi_restore	%r14
-	mov	16(%rsp),%r13
+	pop 		%r13
 .cfi_restore	%r13
-	mov	24(%rsp),%r12
+	pop 		%r12
 .cfi_restore	%r12
-	mov	32(%rsp),%rbx
+	pop 		%rbx
 .cfi_restore	%rbx
-	lea	40(%rsp),%rsp
-.cfi_adjust_cfa_offset	-40
+	pop 		%rbp
+.cfi_restore 	%rbp
 .Lno_data_avx2$suffix:
 .Lblocks_avx2_epilogue$suffix:
 	ret
@@ -1682,6 +1692,9 @@ $code.=<<___;
 .align	32
 .Lbase2_64_avx2$suffix:
 .cfi_startproc
+	push	%rbp
+.cfi_push	%rbp
+	mov 	%rsp,%rbp
 	push	%rbx
 .cfi_push	%rbx
 	push	%r12
@@ -1760,19 +1773,18 @@ $code.=<<___ if (!$kernel);
 	mov	\$`(1<<31|1<<30|1<<16)`,%r11d
 ___
 $code.=<<___;
-	mov	0(%rsp),%r15
+	pop 		%r15
 .cfi_restore	%r15
-	mov	8(%rsp),%r14
+	pop 		%r14
 .cfi_restore	%r14
-	mov	16(%rsp),%r13
+	pop 		%r13
 .cfi_restore	%r13
-	mov	24(%rsp),%r12
+	pop 		%r12
 .cfi_restore	%r12
-	mov	32(%rsp),%rbx
+	pop 		%rbx
 .cfi_restore	%rbx
-	lea	40(%rsp),%rax
-	lea	40(%rsp),%rsp
-.cfi_adjust_cfa_offset	-40
+	pop 		%rbp
+.cfi_restore 	%rbp
 .Lbase2_64_avx2_epilogue$suffix:
 	jmp	.Ldo_avx2$suffix
 .cfi_endproc
