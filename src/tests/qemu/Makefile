@@ -2,31 +2,25 @@
 #
 # Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
+default: qemu
+
 PWD := $(shell pwd)
 
 CHOST := $(shell gcc -dumpmachine)
-ifneq (,$(ARCH))
-CBUILD := $(subst -gcc,,$(lastword $(subst /, ,$(firstword $(filter-out android,$(wildcard /usr/bin/$(ARCH)-*-gcc))))))
+HOST_ARCH := $(firstword $(subst -, ,$(CHOST)))
+ifeq (,$(ARCH))
+ARCH := $(HOST_ARCH)
 endif
-ifeq (,$(CBUILD))
-CBUILD := $(CHOST)
-endif
-ARCH := $(firstword $(subst -, ,$(CBUILD)))
 
 # Set these from the environment to override
+export CFLAGS ?= -O3 -pipe
+export LDFLAGS ?=
 KERNEL_VERSION ?= 4.19
+GCC_VERSION ?= 8.1.0
 KERNEL_VERSION := $(KERNEL_VERSION)$(if $(DEBUG_KERNEL),$(if $(findstring -debug,$(KERNEL_VERSION)),,-debug),)
 BUILD_PATH ?= $(PWD)/../../../qemu-build/$(ARCH)
 DISTFILES_PATH ?= $(PWD)/distfiles
 NR_CPUS ?= 4
-
-MIRROR := https://download.wireguard.com/qemu-test/distfiles/
-
-rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
-WIREGUARD_SOURCES := ../../Kbuild ../../Kconfig $(filter-out ../../tools/% ../../tests/%,$(call rwildcard,../../,*.c *.h *.S *.pl *.include))
-TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools/*.h ../../uapi/*.h ../../crypto/zinc/curve25519/curve25519-hacl64.c ../../crypto/zinc/curve25519/curve25519-fiat32.c)
-
-default: qemu
 
 # variable name, tarball project name, version, tarball extension, default URI base
 define tar_download =
@@ -59,29 +53,12 @@ $(eval $(call tar_download,IPTABLES,iptables,1.6.1,.tar.bz2,https://www.netfilte
 $(eval $(call tar_download,NMAP,nmap,7.60,.tar.bz2,https://nmap.org/dist/))
 $(eval $(call tar_download,IPUTILS,iputils,s20161105,.tar.gz,https://github.com/iputils/iputils/archive/s20161105.tar.gz/#))
 
-export CFLAGS ?= -O3 -pipe
-export LDFLAGS ?=
-export CPPFLAGS := -I$(BUILD_PATH)/include
-
-ifeq ($(CHOST),$(CBUILD))
-CROSS_COMPILE_FLAG := --host=$(CHOST)
-NOPIE_GCC := gcc -fno-PIE
-CFLAGS += -march=native
-OMIT_AVX512 := $(shell gcc -march=native -Q --help=target | sed -n 's/.*\-m\(avx512[^ ]*\).*\[enabled\].*/-mno-\1/p')
-CFLAGS += $(OMIT_AVX512)
-STRIP := strip
-else
-$(info Cross compilation: building for $(CBUILD) using $(CHOST))
-CROSS_COMPILE_FLAG := --build=$(CBUILD) --host=$(CHOST)
-export CROSS_COMPILE=$(CBUILD)-
-NOPIE_GCC := $(CBUILD)-gcc -fno-PIE
-STRIP := $(CBUILD)-strip
-endif
 ifeq ($(ARCH),aarch64)
 QEMU_ARCH := aarch64
 KERNEL_ARCH := arm64
+CBUILD := aarch64-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm64/boot/Image
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
 else
 QEMU_MACHINE := -cpu cortex-a53 -machine virt
@@ -90,18 +67,21 @@ endif
 else ifeq ($(ARCH),aarch64_be)
 QEMU_ARCH := aarch64
 KERNEL_ARCH := arm64
+CBUILD := aarch64-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm64/boot/Image
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
 else
 QEMU_MACHINE := -cpu cortex-a53 -machine virt
 CFLAGS += -march=armv8-a -mtune=cortex-a53
 endif
+CFLAGS += -mbig-endian
 else ifeq ($(ARCH),arm)
 QEMU_ARCH := arm
 KERNEL_ARCH := arm
+CBUILD := arm-linux-gnueabi
 KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm/boot/zImage
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
 else
 QEMU_MACHINE := -cpu cortex-a15 -machine virt
@@ -110,20 +90,24 @@ endif
 else ifeq ($(ARCH),armeb)
 QEMU_ARCH := arm
 KERNEL_ARCH := arm
+CBUILD := arm-linux-gnueabi
 KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/arm/boot/zImage
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
 else
 QEMU_MACHINE := -cpu cortex-a15 -machine virt
 CFLAGS += -march=armv7-a -mabi=aapcs-linux # We don't pass -mtune=cortex-a15 due to a compiler bug on big endian.
 LDFLAGS += -Wl,--be8
 endif
+CFLAGS += -mbig-endian
 else ifeq ($(ARCH),x86_64)
 QEMU_ARCH := x86_64
 KERNEL_ARCH := x86_64
+CBUILD := x86_64-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host -machine q35,accel=kvm
+CFLAGS += -march=native
 else
 QEMU_MACHINE := -cpu Skylake-Server -machine q35
 CFLAGS += -march=skylake-avx512
@@ -131,6 +115,7 @@ endif
 else ifeq ($(ARCH),i686)
 QEMU_ARCH := i386
 KERNEL_ARCH := x86
+CBUILD := i386-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/x86/boot/bzImage
 ifeq ($(subst i686,x86_64,$(CBUILD)),$(CHOST))
 QEMU_MACHINE := -cpu host -machine q35,accel=kvm
@@ -141,8 +126,9 @@ endif
 else ifeq ($(ARCH),mips64)
 QEMU_ARCH := mips64
 KERNEL_ARCH := mips
+CBUILD := mips64-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host -machine malta,accel=kvm
 CFLAGS += -EB
 else
@@ -152,8 +138,9 @@ endif
 else ifeq ($(ARCH),mips64el)
 QEMU_ARCH := mips64el
 KERNEL_ARCH := mips
+CBUILD := mips64-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host -machine malta,accel=kvm
 CFLAGS += -EL
 else
@@ -163,8 +150,9 @@ endif
 else ifeq ($(ARCH),mips)
 QEMU_ARCH := mips
 KERNEL_ARCH := mips
+CBUILD := mips-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host -machine malta,accel=kvm
 CFLAGS += -EB
 else
@@ -174,8 +162,9 @@ endif
 else ifeq ($(ARCH),mipsel)
 QEMU_ARCH := mipsel
 KERNEL_ARCH := mips
+CBUILD := mips-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host -machine malta,accel=kvm
 CFLAGS += -EL
 else
@@ -185,18 +174,20 @@ endif
 else ifeq ($(ARCH),powerpc64le)
 QEMU_ARCH := ppc64
 KERNEL_ARCH := powerpc
+CBUILD := powerpc64-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host,accel=kvm -machine pseries
 else
 QEMU_MACHINE := -machine pseries
 endif
-CFLAGS += -mcpu=powerpc64le -mlong-double-64
+CFLAGS += -mcpu=powerpc64le -mlong-double-64 -mlittle-endian -mabi=elfv2
 else ifeq ($(ARCH),powerpc)
 QEMU_ARCH := ppc
 KERNEL_ARCH := powerpc
+CBUILD := powerpc-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/arch/powerpc/boot/uImage
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host,accel=kvm -machine ppce500
 else
 QEMU_MACHINE := -machine ppce500
@@ -205,8 +196,9 @@ CFLAGS += -mcpu=powerpc -mlong-double-64 -msecure-plt
 else ifeq ($(ARCH),m68k)
 QEMU_ARCH := m68k
 KERNEL_ARCH := m68k
+CBUILD := m68k-linux
 KERNEL_BZIMAGE := $(KERNEL_PATH)/vmlinux
-ifeq ($(CHOST),$(CBUILD))
+ifeq ($(ARCH),$(HOST_ARCH))
 QEMU_MACHINE := -cpu host,accel=kvm -machine q800
 else
 QEMU_MACHINE := -machine q800
@@ -215,6 +207,23 @@ else
 $(error I only build: x86_64, i686, arm, armeb, aarch64, aarch64_be, mips, mipsel, mips64, mips64el, powerpc64le, powerpc, m68k)
 endif
 
+$(info Building for $(CBUILD) on $(CHOST))
+CROSS_COMPILE_FLAG := --build=$(CBUILD) --host=$(CHOST)
+export CROSS_COMPILE=$(CBUILD)-
+NOPIE_GCC := $(CBUILD)-gcc -fno-PIE
+STRIP := $(CBUILD)-strip
+
+MIRROR := https://download.wireguard.com/qemu-test/distfiles/
+
+rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
+WIREGUARD_SOURCES := ../../Kbuild ../../Kconfig $(filter-out ../../tools/% ../../tests/%,$(call rwildcard,../../,*.c *.h *.S *.pl *.include))
+TOOLS_SOURCES := $(wildcard ../../tools/*.c ../../tools/*.h ../../uapi/*.h ../../crypto/zinc/curve25519/curve25519-hacl64.c ../../crypto/zinc/curve25519/curve25519-fiat32.c)
+
+$(eval $(call tar_download,GCC_BINUTILS,$(HOST_ARCH)-gcc,$(GCC_VERSION)-nolibc-$(CBUILD),.tar.gz,https://mirrors.edge.kernel.org/pub/tools/crosstool/files/bin/$(HOST_ARCH)/$(GCC_VERSION)/))
+GCC_BINUTILS_PATH := $(BUILD_PATH)/gcc-$(GCC_VERSION)-nolibc/$(CBUILD)
+
+export CPPFLAGS := -I$(BUILD_PATH)/include
+export PATH := $(GCC_BINUTILS_PATH)/bin:$(PATH)
 REAL_CC := $(CBUILD)-gcc
 MUSL_CC := $(BUILD_PATH)/musl-gcc
 export CC := $(MUSL_CC)
@@ -277,7 +286,7 @@ always-pull: $(KERNEL_PATH)/.installed
 $(KERNEL_BZIMAGE): always-pull
 endif
 
-$(KERNEL_PATH)/.config: kernel.config arch/$(ARCH).config | $(KERNEL_PATH)/.installed
+$(KERNEL_PATH)/.config: kernel.config arch/$(ARCH).config | $(KERNEL_PATH)/.installed $(GCC_BINUTILS_PATH)/.installed
 	cp kernel.config $(KERNEL_PATH)/minimal.config
 	printf 'CONFIG_NR_CPUS=$(NR_CPUS)\nCONFIG_INITRAMFS_SOURCE="$(BUILD_PATH)/init-cpio-spec.txt"\n' >> $(KERNEL_PATH)/minimal.config
 	cat arch/$(ARCH).config >> $(KERNEL_PATH)/minimal.config
@@ -292,7 +301,12 @@ $(BUILD_PATH)/include/linux/.installed: | $(KERNEL_PATH)/.config
 	LOCALVERSION="" $(MAKE) -C $(KERNEL_PATH) INSTALL_HDR_PATH=$(BUILD_PATH) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(CROSS_COMPILE) headers_install
 	touch $@
 
-$(MUSL_PATH)/lib/libc.so: $(MUSL_TAR)
+$(GCC_BINUTILS_PATH)/.installed: $(GCC_BINUTILS_TAR)
+	mkdir -p $(BUILD_PATH)
+	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
+	touch $@
+
+$(MUSL_PATH)/lib/libc.so: $(MUSL_TAR) | $(GCC_BINUTILS_PATH)/.installed
 	mkdir -p $(BUILD_PATH)
 	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	cd $(MUSL_PATH) && CC=$(REAL_CC) ./configure --prefix=/ --disable-static --build=$(CBUILD)
