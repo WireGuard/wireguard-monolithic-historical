@@ -2,14 +2,10 @@
 #
 # Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
-ifeq ($(wildcard $(src)/compat/compat.h),)
-cmd_include_path_prefix := $(srctree)/$(src)
-else
-cmd_include_path_prefix := $(src)
-endif
+kbuild-dir ?= $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
 
-ccflags-y += -include $(cmd_include_path_prefix)/compat/compat.h
-asflags-y += -include $(cmd_include_path_prefix)/compat/compat-asm.h
+ccflags-y += -include $(kbuild-dir)/compat/compat.h
+asflags-y += -include $(kbuild-dir)/compat/compat-asm.h
 
 ifeq ($(wildcard $(srctree)/include/linux/ptr_ring.h),)
 ccflags-y += -I$(src)/compat/ptr_ring/include
@@ -47,7 +43,7 @@ wireguard-y += compat/udp_tunnel/udp_tunnel.o
 endif
 
 ifeq ($(shell grep -s -F "int crypto_memneq" "$(srctree)/include/crypto/algapi.h"),)
-ccflags-y += -include $(cmd_include_path_prefix)/compat/memneq/include.h
+ccflags-y += -include $(kbuild-dir)/compat/memneq/include.h
 wireguard-y += compat/memneq/memneq.o
 endif
 

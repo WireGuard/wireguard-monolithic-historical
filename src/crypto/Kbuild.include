@@ -41,12 +41,11 @@ quiet_cmd_perlasm = PERLASM $@
       cmd_perlasm = $(PERL) $< > $@
 %.S: %.pl
 	$(call cmd,perlasm)
-ifeq ($(wildcard $(src)/compat/compat.h),)
-target_path_prefix := $(srctree)/$(src)
-else
-target_path_prefix := $(src)
-endif
-.SECONDARY: $(addprefix $(target_path_prefix)/,$(patsubst %.o,crypto/zinc/%.S,$(zinc-y)))
+kbuild-dir ?= $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+targets += $(patsubst $(kbuild-dir)/%.pl,%.S,$(wildcard $(patsubst %.o,$(kbuild-dir)/crypto/zinc/%.pl,$(zinc-y) $(zinc-m) $(zinc-))))
+
+# Old kernels don't have targets, so use SECONDARY manually, which requires the full path
+.SECONDARY: $(addprefix $(kbuild-dir)/,$(targets))
 
 wireguard-y += $(addprefix crypto/zinc/,$(zinc-y))
 ccflags-y += -I$(src)/crypto/include
