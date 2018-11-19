@@ -65,42 +65,52 @@
 # (***)	strangely enough performance seems to vary from core to core,
 #	listed result is best case;
 
-$flavour = "linux"; # shift;
+$flavour = shift;
 $output  = shift;
 if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
 
 $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
-$kernel=0; $kernel=1 if ($flavour =~ /linux/);
+$kernel=0; $kernel=1 if (!$flavour && !$output);
 
-$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
-( $xlate="${dir}../perlasm/x86_64-xlate.pl" and -f $xlate) or
-die "can't locate x86_64-xlate.pl";
+if (!$kernel) {
+    $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+    ( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
+    ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
+    die "can't locate x86_64-xlate.pl";
 
-if ($kernel) {
-	$avx = 4; # The kernel uses ifdefs for this.
+    open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
+
+    if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
+		=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
+	$avx = ($1>=2.19) + ($1>=2.22) + ($1>=2.25);
+    }
+
+    if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
+	`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?/) {
+	$avx = ($1>=2.09) + ($1>=2.10) + ($1>=2.12);
+	$avx += 1 if ($1==2.11 && $2>=8);
+    }
+
+    if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
+	`ml64 2>&1` =~ /Version ([0-9]+)\./) {
+	$avx = ($1>=10) + ($1>=11);
+    }
+
+    if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/) {
+	$avx = ($2>=3.0) + ($2>3.0);
+    }
 } else {
-	if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-			=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-		$avx = ($1>=2.19) + ($1>=2.22) + ($1>=2.25) + ($1>=2.26);
+    $avx = 4; # The kernel uses ifdefs for this.
+    $pid = open OUT,"|-";
+    if (!$pid) {
+	while (<STDIN>) {
+	    s/(^\.type.*),[0-9]+$/\1/;
+	    s/(^\.type.*),\@abi-omnipotent+$/\1,\@function/;
+	    /^\.cfi.*/ or print;
 	}
-
-	if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
-		`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?/) {
-		$avx = ($1>=2.09) + ($1>=2.10) + 2 * ($1>=2.12);
-		$avx += 2 if ($1==2.11 && $2>=8);
-	}
-
-	if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
-		`ml64 2>&1` =~ /Version ([0-9]+)\./) {
-		$avx = ($1>=10) + ($1>=12);
-	}
-
-	if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/) {
-		$avx = ($2>=3.0) + ($2>3.0);
-	}
+	exit;
+    }
 }
-
-open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 sub declare_function() {
