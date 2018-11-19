@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 #
 # Copyright (C) 2017-2018 Samuel Neves <sneves@dei.uc.pt>. All Rights Reserved.
+# Copyright (C) 2017-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 # Copyright (C) 2006-2017 CRYPTOGAMS by <appro@openssl.org>. All Rights Reserved.
 #
 # This code is taken from the OpenSSL project but the author, Andy Polyakov,
@@ -73,51 +74,42 @@ $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
 $kernel=0; $kernel=1 if (!$flavour && !$output);
 
 if (!$kernel) {
-    $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
-    ( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
-    ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
-    die "can't locate x86_64-xlate.pl";
+	$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+	( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
+	( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
+	die "can't locate x86_64-xlate.pl";
 
-    open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
+	open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
+	*STDOUT=*OUT;
 
-    if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-		=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-	$avx = ($1>=2.19) + ($1>=2.22) + ($1>=2.25);
-    }
-
-    if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
-	`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?/) {
-	$avx = ($1>=2.09) + ($1>=2.10) + ($1>=2.12);
-	$avx += 1 if ($1==2.11 && $2>=8);
-    }
-
-    if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
-	`ml64 2>&1` =~ /Version ([0-9]+)\./) {
-	$avx = ($1>=10) + ($1>=11);
-    }
-
-    if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/) {
-	$avx = ($2>=3.0) + ($2>3.0);
-    }
-} else {
-    $avx = 4; # The kernel uses ifdefs for this.
-    $pid = open OUT,"|-";
-    if (!$pid) {
-	while (<STDIN>) {
-	    s/(^\.type.*),[0-9]+$/\1/;
-	    s/(^\.type.*),\@abi-omnipotent+$/\1,\@function/;
-	    /^\.cfi.*/ or print;
+	if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
+	    =~ /GNU assembler version ([2-9]\.[0-9]+)/) {
+		$avx = ($1>=2.19) + ($1>=2.22) + ($1>=2.25);
 	}
-	exit;
-    }
+
+	if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
+	    `nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?/) {
+		$avx = ($1>=2.09) + ($1>=2.10) + ($1>=2.12);
+		$avx += 1 if ($1==2.11 && $2>=8);
+	}
+
+	if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
+	    `ml64 2>&1` =~ /Version ([0-9]+)\./) {
+		$avx = ($1>=10) + ($1>=11);
+	}
+
+	if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/) {
+		$avx = ($2>=3.0) + ($2>3.0);
+	}
+} else {
+	$avx = 4; # The kernel uses ifdefs for this.
 }
-*STDOUT=*OUT;
 
 sub declare_function() {
 	my ($name, $align, $nargs) = @_;
 	if($kernel) {
 		$code .= ".align $align\n";
-		$code .= "ENTRY( $name )\n"; # xlate thinks it's an address without the spaces between ()
+		$code .= "ENTRY($name)\n";
 		$code .= ".L$name:\n";
 	} else {
 		$code .= ".globl	$name\n";
@@ -130,7 +122,7 @@ sub declare_function() {
 sub end_function() {
 	my ($name) = @_;
 	if($kernel) {
-		$code .= "ENDPROC( $name )\n";
+		$code .= "ENDPROC($name)\n";
 	} else {
 		$code .= ".size   $name,.-$name\n";
 	}
@@ -4262,6 +4254,12 @@ foreach (split('\n',$code)) {
 	s/%r([a-z]+)#d/%e$1/g;
 	s/%r([0-9]+)#d/%r$1d/g;
 	s/%x#%[yz]/%x/g or s/%y#%z/%y/g or s/%z#%[yz]/%z/g;
+
+	if ($kernel) {
+		s/(^\.type.*),[0-9]+$/\1/;
+		s/(^\.type.*),\@abi-omnipotent+$/\1,\@function/;
+		next if /^\.cfi.*/;
+	}
 
 	print $_,"\n";
 }

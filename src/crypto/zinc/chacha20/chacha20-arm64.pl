@@ -1158,8 +1158,6 @@ foreach (split("\n",$code)) {
 	(m/\b(ld|st)[rp]\b/ and (s/v([0-9]+)\.4s/q$1/g or 1))	or
 	(s/\brev32\.16\b/rev32/ and (s/\.4s/\.8h/g or 1));
 
-	#s/\bq([0-9]+)#(lo|hi)/sprintf "d%d",2*$1+($2 eq "hi")/geo;
-
 	print $_,"\n";
 }
 close STDOUT;	# flush
