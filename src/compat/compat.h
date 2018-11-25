@@ -749,7 +749,7 @@ static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 #endif
 
 /* https://github.com/ClangBuiltLinux/linux/issues/7 */
-#ifdef __clang__
+#if defined( __clang__) && (!defined(CONFIG_CLANG_VERSION) || CONFIG_CLANG_VERSION < 80000)
 #include <linux/bug.h>
 #undef BUILD_BUG_ON
 #define BUILD_BUG_ON(x)
