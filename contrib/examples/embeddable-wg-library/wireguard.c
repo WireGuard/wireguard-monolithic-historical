@@ -66,6 +66,7 @@ enum wgpeer_attribute {
 	WGPEER_A_RX_BYTES,
 	WGPEER_A_TX_BYTES,
 	WGPEER_A_ALLOWEDIPS,
+	WGPEER_A_PROTOCOL_VERSION,
 	__WGPEER_A_LAST
 };
 
@@ -903,15 +904,6 @@ static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 	return 0;
 }
 
-static void warn_unrecognized(const char *which)
-{
-	static bool once = false;
-	if (once)
-		return;
-	once = true;
-	fprintf(stderr, "Warning: one or more unrecognized %s attributes\n", which);
-}
-
 static int parse_linkinfo(const struct nlattr *attr, void *data)
 {
 	struct inflatable_buffer *buffer = data;
@@ -1233,8 +1225,6 @@ static int parse_allowedip(const struct nlattr *attr, void *data)
 		if (!mnl_attr_validate(attr, MNL_TYPE_U8))
 			allowedip->cidr = mnl_attr_get_u8(attr);
 		break;
-	default:
-		warn_unrecognized("netlink");
 	}
 
 	return MNL_CB_OK;
@@ -1326,8 +1316,6 @@ static int parse_peer(const struct nlattr *attr, void *data)
 		break;
 	case WGPEER_A_ALLOWEDIPS:
 		return mnl_attr_parse_nested(attr, parse_allowedips, peer);
-	default:
-		warn_unrecognized("netlink");
 	}
 
 	return MNL_CB_OK;
@@ -1396,8 +1384,6 @@ static int parse_device(const struct nlattr *attr, void *data)
 		break;
 	case WGDEVICE_A_PEERS:
 		return mnl_attr_parse_nested(attr, parse_peers, device);
-	default:
-		warn_unrecognized("netlink");
 	}
 
 	return MNL_CB_OK;
