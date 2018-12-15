@@ -2,7 +2,7 @@
 #
 # Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
-kbuild-dir ?= $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
 
 ccflags-y += -include $(kbuild-dir)/compat/compat.h
 asflags-y += -include $(kbuild-dir)/compat/compat-asm.h
