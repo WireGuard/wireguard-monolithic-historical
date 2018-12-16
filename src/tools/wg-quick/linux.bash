@@ -112,18 +112,14 @@ del_if() {
 	cmd ip link delete dev "$INTERFACE"
 }
 
-up_if() {
-	cmd ip link set "$INTERFACE" up
-}
-
 add_addr() {
 	cmd ip address add "$1" dev "$INTERFACE"
 }
 
-set_mtu() {
+set_mtu_up() {
 	local mtu=0 endpoint output
 	if [[ -n $MTU ]]; then
-		cmd ip link set mtu "$MTU" dev "$INTERFACE"
+		cmd ip link set mtu "$MTU" up dev "$INTERFACE"
 		return
 	fi
 	while read -r _ endpoint; do
@@ -136,7 +132,7 @@ set_mtu() {
 		[[ ( $output =~ mtu\ ([0-9]+) || ( $output =~ dev\ ([^ ]+) && $(ip link show dev "${BASH_REMATCH[1]}") =~ mtu\ ([0-9]+) ) ) && ${BASH_REMATCH[1]} -gt $mtu ]] && mtu="${BASH_REMATCH[1]}"
 	fi
 	[[ $mtu -gt 0 ]] || mtu=1500
-	cmd ip link set mtu $(( mtu - 80 )) dev "$INTERFACE"
+	cmd ip link set mtu $(( mtu - 80 )) up dev "$INTERFACE"
 }
 
 resolvconf_iface_prefix() {
@@ -286,8 +282,7 @@ cmd_up() {
 	for i in "${ADDRESSES[@]}"; do
 		add_addr "$i"
 	done
-	set_mtu
-	up_if
+	set_mtu_up
 	set_dns
 	for i in $(while read -r _ i; do for i in $i; do [[ $i =~ ^[0-9a-z:.]+/[0-9]+$ ]] && echo "$i"; done; done < <(wg show "$INTERFACE" allowed-ips) | sort -nr -k 2 -t /); do
 		add_route "$i"
