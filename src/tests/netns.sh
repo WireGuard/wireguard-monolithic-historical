@@ -202,20 +202,20 @@ n1 ping -W 1 -c 1 192.168.241.2
 # Test that crypto-RP filter works
 n1 wg set wg0 peer "$pub2" allowed-ips 192.168.241.0/24
 exec 4< <(n1 ncat -l -u -p 1111)
-nmap_pid=$!
+ncat_pid=$!
 waitncatudp $netns1
 n2 ncat -u 192.168.241.1 1111 <<<"X"
 read -r -N 1 -t 1 out <&4 && [[ $out == "X" ]]
-kill $nmap_pid
+kill $ncat_pid
 more_specific_key="$(pp wg genkey | pp wg pubkey)"
 n1 wg set wg0 peer "$more_specific_key" allowed-ips 192.168.241.2/32
 n2 wg set wg0 listen-port 9997
 exec 4< <(n1 ncat -l -u -p 1111)
-nmap_pid=$!
+ncat_pid=$!
 waitncatudp $netns1
 n2 ncat -u 192.168.241.1 1111 <<<"X"
 ! read -r -N 1 -t 1 out <&4 || false
-kill $nmap_pid
+kill $ncat_pid
 n1 wg set wg0 peer "$more_specific_key" remove
 [[ $(n1 wg show wg0 endpoints) == "$pub2	[::1]:9997" ]]
 
