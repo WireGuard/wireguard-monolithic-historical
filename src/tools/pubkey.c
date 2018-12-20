@@ -13,7 +13,7 @@
 
 int pubkey_main(int argc, char *argv[])
 {
-	uint8_t key[WG_KEY_LEN];
+	uint8_t key[WG_KEY_LEN] __attribute__((aligned(sizeof(uintptr_t))));
 	char base64[WG_KEY_LEN_BASE64];
 	int trailing_char;
 

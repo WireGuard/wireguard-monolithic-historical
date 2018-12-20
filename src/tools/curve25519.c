@@ -39,9 +39,23 @@ typedef int64_t s64;
 #define le32_to_cpup(a) (*(a))
 #define cpu_to_le64(a) (a)
 #endif
-#define get_unaligned_le32(a) le32_to_cpup((u32 *)(a))
-#define get_unaligned_le64(a) le64_to_cpup((u64 *)(a))
-#define put_unaligned_le64(s, d) *(u64 *)(d) = cpu_to_le64(s)
+static inline __le32 get_unaligned_le32(const u8 *a)
+{
+	__le32 l;
+	__builtin_memcpy(&l, a, sizeof(l));
+	return le32_to_cpup(&l);
+}
+static inline __le64 get_unaligned_le64(const u8 *a)
+{
+	__le64 l;
+	__builtin_memcpy(&l, a, sizeof(l));
+	return le64_to_cpup(&l);
+}
+static inline void put_unaligned_le64(u64 s, u8 *d)
+{
+	__le64 l = cpu_to_le64(s);
+	__builtin_memcpy(d, &l, sizeof(l));
+}
 #ifndef __always_inline
 #define __always_inline __inline __attribute__((__always_inline__))
 #endif
@@ -70,7 +84,7 @@ static noinline void memzero_explicit(void *s, size_t count)
 
 void curve25519_generate_public(uint8_t pub[static CURVE25519_KEY_SIZE], const uint8_t secret[static CURVE25519_KEY_SIZE])
 {
-	static const uint8_t basepoint[CURVE25519_KEY_SIZE] = { 9 };
+	static const uint8_t basepoint[CURVE25519_KEY_SIZE] __aligned(sizeof(uintptr_t)) = { 9 };
 
 	curve25519(pub, secret, basepoint);
 }
