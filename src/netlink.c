@@ -480,6 +480,13 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 	mutex_lock(&wg->device_update_lock);
+
+	ret = -EPERM;
+	if ((info->attrs[WGDEVICE_A_LISTEN_PORT] ||
+	     info->attrs[WGDEVICE_A_FWMARK]) &&
+	    !ns_capable(wg->creating_net->user_ns, CAP_NET_ADMIN))
+		goto out;
+
 	++wg->device_update_gen;
 
 	if (info->attrs[WGDEVICE_A_FWMARK]) {
