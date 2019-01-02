@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
- * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  *
  * Based on public domain code from Daniel J. Bernstein and Peter Schwabe. This
  * began from SUPERCOP's curve25519/neon2/scalarmult.s, but has subsequently been

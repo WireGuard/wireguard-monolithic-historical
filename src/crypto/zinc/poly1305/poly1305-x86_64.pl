@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 #
 # Copyright (C) 2017-2018 Samuel Neves <sneves@dei.uc.pt>. All Rights Reserved.
-# Copyright (C) 2017-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+# Copyright (C) 2017-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 # Copyright (C) 2006-2017 CRYPTOGAMS by <appro@openssl.org>. All Rights Reserved.
 #
 # This code is taken from the OpenSSL project but the author, Andy Polyakov,
