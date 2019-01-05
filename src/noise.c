@@ -450,7 +450,7 @@ static void tai64n_now(u8 output[NOISE_TIMESTAMP_LEN])
 {
 	struct timespec64 now;
 
-	getnstimeofday64(&now);
+	ktime_get_real_ts64(&now);
 	/* https://cr.yp.to/libtai/tai64.html */
 	*(__be64 *)output = cpu_to_be64(0x400000000000000aULL + now.tv_sec);
 	*(__be32 *)(output + sizeof(__be64)) = cpu_to_be32(now.tv_nsec);

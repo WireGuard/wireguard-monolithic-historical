@@ -647,7 +647,7 @@ struct _____dummy_container { char dev; };
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
 #define timespec64 timespec
-#define getnstimeofday64 getnstimeofday
+#define ktime_get_real_ts64 ktime_get_real_ts
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
