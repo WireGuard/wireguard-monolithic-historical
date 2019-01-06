@@ -170,9 +170,9 @@ int wg_ratelimiter_init(void)
 	 * we borrow their wisdom about good table sizes on different systems
 	 * dependent on RAM. This calculation here comes from there.
 	 */
-	table_size = (totalram_pages > (1U << 30) / PAGE_SIZE) ? 8192 :
+	table_size = (totalram_pages() > (1U << 30) / PAGE_SIZE) ? 8192 :
 		max_t(unsigned long, 16, roundup_pow_of_two(
-			(totalram_pages << PAGE_SHIFT) /
+			(totalram_pages() << PAGE_SHIFT) /
 			(1U << 14) / sizeof(struct hlist_head)));
 	max_entries = table_size * 8;
 
