@@ -11,7 +11,7 @@ config WIREGUARD
 	select KERNEL_MODE_NEON if CPU_V7
 	default m
 	help
-	  WireGuard is a secure, fast, and easy to use replacement for IPSec
+	  WireGuard is a secure, fast, and easy to use replacement for IPsec
 	  that uses modern cryptography and clever networking tricks. It's
 	  designed to be fairly general purpose and abstract enough to fit most
 	  use cases, while at the same time remaining extremely simple to
