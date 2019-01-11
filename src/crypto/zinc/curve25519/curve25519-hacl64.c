@@ -767,7 +767,7 @@ static void curve25519_generic(u8 mypublic[CURVE25519_KEY_SIZE],
 		u8 e[32] __aligned(32) = { 0 };
 		u8 *scalar;
 		memcpy(e, secret, 32);
-		normalize_secret(e);
+		clamp_secret(e);
 		scalar = e;
 		{
 			u64 buf[15] = { 0 };

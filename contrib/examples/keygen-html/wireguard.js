@@ -91,7 +91,7 @@
 			o[a] = c[a];
 	}
 
-	function normalizeKey(z) {
+	function clamp(z) {
 		z[31] = (z[31] & 127) | 64;
 		z[0] &= 248;
 	}
@@ -108,7 +108,7 @@
 			_9 = gf([9]);
 		for (var i = 0; i < 32; ++i)
 			z[i] = privateKey[i];
-		normalizeKey(z);
+		clamp(z);
 		for (var i = 254; i >= 0; --i) {
 			r = (z[i >>> 3] >>> (i & 7)) & 1;
 			cswap(a, b, r);
@@ -148,7 +148,7 @@
 
 	function generatePrivateKey() {
 		var privateKey = generatePresharedKey();
-		normalizeKey(privateKey);
+		clamp(privateKey);
 		return privateKey;
 	}
 

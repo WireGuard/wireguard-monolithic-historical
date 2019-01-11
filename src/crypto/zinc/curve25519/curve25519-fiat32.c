@@ -760,7 +760,7 @@ static void curve25519_generic(u8 out[CURVE25519_KEY_SIZE],
 	u8 e[32];
 
 	memcpy(e, scalar, 32);
-	normalize_secret(e);
+	clamp_secret(e);
 
 	/* The following implementation was transcribed to Coq and proven to
 	 * correspond to unary scalar multiplication in affine coordinates given

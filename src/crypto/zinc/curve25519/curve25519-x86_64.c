@@ -1935,13 +1935,6 @@ static __always_inline void cselect(u8 bit, u64 *const px, const u64 *const py)
 	);
 }
 
-static __always_inline void clamp_secret(u8 secret[CURVE25519_KEY_SIZE])
-{
-	secret[0] &= 248;
-	secret[31] &= 127;
-	secret[31] |= 64;
-}
-
 static void curve25519_adx(u8 shared[CURVE25519_KEY_SIZE],
 			   const u8 private_key[CURVE25519_KEY_SIZE],
 			   const u8 session_key[CURVE25519_KEY_SIZE])

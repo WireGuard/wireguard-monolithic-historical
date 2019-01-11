@@ -20,6 +20,13 @@
 #include <linux/init.h>
 #include <crypto/algapi.h> // For crypto_memneq.
 
+static __always_inline void clamp_secret(u8 secret[CURVE25519_KEY_SIZE])
+{
+	secret[0] &= 248;
+	secret[31] &= 127;
+	secret[31] |= 64;
+}
+
 #if defined(CONFIG_ZINC_ARCH_X86_64)
 #include "curve25519-x86_64-glue.c"
 #elif defined(CONFIG_ZINC_ARCH_ARM)
@@ -41,13 +48,6 @@ static inline bool curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
 	return false;
 }
 #endif
-
-static __always_inline void normalize_secret(u8 secret[CURVE25519_KEY_SIZE])
-{
-	secret[0] &= 248;
-	secret[31] &= 127;
-	secret[31] |= 64;
-}
 
 #if defined(CONFIG_ARCH_SUPPORTS_INT128) && defined(__SIZEOF_INT128__)
 #include "curve25519-hacl64.c"
@@ -84,7 +84,7 @@ EXPORT_SYMBOL(curve25519_generate_public);
 void curve25519_generate_secret(u8 secret[CURVE25519_KEY_SIZE])
 {
 	get_random_bytes_wait(secret, CURVE25519_KEY_SIZE);
-	normalize_secret(secret);
+	clamp_secret(secret);
 }
 EXPORT_SYMBOL(curve25519_generate_secret);
 
