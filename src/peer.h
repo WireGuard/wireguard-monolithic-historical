@@ -56,7 +56,7 @@ struct wg_peer {
 	u16 persistent_keepalive_interval;
 	bool timer_need_another_keepalive;
 	bool sent_lastminute_handshake;
-	struct timespec walltime_last_handshake;
+	struct timespec64 walltime_last_handshake;
 	struct kref refcount;
 	struct rcu_head rcu;
 	struct list_head peer_list;

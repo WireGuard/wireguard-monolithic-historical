@@ -155,7 +155,7 @@ static size_t pretty_time(char *buf, const size_t len, unsigned long long left)
 	return offset;
 }
 
-static char *ago(const struct timespec *t)
+static char *ago(const struct timespec64 *t)
 {
 	static char buf[1024];
 	size_t offset;

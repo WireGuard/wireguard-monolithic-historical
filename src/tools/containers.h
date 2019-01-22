@@ -15,6 +15,12 @@
 
 #include "../uapi/wireguard.h"
 
+/* Cross platform __kernel_timespec */
+struct timespec64 {
+	int64_t tv_sec;
+	int64_t tv_nsec;
+};
+
 struct wgallowedip {
 	uint16_t family;
 	union {
@@ -45,7 +51,7 @@ struct wgpeer {
 		struct sockaddr_in6 addr6;
 	} endpoint;
 
-	struct timespec last_handshake_time;
+	struct timespec64 last_handshake_time;
 	uint64_t rx_bytes, tx_bytes;
 	uint16_t persistent_keepalive_interval;
 

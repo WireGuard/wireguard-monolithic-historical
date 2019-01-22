@@ -35,7 +35,7 @@
  *            WGPEER_A_PRESHARED_KEY: len WG_KEY_LEN
  *            WGPEER_A_ENDPOINT: struct sockaddr_in or struct sockaddr_in6
  *            WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL: NLA_U16
- *            WGPEER_A_LAST_HANDSHAKE_TIME: struct timespec
+ *            WGPEER_A_LAST_HANDSHAKE_TIME: struct __kernel_timespec
  *            WGPEER_A_RX_BYTES: NLA_U64
  *            WGPEER_A_TX_BYTES: NLA_U64
  *            WGPEER_A_ALLOWEDIPS: NLA_NESTED
