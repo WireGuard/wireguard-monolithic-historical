@@ -158,7 +158,7 @@ add_addr() {
 	if [[ $1 == *:* ]]; then
 		cmd ifconfig "$INTERFACE" inet6 "$1" alias
 	else
-		cmd ifconfig "$INTERFACE" inet "$1" "${1%%/*}" alias
+		cmd ifconfig "$INTERFACE" inet "$1" 127.0.0.1 alias
 	fi
 }
 
