@@ -89,6 +89,6 @@ install: wg
 help:
 	@cat INSTALL
 
-.PHONY: clean install check help
+.PHONY: clean install help
 
 -include *.d
