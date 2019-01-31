@@ -166,9 +166,9 @@ static bool is_valid_uint(string_span_t s, bool support_hex, uint64_t min, uint6
 
 	if (support_hex && s.len > 2 && s.s[0] == '0' && s.s[1] == 'x') {
 		for (size_t i = 2; i < s.len; ++i) {
-			if (s.s[i] - '0' < 10)
+			if ((unsigned)s.s[i] - '0' < 10)
 				val = 16 * val + (s.s[i] - '0');
-			else if ((s.s[i] | 32) - 'a' < 6)
+			else if (((unsigned)s.s[i] | 32) - 'a' < 6)
 				val = 16 * val + (s.s[i] | 32) - 'a' + 10;
 			else
 				return false;
