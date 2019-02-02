@@ -538,7 +538,7 @@ static void wg_packet_consume_data(struct wg_device *wg, struct sk_buff *skb)
 	rcu_read_lock_bh();
 	PACKET_CB(skb)->keypair =
 		(struct noise_keypair *)wg_index_hashtable_lookup(
-			&wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx,
+			wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx,
 			&peer);
 	if (unlikely(!wg_noise_keypair_get(PACKET_CB(skb)->keypair)))
 		goto err_keypair;

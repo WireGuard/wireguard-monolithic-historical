@@ -253,6 +253,8 @@ static void wg_destruct(struct net_device *dev)
 	free_percpu(wg->incoming_handshakes_worker);
 	if (wg->have_creating_net_ref)
 		put_net(wg->creating_net);
+	kvfree(wg->index_hashtable);
+	kvfree(wg->peer_hashtable);
 	mutex_unlock(&wg->device_update_lock);
 
 	pr_debug("%s: Interface deleted\n", dev->name);
@@ -309,16 +311,22 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 	mutex_init(&wg->socket_update_lock);
 	mutex_init(&wg->device_update_lock);
 	skb_queue_head_init(&wg->incoming_handshakes);
-	wg_pubkey_hashtable_init(&wg->peer_hashtable);
-	wg_index_hashtable_init(&wg->index_hashtable);
 	wg_allowedips_init(&wg->peer_allowedips);
 	wg_cookie_checker_init(&wg->cookie_checker, wg);
 	INIT_LIST_HEAD(&wg->peer_list);
 	wg->device_update_gen = 1;
 
+	wg->peer_hashtable = wg_pubkey_hashtable_alloc();
+	if (!wg->peer_hashtable)
+		return ret;
+
+	wg->index_hashtable = wg_index_hashtable_alloc();
+	if (!wg->index_hashtable)
+		goto err_free_peer_hashtable;
+
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return ret;
+		goto err_free_index_hashtable;
 
 	wg->incoming_handshakes_worker =
 		wg_packet_percpu_multicore_worker_alloc(
@@ -385,6 +393,10 @@ err_free_incoming_handshakes:
 	free_percpu(wg->incoming_handshakes_worker);
 err_free_tstats:
 	free_percpu(dev->tstats);
+err_free_index_hashtable:
+	kvfree(wg->index_hashtable);
+err_free_peer_hashtable:
+	kvfree(wg->peer_hashtable);
 	return ret;
 }
 

@@ -93,13 +93,13 @@ static void handshake_zero(struct noise_handshake *handshake)
 void wg_noise_handshake_clear(struct noise_handshake *handshake)
 {
 	wg_index_hashtable_remove(
-			&handshake->entry.peer->device->index_hashtable,
+			handshake->entry.peer->device->index_hashtable,
 			&handshake->entry);
 	down_write(&handshake->lock);
 	handshake_zero(handshake);
 	up_write(&handshake->lock);
 	wg_index_hashtable_remove(
-			&handshake->entry.peer->device->index_hashtable,
+			handshake->entry.peer->device->index_hashtable,
 			&handshake->entry);
 }
 
@@ -130,7 +130,7 @@ static void keypair_free_kref(struct kref *kref)
 			    keypair->entry.peer->device->dev->name,
 			    keypair->internal_id,
 			    keypair->entry.peer->internal_id);
-	wg_index_hashtable_remove(&keypair->entry.peer->device->index_hashtable,
+	wg_index_hashtable_remove(keypair->entry.peer->device->index_hashtable,
 				  &keypair->entry);
 	call_rcu_bh(&keypair->rcu, keypair_free_rcu);
 }
@@ -141,7 +141,7 @@ void wg_noise_keypair_put(struct noise_keypair *keypair, bool unreference_now)
 		return;
 	if (unlikely(unreference_now))
 		wg_index_hashtable_remove(
-			&keypair->entry.peer->device->index_hashtable,
+			keypair->entry.peer->device->index_hashtable,
 			&keypair->entry);
 	kref_put(&keypair->refcount, keypair_free_kref);
 }
@@ -520,7 +520,7 @@ wg_noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 			NOISE_TIMESTAMP_LEN, key, handshake->hash);
 
 	dst->sender_index = wg_index_hashtable_insert(
-		&handshake->entry.peer->device->index_hashtable,
+		handshake->entry.peer->device->index_hashtable,
 		&handshake->entry);
 
 	handshake->state = HANDSHAKE_CREATED_INITIATION;
@@ -566,7 +566,7 @@ wg_noise_handshake_consume_initiation(struct message_handshake_initiation *src,
 		goto out;
 
 	/* Lookup which peer we're actually talking to */
-	peer = wg_pubkey_hashtable_lookup(&wg->peer_hashtable, s);
+	peer = wg_pubkey_hashtable_lookup(wg->peer_hashtable, s);
 	if (!peer)
 		goto out;
 	handshake = &peer->handshake;
@@ -660,7 +660,7 @@ bool wg_noise_handshake_create_response(struct message_handshake_response *dst,
 	message_encrypt(dst->encrypted_nothing, NULL, 0, key, handshake->hash);
 
 	dst->sender_index = wg_index_hashtable_insert(
-		&handshake->entry.peer->device->index_hashtable,
+		handshake->entry.peer->device->index_hashtable,
 		&handshake->entry);
 
 	handshake->state = HANDSHAKE_CREATED_RESPONSE;
@@ -693,7 +693,7 @@ wg_noise_handshake_consume_response(struct message_handshake_response *src,
 		goto out;
 
 	handshake = (struct noise_handshake *)wg_index_hashtable_lookup(
-		&wg->index_hashtable, INDEX_HASHTABLE_HANDSHAKE,
+		wg->index_hashtable, INDEX_HASHTABLE_HANDSHAKE,
 		src->receiver_index, &peer);
 	if (unlikely(!handshake))
 		goto out;
@@ -793,7 +793,7 @@ bool wg_noise_handshake_begin_session(struct noise_handshake *handshake,
 				    new_keypair->internal_id,
 				    handshake->entry.peer->internal_id);
 		ret = wg_index_hashtable_replace(
-			&handshake->entry.peer->device->index_hashtable,
+			handshake->entry.peer->device->index_hashtable,
 			&handshake->entry, &new_keypair->entry);
 	} else {
 		kzfree(new_keypair);

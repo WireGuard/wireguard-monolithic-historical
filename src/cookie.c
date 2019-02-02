@@ -202,7 +202,7 @@ void wg_cookie_message_consume(struct message_handshake_cookie *src,
 	u8 cookie[COOKIE_LEN];
 	bool ret;
 
-	if (unlikely(!wg_index_hashtable_lookup(&wg->index_hashtable,
+	if (unlikely(!wg_index_hashtable_lookup(wg->index_hashtable,
 						INDEX_HASHTABLE_HANDSHAKE |
 						INDEX_HASHTABLE_KEYPAIR,
 						src->receiver_index, &peer)))

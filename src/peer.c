@@ -64,7 +64,7 @@ struct wg_peer *wg_peer_create(struct wg_device *wg,
 		       NAPI_POLL_WEIGHT);
 	napi_enable(&peer->napi);
 	list_add_tail(&peer->peer_list, &wg->peer_list);
-	wg_pubkey_hashtable_add(&wg->peer_hashtable, peer);
+	wg_pubkey_hashtable_add(wg->peer_hashtable, peer);
 	++wg->num_peers;
 	pr_debug("%s: Peer %llu created\n", wg->dev->name, peer->internal_id);
 	return peer;
@@ -101,7 +101,7 @@ void wg_peer_remove(struct wg_peer *peer)
 	list_del_init(&peer->peer_list);
 	wg_allowedips_remove_by_peer(&peer->device->peer_allowedips, peer,
 				     &peer->device->device_update_lock);
-	wg_pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
+	wg_pubkey_hashtable_remove(peer->device->peer_hashtable, peer);
 
 	/* Mark as dead, so that we don't allow jumping contexts after. */
 	WRITE_ONCE(peer->is_dead, true);
@@ -186,7 +186,7 @@ static void kref_release(struct kref *refcount)
 	/* Remove ourself from dynamic runtime lookup structures, now that the
 	 * last reference is gone.
 	 */
-	wg_index_hashtable_remove(&peer->device->index_hashtable,
+	wg_index_hashtable_remove(peer->device->index_hashtable,
 				  &peer->handshake.entry);
 
 	/* Remove any lingering packets that didn't have a chance to be

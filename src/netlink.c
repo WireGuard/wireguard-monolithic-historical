@@ -368,7 +368,7 @@ static int set_peer(struct wg_device *wg, struct nlattr **attrs)
 			goto out;
 	}
 
-	peer = wg_pubkey_hashtable_lookup(&wg->peer_hashtable,
+	peer = wg_pubkey_hashtable_lookup(wg->peer_hashtable,
 					  nla_data(attrs[WGPEER_A_PUBLIC_KEY]));
 	if (!peer) { /* Peer doesn't exist yet. Add a new one. */
 		ret = -ENODEV;
@@ -524,7 +524,7 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 		 * two 25519-genpub ops.
 		 */
 		if (curve25519_generate_public(public_key, private_key)) {
-			peer = wg_pubkey_hashtable_lookup(&wg->peer_hashtable,
+			peer = wg_pubkey_hashtable_lookup(wg->peer_hashtable,
 							  public_key);
 			if (peer) {
 				wg_peer_put(peer);
