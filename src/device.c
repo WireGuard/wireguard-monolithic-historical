@@ -321,7 +321,7 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 		return ret;
 
 	wg->incoming_handshakes_worker =
-		wg_packet_alloc_percpu_multicore_worker(
+		wg_packet_percpu_multicore_worker_alloc(
 				wg_packet_handshake_receive_worker, wg);
 	if (!wg->incoming_handshakes_worker)
 		goto err_free_tstats;
