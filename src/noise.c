@@ -451,6 +451,15 @@ static void tai64n_now(u8 output[NOISE_TIMESTAMP_LEN])
 	struct timespec64 now;
 
 	ktime_get_real_ts64(&now);
+
+	/* In order to prevent some sort of infoleak from precise timers, we
+	 * round down the nanoseconds part to the closest rounded-down power of
+	 * two to the maximum initiations per second allowed anyway by the
+	 * implementation.
+	 */
+	now.tv_nsec = ALIGN_DOWN(now.tv_nsec,
+		rounddown_pow_of_two(NSEC_PER_SEC / INITIATIONS_PER_SECOND));
+
 	/* https://cr.yp.to/libtai/tai64.html */
 	*(__be64 *)output = cpu_to_be64(0x400000000000000aULL + now.tv_sec);
 	*(__be32 *)(output + sizeof(__be64)) = cpu_to_be32(now.tv_nsec);
