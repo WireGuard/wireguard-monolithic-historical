@@ -68,7 +68,6 @@ static inline void put_unaligned_le64(u64 s, u8 *d)
 #ifndef __force
 #define __force
 #endif
-#define clamp_secret(a) curve25519_clamp_secret(a)
 
 static noinline void memzero_explicit(void *s, size_t count)
 {

@@ -285,6 +285,7 @@ void wg_noise_set_static_identity_private_key(
 {
 	memcpy(static_identity->static_private, private_key,
 	       NOISE_PUBLIC_KEY_LEN);
+	curve25519_clamp_secret(static_identity->static_private);
 	static_identity->has_identity = curve25519_generate_public(
 		static_identity->static_public, private_key);
 }

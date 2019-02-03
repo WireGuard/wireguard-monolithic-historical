@@ -483,6 +483,8 @@ n0 wg set wg0 peer "$pub2"
 n0 wg set wg0 private-key <(echo "$key1")
 n0 wg set wg0 peer "$pub2"
 [[ $(n0 wg show wg0 peers) == "$pub2" ]]
+n0 wg set wg0 private-key <(echo "/${key1:1}")
+[[ $(n0 wg show wg0 private-key) == "+${key1:1}" ]]
 ip0 link del wg0
 
 declare -A objects
