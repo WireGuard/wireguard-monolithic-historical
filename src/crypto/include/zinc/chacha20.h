@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-enum {
+enum chacha20_lengths {
 	CHACHA20_NONCE_SIZE = 16,
 	CHACHA20_KEY_SIZE = 32,
 	CHACHA20_KEY_WORDS = CHACHA20_KEY_SIZE / sizeof(u32),
@@ -21,7 +21,7 @@ enum {
 	HCHACHA20_KEY_SIZE = CHACHA20_KEY_SIZE
 };
 
-enum { /* expand 32-byte k */
+enum chacha20_constants { /* expand 32-byte k */
 	CHACHA20_CONSTANT_EXPA = 0x61707865U,
 	CHACHA20_CONSTANT_ND_3 = 0x3320646eU,
 	CHACHA20_CONSTANT_2_BY = 0x79622d32U,
