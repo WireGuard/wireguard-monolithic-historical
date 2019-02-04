@@ -447,23 +447,30 @@ static void message_ephemeral(u8 ephemeral_dst[NOISE_PUBLIC_KEY_LEN],
 	    NOISE_PUBLIC_KEY_LEN, chaining_key);
 }
 
-static void tai64n_now(u8 output[NOISE_TIMESTAMP_LEN])
+static void time_or_monotonic(u8 output[NOISE_TIMESTAMP_LEN],
+			      struct noise_handshake *handshake)
 {
-	struct timespec64 now;
-
-	ktime_get_real_ts64(&now);
-
 	/* In order to prevent some sort of infoleak from precise timers, we
 	 * round down the nanoseconds part to the closest rounded-down power of
 	 * two to the maximum initiations per second allowed anyway by the
 	 * implementation.
 	 */
-	now.tv_nsec = ALIGN_DOWN(now.tv_nsec,
-		rounddown_pow_of_two(NSEC_PER_SEC / INITIATIONS_PER_SECOND));
+	ktime_t now  = ns_to_ktime(ALIGN_DOWN(ktime_get_real_ns(),
+		rounddown_pow_of_two(NSEC_PER_SEC / INITIATIONS_PER_SECOND)));
+	struct timespec64 stamp;
+
+	if (unlikely(!handshake->base_time)) {
+		handshake->base_time = now;
+	} else {
+		handshake->base_time = ktime_add_ns(handshake->base_time, 1);
+		if (unlikely(ktime_after(handshake->base_time, now)))
+			handshake->base_time = now;
+	}
+	stamp = ktime_to_timespec64(handshake->base_time);
 
 	/* https://cr.yp.to/libtai/tai64.html */
-	*(__be64 *)output = cpu_to_be64(0x400000000000000aULL + now.tv_sec);
-	*(__be32 *)(output + sizeof(__be64)) = cpu_to_be32(now.tv_nsec);
+	*(__be64 *)output = cpu_to_be64(0x400000000000000aULL + stamp.tv_sec);
+	*(__be32 *)(output + sizeof(__be64)) = cpu_to_be32(stamp.tv_nsec);
 }
 
 bool
@@ -516,7 +523,7 @@ wg_noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 	    handshake->chaining_key);
 
 	/* {t} */
-	tai64n_now(timestamp);
+	time_or_monotonic(timestamp, handshake);
 	message_encrypt(dst->encrypted_timestamp, timestamp,
 			NOISE_TIMESTAMP_LEN, key, handshake->hash);
 
