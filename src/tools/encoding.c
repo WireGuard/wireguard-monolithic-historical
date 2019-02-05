@@ -119,7 +119,7 @@ bool key_is_zero(const uint8_t key[static WG_KEY_LEN])
 
 	for (unsigned int i = 0; i < WG_KEY_LEN; ++i) {
 		acc |= key[i];
-		asm("" : "=r" (acc) : "0" (acc));
+		asm volatile("" : "=r"(acc) : "0"(acc));
 	}
 	return 1 & ((acc - 1) >> 8);
 }
