@@ -84,7 +84,7 @@ void key_to_hex(char hex[static WG_KEY_LEN_HEX], const uint8_t key[static WG_KEY
 
 bool key_from_hex(uint8_t key[static WG_KEY_LEN], const char *hex)
 {
-	uint8_t c, c_acc = 0, c_alpha0, c_alpha, c_num0, c_num, c_val;
+	uint8_t c, c_acc, c_alpha0, c_alpha, c_num0, c_num, c_val;
 	volatile uint8_t ret = 0;
 
 	if (strlen(hex) != WG_KEY_LEN_HEX - 1)
