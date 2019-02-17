@@ -7,6 +7,7 @@ PREFIX ?= /usr
 DESTDIR ?=
 SRCDIR ?= $(PREFIX)/src
 DKMSDIR ?= $(SRCDIR)/wireguard
+DEPMOD ?= depmod
 
 PWD := $(shell pwd)
 
@@ -44,7 +45,7 @@ clean:
 
 module-install:
 	@$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
-	depmod -a
+	$(DEPMOD) -a
 
 install: module-install tools-install
 
