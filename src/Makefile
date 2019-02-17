@@ -46,10 +46,7 @@ module-install:
 	@$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
 	depmod -a
 
-install:
-	@$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
-	depmod -a
-	@$(MAKE) -C tools install
+install: module-install tools-install
 
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 DKMS_SOURCES := version.h Makefile Kbuild Kconfig dkms.conf $(filter-out version.h wireguard.mod.c tools/% tests/%,$(call rwildcard,,*.c *.h *.S *.pl *.include))
@@ -61,6 +58,9 @@ tools:
 
 tools-debug:
 	@$(MAKE) -C tools V=1 DEBUG_TOOLS=y
+
+tools-install:
+	@$(MAKE) -C tools install
 
 style:
 	$(KERNELDIR)/scripts/checkpatch.pl -f --max-line-length=4000 --codespell --color=always $(filter-out wireguard.mod.c,$(wildcard *.c)) $(wildcard *.h) $(wildcard selftest/*.c)
@@ -76,4 +76,4 @@ cloc:
 
 -include tests/debug.mk
 
-.PHONY: all module module-debug module-install tools install dkms-install clean core-cloc check style version.h dkms.conf
+.PHONY: all module module-debug module-install tools tools-install install dkms-install clean core-cloc check style version.h dkms.conf
