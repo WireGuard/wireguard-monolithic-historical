@@ -109,7 +109,7 @@ static const struct ipv6_stub_type *ipv6_stub = &ipv6_stub_impl;
 #include <net/addrconf.h>
 static inline bool ipv6_mod_enabled(void)
 {
-	return ipv6_stub->udpv6_encap_enable != NULL;
+	return ipv6_stub != NULL && ipv6_stub->udpv6_encap_enable != NULL;
 }
 #endif
 
