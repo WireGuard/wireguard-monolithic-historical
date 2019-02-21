@@ -22,7 +22,7 @@ int showconf_main(int argc, char *argv[])
 {
 	char base64[WG_KEY_LEN_BASE64];
 	char ip[INET6_ADDRSTRLEN];
-	struct wgdevice *device = NULL;
+	struct wgdevice *conf = NULL;
 	struct wgpeer *peer;
 	struct wgallowedip *allowedip;
 	int ret = 1;
@@ -32,72 +32,84 @@ int showconf_main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (ipc_get_device(&device, argv[1])) {
+	if (ipc_fetch_conf(&conf, argv[1])) {
 		perror("Unable to access interface");
 		goto cleanup;
 	}
 
 	printf("[Interface]\n");
-	if (device->listen_port)
-		printf("ListenPort = %u\n", device->listen_port);
-	if (device->fwmark)
-		printf("FwMark = 0x%x\n", device->fwmark);
-	if (device->flags & WGDEVICE_HAS_PRIVATE_KEY) {
-		key_to_base64(base64, device->private_key);
+	if (conf->listen_port) {
+		printf("ListenPort = %u\n", conf->listen_port);
+	}
+	if (conf->fwmark) {
+		printf("FwMark = 0x%x\n", conf->fwmark);
+	}
+	if (conf->flags & WGDEVICE_HAS_PRIVATE_KEY) {
+		key_to_base64(base64, conf->private_key);
 		printf("PrivateKey = %s\n", base64);
 	}
 	printf("\n");
-	for_each_wgpeer(device, peer) {
+	for_each_wgpeer(conf, peer) {
 		key_to_base64(base64, peer->public_key);
 		printf("[Peer]\nPublicKey = %s\n", base64);
 		if (peer->flags & WGPEER_HAS_PRESHARED_KEY) {
 			key_to_base64(base64, peer->preshared_key);
 			printf("PresharedKey = %s\n", base64);
 		}
-		if (peer->first_allowedip)
+		if (peer->first_allowedip) {
 			printf("AllowedIPs = ");
+		}
 		for_each_wgallowedip(peer, allowedip) {
 			if (allowedip->family == AF_INET) {
-				if (!inet_ntop(AF_INET, &allowedip->ip4, ip, INET6_ADDRSTRLEN))
+				if (!inet_ntop(AF_INET, &allowedip->ip4, ip, INET6_ADDRSTRLEN)) {
 					continue;
+				}
 			} else if (allowedip->family == AF_INET6) {
-				if (!inet_ntop(AF_INET6, &allowedip->ip6, ip, INET6_ADDRSTRLEN))
+				if (!inet_ntop(AF_INET6, &allowedip->ip6, ip, INET6_ADDRSTRLEN)) {
 					continue;
-			} else
+				}
+			} else {
 				continue;
+			}
 			printf("%s/%d", ip, allowedip->cidr);
-			if (allowedip->next_allowedip)
+			if (allowedip->next_allowedip) {
 				printf(", ");
+			}
 		}
-		if (peer->first_allowedip)
+		if (peer->first_allowedip) {
 			printf("\n");
+		}
 
 		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6) {
 			char host[4096 + 1];
 			char service[512 + 1];
 			socklen_t addr_len = 0;
 
-			if (peer->endpoint.addr.sa_family == AF_INET)
+			if (peer->endpoint.addr.sa_family == AF_INET) {
 				addr_len = sizeof(struct sockaddr_in);
-			else if (peer->endpoint.addr.sa_family == AF_INET6)
+			} else if (peer->endpoint.addr.sa_family == AF_INET6) {
 				addr_len = sizeof(struct sockaddr_in6);
+			}
 			if (!getnameinfo(&peer->endpoint.addr, addr_len, host, sizeof(host), service, sizeof(service), NI_DGRAM | NI_NUMERICSERV | NI_NUMERICHOST)) {
-				if (peer->endpoint.addr.sa_family == AF_INET6 && strchr(host, ':'))
+				if (peer->endpoint.addr.sa_family == AF_INET6 && strchr(host, ':')) {
 					printf("Endpoint = [%s]:%s\n", host, service);
-				else
+				} else {
 					printf("Endpoint = %s:%s\n", host, service);
+				}
 			}
 		}
 
-		if (peer->persistent_keepalive_interval)
+		if (peer->persistent_keepalive_interval) {
 			printf("PersistentKeepalive = %u\n", peer->persistent_keepalive_interval);
+		}
 
-		if (peer->next_peer)
+		if (peer->next_peer) {
 			printf("\n");
+		}
 	}
 	ret = 0;
 
 cleanup:
-	free_wgdevice(device);
+	free_wgdevice(conf);
 	return ret;
 }

@@ -398,24 +398,25 @@ int show_main(int argc, char *argv[])
 		ret = !!*interfaces;
 		interface = interfaces;
 		for (size_t len = 0; (len = strlen(interface)); interface += len + 1) {
-			struct wgdevice *device = NULL;
+			struct wgdevice *conf = NULL;
 
-			if (ipc_get_device(&device, interface) < 0) {
+			if (ipc_fetch_conf(&conf, interface) < 0) {
 				fprintf(stderr, "Unable to access interface %s: %s\n", interface, strerror(errno));
 				continue;
 			}
 			if (argc == 3) {
-				if (!ugly_print(device, argv[2], true)) {
+				if (!ugly_print(conf, argv[2], true)) {
 					ret = 1;
-					free_wgdevice(device);
+					free_wgdevice(conf);
 					break;
 				}
 			} else {
-				pretty_print(device);
-				if (strlen(interface + len + 1))
+				pretty_print(conf);
+				if (strlen(interface + len + 1)) {
 					printf("\n");
+				}
 			}
-			free_wgdevice(device);
+			free_wgdevice(conf);
 			ret = 0;
 		}
 		free(interfaces);
@@ -432,24 +433,27 @@ int show_main(int argc, char *argv[])
 			return 1;
 		}
 		interface = interfaces;
-		for (size_t len = 0; (len = strlen(interface)); interface += len + 1)
+		for (size_t len = 0; (len = strlen(interface)); interface += len + 1) {
 			printf("%s%c", interface, strlen(interface + len + 1) ? ' ' : '\n');
+		}
 		free(interfaces);
-	} else if (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "help")))
+	} else if (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "help"))) {
 		show_usage();
-	else {
-		struct wgdevice *device = NULL;
+	} else {
+		struct wgdevice *conf = NULL;
 
-		if (ipc_get_device(&device, argv[1]) < 0) {
+		if (ipc_fetch_conf(&conf, argv[1]) < 0) {
 			perror("Unable to access interface");
 			return 1;
 		}
 		if (argc == 3) {
-			if (!ugly_print(device, argv[2], false))
+			if (!ugly_print(conf, argv[2], false)) {
 				ret = 1;
-		} else
-			pretty_print(device);
-		free_wgdevice(device);
+			}
+		} else {
+			pretty_print(conf);
+		}
+		free_wgdevice(conf);
 	}
 	return ret;
 }

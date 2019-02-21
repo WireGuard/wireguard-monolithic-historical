@@ -10,8 +10,8 @@
 
 struct wgdevice;
 
-int ipc_set_device(struct wgdevice *dev);
-int ipc_get_device(struct wgdevice **dev, const char *interface);
+int ipc_set_device(const struct wgdevice *conf);
+int ipc_fetch_conf(struct wgdevice **conf, const char *interface);
 char *ipc_list_devices(void);
 
 #endif
