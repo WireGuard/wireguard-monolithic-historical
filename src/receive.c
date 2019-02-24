@@ -153,6 +153,7 @@ static void wg_receive_handshake_packet(struct wg_device *wg,
 			return;
 		}
 		wg_socket_set_peer_endpoint_from_skb(peer, skb);
+		peer->is_ecn_aware = INET_ECN_is_capable(PACKET_CB(skb)->ds);
 		net_dbg_ratelimited("%s: Receiving handshake initiation from peer %llu (%pISpfsc)\n",
 				    wg->dev->name, peer->internal_id,
 				    &peer->endpoint.addr);
@@ -175,6 +176,7 @@ static void wg_receive_handshake_packet(struct wg_device *wg,
 			return;
 		}
 		wg_socket_set_peer_endpoint_from_skb(peer, skb);
+		peer->is_ecn_aware = INET_ECN_is_capable(PACKET_CB(skb)->ds);
 		net_dbg_ratelimited("%s: Receiving handshake response from peer %llu (%pISpfsc)\n",
 				    wg->dev->name, peer->internal_id,
 				    &peer->endpoint.addr);
@@ -297,6 +299,59 @@ static bool decrypt_packet(struct sk_buff *skb, struct noise_symmetric_key *key,
 	return true;
 }
 
+/*
+ * RFC 6040 4.2
+ *  To decapsulate the inner header at the tunnel egress, a compliant
+ *  tunnel egress MUST set the outgoing ECN field to the codepoint at the
+ *  intersection of the appropriate arriving inner header (row) and outer
+ *  header (column) in Figure 4
+ *
+ *      +---------+------------------------------------------------+
+ *      |Arriving |            Arriving Outer Header               |
+ *      |   Inner +---------+------------+------------+------------+
+ *      |  Header | Not-ECT | ECT(0)     | ECT(1)     |     CE     |
+ *      +---------+---------+------------+------------+------------+
+ *      | Not-ECT | Not-ECT |Not-ECT(!!!)|Not-ECT(!!!)| <drop>(!!!)|
+ *      |  ECT(0) |  ECT(0) | ECT(0)     | ECT(1)     |     CE     |
+ *      |  ECT(1) |  ECT(1) | ECT(1) (!) | ECT(1)     |     CE     |
+ *      |    CE   |      CE |     CE     |     CE(!!!)|     CE     |
+ *      +---------+---------+------------+------------+------------+
+ *
+ *             Figure 4: New IP in IP Decapsulation Behaviour
+ *
+ *  returns 0 on success
+ *          1 if the packet should be dropped
+ */
+static inline int ECN_RFC6040_decapsulate(struct sk_buff *skb)
+{
+	__u8 outer = PACKET_CB(skb)->ds;
+	__u8 inner = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
+
+	switch (outer & INET_ECN_MASK) {
+		case INET_ECN_CE:
+			PACKET_CB(skb)->ds =
+				(inner & ~INET_ECN_MASK) |
+				INET_ECN_CE;
+			switch (inner & INET_ECN_MASK) {
+				case INET_ECN_NOT_ECT:
+					return 1;
+			}
+			return 0;
+		case INET_ECN_ECT_1:
+			switch (inner & INET_ECN_MASK) {
+				case INET_ECN_ECT_0:
+					PACKET_CB(skb)->ds =
+						(inner & ~INET_ECN_MASK) |
+						INET_ECN_ECT_1;
+					return 0;
+			}
+	}
+
+	PACKET_CB(skb)->ds = inner;
+
+	return 0;
+}
+
 /* This is RFC6479, a replay detection bitmap algorithm that avoids bitshifts */
 static bool counter_validate(union noise_counter *counter, u64 their_counter)
 {
@@ -394,13 +449,24 @@ static void wg_packet_consume_data_done(struct wg_peer *peer,
 		len = ntohs(ip_hdr(skb)->tot_len);
 		if (unlikely(len < sizeof(struct iphdr)))
 			goto dishonest_packet_size;
-		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
-			IP_ECN_set_ce(ip_hdr(skb));
+
+		if (ECN_RFC6040_decapsulate(skb)) {
+			net_dbg_ratelimited("%s: Dropping packet from peer %llu (%pISpfsc) - ECN\n",
+				    dev->name, peer->internal_id,
+				    &peer->endpoint.addr);
+			++dev->stats.rx_dropped;
+			goto packet_processed;
+		}
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		len = ntohs(ipv6_hdr(skb)->payload_len) +
 		      sizeof(struct ipv6hdr);
-		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
-			IP6_ECN_set_ce(skb, ipv6_hdr(skb));
+		if (ECN_RFC6040_decapsulate(skb)) {
+			net_dbg_ratelimited("%s: Dropping packet from peer %llu (%pISpfsc) - ECN\n",
+				    dev->name, peer->internal_id,
+				    &peer->endpoint.addr);
+			++dev->stats.rx_dropped;
+			goto packet_processed;
+		}
 	} else {
 		goto dishonest_packet_type;
 	}
@@ -582,6 +648,7 @@ void wg_packet_receive(struct wg_device *wg, struct sk_buff *skb)
 			goto err;
 		}
 		skb_queue_tail(&wg->incoming_handshakes, skb);
+		PACKET_CB(skb)->ds = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
 		/* Queues up a call to packet_process_queued_handshake_
 		 * packets(skb):
 		 */

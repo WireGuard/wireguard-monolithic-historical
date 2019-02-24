@@ -389,10 +389,10 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 	 * handshake.
 	 */
 	skb_queue_walk(&packets, skb) {
-		/* 0 for no outer TOS: no leak. TODO: at some later point, we
-		 * might consider using flowi->tos as outer instead.
-		 */
-		PACKET_CB(skb)->ds = ip_tunnel_ecn_encap(0, ip_hdr(skb), skb);
+		PACKET_CB(skb)->ds = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
+		if(!peer->is_ecn_aware) {
+			PACKET_CB(skb)->ds &= ~INET_ECN_MASK;
+		}
 		PACKET_CB(skb)->nonce =
 				atomic64_inc_return(&key->counter.counter) - 1;
 		if (unlikely(PACKET_CB(skb)->nonce >= REJECT_AFTER_MESSAGES))
