@@ -375,6 +375,9 @@ static int set_peer(struct wg_device *wg, struct nlattr **attrs)
 		if (flags & WGPEER_F_REMOVE_ME)
 			goto out; /* Tried to remove a non-existing peer. */
 
+		/* The peer is new, so there aren't allowed IPs to remove. */
+		flags &= ~WGPEER_F_REPLACE_ALLOWEDIPS;
+
 		down_read(&wg->static_identity.lock);
 		if (wg->static_identity.has_identity &&
 		    !memcmp(nla_data(attrs[WGPEER_A_PUBLIC_KEY]),
