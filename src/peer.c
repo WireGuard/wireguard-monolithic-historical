@@ -87,16 +87,8 @@ struct wg_peer *wg_peer_get_maybe_zero(struct wg_peer *peer)
 	return peer;
 }
 
-/* We have a separate "remove" function make sure that all active places where
- * a peer is currently operating will eventually come to an end and not pass
- * their reference onto another context.
- */
-void wg_peer_remove(struct wg_peer *peer)
+static void peer_make_dead(struct wg_peer *peer)
 {
-	if (unlikely(!peer))
-		return;
-	lockdep_assert_held(&peer->device->device_update_lock);
-
 	/* Remove from configuration-time lookup structures. */
 	list_del_init(&peer->peer_list);
 	wg_allowedips_remove_by_peer(&peer->device->peer_allowedips, peer,
@@ -105,7 +97,13 @@ void wg_peer_remove(struct wg_peer *peer)
 
 	/* Mark as dead, so that we don't allow jumping contexts after. */
 	WRITE_ONCE(peer->is_dead, true);
-	synchronize_rcu_bh();
+
+	/* The caller must now synchronize_rcu_bh() for this to take effect. */
+}
+
+static void peer_remove_after_dead(struct wg_peer *peer)
+{
+	WARN_ON(!peer->is_dead);
 
 	/* No more keypairs can be created for this peer, since is_dead protects
 	 * add_new_keypair, so we can now destroy existing ones.
@@ -161,6 +159,40 @@ void wg_peer_remove(struct wg_peer *peer)
 	wg_peer_put(peer);
 }
 
+/* We have a separate "remove" function make sure that all active places where
+ * a peer is currently operating will eventually come to an end and not pass
+ * their reference onto another context.
+ */
+void wg_peer_remove(struct wg_peer *peer)
+{
+	if (unlikely(!peer))
+		return;
+	lockdep_assert_held(&peer->device->device_update_lock);
+
+	peer_make_dead(peer);
+	synchronize_rcu_bh();
+	peer_remove_after_dead(peer);
+}
+
+void wg_peer_remove_all(struct wg_device *wg)
+{
+	struct list_head dead_peers = LIST_HEAD_INIT(dead_peers);
+	struct wg_peer *peer, *temp;
+
+	lockdep_assert_held(&wg->device_update_lock);
+
+	/* Avoid having to traverse individually for each one. */
+	wg_allowedips_free(&wg->peer_allowedips, &wg->device_update_lock);
+
+	list_for_each_entry_safe(peer, temp, &wg->peer_list, peer_list) {
+		peer_make_dead(peer);
+		list_add_tail(&peer->peer_list, &dead_peers);
+	}
+	synchronize_rcu_bh();
+	list_for_each_entry_safe(peer, temp, &dead_peers, peer_list)
+		peer_remove_after_dead(peer);
+}
+
 static void rcu_release(struct rcu_head *rcu)
 {
 	struct wg_peer *peer = container_of(rcu, struct wg_peer, rcu);
@@ -203,13 +235,4 @@ void wg_peer_put(struct wg_peer *peer)
 	if (unlikely(!peer))
 		return;
 	kref_put(&peer->refcount, kref_release);
-}
-
-void wg_peer_remove_all(struct wg_device *wg)
-{
-	struct wg_peer *peer, *temp;
-
-	lockdep_assert_held(&wg->device_update_lock);
-	list_for_each_entry_safe(peer, temp, &wg->peer_list, peer_list)
-		wg_peer_remove(peer);
 }
