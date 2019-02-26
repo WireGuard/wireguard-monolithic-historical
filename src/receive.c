@@ -394,13 +394,21 @@ static void wg_packet_consume_data_done(struct wg_peer *peer,
 		len = ntohs(ip_hdr(skb)->tot_len);
 		if (unlikely(len < sizeof(struct iphdr)))
 			goto dishonest_packet_size;
-		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
-			IP_ECN_set_ce(ip_hdr(skb));
+		if (INET_ECN_decapsulate(skb, PACKET_CB(skb)->ds, ip_tunnel_get_dsfield(ip_hdr(skb), skb)) == 2) {
+			net_dbg_ratelimited("%s: Dropping packet (ECN) from peer %llu (%pISpfsc)\n",
+				    dev->name, peer->internal_id,
+				    &peer->endpoint.addr);
+			goto packet_processed;
+		}
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		len = ntohs(ipv6_hdr(skb)->payload_len) +
 		      sizeof(struct ipv6hdr);
-		if (INET_ECN_is_ce(PACKET_CB(skb)->ds))
-			IP6_ECN_set_ce(skb, ipv6_hdr(skb));
+		if (INET_ECN_decapsulate(skb, PACKET_CB(skb)->ds, ip_tunnel_get_dsfield(ip_hdr(skb), skb)) == 2) {
+			net_dbg_ratelimited("%s: Dropping packet (ECN) from peer %llu (%pISpfsc)\n",
+				    dev->name, peer->internal_id,
+				    &peer->endpoint.addr);
+			goto packet_processed;
+		}
 	} else {
 		goto dishonest_packet_type;
 	}
