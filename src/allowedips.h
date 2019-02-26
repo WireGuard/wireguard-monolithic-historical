@@ -11,19 +11,28 @@
 #include <linux/ipv6.h>
 
 struct wg_peer;
-struct allowedips_node;
+
+struct allowedips_node {
+	struct wg_peer __rcu *peer;
+	struct allowedips_node __rcu *bit[2];
+	/* While it may seem scandalous that we waste space for v4,
+	 * we're alloc'ing to the nearest power of 2 anyway, so this
+	 * doesn't actually make a difference.
+	 */
+	u8 bits[16] __aligned(__alignof(u64));
+	u8 cidr, bit_at_a, bit_at_b, bitlen;
+
+	/* Keep rarely used list at bottom to be beyond cache line. */
+	union {
+		struct list_head peer_list;
+		struct rcu_head rcu;
+	};
+};
 
 struct allowedips {
 	struct allowedips_node __rcu *root4;
 	struct allowedips_node __rcu *root6;
 	u64 seq;
-};
-
-struct allowedips_cursor {
-	u64 seq;
-	struct allowedips_node *stack[128];
-	unsigned int len;
-	bool second_half;
 };
 
 void wg_allowedips_init(struct allowedips *table);
@@ -34,12 +43,8 @@ int wg_allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
 			    u8 cidr, struct wg_peer *peer, struct mutex *lock);
 void wg_allowedips_remove_by_peer(struct allowedips *table,
 				  struct wg_peer *peer, struct mutex *lock);
-int wg_allowedips_walk_by_peer(struct allowedips *table,
-			       struct allowedips_cursor *cursor,
-			       struct wg_peer *peer,
-			       int (*func)(void *ctx, const u8 *ip, u8 cidr,
-					   int family),
-			       void *ctx, struct mutex *lock);
+/* The ip input pointer should be __aligned(__alignof(u64))) */
+int wg_allowedips_read_node(struct allowedips_node *node, u8 ip[16], u8 *cidr);
 
 /* These return a strong reference to a peer: */
 struct wg_peer *wg_allowedips_lookup_dst(struct allowedips *table,
