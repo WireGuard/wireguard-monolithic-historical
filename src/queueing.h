@@ -102,7 +102,8 @@ static inline void wg_reset_packet(struct sk_buff *skb)
 	skb->hdr_len = skb_headroom(skb);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
-	skb_probe_transport_header(skb, 0);
+	skb_reset_transport_header(skb);
+	skb_probe_transport_header(skb);
 	skb_reset_inner_headers(skb);
 }
 

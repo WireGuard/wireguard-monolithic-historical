@@ -773,6 +773,11 @@ struct __kernel_timespec {
 #endif
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
+#include <linux/skbuff.h>
+#define skb_probe_transport_header(a) skb_probe_transport_header(a, 0)
+#endif
+
 /* https://github.com/ClangBuiltLinux/linux/issues/7 */
 #if defined( __clang__) && (!defined(CONFIG_CLANG_VERSION) || CONFIG_CLANG_VERSION < 80000)
 #include <linux/bug.h>
