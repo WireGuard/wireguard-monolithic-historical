@@ -1751,16 +1751,21 @@ void wg_generate_private_key(wg_key private_key)
 void wg_generate_preshared_key(wg_key preshared_key)
 {
 	ssize_t ret;
+	size_t i;
 	int fd;
-
-#if defined(__NR_getrandom)
-	ret = syscall(__NR_getrandom, preshared_key, sizeof(wg_key), 0);
-	if (ret == sizeof(wg_key))
+#if defined(__OpenBSD__) || (defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12) || (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25)))
+	if (!getentropy(preshared_key, sizeof(wg_key)))
+		return;
+#endif
+#if defined(__NR_getrandom) && defined(__linux__)
+	if (syscall(__NR_getrandom, preshared_key, sizeof(wg_key), 0) == sizeof(wg_key))
 		return;
 #endif
 	fd = open("/dev/urandom", O_RDONLY);
 	assert(fd >= 0);
-	ret = read(fd, preshared_key, sizeof(wg_key));
+	for (i = 0; i < sizeof(wg_key); i += ret) {
+		ret = read(fd, preshared_key + i, sizeof(wg_key) - i);
+		assert(ret > 0);
+	}
 	close(fd);
-	assert(ret == sizeof(wg_key));
 }
