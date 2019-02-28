@@ -110,6 +110,6 @@ int showconf_main(int argc, char *argv[])
 	ret = 0;
 
 cleanup:
-	free_wgdevice(conf);
+	free_conf(conf);
 	return ret;
 }

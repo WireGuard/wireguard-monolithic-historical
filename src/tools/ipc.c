@@ -459,7 +459,7 @@ static int userspace_fetch_conf(struct wgdevice **out, const char *interface)
 	ret = -EPROTO;
 err:
 	free(key);
-	free_wgdevice(conf);
+	free_conf(conf);
 	*out = NULL;
 	fclose(f);
 	errno = -ret;
@@ -932,7 +932,7 @@ try_again:
 
 	nlg = mnlg_socket_open(WG_GENL_NAME, WG_GENL_VERSION);
 	if (!nlg) {
-		free_wgdevice(*conf);
+		free_conf(*conf);
 		*conf = NULL;
 		return -errno;
 	}
@@ -955,7 +955,7 @@ out:
 		mnlg_socket_close(nlg);
 	}
 	if (ret) {
-		free_wgdevice(*conf);
+		free_conf(*conf);
 		if (ret == -EINTR) {
 			goto try_again;
 		}
@@ -1017,4 +1017,9 @@ int ipc_set_device(const struct wgdevice *newconf)
 #else
 	return userspace_set_device(newconf);
 #endif
+}
+
+void free_conf(struct wgdevice *conf)
+{
+	free_wgdevice(conf);
 }

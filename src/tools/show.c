@@ -407,7 +407,7 @@ int show_main(int argc, char *argv[])
 			if (argc == 3) {
 				if (!ugly_print(conf, argv[2], true)) {
 					ret = 1;
-					free_wgdevice(conf);
+					free_conf(conf);
 					break;
 				}
 			} else {
@@ -416,7 +416,7 @@ int show_main(int argc, char *argv[])
 					printf("\n");
 				}
 			}
-			free_wgdevice(conf);
+			free_conf(conf);
 			ret = 0;
 		}
 		free(interfaces);
@@ -453,7 +453,7 @@ int show_main(int argc, char *argv[])
 		} else {
 			pretty_print(conf);
 		}
-		free_wgdevice(conf);
+		free_conf(conf);
 	}
 	return ret;
 }
