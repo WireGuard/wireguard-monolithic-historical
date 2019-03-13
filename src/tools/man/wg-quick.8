@@ -11,6 +11,8 @@ wg-quick - set up a WireGuard interface simply
 .I down
 |
 .I save
+|
+.I strip
 ] [
 .I CONFIG_FILE
 |
@@ -27,7 +29,11 @@ an interface. Running \fIup\fP adds a WireGuard interface, brings up the interfa
 supplied IP addresses, sets up mtu and routes, and optionally runs pre/post up scripts. Running \fIdown\fP
 optionally saves the current configuration, removes the WireGuard interface, and optionally
 runs pre/post down scripts. Running \fIsave\fP saves the configuration of an existing
-interface without bringing the interface down.
+interface without bringing the interface down. Use \fIstrip\fP to output a configuration file
+with all
+.BR wg-quick (8)-specific
+options removed, suitable for use with
+.BR wg (8).
 
 \fICONFIG_FILE\fP is a configuration file, whose filename is the interface name
 followed by `.conf'. Otherwise, \fIINTERFACE\fP is an interface name, with configuration
@@ -242,6 +248,13 @@ For convenience, if only an interface name is supplied, it automatically chooses
 \fB    # wg-quick up wgnet0\fP
 
 This will load the configuration file `/etc/wireguard/wgnet0.conf'.
+
+The \fIstrip\fP command is useful for reloading configuration files without disrupting active
+sessions:
+
+\fB    # wg addconf wgnet0 <(wg-quick strip wgnet0)\fP
+
+(Note that the above command will add and update peers but will not remove peers.)
 
 .SH SEE ALSO
 .BR wg (8),
