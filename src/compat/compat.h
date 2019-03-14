@@ -792,7 +792,9 @@ struct __kernel_timespec {
 #include <net/ipv6.h>
 #include <net/icmp.h>
 #include <net/netfilter/nf_conntrack.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
 #include <net/netfilter/nf_nat_core.h>
+#endif
 static inline void new_icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 {
 	enum ip_conntrack_info ctinfo;
