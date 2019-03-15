@@ -132,7 +132,7 @@ static void keypair_free_kref(struct kref *kref)
 			    keypair->entry.peer->internal_id);
 	wg_index_hashtable_remove(keypair->entry.peer->device->index_hashtable,
 				  &keypair->entry);
-	call_rcu_bh(&keypair->rcu, keypair_free_rcu);
+	call_rcu(&keypair->rcu, keypair_free_rcu);
 }
 
 void wg_noise_keypair_put(struct noise_keypair *keypair, bool unreference_now)

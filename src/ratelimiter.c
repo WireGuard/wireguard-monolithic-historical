@@ -3,6 +3,18 @@
  * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
+#ifdef COMPAT_CANNOT_DEPRECIATE_BH_RCU
+/* We normally alias all non-_bh functions to the _bh ones in the compat layer,
+ * but that's not appropriate here, where we actually do want non-_bh ones.
+ */
+#undef synchronize_rcu
+#define synchronize_rcu old_synchronize_rcu
+#undef call_rcu
+#define call_rcu old_call_rcu
+#undef rcu_barrier
+#define rcu_barrier old_rcu_barrier
+#endif
+
 #include "ratelimiter.h"
 #include <linux/siphash.h>
 #include <linux/mm.h>
