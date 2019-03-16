@@ -287,6 +287,37 @@ err:
 	return false;
 }
 
+static bool validate_netmask(struct wgallowedip *allowedip)
+{
+	uint32_t *ip;
+	int last;
+
+	switch (allowedip->family) {
+		case AF_INET:
+			last = 0;
+			ip = (uint32_t *)&allowedip->ip4;
+			break;
+		case AF_INET6:
+			last = 3;
+			ip = (uint32_t *)&allowedip->ip6;
+			break;
+		default:
+			return true; /* We don't know how to validate it, so say 'okay'. */
+	}
+
+	for (int i = last; i >= 0; --i) {
+		uint32_t mask = ~0;
+
+		if (allowedip->cidr >= 32 * (i + 1))
+			break;
+		if (allowedip->cidr > 32 * i)
+			mask >>= (allowedip->cidr - 32 * i);
+		if (ntohl(ip[i]) & mask)
+			return false;
+	}
+
+	return true;
+}
 
 static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **last_allowedip, const char *value)
 {
@@ -338,6 +369,9 @@ static inline bool parse_allowedips(struct wgpeer *peer, struct wgallowedip **la
 		else
 			goto err;
 		new_allowedip->cidr = cidr;
+
+		if (!validate_netmask(new_allowedip))
+			fprintf(stderr, "Warning: AllowedIP has nonzero host part: %s/%s\n", ip, mask);
 
 		if (allowedip)
 			allowedip->next_allowedip = new_allowedip;
