@@ -42,8 +42,9 @@ unset ORIGINAL_TMPDIR
 make_temp() {
 	local old_umask
 
-	[[ -v ORIGINAL_TMPDIR ]] && TMPDIR="$ORIGINAL_TMPDIR"
+	[[ -v ORIGINAL_TMPDIR ]] && export TMPDIR="$ORIGINAL_TMPDIR"
 	ORIGINAL_TMPDIR="$TMPDIR"
+	[[ -z $TMPDIR ]] && unset TMPDIR
 
 	old_umask="$(umask)"
 	umask 077
