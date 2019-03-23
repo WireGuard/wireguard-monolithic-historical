@@ -60,11 +60,10 @@ static void sort_peers(struct wgdevice *device)
 		peers[i++] = peer;
 	qsort(peers, peer_count, sizeof(*peers), peer_cmp);
 	device->first_peer = peers[0];
-	peers[0]->next_peer = NULL;
 	for (i = 1; i < peer_count; ++i) {
 		peers[i - 1]->next_peer = peers[i];
-		peers[i]->next_peer = NULL;
 	}
+	peers[peer_count - 1]->next_peer = NULL;
 	free(peers);
 }
 
