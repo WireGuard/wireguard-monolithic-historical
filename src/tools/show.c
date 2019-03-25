@@ -22,6 +22,7 @@
 #include "ipc.h"
 #include "terminal.h"
 #include "encoding.h"
+#include "peer_names.h"
 #include "subcommands.h"
 
 static int peer_cmp(const void *first, const void *second)
@@ -205,8 +206,9 @@ static void show_usage(void)
 	fprintf(stderr, "Usage: %s %s { <interface> | all | interfaces } [public-key | private-key | listen-port | fwmark | peers | preshared-keys | endpoints | allowed-ips | latest-handshakes | transfer | persistent-keepalive | dump]\n", PROG_NAME, COMMAND_NAME);
 }
 
-static void pretty_print(struct wgdevice *device)
+static void pretty_print(struct wgdevice *device, struct wgpeer_names *names)
 {
+	char *name;
 	struct wgpeer *peer;
 	struct wgallowedip *allowedip;
 
@@ -226,6 +228,8 @@ static void pretty_print(struct wgdevice *device)
 	}
 	for_each_wgpeer(device, peer) {
 		terminal_printf(TERMINAL_FG_YELLOW TERMINAL_BOLD "peer" TERMINAL_RESET ": " TERMINAL_FG_YELLOW "%s" TERMINAL_RESET "\n", key(peer->public_key));
+		if ((name = peer_names_get(names, peer->public_key)))
+			terminal_printf("  " TERMINAL_BOLD "name" TERMINAL_RESET ": %s\n", name);
 		if (peer->flags & WGPEER_HAS_PRESHARED_KEY)
 			terminal_printf("  " TERMINAL_BOLD "preshared key" TERMINAL_RESET ": %s\n", masked_key(peer->preshared_key));
 		if (peer->endpoint.addr.sa_family == AF_INET || peer->endpoint.addr.sa_family == AF_INET6)
@@ -398,6 +402,7 @@ int show_main(int argc, char *argv[])
 		interface = interfaces;
 		for (size_t len = 0; (len = strlen(interface)); interface += len + 1) {
 			struct wgdevice *device = NULL;
+			struct wgpeer_names names;
 
 			if (ipc_get_device(&device, interface) < 0) {
 				fprintf(stderr, "Unable to access interface %s: %s\n", interface, strerror(errno));
@@ -410,9 +415,12 @@ int show_main(int argc, char *argv[])
 					break;
 				}
 			} else {
-				pretty_print(device);
+				if (!peer_names_open(&names, device) && errno)
+					perror("peer_names_open");
+				pretty_print(device, &names);
 				if (strlen(interface + len + 1))
 					printf("\n");
+				peer_names_free(&names);
 			}
 			free_wgdevice(device);
 			ret = 0;
@@ -438,6 +446,7 @@ int show_main(int argc, char *argv[])
 		show_usage();
 	else {
 		struct wgdevice *device = NULL;
+		struct wgpeer_names names;
 
 		if (ipc_get_device(&device, argv[1]) < 0) {
 			perror("Unable to access interface");
@@ -446,8 +455,12 @@ int show_main(int argc, char *argv[])
 		if (argc == 3) {
 			if (!ugly_print(device, argv[2], false))
 				ret = 1;
-		} else
-			pretty_print(device);
+		} else {
+			if (!peer_names_open(&names, device) && errno)
+				perror("peer_names_open");
+			pretty_print(device, &names);
+			peer_names_free(&names);
+		}
 		free_wgdevice(device);
 	}
 	return ret;
