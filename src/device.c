@@ -162,7 +162,7 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	__skb_queue_head_init(&packets);
 	if (!skb_is_gso(skb)) {
-		skb->next = NULL;
+		skb_mark_not_on_list(skb);
 	} else {
 		struct sk_buff *segs = skb_gso_segment(skb, 0);
 
@@ -175,7 +175,7 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	do {
 		next = skb->next;
-		skb->next = skb->prev = NULL;
+		skb_mark_not_on_list(skb);
 
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (unlikely(!skb))
