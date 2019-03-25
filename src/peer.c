@@ -7,7 +7,7 @@
 #include "device.h"
 #include "queueing.h"
 #include "timers.h"
-#include "hashtables.h"
+#include "peerlookup.h"
 #include "noise.h"
 
 #include <linux/kref.h>

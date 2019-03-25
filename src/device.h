@@ -8,7 +8,7 @@
 
 #include "noise.h"
 #include "allowedips.h"
-#include "hashtables.h"
+#include "peerlookup.h"
 #include "cookie.h"
 
 #include <linux/types.h>

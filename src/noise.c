@@ -8,7 +8,7 @@
 #include "peer.h"
 #include "messages.h"
 #include "queueing.h"
-#include "hashtables.h"
+#include "peerlookup.h"
 
 #include <linux/rcupdate.h>
 #include <linux/slab.h>

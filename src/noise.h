@@ -6,7 +6,7 @@
 #define _WG_NOISE_H
 
 #include "messages.h"
-#include "hashtables.h"
+#include "peerlookup.h"
 
 #include <linux/types.h>
 #include <linux/spinlock.h>

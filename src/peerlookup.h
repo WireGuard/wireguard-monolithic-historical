@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifndef _WG_HASHTABLES_H
-#define _WG_HASHTABLES_H
+#ifndef _WG_PEERLOOKUP_H
+#define _WG_PEERLOOKUP_H
 
 #include "messages.h"
 
@@ -61,4 +61,4 @@ wg_index_hashtable_lookup(struct index_hashtable *table,
 			  const enum index_hashtable_type type_mask,
 			  const __le32 index, struct wg_peer **peer);
 
-#endif /* _WG_HASHTABLES_H */
+#endif /* _WG_PEERLOOKUP_H */
