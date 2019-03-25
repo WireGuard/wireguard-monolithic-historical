@@ -6,7 +6,7 @@
 #include "allowedips.h"
 #include "peer.h"
 
-static __always_inline void swap_endian(u8 *dst, const u8 *src, u8 bits)
+static void swap_endian(u8 *dst, const u8 *src, u8 bits)
 {
 	if (bits == 32) {
 		*(u32 *)dst = be32_to_cpu(*(const __be32 *)src);
@@ -130,8 +130,8 @@ static unsigned int fls128(u64 a, u64 b)
 	return a ? fls64(a) + 64U : fls64(b);
 }
 
-static __always_inline u8 common_bits(const struct allowedips_node *node,
-				      const u8 *key, u8 bits)
+static u8 common_bits(const struct allowedips_node *node, const u8 *key,
+		      u8 bits)
 {
 	if (bits == 32)
 		return 32U - fls(*(const u32 *)node->bits ^ *(const u32 *)key);
@@ -142,8 +142,8 @@ static __always_inline u8 common_bits(const struct allowedips_node *node,
 	return 0;
 }
 
-static __always_inline bool prefix_matches(const struct allowedips_node *node,
-					   const u8 *key, u8 bits)
+static bool prefix_matches(const struct allowedips_node *node, const u8 *key,
+			   u8 bits)
 {
 	/* This could be much faster if it actually just compared the common
 	 * bits properly, by precomputing a mask bswap(~0 << (32 - cidr)), and
@@ -154,8 +154,8 @@ static __always_inline bool prefix_matches(const struct allowedips_node *node,
 	return common_bits(node, key, bits) >= node->cidr;
 }
 
-static __always_inline struct allowedips_node *
-find_node(struct allowedips_node *trie, u8 bits, const u8 *key)
+static struct allowedips_node *find_node(struct allowedips_node *trie, u8 bits,
+					 const u8 *key)
 {
 	struct allowedips_node *node = trie, *found = NULL;
 
@@ -170,8 +170,8 @@ find_node(struct allowedips_node *trie, u8 bits, const u8 *key)
 }
 
 /* Returns a strong reference to a peer */
-static __always_inline struct wg_peer *
-lookup(struct allowedips_node __rcu *root, u8 bits, const void *be_ip)
+static struct wg_peer *lookup(struct allowedips_node __rcu *root, u8 bits,
+			      const void *be_ip)
 {
 	/* Aligned so it can be passed to fls/fls64 */
 	u8 ip[16] __aligned(__alignof(u64));
