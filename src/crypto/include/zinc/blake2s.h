@@ -21,8 +21,8 @@ struct blake2s_state {
 	u32 t[2];
 	u32 f[2];
 	u8 buf[BLAKE2S_BLOCK_SIZE];
-	size_t buflen;
-	u8 last_node;
+	unsigned int buflen;
+	unsigned int outlen;
 };
 
 void blake2s_init(struct blake2s_state *state, const size_t outlen);
