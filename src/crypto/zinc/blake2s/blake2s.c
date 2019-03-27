@@ -194,10 +194,9 @@ void blake2s_update(struct blake2s_state *state, const u8 *in, size_t inlen)
 }
 EXPORT_SYMBOL(blake2s_update);
 
-void blake2s_final(struct blake2s_state *state, u8 *out, const size_t outlen)
+void blake2s_final(struct blake2s_state *state, u8 *out)
 {
-	WARN_ON(IS_ENABLED(DEBUG) &&
-		(!out || outlen < state->outlen));
+	WARN_ON(IS_ENABLED(DEBUG) && !out);
 	blake2s_set_lastblock(state);
 	memset(state->buf + state->buflen, 0,
 	       BLAKE2S_BLOCK_SIZE - state->buflen); /* Padding */
@@ -219,7 +218,7 @@ void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const size_t outlen,
 	if (keylen > BLAKE2S_BLOCK_SIZE) {
 		blake2s_init(&state, BLAKE2S_HASH_SIZE);
 		blake2s_update(&state, key, keylen);
-		blake2s_final(&state, x_key, BLAKE2S_HASH_SIZE);
+		blake2s_final(&state, x_key);
 	} else
 		memcpy(x_key, key, keylen);
 
@@ -229,7 +228,7 @@ void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const size_t outlen,
 	blake2s_init(&state, BLAKE2S_HASH_SIZE);
 	blake2s_update(&state, x_key, BLAKE2S_BLOCK_SIZE);
 	blake2s_update(&state, in, inlen);
-	blake2s_final(&state, i_hash, BLAKE2S_HASH_SIZE);
+	blake2s_final(&state, i_hash);
 
 	for (i = 0; i < BLAKE2S_BLOCK_SIZE; ++i)
 		x_key[i] ^= 0x5c ^ 0x36;
@@ -237,7 +236,7 @@ void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const size_t outlen,
 	blake2s_init(&state, BLAKE2S_HASH_SIZE);
 	blake2s_update(&state, x_key, BLAKE2S_BLOCK_SIZE);
 	blake2s_update(&state, i_hash, BLAKE2S_HASH_SIZE);
-	blake2s_final(&state, i_hash, BLAKE2S_HASH_SIZE);
+	blake2s_final(&state, i_hash);
 
 	memcpy(out, i_hash, outlen);
 	memzero_explicit(x_key, BLAKE2S_BLOCK_SIZE);

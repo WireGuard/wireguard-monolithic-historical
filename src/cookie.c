@@ -38,7 +38,7 @@ static void precompute_key(u8 key[NOISE_SYMMETRIC_KEY_LEN],
 	blake2s_init(&blake, NOISE_SYMMETRIC_KEY_LEN);
 	blake2s_update(&blake, label, COOKIE_KEY_LABEL_LEN);
 	blake2s_update(&blake, pubkey, NOISE_PUBLIC_KEY_LEN);
-	blake2s_final(&blake, key, NOISE_SYMMETRIC_KEY_LEN);
+	blake2s_final(&blake, key);
 }
 
 /* Must hold peer->handshake.static_identity->lock */
@@ -111,7 +111,7 @@ static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb,
 		blake2s_update(&state, (u8 *)&ipv6_hdr(skb)->saddr,
 			       sizeof(struct in6_addr));
 	blake2s_update(&state, (u8 *)&udp_hdr(skb)->source, sizeof(__be16));
-	blake2s_final(&state, cookie, COOKIE_LEN);
+	blake2s_final(&state, cookie);
 
 	up_read(&checker->secret_lock);
 }

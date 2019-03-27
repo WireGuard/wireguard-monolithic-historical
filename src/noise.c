@@ -40,7 +40,7 @@ void __init wg_noise_init(void)
 	blake2s_init(&blake, NOISE_HASH_LEN);
 	blake2s_update(&blake, handshake_init_chaining_key, NOISE_HASH_LEN);
 	blake2s_update(&blake, identifier_name, sizeof(identifier_name));
-	blake2s_final(&blake, handshake_init_hash, NOISE_HASH_LEN);
+	blake2s_final(&blake, handshake_init_hash);
 }
 
 /* Must hold peer->handshake.static_identity->lock */
@@ -389,7 +389,7 @@ static void mix_hash(u8 hash[NOISE_HASH_LEN], const u8 *src, size_t src_len)
 	blake2s_init(&blake, NOISE_HASH_LEN);
 	blake2s_update(&blake, hash, NOISE_HASH_LEN);
 	blake2s_update(&blake, src, src_len);
-	blake2s_final(&blake, hash, NOISE_HASH_LEN);
+	blake2s_final(&blake, hash);
 }
 
 static void mix_psk(u8 chaining_key[NOISE_HASH_LEN], u8 hash[NOISE_HASH_LEN],
