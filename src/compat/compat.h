@@ -811,6 +811,13 @@ static __always_inline void old_rcu_barrier(void)
 #define COMPAT_CANNOT_DEPRECIATE_BH_RCU
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 10)
+static inline void skb_mark_not_on_list(struct sk_buff *skb)
+{
+	skb->next = NULL;
+}
+#endif
+
 /* https://github.com/ClangBuiltLinux/linux/issues/7 */
 #if defined( __clang__) && (!defined(CONFIG_CLANG_VERSION) || CONFIG_CLANG_VERSION < 80000)
 #include <linux/bug.h>
