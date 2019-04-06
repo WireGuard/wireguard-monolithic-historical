@@ -108,7 +108,7 @@ static void walk_remove_by_peer(struct allowedips_node __rcu **top,
 			if (rcu_dereference_protected(node->peer,
 				lockdep_is_held(lock)) == peer) {
 				RCU_INIT_POINTER(node->peer, NULL);
-				list_del(&node->peer_list);
+				list_del_init(&node->peer_list);
 				if (!node->bit[0] || !node->bit[1]) {
 					rcu_assign_pointer(*nptr, DEREF(
 					       &node->bit[!REF(node->bit[0])]));

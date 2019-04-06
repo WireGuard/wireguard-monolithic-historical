@@ -485,6 +485,10 @@ n0 wg set wg0 peer "$pub2"
 [[ $(n0 wg show wg0 peers) == "$pub2" ]]
 n0 wg set wg0 private-key <(echo "/${key1:1}")
 [[ $(n0 wg show wg0 private-key) == "+${key1:1}" ]]
+n0 wg set wg0 peer "$pub2" allowed-ips 0.0.0.0/0,10.0.0.0/8,100.0.0.0/10,172.16.0.0/12,192.168.0.0/16
+n0 wg set wg0 peer "$pub2" allowed-ips 0.0.0.0/0
+n0 wg set wg0 peer "$pub2" allowed-ips ::/0,1700::/111,5000::/4,e000::/37,9000::/75
+n0 wg set wg0 peer "$pub2" allowed-ips ::/0
 ip0 link del wg0
 
 declare -A objects
