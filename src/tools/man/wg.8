@@ -143,12 +143,12 @@ and may be omitted. This option adds an additional layer of symmetric-key
 cryptography to be mixed into the already existing public-key cryptography,
 for post-quantum resistance.
 .IP \(bu
-AllowedIPs \(em a comma-separated list of IP (v4 or v6) addresses with
-CIDR masks from which incoming traffic for this peer is allowed and to
-which outgoing traffic for this peer is directed. The catch-all
-\fI0.0.0.0/0\fP may be specified for matching all IPv4 addresses, and
-\fI::/0\fP may be specified for matching all IPv6 addresses. May be specified
-multiple times.
+AllowedIPs \(em a comma-separated list of IP (v4 or v6) addresses with CIDR
+masks. Outgoing packets will be sent to the peer whose AllowedIPs contain the
+destination address. (If there are multiple matches, the one with the longest
+matching prefix is chosen.) Incoming packets are only accepted if traffic to
+their source IP would be sent to the same peer. May be specified multiple
+times.
 .IP \(bu
 Endpoint \(em an endpoint IP or hostname, followed by a colon, and then a
 port number. This endpoint will be updated automatically to the most recent
