@@ -84,7 +84,9 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 	inet_sk(sock->sk)->mc_loop = 0;
 	encap_rcv = cfg->encap_rcv;
 	rcu_assign_sk_user_data(sock->sk, cfg->sk_user_data);
-	sock->sk->sk_data_ready = our_sk_data_ready;
+	/* We force the cast in this awful way, due to various Android kernels
+	 * backporting things stupidly. */
+	*(void **)&sock->sk->sk_data_ready = (void *)our_sk_data_ready;
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
