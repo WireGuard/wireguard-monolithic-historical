@@ -137,18 +137,30 @@ del_routes() {
 	done
 }
 
+if_exists() {
+	# HACK: The goal is simply to determine whether or not the interface exists. The
+	# straight-forward way of doing this would be `ifconfig $INTERFACE`, but this
+	# invokes the SIOCGIFSTATUS ioctl, which races with interface shutdown inside
+	# the tun driver, resulting in a kernel panic. So we work around it the stupid
+	# way by using the one utility that appears to call if_nametoindex fairly early
+	# and fails if it doesn't exist: `arp`.
+	if arp -i "$INTERFACE" -a -n >/dev/null 2>&1; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 del_if() {
-	local line monitor_pid
 	[[ $HAVE_SET_DNS -eq 0 ]] || unset_dns
-	exec 39< <(exec route -n monitor 2>/dev/null)
-	monitor_pid=$!
 	cmd rm -f "/var/run/wireguard/$INTERFACE.sock"
-	while ifconfig "$INTERFACE" >/dev/null 2>&1; do
-		while read -r line; do
-			[[ $line =~ ^RTM_IFANNOUNCE:.* ]] && break
-		done <&39
+	while if_exists; do
+		# HACK: it would be nice to `route monitor` here and wait for RTM_IFANNOUNCE
+		# but it turns out that the announcement is made before the interface
+		# disappears so we sometimes get a hang. So, we're instead left with polling
+		# in a sleep loop like this.
+		sleep 0.1
 	done
-	kill $monitor_pid
 }
 
 up_if() {
@@ -274,7 +286,8 @@ monitor_daemon() {
 	# endpoints change.
 	while read -r event; do
 		[[ $event == RTM_* ]] || continue
-		ifconfig "$INTERFACE" >/dev/null 2>&1 || break
+		[[ -e /var/run/wireguard/$INTERFACE.sock ]] || break
+		if_exists || break
 		[[ $AUTO_ROUTE4 -eq 1 || $AUTO_ROUTE6 -eq 1 ]] && set_endpoint_direct_route
 		# TODO: set the mtu as well, but only if up
 	done < <(route -n monitor)) & disown
