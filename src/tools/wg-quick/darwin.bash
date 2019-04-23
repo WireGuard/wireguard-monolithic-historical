@@ -47,7 +47,8 @@ parse_options() {
 	CONFIG_FILE="$1"
 	if [[ $CONFIG_FILE =~ ^[a-zA-Z0-9_=+.-]{1,15}$ ]]; then
 		for path in "${CONFIG_SEARCH_PATHS[@]}"; do
-			[[ -e $path/$CONFIG_FILE.conf ]] && { CONFIG_FILE="$path/$CONFIG_FILE.conf"; break; }
+			CONFIG_FILE="$path/$1.conf"
+			[[ -e $CONFIG_FILE ]] && break
 		done
 	fi
 	[[ -e $CONFIG_FILE ]] || die "\`$CONFIG_FILE' does not exist"
