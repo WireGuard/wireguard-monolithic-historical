@@ -1005,13 +1005,8 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 	struct wgdevice *dev = calloc(1, sizeof(*dev));
 	strlcpy(dev->name, interface, sizeof(dev->name));
 
-	if (wgs.gs_ip.sa.sa_family != AF_UNSPEC) {
-		if (wgs.gs_ip.sa.sa_family == AF_INET)
-			dev->listen_port = ntohs(wgs.gs_ip.ip_in.sin_port);
-		else if (wgs.gs_ip.sa.sa_family == AF_INET6)
-			dev->listen_port = ntohs(wgs.gs_ip.ip_in6.sin6_port);
-		else
-			return -1;
+	if (wgs.gs_port != 0) {
+		dev->listen_port = wgs.gs_port;
 		dev->flags |= WGDEVICE_HAS_LISTEN_PORT;
 	}
 
@@ -1096,7 +1091,7 @@ static int openbsd_set_device(struct wgdevice *dev)
 	struct wgpeer *peer;
 	struct wgallowedip *aip;
 
-	strlcpy(wss.s_name, dev->name, sizeof(wss.s_name));
+	strlcpy(wss.ss_name, dev->name, sizeof(wss.ss_name));
 	strlcpy(wsp.sp_name, dev->name, sizeof(wsp.sp_name));
 
 	getsock();
@@ -1108,11 +1103,8 @@ static int openbsd_set_device(struct wgdevice *dev)
 	}
 
 	if (dev->flags & WGDEVICE_HAS_LISTEN_PORT) {
-		wss.ss_ip.ip_in.sin_family = AF_INET;
-		bzero(&wss.ss_ip.ip_in.sin_addr,
-		    sizeof(wss.ss_ip.ip_in.sin_addr));
-		wss.ss_ip.ip_in.sin_port = htons(dev->listen_port);
-		if (ioctl(s, SIOCSWGSERVIP, (caddr_t)&wss) == -1)
+		wss.ss_port = dev->listen_port;
+		if (ioctl(s, SIOCSWGSERVPORT, (caddr_t)&wss) == -1)
 			return -1;
 	}
 
@@ -1121,7 +1113,8 @@ static int openbsd_set_device(struct wgdevice *dev)
 	}
 
 	if (dev->flags & WGDEVICE_REPLACE_PEERS)
-		printf("Replace peers not supported\n");
+		if (ioctl(s, SIOCCWGPEERS, (caddr_t)&wss) == -1)
+			return -1;
 
 	for_each_wgpeer(dev, peer) {
 		memcpy(wsp.sp_pubkey, peer->public_key, WG_KEY_SIZE);
@@ -1149,7 +1142,8 @@ static int openbsd_set_device(struct wgdevice *dev)
 		if (peer->flags & WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL)
 			printf("Persistent keepalive not supported\n");
 		if (peer->flags & WGPEER_REPLACE_ALLOWEDIPS)
-			printf("Replace allowedips not supported\n");
+			if (ioctl(s, SIOCCWGPEERAIP, (caddr_t)&wsp) == -1)
+				return -1;
 
 		for_each_wgallowedip(peer, aip) {
 			wsp.sp_aip.sa.sa_family = aip->family;
