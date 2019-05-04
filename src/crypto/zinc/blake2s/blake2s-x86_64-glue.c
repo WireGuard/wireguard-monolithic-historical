@@ -8,22 +8,22 @@
 #include <asm/processor.h>
 #include <asm/fpu/api.h>
 
-asmlinkage void blake2s_compress_avx(struct blake2s_state *state,
+asmlinkage void blake2s_compress_ssse3(struct blake2s_state *state,
 				     const u8 *block, const size_t nblocks,
 				     const u32 inc);
 asmlinkage void blake2s_compress_avx512(struct blake2s_state *state,
 					const u8 *block, const size_t nblocks,
 					const u32 inc);
 
-static bool blake2s_use_avx __ro_after_init;
+static bool blake2s_use_ssse3 __ro_after_init;
 static bool blake2s_use_avx512 __ro_after_init;
 static bool *const blake2s_nobs[] __initconst = { &blake2s_use_avx512 };
 
 static void __init blake2s_fpu_init(void)
 {
-	blake2s_use_avx =
-		boot_cpu_has(X86_FEATURE_AVX) &&
-		cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
+	blake2s_use_ssse3 =
+		boot_cpu_has(X86_FEATURE_SSSE3) &&
+		cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL);
 #ifndef COMPAT_CANNOT_USE_AVX512
 	blake2s_use_avx512 =
 		boot_cpu_has(X86_FEATURE_AVX) &&
@@ -47,7 +47,7 @@ static inline bool blake2s_compress_arch(struct blake2s_state *state,
 
 	simd_get(&simd_context);
 
-	if (!IS_ENABLED(CONFIG_AS_AVX) || !blake2s_use_avx ||
+	if (!IS_ENABLED(CONFIG_AS_SSSE3) || !blake2s_use_ssse3 ||
 	    !simd_use(&simd_context))
 		goto out;
 	used_arch = true;
@@ -59,7 +59,7 @@ static inline bool blake2s_compress_arch(struct blake2s_state *state,
 		if (IS_ENABLED(CONFIG_AS_AVX512) && blake2s_use_avx512)
 			blake2s_compress_avx512(state, block, blocks, inc);
 		else
-			blake2s_compress_avx(state, block, blocks, inc);
+			blake2s_compress_ssse3(state, block, blocks, inc);
 
 		nblocks -= blocks;
 		if (!nblocks)

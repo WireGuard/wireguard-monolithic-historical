@@ -525,15 +525,15 @@ $code.=<<___;
 1:
 ___
 	&SSSE3ROUND();
-	&pshufd	($c,$c,0b01001110);
-	&pshufd	($b,$b,0b00111001);
-	&pshufd	($d,$d,0b10010011);
+	&pshufd	($a,$a,0b10010011);
+	&pshufd	($d,$d,0b01001110);
+	&pshufd	($c,$c,0b00111001);
 	&nop	();
 
 	&SSSE3ROUND();
-	&pshufd	($c,$c,0b01001110);
-	&pshufd	($b,$b,0b10010011);
-	&pshufd	($d,$d,0b00111001);
+	&pshufd	($a,$a,0b00111001);
+	&pshufd	($d,$d,0b01001110);
+	&pshufd	($c,$c,0b10010011);
 
 	&dec	($counter);
 	&jnz	("1b");
@@ -600,15 +600,15 @@ $code.=<<___;
 .Loop_ssse3:
 ___
 	&SSSE3ROUND();
-	&pshufd	($c,$c,0b01001110);
-	&pshufd	($b,$b,0b00111001);
-	&pshufd	($d,$d,0b10010011);
+	&pshufd	($a,$a,0b10010011);
+	&pshufd	($d,$d,0b01001110);
+	&pshufd	($c,$c,0b00111001);
 	&nop	();
 
 	&SSSE3ROUND();
-	&pshufd	($c,$c,0b01001110);
-	&pshufd	($b,$b,0b10010011);
-	&pshufd	($d,$d,0b00111001);
+	&pshufd	($a,$a,0b00111001);
+	&pshufd	($d,$d,0b01001110);
+	&pshufd	($c,$c,0b10010011);
 
 	&dec	($counter);
 	&jnz	(".Loop_ssse3");
@@ -770,20 +770,20 @@ $code.=<<___;
 .Loop_128:
 ___
 	&SSSE3ROUND_2x();
-	&pshufd	($c,$c,0b01001110);
-	&pshufd	($b,$b,0b00111001);
-	&pshufd	($d,$d,0b10010011);
-	&pshufd	($c1,$c1,0b01001110);
-	&pshufd	($b1,$b1,0b00111001);
-	&pshufd	($d1,$d1,0b10010011);
+	&pshufd	($a,$a,0b10010011);
+	&pshufd	($d,$d,0b01001110);
+	&pshufd	($c,$c,0b00111001);
+	&pshufd	($a1,$a1,0b10010011);
+	&pshufd	($d1,$d1,0b01001110);
+	&pshufd	($c1,$c1,0b00111001);
 
 	&SSSE3ROUND_2x();
-	&pshufd	($c,$c,0b01001110);
-	&pshufd	($b,$b,0b10010011);
-	&pshufd	($d,$d,0b00111001);
-	&pshufd	($c1,$c1,0b01001110);
-	&pshufd	($b1,$b1,0b10010011);
-	&pshufd	($d1,$d1,0b00111001);
+	&pshufd	($a,$a,0b00111001);
+	&pshufd	($d,$d,0b01001110);
+	&pshufd	($c,$c,0b10010011);
+	&pshufd	($a1,$a1,0b00111001);
+	&pshufd	($d1,$d1,0b01001110);
+	&pshufd	($c1,$c1,0b10010011);
 
 	&dec	($counter);
 	&jnz	(".Loop_128");
