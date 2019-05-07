@@ -778,6 +778,9 @@ struct __kernel_timespec {
 #define skb_probe_transport_header(a) skb_probe_transport_header(a, 0)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0) && !defined(ISRHEL7)
+#define ignore_df local_df
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
 /* Note that all intentional uses of the non-_bh variety need to explicitly
