@@ -13,6 +13,9 @@
 #include <asm/fpu/api.h>
 #elif defined(CONFIG_KERNEL_MODE_NEON)
 #include <asm/neon.h>
+#elif defined(CONFIG_ALTIVEC) || defined(CONFIG_VSX)
+#include <asm/switch_to.h>
+#include <asm/cputable.h>
 #endif
 
 typedef enum {
@@ -30,13 +33,24 @@ static inline void simd_get(simd_context_t *ctx)
 
 static inline void simd_put(simd_context_t *ctx)
 {
+        if (*ctx & HAVE_SIMD_IN_USE) {
 #if defined(CONFIG_X86_64)
-	if (*ctx & HAVE_SIMD_IN_USE)
 		kernel_fpu_end();
 #elif defined(CONFIG_KERNEL_MODE_NEON)
-	if (*ctx & HAVE_SIMD_IN_USE)
 		kernel_neon_end();
+#elif defined(CONFIG_PPC32) || defined(CONFIG_PPC64)
+		if (cpu_has_feature(CPU_FTR_VSX_COMP)) {
+			disable_kernel_vsx();
+			preempt_enable();
+		} else if (cpu_has_feature(CPU_FTR_ALTIVEC_COMP)) {
+			disable_kernel_altivec();
+			preempt_enable();
+		} else if (!cpu_has_feature(CPU_FTR_FPU_UNAVAILABLE)) {
+			disable_kernel_fp();
+			preempt_enable();
+		}
 #endif
+	}
 	*ctx = HAVE_NO_SIMD;
 }
 
@@ -62,6 +76,17 @@ static __must_check inline bool simd_use(simd_context_t *ctx)
 	kernel_fpu_begin();
 #elif defined(CONFIG_KERNEL_MODE_NEON)
 	kernel_neon_begin();
+#elif defined(CONFIG_PPC32) || defined(CONFIG_PPC64)
+		if (cpu_has_feature(CPU_FTR_VSX_COMP)) {
+			preempt_disable();
+			enable_kernel_vsx();
+		} else if (cpu_has_feature(CPU_FTR_ALTIVEC_COMP)) {
+			preempt_disable();
+			enable_kernel_altivec();
+		} else if (!cpu_has_feature(CPU_FTR_FPU_UNAVAILABLE)) {
+			preempt_disable();
+			enable_kernel_fp();
+		}
 #endif
 	*ctx |= HAVE_SIMD_IN_USE;
 	return true;
