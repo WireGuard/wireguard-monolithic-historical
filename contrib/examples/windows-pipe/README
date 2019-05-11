@@ -1,0 +1,5 @@
+Connecting to the Windows tunnel service
+========================================
+
+Porting wg(8) to Windows will require a bit of work. So, in the meantime,
+here's a small example of how to enumerate and connect to the named pipe.
