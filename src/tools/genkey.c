@@ -28,6 +28,7 @@
 #include "encoding.h"
 #include "subcommands.h"
 
+#ifndef WINCOMPAT
 static inline bool __attribute__((__warn_unused_result__)) get_random_bytes(uint8_t *out, size_t len)
 {
 	ssize_t ret = 0;
@@ -63,6 +64,9 @@ static inline bool __attribute__((__warn_unused_result__)) get_random_bytes(uint
 	errno = -ret;
 	return i == len;
 }
+#else
+#include "wincompat/getrandom.c"
+#endif
 
 int genkey_main(int argc, char *argv[])
 {
