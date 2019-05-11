@@ -36,6 +36,8 @@ zinc-$(CONFIG_ZINC_ARCH_ARM64) += poly1305/poly1305-arm64.o
 zinc-$(CONFIG_ZINC_ARCH_MIPS) += poly1305/poly1305-mips.o
 AFLAGS_poly1305-mips.o += -O2 # This is required to fill the branch delay slots
 zinc-$(CONFIG_ZINC_ARCH_MIPS64) += poly1305/poly1305-mips64.o
+zinc-$(CONFIG_ZINC_ARCH_PPC32) += poly1305/poly1305-ppc.o
+zinc-$(CONFIG_ZINC_ARCH_PPC64) += poly1305/poly1305-ppc.o
 
 zinc-y += chacha20poly1305.o
 
@@ -46,16 +48,16 @@ zinc-y += curve25519/curve25519.o
 zinc-$(CONFIG_ZINC_ARCH_ARM) += curve25519/curve25519-arm.o
 
 quiet_cmd_perlasm = PERLASM $@
-      cmd_perlasm = $(PERL) $< $(perlflags-y) > $@
+      cmd_perlasm = $(PERL) $(perlflags-y) $< $(perlargs-y) > $@
 $(obj)/%.S: $(src)/%.pl FORCE
 	$(call if_changed,perlasm)
 kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
 targets := $(patsubst $(kbuild-dir)/%.pl,%.S,$(wildcard $(patsubst %.o,$(kbuild-dir)/crypto/zinc/%.pl,$(zinc-y) $(zinc-m) $(zinc-))))
 
-perlflags-$(CONFIG_ZINC_ARCH_PPC32) += linux32
+perlargs-$(CONFIG_ZINC_ARCH_PPC32) += linux32
 ifeq ($(CONFIG_ZINC_ARCH_PPC64),y)
-perlflags-$(CONFIG_CPU_BIG_ENDIAN) += linux64
-perlflags-$(CONFIG_CPU_LITTLE_ENDIAN) += linux64le
+perlargs-$(CONFIG_CPU_BIG_ENDIAN) += linux64
+perlargs-$(CONFIG_CPU_LITTLE_ENDIAN) += linux64le
 endif
 
 # Old kernels don't set this, which causes trouble.

@@ -6,6 +6,8 @@
 # The original headers, including the original license headers, are
 # included below for completeness.
 #
+# Changes: search in more places for ppc-xlate.pl
+#
 # Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -73,6 +75,7 @@ $LITTLE_ENDIAN = ($flavour=~/le$/) ? 1 : 0;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}ppc-xlate.pl" and -f $xlate ) or
+( $xlate="${dir}../perlasm/ppc-xlate.pl" and -f $xlate) or
 ( $xlate="${dir}../../perlasm/ppc-xlate.pl" and -f $xlate) or
 die "can't locate ppc-xlate.pl";
 
