@@ -821,6 +821,14 @@ static inline void skb_mark_not_on_list(struct sk_buff *skb)
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0)
+#define NLA_EXACT_LEN NLA_UNSPEC
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0)
+#define NLA_MIN_LEN NLA_UNSPEC
+#define COMPAT_CANNOT_INDIVIDUAL_NETLINK_OPS_POLICY
+#endif
+
 /* https://github.com/ClangBuiltLinux/linux/issues/7 */
 #if defined( __clang__) && (!defined(CONFIG_CLANG_VERSION) || CONFIG_CLANG_VERSION < 80000)
 #include <linux/bug.h>
