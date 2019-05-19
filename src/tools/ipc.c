@@ -1015,6 +1015,11 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 		dev->flags |= WGDEVICE_HAS_PUBLIC_KEY;
 	}
 
+	if (!IS_NULL_KEY(wgs.gs_privkey)) {
+		memcpy(dev->private_key, wgs.gs_privkey, WG_KEY_SIZE);
+		dev->flags |= WGDEVICE_HAS_PRIVATE_KEY;
+	}
+
 	dev->first_peer = dev->last_peer = NULL;
 
 	for (size_t i = 0; i < wgs.gs_num_peers; i++) {
