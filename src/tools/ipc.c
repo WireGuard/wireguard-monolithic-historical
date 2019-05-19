@@ -1063,7 +1063,7 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 		peer->rx_bytes = wgp.gp_rx_bytes;
 		peer->tx_bytes = wgp.gp_tx_bytes;
 
-		union wg_ip *ip = wgp.gp_aip;
+		struct wg_cidr *ip = wgp.gp_aip;
 		for (size_t j = 0; j < wgp.gp_num_aip; j++) {
 			struct wgallowedip *aip = calloc(1, sizeof(*aip));
 			if (peer->first_allowedip == NULL)
@@ -1072,15 +1072,13 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 				peer->last_allowedip->next_allowedip = aip;
 			peer->last_allowedip = aip;
 
-			aip->family = ip[j].sa.sa_family;
-			if (ip[j].sa.sa_family == AF_INET) {
-				memcpy(&aip->ip4, &ip[j].ip_in.sin_addr,
-				    sizeof(aip->ip4));
-				aip->cidr = ip[j].ip_in.sin_port;
-			} else if (ip[j].sa.sa_family == AF_INET6) {
-				memcpy(&aip->ip6, &ip[j].ip_in6.sin6_addr,
-				    sizeof(aip->ip6));
-				aip->cidr = ip[j].ip_in6.sin6_port;
+			aip->family = ip[j].c_af;
+			if (ip[j].c_af == AF_INET) {
+				memcpy(&aip->ip4, &ip[j].c_ip, sizeof(aip->ip4));
+				aip->cidr = ip[j].c_mask;
+			} else if (ip[j].c_af == AF_INET6) {
+				memcpy(&aip->ip6, &ip[j].c_ip, sizeof(aip->ip6));
+				aip->cidr = ip[j].c_mask;
 			}
 		}
 	}
@@ -1151,16 +1149,14 @@ static int openbsd_set_device(struct wgdevice *dev)
 				return -1;
 
 		for_each_wgallowedip(peer, aip) {
-			wsp.sp_aip.sa.sa_family = aip->family;
+			wsp.sp_aip.c_af = aip->family;
 
 			if (aip->family == AF_INET) {
-				memcpy(&wsp.sp_aip.ip_in.sin_addr,
-				    &aip->ip4,  sizeof(aip->ip4));
-				wsp.sp_aip.ip_in.sin_port = aip->cidr;
+				memcpy(&wsp.sp_aip.c_ip, &aip->ip4, sizeof(aip->ip4));
+				wsp.sp_aip.c_mask = aip->cidr;
 			} else if (aip->family == AF_INET6) {
-				memcpy(&wsp.sp_aip.ip_in6.sin6_addr,
-				    &aip->ip6,  sizeof(aip->ip6));
-				wsp.sp_aip.ip_in6.sin6_port = aip->cidr;
+				memcpy(&wsp.sp_aip.c_ip, &aip->ip6, sizeof(aip->ip6));
+				wsp.sp_aip.c_mask = aip->cidr;
 			} else {
 				return -1;
 			}
