@@ -1051,6 +1051,11 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 			peer->flags |= WGPEER_HAS_PRESHARED_KEY;
 		}
 
+		if (wgp.gp_pka != 0) {
+			peer->persistent_keepalive_interval = wgp.gp_pka;
+			peer->flags |= WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL;
+		}
+
 		if (wgp.gp_ip.sa.sa_family != AF_UNSPEC)
 			memcpy(&peer->endpoint.addr, &wgp.gp_ip.sa,
 			    wgp.gp_ip.sa.sa_len);
@@ -1142,8 +1147,12 @@ static int openbsd_set_device(struct wgdevice *dev)
 				return -1;
 		}
 
-		if (peer->flags & WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL)
-			printf("Persistent keepalive not supported\n");
+		if (peer->flags & WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL) {
+			wsp.sp_pka = peer->persistent_keepalive_interval;
+			if (ioctl(s, SIOCSWGPEERPKA, (caddr_t)&wsp) == -1)
+				return -1;
+		}
+
 		if (peer->flags & WGPEER_REPLACE_ALLOWEDIPS)
 			if (ioctl(s, SIOCCWGPEERAIP, (caddr_t)&wsp) == -1)
 				return -1;
