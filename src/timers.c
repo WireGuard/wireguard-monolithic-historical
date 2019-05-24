@@ -17,7 +17,8 @@
  * not sent one for `KEEPALIVE_TIMEOUT` ms.
  *
  * - Timer for initiating new handshake if we have sent a packet but after have
- * not received one (even empty) for `(KEEPALIVE_TIMEOUT + REKEY_TIMEOUT)` ms.
+ * not received one (even empty) for `(KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) +
+ * jitter` ms.
  *
  * - Timer for zeroing out all ephemeral keys after `(REJECT_AFTER_TIME * 3)` ms
  * if no new keys have been received.
@@ -145,7 +146,8 @@ void wg_timers_data_sent(struct wg_peer *peer)
 {
 	if (!timer_pending(&peer->timer_new_handshake))
 		mod_peer_timer(peer, &peer->timer_new_handshake,
-			jiffies + (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) * HZ);
+			jiffies + (KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) * HZ +
+			prandom_u32_max(REKEY_TIMEOUT_JITTER_MAX_JIFFIES));
 }
 
 /* Should be called after an authenticated data packet is received. */
