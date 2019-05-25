@@ -8,37 +8,37 @@ ccflags-y += -include $(kbuild-dir)/compat/compat.h
 asflags-y += -include $(kbuild-dir)/compat/compat-asm.h
 
 ifeq ($(wildcard $(srctree)/include/linux/ptr_ring.h),)
-ccflags-y += -I$(src)/compat/ptr_ring/include
+ccflags-y += -I$(kbuild-dir)/compat/ptr_ring/include
 endif
 
 ifeq ($(wildcard $(srctree)/include/linux/siphash.h),)
-ccflags-y += -I$(src)/compat/siphash/include
+ccflags-y += -I$(kbuild-dir)/compat/siphash/include
 wireguard-y += compat/siphash/siphash.o
 endif
 
 ifeq ($(wildcard $(srctree)/include/net/dst_cache.h),)
-ccflags-y += -I$(src)/compat/dst_cache/include
+ccflags-y += -I$(kbuild-dir)/compat/dst_cache/include
 wireguard-y += compat/dst_cache/dst_cache.o
 endif
 
 ifeq ($(wildcard $(srctree)/arch/x86/include/asm/intel-family.h)$(CONFIG_X86),y)
-ccflags-y += -I$(src)/compat/intel-family-x86/include
+ccflags-y += -I$(kbuild-dir)/compat/intel-family-x86/include
 endif
 
 ifeq ($(wildcard $(srctree)/arch/x86/include/asm/fpu/api.h)$(CONFIG_X86),y)
-ccflags-y += -I$(src)/compat/fpu-x86/include
+ccflags-y += -I$(kbuild-dir)/compat/fpu-x86/include
 endif
 
 ifeq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/simd.h)$(shell grep -s -F "generic-y += simd.h" "$(srctree)/arch/$(SRCARCH)/Kbuild" "$(srctree)/arch/$(SRCARCH)/Makefile"),)
-ccflags-y += -I$(src)/compat/simd-asm/include
+ccflags-y += -I$(kbuild-dir)/compat/simd-asm/include
 endif
 
 ifeq ($(wildcard $(srctree)/include/linux/simd.h),)
-ccflags-y += -I$(src)/compat/simd/include
+ccflags-y += -I$(kbuild-dir)/compat/simd/include
 endif
 
 ifeq ($(wildcard $(srctree)/include/net/udp_tunnel.h),)
-ccflags-y += -I$(src)/compat/udp_tunnel/include
+ccflags-y += -I$(kbuild-dir)/compat/udp_tunnel/include
 wireguard-y += compat/udp_tunnel/udp_tunnel.o
 endif
 
@@ -48,10 +48,10 @@ wireguard-y += compat/memneq/memneq.o
 endif
 
 ifeq ($(wildcard $(srctree)/arch/arm/include/asm/neon.h)$(CONFIG_ARM),y)
-ccflags-y += -I$(src)/compat/neon-arm/include
+ccflags-y += -I$(kbuild-dir)/compat/neon-arm/include
 endif
 ifeq ($(wildcard $(srctree)/arch/arm64/include/asm/neon.h)$(CONFIG_ARM64),y)
-ccflags-y += -I$(src)/compat/neon-arm/include
+ccflags-y += -I$(kbuild-dir)/compat/neon-arm/include
 endif
 
 ifeq ($(CONFIG_X86_64),y)

@@ -48,7 +48,7 @@ targets := $(patsubst $(kbuild-dir)/%.pl,%.S,$(wildcard $(patsubst %.o,$(kbuild-
 .SECONDARY:
 
 wireguard-y += $(addprefix crypto/zinc/,$(zinc-y))
-ccflags-y += -I$(src)/crypto/include
+ccflags-y += -I$(kbuild-dir)/crypto/include
 ccflags-$(CONFIG_ZINC_ARCH_X86_64) += -DCONFIG_ZINC_ARCH_X86_64
 ccflags-$(CONFIG_ZINC_ARCH_ARM) += -DCONFIG_ZINC_ARCH_ARM
 ccflags-$(CONFIG_ZINC_ARCH_ARM64) += -DCONFIG_ZINC_ARCH_ARM64
