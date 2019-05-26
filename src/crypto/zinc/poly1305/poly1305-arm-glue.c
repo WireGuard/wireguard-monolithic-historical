@@ -20,7 +20,7 @@ static bool *const poly1305_nobs[] __initconst = { &poly1305_use_neon };
 static void __init poly1305_fpu_init(void)
 {
 #if defined(CONFIG_ZINC_ARCH_ARM64)
-	poly1305_use_neon = elf_hwcap & HWCAP_ASIMD;
+	poly1305_use_neon = cpu_have_named_feature(ASIMD);
 #elif defined(CONFIG_ZINC_ARCH_ARM)
 	poly1305_use_neon = elf_hwcap & HWCAP_NEON;
 #endif

@@ -829,6 +829,10 @@ static inline void skb_mark_not_on_list(struct sk_buff *skb)
 #define COMPAT_CANNOT_INDIVIDUAL_NETLINK_OPS_POLICY
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0) && defined(__aarch64__)
+#define cpu_have_named_feature(name) (elf_hwcap & (HWCAP_ ## name))
+#endif
+
 /* https://github.com/ClangBuiltLinux/linux/issues/7 */
 #if defined( __clang__) && (!defined(CONFIG_CLANG_VERSION) || CONFIG_CLANG_VERSION < 80000)
 #include <linux/bug.h>
