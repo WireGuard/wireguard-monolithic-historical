@@ -174,11 +174,29 @@ static inline bool parse_ip(struct wgallowedip *allowedip, const char *value)
 	return true;
 }
 
+static inline int parse_dns_retries(void)
+{
+	unsigned long ret;
+	char *retries = getenv("WG_ENDPOINT_RESOLUTION_RETRIES"), *end;
+
+	if (!retries)
+		return 15;
+	if (!strcmp(retries, "infinity"))
+		return -1;
+
+	ret = strtoul(retries, &end, 10);
+	if (*end || ret > INT_MAX) {
+		fprintf(stderr, "Unable to parse WG_ENDPOINT_RESOLUTION_RETRIES: `%s'\n", retries);
+		exit(1);
+	}
+	return (int)ret;
+}
+
 static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 {
 	char *mutable = strdup(value);
 	char *begin, *end;
-	int ret;
+	int ret, retries = parse_dns_retries();
 	struct addrinfo *resolved;
 	struct addrinfo hints = {
 		.ai_family = AF_UNSPEC,
@@ -219,11 +237,11 @@ static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 		*end++ = '\0';
 	}
 
-	for (unsigned int timeout = 1000000;;) {
+	#define min(a, b) ((a) < (b) ? (a) : (b))
+	for (unsigned int timeout = 1000000;; timeout = min(20000000, timeout * 6 / 5)) {
 		ret = getaddrinfo(begin, end, &hints, &resolved);
 		if (!ret)
 			break;
-		timeout = timeout * 3 / 2;
 		/* The set of return codes that are "permanent failures". All other possibilities are potentially transient.
 		 *
 		 * This is according to https://sourceware.org/glibc/wiki/NameResolver which states:
@@ -238,7 +256,7 @@ static inline bool parse_endpoint(struct sockaddr *endpoint, const char *value)
 			#ifdef EAI_NODATA
 				ret == EAI_NODATA ||
 			#endif
-				timeout >= 90000000) {
+				(retries >= 0 && !retries--)) {
 			free(mutable);
 			fprintf(stderr, "%s: `%s'\n", ret == EAI_SYSTEM ? strerror(errno) : gai_strerror(ret), value);
 			return false;

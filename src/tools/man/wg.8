@@ -211,6 +211,9 @@ If set to \fIalways\fP, always print ANSI colorized output. If set to \fInever\f
 .TP
 .I WG_HIDE_KEYS
 If set to \fInever\fP, then the pretty-printing \fBshow\fP sub-command will show private and preshared keys in the output. If set to \fIalways\fP, something invalid, or unset, then private and preshared keys will be printed as "(hidden)".
+.TP
+.I WG_ENDPOINT_RESOLUTION_RETRIES
+If set to an integer or to \fIinfinity\fP, DNS resolution for each peer's endpoint will be retried that many times for non-permanent errors, with an increasing delay between retries. If unset, the default is 15 retries.
 
 .SH SEE ALSO
 .BR ip (8),
