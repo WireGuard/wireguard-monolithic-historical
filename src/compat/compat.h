@@ -599,7 +599,7 @@ static int wg_get_device_dump_real(a, b)
 #include <asm/xcr.h>
 static inline int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
 {
-	return xgetbv(XCR_XFEATURE_ENABLED_MASK) & xfeatures_needed;
+	return boot_cpu_has(X86_FEATURE_XSAVE) && xgetbv(XCR_XFEATURE_ENABLED_MASK) & xfeatures_needed;
 }
 #endif
 #ifndef XFEATURE_MASK_YMM
