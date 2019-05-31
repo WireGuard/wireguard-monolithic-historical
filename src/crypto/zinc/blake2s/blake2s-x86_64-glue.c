@@ -21,9 +21,7 @@ static bool *const blake2s_nobs[] __initconst = { &blake2s_use_avx512 };
 
 static void __init blake2s_fpu_init(void)
 {
-	blake2s_use_ssse3 =
-		boot_cpu_has(X86_FEATURE_SSSE3) &&
-		cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL);
+	blake2s_use_ssse3 = boot_cpu_has(X86_FEATURE_SSSE3);
 #ifndef COMPAT_CANNOT_USE_AVX512
 	blake2s_use_avx512 =
 		boot_cpu_has(X86_FEATURE_AVX) &&
