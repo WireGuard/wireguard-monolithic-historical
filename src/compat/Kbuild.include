@@ -75,4 +75,14 @@ ifeq ($(CONFIG_X86_64),y)
 		ccflags-y += $(avx512_instr)
 		asflags-y += $(avx512_instr)
 	endif
+	ifeq ($(bmi2_instr),)
+		bmi2_instr :=$(call as-instr,mulx %rax$(comma)%rax$(comma)%rax,-DCONFIG_AS_BMI2=1)
+		ccflags-y += $(bmi2_instr)
+		asflags-y += $(bmi2_instr)
+	endif
+	ifeq ($(adx_instr),)
+		adx_instr :=$(call as-instr,adcx %rax$(comma)%rax,-DCONFIG_AS_ADX=1)
+		ccflags-y += $(adx_instr)
+		asflags-y += $(adx_instr)
+	endif
 endif

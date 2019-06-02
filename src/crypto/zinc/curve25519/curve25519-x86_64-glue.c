@@ -15,8 +15,10 @@ static bool *const curve25519_nobs[] __initconst = {
 
 static void __init curve25519_fpu_init(void)
 {
-	curve25519_use_bmi2 = boot_cpu_has(X86_FEATURE_BMI2);
-	curve25519_use_adx = boot_cpu_has(X86_FEATURE_BMI2) &&
+	curve25519_use_bmi2 = IS_ENABLED(CONFIG_AS_BMI2) &&
+			      boot_cpu_has(X86_FEATURE_BMI2);
+	curve25519_use_adx = IS_ENABLED(CONFIG_AS_ADX) &&
+			     boot_cpu_has(X86_FEATURE_BMI2) &&
 			     boot_cpu_has(X86_FEATURE_ADX);
 }
 
@@ -24,10 +26,10 @@ static inline bool curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
 				   const u8 secret[CURVE25519_KEY_SIZE],
 				   const u8 basepoint[CURVE25519_KEY_SIZE])
 {
-	if (curve25519_use_adx) {
+	if (IS_ENABLED(CONFIG_AS_ADX) && curve25519_use_adx) {
 		curve25519_adx(mypublic, secret, basepoint);
 		return true;
-	} else if (curve25519_use_bmi2) {
+	} else if (IS_ENABLED(CONFIG_AS_BMI2) && curve25519_use_bmi2) {
 		curve25519_bmi2(mypublic, secret, basepoint);
 		return true;
 	}
@@ -37,10 +39,10 @@ static inline bool curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
 static inline bool curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
 					const u8 secret[CURVE25519_KEY_SIZE])
 {
-	if (curve25519_use_adx) {
+	if (IS_ENABLED(CONFIG_AS_ADX) && curve25519_use_adx) {
 		curve25519_adx_base(pub, secret);
 		return true;
-	} else if (curve25519_use_bmi2) {
+	} else if (IS_ENABLED(CONFIG_AS_BMI2) && curve25519_use_bmi2) {
 		curve25519_bmi2_base(pub, secret);
 		return true;
 	}
