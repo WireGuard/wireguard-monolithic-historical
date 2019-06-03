@@ -9,8 +9,8 @@
 #include <asm/fpu/api.h>
 
 asmlinkage void blake2s_compress_ssse3(struct blake2s_state *state,
-				     const u8 *block, const size_t nblocks,
-				     const u32 inc);
+				       const u8 *block, const size_t nblocks,
+				       const u32 inc);
 asmlinkage void blake2s_compress_avx512(struct blake2s_state *state,
 					const u8 *block, const size_t nblocks,
 					const u32 inc);
