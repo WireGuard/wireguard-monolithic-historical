@@ -94,6 +94,14 @@ Appends the contents of \fI<configuration-filename>\fP, which must
 be in the format described by \fICONFIGURATION FILE FORMAT\fP below,
 to the current configuration of \fI<interface>\fP.
 .TP
+\fBsyncconf\fP \fI<interface>\fP \fI<configuration-filename>\fP
+Like \fBsetconf\fP, but reads back the existing configuration first
+and only makes changes that are explicitly different between the configuration
+file and the interface. This is much less efficient than \fBsetconf\fP,
+but has the benefit of not disrupting current peer sessions. The contents of
+\fI<configuration-filename>\fP must be in the format described by
+\fICONFIGURATION FILE FORMAT\fP below.
+.TP
 \fBgenkey\fP
 Generates a random \fIprivate\fP key in base64 and prints it to
 standard output.
