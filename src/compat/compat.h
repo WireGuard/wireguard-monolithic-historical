@@ -388,25 +388,38 @@ static inline int get_random_bytes_wait(void *buf, int nbytes)
 #define system_power_efficient_wq system_unbound_wq
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0) && !defined(ISRHEL7)
-#include <linux/hrtimer.h>
-static inline u64 ktime_get_boot_ns(void)
-{
-	return ktime_to_ns(ktime_get_boottime());
-}
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 3, 0)
+#include <linux/ktime.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
 #include <linux/hrtimer.h>
+#ifndef ktime_get_real_ts64
+#define timespec64 timespec
+#define ktime_get_real_ts64 ktime_get_real_ts
+#endif
 #else
 #include <linux/timekeeping.h>
 #endif
-static inline u64 __compat_ktime_get_boot_fast_ns(void)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+static inline u64 __compat_jiffies64_to_nsecs(u64 j)
 {
-	return ktime_get_boot_ns();
+#if !(NSEC_PER_SEC % HZ)
+	return (NSEC_PER_SEC / HZ) * j;
+# else
+	return div_u64(j * HZ_TO_USEC_NUM, HZ_TO_USEC_DEN) * 1000;
+#endif
 }
-#define ktime_get_boot_fast_ns __compat_ktime_get_boot_fast_ns
+#define jiffies64_to_nsecs __compat_jiffies64_to_nsecs
+#endif
+static inline u64 ktime_get_coarse_boottime_ns(void)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+	return ktime_to_ns(ktime_get_boottime());
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 12) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0)) || LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 53)
+	return ktime_to_ns(ktime_mono_to_any(ns_to_ktime(jiffies64_to_nsecs(get_jiffies_64())), TK_OFFS_BOOT));
+#else
+	return ktime_to_ns(ktime_get_coarse_boottime());
+#endif
+}
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
@@ -644,11 +657,6 @@ struct __compat_dummy_container { char dev; };
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 3)
 #define COMPAT_CANNOT_USE_AVX512
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-#define timespec64 timespec
-#define ktime_get_real_ts64 ktime_get_real_ts
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)

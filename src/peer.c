@@ -57,7 +57,7 @@ struct wg_peer *wg_peer_create(struct wg_device *wg,
 	kref_init(&peer->refcount);
 	skb_queue_head_init(&peer->staged_packet_queue);
 	atomic64_set(&peer->last_sent_handshake,
-		     ktime_get_boot_fast_ns() -
+		     ktime_get_coarse_boottime_ns() -
 			     (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC);
 	set_bit(NAPI_STATE_NO_BUSY_POLL, &peer->napi.state);
 	netif_napi_add(wg->dev, &peer->napi, wg_packet_rx_poll,

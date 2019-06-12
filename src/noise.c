@@ -352,7 +352,7 @@ static void symmetric_key_init(struct noise_symmetric_key *key)
 	atomic64_set(&key->counter.counter, 0);
 	memset(key->counter.receive.backtrack, 0,
 	       sizeof(key->counter.receive.backtrack));
-	key->birthdate = ktime_get_boot_fast_ns();
+	key->birthdate = ktime_get_coarse_boottime_ns();
 	key->is_valid = true;
 }
 
@@ -585,9 +585,9 @@ wg_noise_handshake_consume_initiation(struct message_handshake_initiation *src,
 	down_read(&handshake->lock);
 	replay_attack = memcmp(t, handshake->latest_timestamp,
 			       NOISE_TIMESTAMP_LEN) <= 0;
-	flood_attack = handshake->last_initiation_consumption +
+	flood_attack = (s64)handshake->last_initiation_consumption +
 			       NSEC_PER_SEC / INITIATIONS_PER_SECOND >
-		       ktime_get_boot_fast_ns();
+		       (s64)ktime_get_coarse_boottime_ns();
 	up_read(&handshake->lock);
 	if (replay_attack || flood_attack)
 		goto out;
@@ -599,7 +599,7 @@ wg_noise_handshake_consume_initiation(struct message_handshake_initiation *src,
 	memcpy(handshake->hash, hash, NOISE_HASH_LEN);
 	memcpy(handshake->chaining_key, chaining_key, NOISE_HASH_LEN);
 	handshake->remote_index = src->sender_index;
-	handshake->last_initiation_consumption = ktime_get_boot_fast_ns();
+	handshake->last_initiation_consumption = ktime_get_coarse_boottime_ns();
 	handshake->state = HANDSHAKE_CONSUMED_INITIATION;
 	up_write(&handshake->lock);
 	ret_peer = peer;

@@ -20,7 +20,7 @@ void wg_cookie_checker_init(struct cookie_checker *checker,
 			    struct wg_device *wg)
 {
 	init_rwsem(&checker->secret_lock);
-	checker->secret_birthdate = ktime_get_boot_fast_ns();
+	checker->secret_birthdate = ktime_get_coarse_boottime_ns();
 	get_random_bytes(checker->secret, NOISE_HASH_LEN);
 	checker->device = wg;
 }
@@ -96,7 +96,7 @@ static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb,
 	if (wg_birthdate_has_expired(checker->secret_birthdate,
 				     COOKIE_SECRET_MAX_AGE)) {
 		down_write(&checker->secret_lock);
-		checker->secret_birthdate = ktime_get_boot_fast_ns();
+		checker->secret_birthdate = ktime_get_coarse_boottime_ns();
 		get_random_bytes(checker->secret, NOISE_HASH_LEN);
 		up_write(&checker->secret_lock);
 	}
@@ -222,7 +222,7 @@ void wg_cookie_message_consume(struct message_handshake_cookie *src,
 	if (ret) {
 		down_write(&peer->latest_cookie.lock);
 		memcpy(peer->latest_cookie.cookie, cookie, COOKIE_LEN);
-		peer->latest_cookie.birthdate = ktime_get_boot_fast_ns();
+		peer->latest_cookie.birthdate = ktime_get_coarse_boottime_ns();
 		peer->latest_cookie.is_valid = true;
 		peer->latest_cookie.have_sent_mac1 = false;
 		up_write(&peer->latest_cookie.lock);

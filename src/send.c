@@ -27,7 +27,7 @@ static void wg_packet_send_handshake_initiation(struct wg_peer *peer)
 				      REKEY_TIMEOUT))
 		return; /* This function is rate limited. */
 
-	atomic64_set(&peer->last_sent_handshake, ktime_get_boot_fast_ns());
+	atomic64_set(&peer->last_sent_handshake, ktime_get_coarse_boottime_ns());
 	net_dbg_ratelimited("%s: Sending handshake initiation to peer %llu (%pISpfsc)\n",
 			    peer->device->dev->name, peer->internal_id,
 			    &peer->endpoint.addr);
@@ -37,7 +37,7 @@ static void wg_packet_send_handshake_initiation(struct wg_peer *peer)
 		wg_timers_any_authenticated_packet_traversal(peer);
 		wg_timers_any_authenticated_packet_sent(peer);
 		atomic64_set(&peer->last_sent_handshake,
-			     ktime_get_boot_fast_ns());
+			     ktime_get_coarse_boottime_ns());
 		wg_socket_send_buffer_to_peer(peer, &packet, sizeof(packet),
 					      HANDSHAKE_DSCP);
 		wg_timers_handshake_initiated(peer);
@@ -87,7 +87,7 @@ void wg_packet_send_handshake_response(struct wg_peer *peer)
 {
 	struct message_handshake_response packet;
 
-	atomic64_set(&peer->last_sent_handshake, ktime_get_boot_fast_ns());
+	atomic64_set(&peer->last_sent_handshake, ktime_get_coarse_boottime_ns());
 	net_dbg_ratelimited("%s: Sending handshake response to peer %llu (%pISpfsc)\n",
 			    peer->device->dev->name, peer->internal_id,
 			    &peer->endpoint.addr);
@@ -100,7 +100,7 @@ void wg_packet_send_handshake_response(struct wg_peer *peer)
 			wg_timers_any_authenticated_packet_traversal(peer);
 			wg_timers_any_authenticated_packet_sent(peer);
 			atomic64_set(&peer->last_sent_handshake,
-				     ktime_get_boot_fast_ns());
+				     ktime_get_coarse_boottime_ns());
 			wg_socket_send_buffer_to_peer(peer, &packet,
 						      sizeof(packet),
 						      HANDSHAKE_DSCP);

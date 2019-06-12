@@ -13,7 +13,6 @@
 #include <linux/atomic.h>
 #include <linux/rwsem.h>
 #include <linux/mutex.h>
-#include <linux/ktime.h>
 #include <linux/kref.h>
 
 union noise_counter {
