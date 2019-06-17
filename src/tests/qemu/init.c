@@ -158,7 +158,7 @@ static void kmod_selftests(void)
 	}
 	fclose(file);
 	if (!success) {
-		puts("\x1b[31m\x1b[1m[-] Tests failed! :-(\x1b[0m");
+		puts("\x1b[31m\x1b[1m[-] Tests failed! \u2639\x1b[0m");
 		poweroff();
 	}
 }
@@ -203,8 +203,19 @@ static void launch_tests(void)
 		if (write(fd, "success\n", 8) != 8)
 			panic("write(success_dev)");
 		close(fd);
-	} else
-		puts("\x1b[31m\x1b[1m[-] Tests failed! :-(\x1b[0m");
+	} else {
+		const char *why = "unknown cause";
+		int what = -1;
+
+		if (WIFEXITED(status)) {
+			why = "exit code";
+			what = WEXITSTATUS(status);
+		} else if (WIFSIGNALED(status)) {
+			why = "signal";
+			what = WTERMSIG(status);
+		}
+		printf("\x1b[31m\x1b[1m[-] Tests failed with %s %d! \u2639\x1b[0m\n", why, what);
+	}
 }
 
 static void ensure_console(void)
