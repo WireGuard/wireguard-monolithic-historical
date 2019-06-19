@@ -81,6 +81,17 @@ parse_options() {
 	shopt -u nocasematch
 }
 
+detect_launchd() {
+	unset LAUNCHED_BY_LAUNCHD
+	local line
+	while read -r line; do
+		if [[ $line =~ ^\s*domain\ =\  ]]; then
+			LAUNCHED_BY_LAUNCHD=1
+			break
+		fi
+	done < <(launchctl procinfo $$ 2>/dev/null)
+}
+
 read_bool() {
 	case "$2" in
 	true) printf -v "$1" 1 ;;
@@ -308,7 +319,8 @@ monitor_daemon() {
 			set_dns
 			sleep 2 && kill -ALRM $pid 2>/dev/null &
 		fi
-	done < <(route -n monitor)) & disown
+	done < <(route -n monitor)) &
+	[[ -n $LAUNCHED_BY_LAUNCHD ]] || disown
 }
 
 add_route() {
@@ -463,6 +475,7 @@ if [[ $# -eq 1 && ( $1 == --help || $1 == -h || $1 == help ) ]]; then
 	cmd_usage
 elif [[ $# -eq 2 && $1 == up ]]; then
 	auto_su
+	detect_launchd
 	parse_options "$2"
 	cmd_up
 elif [[ $# -eq 2 && $1 == down ]]; then
@@ -481,5 +494,7 @@ else
 	cmd_usage
 	exit 1
 fi
+
+[[ -n $LAUNCHED_BY_LAUNCHD ]] && wait
 
 exit 0
