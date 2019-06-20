@@ -216,10 +216,11 @@ static inline void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) || defined(ISUBUNTU1404)) && !defined(ISRHEL7)
 #include <linux/random.h>
-static inline u32 prandom_u32_max(u32 ep_ro)
+static inline u32 __wgcompat_prandom_u32_max(u32 ep_ro)
 {
-	return (u32)(((u64) prandom_u32() * ep_ro) >> 32);
+	return (u32)(((u64)prandom_u32() * ep_ro) >> 32);
 }
+#define prandom_u32_max __wgcompat_prandom_u32_max
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 75) && !defined(ISRHEL7)
