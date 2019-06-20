@@ -19,7 +19,7 @@
 #include <net/ip6_checksum.h>
 #include <net/ip6_tunnel.h>
 #endif
-static inline void fake_destructor(struct sk_buff *skb)
+static inline void __compat_fake_destructor(struct sk_buff *skb)
 {
 }
 typedef int (*udp_tunnel_encap_rcv_t)(struct sock *sk, struct sk_buff *skb);
@@ -30,7 +30,7 @@ struct udp_tunnel_sock_cfg {
 };
 /* This is global so, uh, only one real call site... This is the kind of horrific hack you'd expect to see in compat code. */
 static udp_tunnel_encap_rcv_t encap_rcv = NULL;
-static void our_sk_data_ready(struct sock *sk)
+static void __compat_sk_data_ready(struct sock *sk)
 {
 	struct sk_buff *skb;
 	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
@@ -46,7 +46,7 @@ static inline void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 	inet_sk(sk)->mc_loop = 0;
 	encap_rcv = cfg->encap_rcv;
 	rcu_assign_sk_user_data(sk, cfg->sk_user_data);
-	sk->sk_data_ready = our_sk_data_ready;
+	sk->sk_data_ready = __compat_sk_data_ready;
 }
 static inline void udp_tunnel_sock_release(struct socket *sock)
 {
@@ -122,13 +122,13 @@ static inline int udp_tunnel6_xmit_skb(struct socket *sock, struct dst_entry *ds
 #include <linux/if.h>
 #include <net/udp_tunnel.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
-static inline void fake_destructor(struct sk_buff *skb)
+static inline void __compat_fake_destructor(struct sk_buff *skb)
 {
 }
 #endif
-#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; if (!(c)->destructor) (c)->destructor = fake_destructor; if (!(c)->sk) (c)->sk = (b); ret__ = udp_tunnel_xmit_skb(a, c, d, e, f, g, h, i, j, k, l); if (ret__) iptunnel_xmit_stats(ret__ - 8, &dev__->stats, dev__->tstats); } while (0)
+#define udp_tunnel_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { struct net_device *dev__ = (c)->dev; int ret__; if (!(c)->destructor) (c)->destructor = __compat_fake_destructor; if (!(c)->sk) (c)->sk = (b); ret__ = udp_tunnel_xmit_skb(a, c, d, e, f, g, h, i, j, k, l); if (ret__) iptunnel_xmit_stats(ret__ - 8, &dev__->stats, dev__->tstats); } while (0)
 #if IS_ENABLED(CONFIG_IPV6)
-#define udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { if (!(c)->destructor) (c)->destructor = fake_destructor; if (!(c)->sk) (c)->sk = (b); udp_tunnel6_xmit_skb(a, c, d, e, f, g, h, j, k, l); } while(0)
+#define udp_tunnel6_xmit_skb(a, b, c, d, e, f, g, h, i, j, k, l) do { if (!(c)->destructor) (c)->destructor = __compat_fake_destructor; if (!(c)->sk) (c)->sk = (b); udp_tunnel6_xmit_skb(a, c, d, e, f, g, h, j, k, l); } while(0)
 #endif
 #else
 
@@ -156,7 +156,7 @@ static inline void fake_destructor(struct sk_buff *skb)
 #include <linux/skbuff.h>
 #include <linux/if.h>
 #include <net/udp_tunnel.h>
-struct udp_port_cfg_new {
+struct __compat_udp_port_cfg {
 	u8 family;
 	union {
 		struct in_addr local_ip;
@@ -174,7 +174,7 @@ struct udp_port_cfg_new {
 	__be16 peer_udp_port;
 	unsigned int use_udp_checksums:1, use_udp6_tx_checksums:1, use_udp6_rx_checksums:1, ipv6_v6only:1;
 };
-static inline int __maybe_unused udp_sock_create_new(struct net *net, struct udp_port_cfg_new *cfg, struct socket **sockp)
+static inline int __maybe_unused __compat_udp_sock_create(struct net *net, struct __compat_udp_port_cfg *cfg, struct socket **sockp)
 {
 	struct udp_port_cfg old_cfg = {
 		.family = cfg->family,
@@ -221,6 +221,6 @@ static inline int __maybe_unused udp_sock_create_new(struct net *net, struct udp
 #endif
 	return -EPFNOSUPPORT;
 }
-#define udp_port_cfg udp_port_cfg_new
-#define udp_sock_create(a, b, c) udp_sock_create_new(a, b, c)
+#define udp_port_cfg __compat_udp_port_cfg
+#define udp_sock_create(a, b, c) __compat_udp_sock_create(a, b, c)
 #endif

@@ -17,7 +17,7 @@
 
 /* This is global so, uh, only one real call site... This is the kind of horrific hack you'd expect to see in compat code. */
 static udp_tunnel_encap_rcv_t encap_rcv = NULL;
-static void our_sk_data_ready(struct sock *sk
+static void __compat_sk_data_ready(struct sock *sk
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0)
 			      ,int unused_vulnerable_length_param
 #endif
@@ -86,7 +86,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 	rcu_assign_sk_user_data(sock->sk, cfg->sk_user_data);
 	/* We force the cast in this awful way, due to various Android kernels
 	 * backporting things stupidly. */
-	*(void **)&sock->sk->sk_data_ready = (void *)our_sk_data_ready;
+	*(void **)&sock->sk->sk_data_ready = (void *)__compat_sk_data_ready;
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
@@ -131,12 +131,12 @@ static void udp_set_csum(bool nocheck, struct sk_buff *skb,
 
 #endif
 
-static void fake_destructor(struct sk_buff *skb)
+static void __compat_fake_destructor(struct sk_buff *skb)
 {
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
-static void our_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
+static void __compat_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 		  __be32 src, __be32 dst, __u8 proto,
 		  __u8 tos, __u8 ttl, __be16 df, bool xnet)
 {
@@ -174,7 +174,7 @@ static void our_iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 	tstats->tx_bytes -= 8;
 	u64_stats_update_end(&tstats->syncp);
 }
-#define iptunnel_xmit our_iptunnel_xmit
+#define iptunnel_xmit __compat_iptunnel_xmit
 #endif
 
 void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
@@ -203,7 +203,7 @@ void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb
 	if (!skb->sk)
 		skb->sk = sk;
 	if (!skb->destructor)
-		skb->destructor = fake_destructor;
+		skb->destructor = __compat_fake_destructor;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
 	ret =
 #endif
@@ -379,7 +379,7 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 	if (!skb->sk)
 		skb->sk = sk;
 	if (!skb->destructor)
-		skb->destructor = fake_destructor;
+		skb->destructor = __compat_fake_destructor;
 
 	ip6tunnel_xmit(skb, dev);
 	return 0;
