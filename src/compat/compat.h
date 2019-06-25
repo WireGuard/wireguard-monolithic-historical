@@ -753,7 +753,7 @@ static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 #define read_cpuid_part() read_cpuid_part_number()
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0) && !defined(ISRHEL7)
 #define hlist_add_behind(a, b) hlist_add_after(b, a)
 #endif
 
