@@ -90,12 +90,21 @@ static int get_allowedips(struct sk_buff *skb, const u8 *ip, u8 cidr,
 	return 0;
 }
 
+struct dump_ctx {
+	struct wg_device *wg;
+	struct wg_peer *next_peer;
+	struct allowedips_node *next_allowedip;
+	u64 allowedips_seq;
+};
+
+#define DUMP_CTX(cb) ((struct dump_ctx *)(cb)->args)
+
 static int
-get_peer(struct wg_peer *peer, struct allowedips_node **next_allowedips_node,
-	 u64 *allowedips_seq, struct sk_buff *skb)
+get_peer(struct wg_peer *peer, struct sk_buff *skb, struct dump_ctx *ctx)
 {
+
 	struct nlattr *allowedips_nest, *peer_nest = nla_nest_start(skb, 0);
-	struct allowedips_node *allowedips_node = *next_allowedips_node;
+	struct allowedips_node *allowedips_node = ctx->next_allowedip;
 	bool fail;
 
 	if (!peer_nest)
@@ -151,9 +160,9 @@ get_peer(struct wg_peer *peer, struct allowedips_node **next_allowedips_node,
 	}
 	if (!allowedips_node)
 		goto no_allowedips;
-	if (!*allowedips_seq)
-		*allowedips_seq = peer->device->peer_allowedips.seq;
-	else if (*allowedips_seq != peer->device->peer_allowedips.seq)
+	if (!ctx->allowedips_seq)
+		ctx->allowedips_seq = peer->device->peer_allowedips.seq;
+	else if (ctx->allowedips_seq != peer->device->peer_allowedips.seq)
 		goto no_allowedips;
 
 	allowedips_nest = nla_nest_start(skb, WGPEER_A_ALLOWEDIPS);
@@ -169,15 +178,15 @@ get_peer(struct wg_peer *peer, struct allowedips_node **next_allowedips_node,
 		if (get_allowedips(skb, ip, cidr, family)) {
 			nla_nest_end(skb, allowedips_nest);
 			nla_nest_end(skb, peer_nest);
-			*next_allowedips_node = allowedips_node;
+			ctx->next_allowedip = allowedips_node;
 			return -EMSGSIZE;
 		}
 	}
 	nla_nest_end(skb, allowedips_nest);
 no_allowedips:
 	nla_nest_end(skb, peer_nest);
-	*next_allowedips_node = NULL;
-	*allowedips_seq = 0;
+	ctx->next_allowedip = NULL;
+	ctx->allowedips_seq = 0;
 	return 0;
 err:
 	nla_nest_cancel(skb, peer_nest);
@@ -197,26 +206,24 @@ static int wg_get_device_start(struct netlink_callback *cb)
 	wg = lookup_interface(attrs, cb->skb);
 	if (IS_ERR(wg))
 		return PTR_ERR(wg);
-	cb->args[0] = (long)wg;
+	DUMP_CTX(cb)->wg = wg;
 	return 0;
 }
 
 static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct wg_peer *peer, *next_peer_cursor, *last_peer_cursor;
+	struct wg_peer *peer, *next_peer_cursor;
+	struct dump_ctx *ctx = DUMP_CTX(cb);
+	struct wg_device *wg = ctx->wg;
 	struct nlattr *peers_nest;
-	struct wg_device *wg;
 	int ret = -EMSGSIZE;
 	bool done = true;
 	void *hdr;
 
-	wg = (struct wg_device *)cb->args[0];
-	next_peer_cursor = (struct wg_peer *)cb->args[1];
-	last_peer_cursor = (struct wg_peer *)cb->args[1];
-
 	rtnl_lock();
 	mutex_lock(&wg->device_update_lock);
 	cb->seq = wg->device_update_gen;
+	next_peer_cursor = ctx->next_peer;
 
 	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			  &genl_family, NLM_F_MULTI, WG_CMD_GET_DEVICE);
@@ -224,7 +231,7 @@ static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		goto out;
 	genl_dump_check_consistent(cb, hdr);
 
-	if (!last_peer_cursor) {
+	if (!ctx->next_peer) {
 		if (nla_put_u16(skb, WGDEVICE_A_LISTEN_PORT,
 				wg->incoming_port) ||
 		    nla_put_u32(skb, WGDEVICE_A_FWMARK, wg->fwmark) ||
@@ -257,15 +264,14 @@ static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	 * coherent dump anyway, so they'll try again.
 	 */
 	if (list_empty(&wg->peer_list) ||
-	    (last_peer_cursor && list_empty(&last_peer_cursor->peer_list))) {
+	    (ctx->next_peer && list_empty(&ctx->next_peer->peer_list))) {
 		nla_nest_cancel(skb, peers_nest);
 		goto out;
 	}
 	lockdep_assert_held(&wg->device_update_lock);
-	peer = list_prepare_entry(last_peer_cursor, &wg->peer_list, peer_list);
+	peer = list_prepare_entry(ctx->next_peer, &wg->peer_list, peer_list);
 	list_for_each_entry_continue(peer, &wg->peer_list, peer_list) {
-		if (get_peer(peer, (struct allowedips_node **)&cb->args[2],
-			     (u64 *)&cb->args[4] /* and args[5] */, skb)) {
+		if (get_peer(peer, skb, ctx)) {
 			done = false;
 			break;
 		}
@@ -276,7 +282,7 @@ static int wg_get_device_dump(struct sk_buff *skb, struct netlink_callback *cb)
 out:
 	if (!ret && !done && next_peer_cursor)
 		wg_peer_get(next_peer_cursor);
-	wg_peer_put(last_peer_cursor);
+	wg_peer_put(ctx->next_peer);
 	mutex_unlock(&wg->device_update_lock);
 	rtnl_unlock();
 
@@ -286,10 +292,10 @@ out:
 	}
 	genlmsg_end(skb, hdr);
 	if (done) {
-		cb->args[1] = 0;
+		ctx->next_peer = NULL;
 		return 0;
 	}
-	cb->args[1] = (long)next_peer_cursor;
+	ctx->next_peer = next_peer_cursor;
 	return skb->len;
 
 	/* At this point, we can't really deal ourselves with safely zeroing out
@@ -300,12 +306,11 @@ out:
 
 static int wg_get_device_done(struct netlink_callback *cb)
 {
-	struct wg_device *wg = (struct wg_device *)cb->args[0];
-	struct wg_peer *peer = (struct wg_peer *)cb->args[1];
+	struct dump_ctx *ctx = DUMP_CTX(cb);
 
-	if (wg)
-		dev_put(wg->dev);
-	wg_peer_put(peer);
+	if (ctx->wg)
+		dev_put(ctx->wg->dev);
+	wg_peer_put(ctx->next_peer);
 	return 0;
 }
 
