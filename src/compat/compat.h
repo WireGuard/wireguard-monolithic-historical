@@ -14,6 +14,8 @@
 #ifdef RHEL_MAJOR
 #if RHEL_MAJOR == 7
 #define ISRHEL7
+#elif RHEL_MAJOR == 8
+#define ISRHEL8
 #endif
 #endif
 #ifdef UTS_UBUNTU_RELEASE_ABI
@@ -823,7 +825,7 @@ static __always_inline void old_rcu_barrier(void)
 #define COMPAT_CANNOT_DEPRECIATE_BH_RCU
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 10)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 10) && !defined(ISRHEL8)
 static inline void skb_mark_not_on_list(struct sk_buff *skb)
 {
 	skb->next = NULL;
