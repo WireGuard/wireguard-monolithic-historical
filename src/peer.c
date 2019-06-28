@@ -177,8 +177,8 @@ void wg_peer_remove(struct wg_peer *peer)
 
 void wg_peer_remove_all(struct wg_device *wg)
 {
-	struct list_head dead_peers = LIST_HEAD_INIT(dead_peers);
 	struct wg_peer *peer, *temp;
+	LIST_HEAD(dead_peers);
 
 	lockdep_assert_held(&wg->device_update_lock);
 
