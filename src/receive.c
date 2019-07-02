@@ -521,8 +521,7 @@ void wg_packet_decrypt_worker(struct work_struct *work)
 					   &PACKET_CB(skb)->keypair->receiving,
 					   &simd_context)) ?
 				PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
-		wg_queue_enqueue_per_peer_napi(&PACKET_PEER(skb)->rx_queue, skb,
-					       state);
+		wg_queue_enqueue_per_peer_napi(skb, state);
 		simd_relax(&simd_context);
 	}
 
@@ -551,7 +550,7 @@ static void wg_packet_consume_data(struct wg_device *wg, struct sk_buff *skb)
 						   wg->packet_crypt_wq,
 						   &wg->decrypt_queue.last_cpu);
 	if (unlikely(ret == -EPIPE))
-		wg_queue_enqueue_per_peer(&peer->rx_queue, skb, PACKET_STATE_DEAD);
+		wg_queue_enqueue_per_peer_napi(skb, PACKET_STATE_DEAD);
 	if (likely(!ret || ret == -EPIPE)) {
 		rcu_read_unlock_bh();
 		return;

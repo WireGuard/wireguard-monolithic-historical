@@ -177,8 +177,7 @@ static inline void wg_queue_enqueue_per_peer(struct crypt_queue *queue,
 	wg_peer_put(peer);
 }
 
-static inline void wg_queue_enqueue_per_peer_napi(struct crypt_queue *queue,
-						  struct sk_buff *skb,
+static inline void wg_queue_enqueue_per_peer_napi(struct sk_buff *skb,
 						  enum packet_state state)
 {
 	/* We take a reference, because as soon as we call atomic_set, the
