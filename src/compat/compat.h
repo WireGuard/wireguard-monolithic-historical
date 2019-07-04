@@ -406,7 +406,7 @@ static inline u64 __compat_jiffies64_to_nsecs(u64 j)
 {
 #if !(NSEC_PER_SEC % HZ)
 	return (NSEC_PER_SEC / HZ) * j;
-# else
+#else
 	return div_u64(j * HZ_TO_USEC_NUM, HZ_TO_USEC_DEN) * 1000;
 #endif
 }
