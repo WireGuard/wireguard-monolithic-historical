@@ -373,8 +373,12 @@ static int set_peer(struct wg_device *wg, struct nlattr **attrs)
 	if (attrs[WGPEER_A_PRESHARED_KEY] &&
 	    nla_len(attrs[WGPEER_A_PRESHARED_KEY]) == NOISE_SYMMETRIC_KEY_LEN)
 		preshared_key = nla_data(attrs[WGPEER_A_PRESHARED_KEY]);
+
 	if (attrs[WGPEER_A_FLAGS])
 		flags = nla_get_u32(attrs[WGPEER_A_FLAGS]);
+	ret = -EOPNOTSUPP;
+	if (flags & ~__WGPEER_F_ALL)
+		goto out;
 
 	ret = -EPFNOSUPPORT;
 	if (attrs[WGPEER_A_PROTOCOL_VERSION]) {
@@ -492,6 +496,7 @@ out:
 static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 {
 	struct wg_device *wg = lookup_interface(info->attrs, skb);
+	u32 flags = 0;
 	int ret;
 
 	if (IS_ERR(wg)) {
@@ -501,6 +506,12 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 	mutex_lock(&wg->device_update_lock);
+
+	if (info->attrs[WGDEVICE_A_FLAGS])
+		flags = nla_get_u32(info->attrs[WGDEVICE_A_FLAGS]);
+	ret = -EOPNOTSUPP;
+	if (flags & ~__WGDEVICE_F_ALL)
+		goto out;
 
 	ret = -EPERM;
 	if ((info->attrs[WGDEVICE_A_LISTEN_PORT] ||
@@ -525,9 +536,7 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 			goto out;
 	}
 
-	if (info->attrs[WGDEVICE_A_FLAGS] &&
-	    nla_get_u32(info->attrs[WGDEVICE_A_FLAGS]) &
-		    WGDEVICE_F_REPLACE_PEERS)
+	if (flags & WGDEVICE_F_REPLACE_PEERS)
 		wg_peer_remove_all(wg);
 
 	if (info->attrs[WGDEVICE_A_PRIVATE_KEY] &&
