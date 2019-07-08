@@ -263,30 +263,84 @@ static void add_if(const char *iface)
 
 static void del_if(const char *iface)
 {
-	DEFINE_CMD(c);
-	_cleanup_regfree_ regex_t reg = { 0 };
+	DEFINE_CMD(c_rule);
+	DEFINE_CMD(c_iptables);
+	DEFINE_CMD(c_ip6tables);
+	_cleanup_regfree_ regex_t rule_reg = { 0 }, iptables_reg = { 0 };
 	regmatch_t matches[2];
 	char *netid = NULL;
-	_cleanup_free_ char *regex = concat("0xc([0-9a-f]+)/0xcffff lookup ", iface, NULL);
+	_cleanup_free_ char *rule_regex = concat("0xc([0-9a-f]+)/0xcffff lookup ", iface, NULL);
+	_cleanup_free_ char *iptables_regex = concat("^-A (.* --comment \"wireguard rule ", iface, "\"[^\n]*)\n*$", NULL);
 
-	xregcomp(&reg, regex, REG_EXTENDED);
+	xregcomp(&rule_reg, rule_regex, REG_EXTENDED);
+	xregcomp(&iptables_reg, iptables_regex, REG_EXTENDED);
 
-	cmd("iptables -D OUTPUT -m mark --mark 0x20000 -j ACCEPT -m comment --comment \"wireguard rule %s\"", iface);
-	cmd("ip6tables -D OUTPUT -m mark --mark 0x20000 -j ACCEPT -m comment --comment \"wireguard rule %s\"", iface);
 	cmd("ip link del %s", iface);
-	for (char *ret = cmd_ret(&c, "ip rule show"); ret; ret = cmd_ret(&c, NULL)) {
-		if (!regexec(&reg, ret, ARRAY_SIZE(matches), matches, 0)) {
-			ret[matches[1].rm_eo] = '\0';
-			netid = &ret[matches[1].rm_so];
-			break;
+
+	for (char *rule = cmd_ret(&c_iptables, "iptables-save"); rule; rule = cmd_ret(&c_iptables, NULL)) {
+		if (!regexec(&iptables_reg, rule, ARRAY_SIZE(matches), matches, 0)) {
+			rule[matches[1].rm_eo] = '\0';
+			cmd("iptables -D %s", &rule[matches[1].rm_so]);
+		}
+	}
+	for (char *rule = cmd_ret(&c_ip6tables, "ip6tables-save"); rule; rule = cmd_ret(&c_ip6tables, NULL)) {
+		if (!regexec(&iptables_reg, rule, ARRAY_SIZE(matches), matches, 0)) {
+			rule[matches[1].rm_eo] = '\0';
+			cmd("ip6tables -D %s", &rule[matches[1].rm_so]);
 		}
 	}
 
+	for (char *rule = cmd_ret(&c_rule, "ip rule show"); rule; rule = cmd_ret(&c_rule, NULL)) {
+		if (!regexec(&rule_reg, rule, ARRAY_SIZE(matches), matches, 0)) {
+			rule[matches[1].rm_eo] = '\0';
+			netid = &rule[matches[1].rm_so];
+			break;
+		}
+	}
 	if (netid)
 		cndc("network destroy %lu", strtoul(netid, NULL, 16));
 }
 
-static void up_if(unsigned int *netid, const char *iface)
+static bool should_block_ipv6(const char *iface)
+{
+	DEFINE_CMD(c);
+	bool has_ipv6 = false, has_all_none = true;
+
+	for (char *endpoint = cmd_ret(&c, "wg show %s endpoints", iface); endpoint; endpoint = cmd_ret(&c, NULL)) {
+		char *start = strchr(endpoint, '\t');
+
+		if (!start)
+			continue;
+		++start;
+		if (start[0] != '(')
+			has_all_none = false;
+		if (start[0] == '[')
+			has_ipv6 = true;
+	}
+	return !has_ipv6 && !has_all_none;
+}
+
+static uint16_t determine_listen_port(const char *iface)
+{
+	DEFINE_CMD(c);
+	unsigned long listen_port = 0;
+	char *value;
+
+	cmd("ip link set up dev %s", iface);
+	value = cmd_ret(&c, "wg show %s listen-port", iface);
+	if (!value)
+		goto set_back_down;
+	listen_port = strtoul(value, NULL, 10);
+	if (listen_port > UINT16_MAX || !listen_port) {
+		listen_port = 0;
+		goto set_back_down;
+	}
+set_back_down:
+	cmd("ip link set down dev %s", iface);
+	return listen_port;
+}
+
+static void up_if(unsigned int *netid, const char *iface, uint16_t listen_port)
 {
 	srandom(time(NULL) ^ getpid()); /* Not real randomness. */
 
@@ -296,6 +350,10 @@ static void up_if(unsigned int *netid, const char *iface)
 	cmd("wg set %s fwmark 0x20000", iface);
 	cmd("iptables -I OUTPUT 1 -m mark --mark 0x20000 -j ACCEPT -m comment --comment \"wireguard rule %s\"", iface);
 	cmd("ip6tables -I OUTPUT 1 -m mark --mark 0x20000 -j ACCEPT -m comment --comment \"wireguard rule %s\"", iface);
+	if (listen_port) {
+		cmd("iptables -I INPUT 1 -p udp --dport %u -j ACCEPT -m comment --comment \"wireguard rule %s\"", listen_port, iface);
+		cmd("ip6tables -I INPUT 1 -p udp --dport %u -j %s -m comment --comment \"wireguard rule %s\"", listen_port, should_block_ipv6(iface) ? "DROP" : "ACCEPT", iface);
+	}
 	cndc("interface setcfg %s up", iface);
 	cndc("network create %u vpn 1 1", *netid);
 	cndc("network interface add %u %s", *netid, iface);
@@ -520,56 +578,6 @@ static void set_routes(const char *iface, unsigned int netid)
 	}
 }
 
-static void maybe_block_ipv6(const char *iface)
-{
-	DEFINE_CMD(c_endpoints);
-	DEFINE_CMD(c_listenport);
-	bool has_ipv6 = false, has_all_none = true;
-	char *value;
-	unsigned long listenport;
-
-	for (char *endpoint = cmd_ret(&c_endpoints, "wg show %s endpoints", iface); endpoint; endpoint = cmd_ret(&c_endpoints, NULL)) {
-		char *start = strchr(endpoint, '\t');
-
-		if (!start)
-			continue;
-		++start;
-		if (start[0] != '(')
-			has_all_none = false;
-		if (start[0] == '[')
-			has_ipv6 = true;
-	}
-	if (has_ipv6 || has_all_none)
-		return;
-
-	cmd("ip link set up dev %s", iface);
-	value = cmd_ret(&c_listenport, "wg show %s listen-port", iface);
-	if (!value)
-		goto set_back_down;
-	listenport = strtoul(value, NULL, 10);
-	if (listenport > UINT16_MAX || !listenport)
-		goto set_back_down;
-	cmd("ip6tables -I INPUT 1 -p udp --dport %lu -j DROP -m comment --comment \"wireguard rule %s\"", listenport, iface);
-set_back_down:
-	cmd("ip link set down dev %s", iface);
-}
-
-static void maybe_unblock_ipv6(const char *iface)
-{
-	regmatch_t matches[2];
-	_cleanup_regfree_ regex_t reg = { 0 };
-	_cleanup_free_ char *regex = concat("^-A (.* --comment \"wireguard rule ", iface, "\"[^\n]*)\n*$", NULL);
-	DEFINE_CMD(c);
-
-	xregcomp(&reg, regex, REG_EXTENDED);
-	for (char *rule = cmd_ret(&c, "ip6tables-save"); rule; rule = cmd_ret(&c, NULL)) {
-		if (!regexec(&reg, rule, ARRAY_SIZE(matches), matches, 0)) {
-			rule[matches[1].rm_eo] = '\0';
-			cmd("ip6tables -D %s", &rule[matches[1].rm_so]);
-		}
-	}
-}
-
 static void set_config(const char *iface, const char *config)
 {
 	FILE *config_writer;
@@ -641,6 +649,7 @@ static void cmd_up(const char *iface, const char *config, unsigned int mtu, cons
 {
 	DEFINE_CMD(c);
 	unsigned int netid = 0;
+	uint16_t listen_port;
 
 	if (cmd_ret(&c, "ip link show dev %s 2>/dev/null", iface)) {
 		fprintf(stderr, "Error: %s already exists\n", iface);
@@ -652,9 +661,9 @@ static void cmd_up(const char *iface, const char *config, unsigned int mtu, cons
 
 	add_if(iface);
 	set_config(iface, config);
-	maybe_block_ipv6(iface);
+	listen_port = determine_listen_port(iface);
 	set_addr(iface, addrs);
-	up_if(&netid, iface);
+	up_if(&netid, iface, listen_port);
 	set_dnses(netid, dnses);
 	set_routes(iface, netid);
 	set_mtu(iface, mtu);
@@ -686,7 +695,6 @@ static void cmd_down(const char *iface)
 	}
 
 	del_if(iface);
-	maybe_unblock_ipv6(iface);
 	broadcast_change();
 	exit(EXIT_SUCCESS);
 }
