@@ -13,6 +13,7 @@
 #include <linux/if.h>
 #include <net/genetlink.h>
 #include <net/sock.h>
+#include <crypto/algapi.h>
 
 static struct genl_family genl_family;
 
@@ -546,6 +547,10 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 		u8 public_key[NOISE_PUBLIC_KEY_LEN];
 		struct wg_peer *peer, *temp;
 
+		if (!crypto_memneq(wg->static_identity.static_private,
+				   private_key, NOISE_PUBLIC_KEY_LEN))
+			goto skip_set_private_key;
+
 		/* We remove before setting, to prevent race, which means doing
 		 * two 25519-genpub ops.
 		 */
@@ -563,12 +568,15 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 							 private_key);
 		list_for_each_entry_safe(peer, temp, &wg->peer_list,
 					 peer_list) {
-			if (!wg_noise_precompute_static_static(peer))
+			if (wg_noise_precompute_static_static(peer))
+				wg_noise_expire_current_peer_keypairs(peer);
+			else
 				wg_peer_remove(peer);
 		}
 		wg_cookie_checker_precompute_device_keys(&wg->cookie_checker);
 		up_write(&wg->static_identity.lock);
 	}
+skip_set_private_key:
 
 	if (info->attrs[WGDEVICE_A_PEERS]) {
 		struct nlattr *attr, *peer[WGPEER_A_MAX + 1];

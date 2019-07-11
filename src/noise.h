@@ -100,11 +100,18 @@ bool wg_noise_handshake_init(struct noise_handshake *handshake,
 			   const u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN],
 			   struct wg_peer *peer);
 void wg_noise_handshake_clear(struct noise_handshake *handshake);
+static inline void wg_noise_reset_last_sent_handshake(atomic64_t *handshake_ns)
+{
+	atomic64_set(handshake_ns, ktime_get_coarse_boottime_ns() -
+				       (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC);
+}
+
 void wg_noise_keypair_put(struct noise_keypair *keypair, bool unreference_now);
 struct noise_keypair *wg_noise_keypair_get(struct noise_keypair *keypair);
 void wg_noise_keypairs_clear(struct noise_keypairs *keypairs);
 bool wg_noise_received_with_keypair(struct noise_keypairs *keypairs,
 				    struct noise_keypair *received_keypair);
+void wg_noise_expire_current_peer_keypairs(struct wg_peer *peer);
 
 void wg_noise_set_static_identity_private_key(
 	struct noise_static_identity *static_identity,

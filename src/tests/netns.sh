@@ -76,8 +76,10 @@ ip0 link add dev wg0 type wireguard
 ip0 link set wg0 netns $netns2
 key1="$(pp wg genkey)"
 key2="$(pp wg genkey)"
+key3="$(pp wg genkey)"
 pub1="$(pp wg pubkey <<<"$key1")"
 pub2="$(pp wg pubkey <<<"$key2")"
+pub3="$(pp wg pubkey <<<"$key3")"
 psk="$(pp wg genpsk)"
 [[ -n $key1 && -n $key2 && -n $psk ]]
 
@@ -220,6 +222,14 @@ n2 ncat -u 192.168.241.1 1111 <<<"X"
 kill $ncat_pid
 n1 wg set wg0 peer "$more_specific_key" remove
 [[ $(n1 wg show wg0 endpoints) == "$pub2	[::1]:9997" ]]
+
+# Test that we can change private keys keys and immediately handshake
+n1 wg set wg0 private-key <(echo "$key1") peer "$pub2" preshared-key <(echo "$psk") allowed-ips 192.168.241.2/32 endpoint 127.0.0.1:2
+n2 wg set wg0 private-key <(echo "$key2") listen-port 2 peer "$pub1" preshared-key <(echo "$psk") allowed-ips 192.168.241.1/32
+n1 ping -W 1 -c 1 192.168.241.2
+n1 wg set wg0 private-key <(echo "$key3")
+n2 wg set wg0 peer "$pub3" preshared-key <(echo "$psk") allowed-ips 192.168.241.1/32 peer "$pub1" remove
+n1 ping -W 1 -c 1 192.168.241.2
 
 ip1 link del wg0
 ip2 link del wg0
