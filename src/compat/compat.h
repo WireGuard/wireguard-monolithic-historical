@@ -844,6 +844,14 @@ static inline void skb_mark_not_on_list(struct sk_buff *skb)
 #define cpu_have_named_feature(name) (elf_hwcap & (HWCAP_ ## name))
 #endif
 
+#ifdef CONFIG_VE
+#include <linux/netdev_features.h>
+#ifdef NETIF_F_VIRTUAL
+#undef NETIF_F_LLTX
+#define NETIF_F_LLTX (__NETIF_F(LLTX) | __NETIF_F(VIRTUAL))
+#endif
+#endif
+
 /* https://github.com/ClangBuiltLinux/linux/issues/7 */
 #if defined( __clang__) && (!defined(CONFIG_CLANG_VERSION) || CONFIG_CLANG_VERSION < 80000)
 #include <linux/bug.h>
