@@ -84,23 +84,33 @@ auto_su() {
 
 
 get_real_interface() {
-	local interface diff
-	wg show interfaces >/dev/null
+	local interface
 	[[ -f "/var/run/wireguard/$INTERFACE.name" ]] || return 1
-	interface="$(< "/var/run/wireguard/$INTERFACE.name")"
-	[[ -n $interface && -S "/var/run/wireguard/$interface.sock" ]] || return 1
-	diff=$(( $(stat -f %m "/var/run/wireguard/$interface.sock" 2>/dev/null || echo 200) - $(stat -f %m "/var/run/wireguard/$INTERFACE.name" 2>/dev/null || echo 100) ))
-	[[ $diff -ge 2 || $diff -le -2 ]] && return 1
-	REAL_INTERFACE="$interface"
+	REAL_INTERFACE="$(< "/var/run/wireguard/$INTERFACE.name")"
 	echo "[+] Interface for $INTERFACE is $REAL_INTERFACE" >&2
 	return 0
 }
 
+get_next_interface() {
+	local ifs last_if id
+	ifs="$(wg show interfaces)"
+	last_if="${ifs##* }"
+	id=$((${last_if//[^0-9]/} + 1))
+	echo wg${id}
+}
+
 add_if() {
-	export WG_TUN_NAME_FILE="/var/run/wireguard/$INTERFACE.name"
-	mkdir -p "/var/run/wireguard/"
-	cmd "${WG_QUICK_USERSPACE_IMPLEMENTATION:-wireguard-go}" tun
-	get_real_interface
+	REAL_INTERFACE="`get_next_interface`"
+	if cmd ifconfig "$REAL_INTERFACE" create; then
+		cmd ifconfig "$REAL_INTERFACE" description "$INTERFACE"
+		echo "$REAL_INTERFACE" > "/var/run/wireguard/$INTERFACE.name"
+		echo "[+] Interface for $INTERFACE is $REAL_INTERFACE" >&2
+	else
+		export WG_TUN_NAME_FILE="/var/run/wireguard/$INTERFACE.name"
+		mkdir -p "/var/run/wireguard/"
+		cmd "${WG_QUICK_USERSPACE_IMPLEMENTATION:-wireguard-go}" tun
+		get_real_interface
+	fi
 }
 
 del_routes() {
@@ -130,8 +140,8 @@ del_routes() {
 
 del_if() {
 	unset_dns
-	[[ -z $REAL_INTERFACE ]] || cmd rm -f "/var/run/wireguard/$REAL_INTERFACE.sock"
 	cmd rm -f "/var/run/wireguard/$INTERFACE.name"
+	cmd ifconfig "$REAL_INTERFACE" destroy
 }
 
 up_if() {
