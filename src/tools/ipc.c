@@ -1079,10 +1079,10 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 
 			aip->family = ip[j].c_af;
 			if (ip[j].c_af == AF_INET) {
-				memcpy(&aip->ip4, &ip[j].c_ip, sizeof(aip->ip4));
+				memcpy(&aip->ip4, &ip[j].c_ip.ipv4, sizeof(aip->ip4));
 				aip->cidr = ip[j].c_mask;
 			} else if (ip[j].c_af == AF_INET6) {
-				memcpy(&aip->ip6, &ip[j].c_ip, sizeof(aip->ip6));
+				memcpy(&aip->ip6, &ip[j].c_ip.ipv6, sizeof(aip->ip6));
 				aip->cidr = ip[j].c_mask;
 			}
 		}
@@ -1169,6 +1169,9 @@ static int openbsd_set_device(struct wgdevice *dev)
 			} else {
 				return -1;
 			}
+
+			if (ioctl(s, SIOCSWGPEERAIP, (caddr_t)&wsp) == -1)
+				return -1;
 		}
 	}
 	return 0;
