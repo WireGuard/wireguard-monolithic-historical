@@ -293,7 +293,7 @@ add_route() {
 	fi
 
 	if [[ -n $TABLE && $TABLE != auto ]]; then
-		cmd route -q -n add "-$family" -rdomain "$TABLE" "$1" -iface "$ifaceroute"
+		cmd route -q -n -T "$TABLE" add "-$family" "$1" -iface "$ifaceroute"
 	elif [[ $1 == */0 ]]; then
 		if [[ $1 == *:* ]]; then
 			AUTO_ROUTE6=1
