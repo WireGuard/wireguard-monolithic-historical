@@ -413,10 +413,16 @@ static int set_peer(struct wg_device *wg, struct nlattr **attrs)
 		}
 		up_read(&wg->static_identity.lock);
 
-		ret = -ENOMEM;
 		peer = wg_peer_create(wg, public_key, preshared_key);
-		if (!peer)
+		if (IS_ERR(peer)) {
+			/* Similar to the above, if the key is invalid, we skip
+			 * it without fanfare, so that services don't need to
+			 * worry about doing key validation themselves.
+			 */
+			ret = PTR_ERR(peer) == -EKEYREJECTED ? 0 : PTR_ERR(peer);
+			peer = NULL;
 			goto out;
+		}
 		/* Take additional reference, as though we've just been
 		 * looked up.
 		 */
