@@ -4,7 +4,9 @@ config WIREGUARD
 	depends on IPV6 || !IPV6
 	select NET_UDP_TUNNEL
 	select DST_CACHE
+	select CRYPTO
 	select CRYPTO_BLKCIPHER
+	select XOR_BLOCKS
 	select VFP
 	select VFPv3 if CPU_V7
 	select NEON if CPU_V7
