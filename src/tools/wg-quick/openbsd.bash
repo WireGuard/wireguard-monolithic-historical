@@ -101,13 +101,13 @@ get_next_interface() {
 
 add_if() {
 	REAL_INTERFACE="`get_next_interface`"
+	mkdir -p "/var/run/wireguard/"
 	if cmd ifconfig "$REAL_INTERFACE" create; then
 		cmd ifconfig "$REAL_INTERFACE" description "$INTERFACE"
 		echo "$REAL_INTERFACE" > "/var/run/wireguard/$INTERFACE.name"
 		echo "[+] Interface for $INTERFACE is $REAL_INTERFACE" >&2
 	else
 		export WG_TUN_NAME_FILE="/var/run/wireguard/$INTERFACE.name"
-		mkdir -p "/var/run/wireguard/"
 		cmd "${WG_QUICK_USERSPACE_IMPLEMENTATION:-wireguard-go}" tun
 		get_real_interface
 	fi
