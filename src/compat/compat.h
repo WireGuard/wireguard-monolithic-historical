@@ -600,10 +600,6 @@ static int wg_get_device_dump_real(a, b)
 #define COMPAT_CANNOT_USE_IN6_DEV_GET
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-#define COMPAT_CANNOT_USE_DEV_CNF
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
 #define COMPAT_CANNOT_USE_IFF_NO_QUEUE
 #endif

@@ -47,6 +47,10 @@ ccflags-y += -include $(kbuild-dir)/compat/memneq/include.h
 wireguard-y += compat/memneq/memneq.o
 endif
 
+ifeq ($(shell grep -s -F "addr_gen_mode" "$(srctree)/include/linux/ipv6.h"),)
+ccflags-y += -DCOMPAT_CANNOT_USE_DEV_CNF
+endif
+
 ifdef CONFIG_HZ
 ifeq ($(wildcard $(srctree)/include/generated/timeconst.h),)
 ccflags-y += $(shell echo 'define gcd(a,b){auto t;while(b){t=b;b=a%b;a=t;};return a;};hz=$(CONFIG_HZ);cd=gcd(hz,1000000);print "-DHZ_TO_USEC_NUM=",1000000/cd," -DHZ_TO_USEC_DEN=",hz/cd;halt;' | bc -q)
