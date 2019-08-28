@@ -155,7 +155,7 @@ set_dns() {
 
 unset_dns() {
 	[[ ${#DNS[@]} -gt 0 ]] || return 0
-	cmd resolvconf -d "$(resolvconf_iface_prefix)$INTERFACE"
+	cmd resolvconf -d "$(resolvconf_iface_prefix)$INTERFACE" -f
 }
 
 add_route() {
