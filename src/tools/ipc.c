@@ -1017,13 +1017,19 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 		dev->flags |= WGDEVICE_HAS_LISTEN_PORT;
 	}
 
-	if (!IS_NULL_KEY(wgs.gs_pubkey) || IS_MASKED_KEY(wgs.gs_pubkey)) {
-		memcpy(dev->public_key, wgs.gs_pubkey, WG_KEY_SIZE);
+	if (!IS_NULL_KEY(wgs.gs_pubkey)) {
+		if (IS_MASKED_KEY(wgs.gs_pubkey))
+			bzero(dev->public_key, WG_KEY_SIZE);
+		else
+			memcpy(dev->public_key, wgs.gs_pubkey, WG_KEY_SIZE);
 		dev->flags |= WGDEVICE_HAS_PUBLIC_KEY;
 	}
 
-	if (!IS_NULL_KEY(wgs.gs_privkey) || IS_MASKED_KEY(wgs.gs_privkey)) {
-		memcpy(dev->private_key, wgs.gs_privkey, WG_KEY_SIZE);
+	if (!IS_NULL_KEY(wgs.gs_privkey)) {
+		if (IS_MASKED_KEY(wgs.gs_privkey))
+			bzero(dev->private_key, WG_KEY_SIZE);
+		else
+			memcpy(dev->private_key, wgs.gs_privkey, WG_KEY_SIZE);
 		dev->flags |= WGDEVICE_HAS_PRIVATE_KEY;
 	}
 
@@ -1053,8 +1059,11 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 			peer->flags |= WGPEER_HAS_PUBLIC_KEY;
 		}
 
-		if (!IS_NULL_KEY(wgp.gp_psk) || IS_MASKED_KEY(wgp.gp_psk)) {
-			memcpy(peer->preshared_key, wgp.gp_psk, WG_KEY_SIZE);
+		if (!IS_NULL_KEY(wgp.gp_psk)) {
+			if (IS_MASKED_KEY(wgs.gs_privkey))
+				bzero(peer->preshared_key, WG_KEY_SIZE);
+			else
+				memcpy(peer->preshared_key, wgp.gp_psk, WG_KEY_SIZE);
 			peer->flags |= WGPEER_HAS_PRESHARED_KEY;
 		}
 
