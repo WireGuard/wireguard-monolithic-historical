@@ -984,9 +984,11 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 	size_t num;
 	struct wg_get_serv wgs;
 	struct wg_get_peer wgp;
+	struct ifreq ifr;
 
 	strlcpy(wgs.gs_name, interface, sizeof(wgs.gs_name));
 	strlcpy(wgp.gp_name, interface, sizeof(wgp.gp_name));
+	strlcpy(ifr.ifr_name, interface, sizeof(ifr.ifr_name));
 
 	getsock();
 
@@ -1004,6 +1006,11 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 
 	struct wgdevice *dev = calloc(1, sizeof(*dev));
 	strlcpy(dev->name, interface, sizeof(dev->name));
+
+	if (ioctl(s, SIOCGIFRDOMAIN, (caddr_t)&ifr) != -1) {
+		dev->fwmark = ifr.ifr_rdomainid;
+		dev->flags |= WGDEVICE_HAS_FWMARK;
+	}
 
 	if (wgs.gs_port != 0) {
 		dev->listen_port = wgs.gs_port;
@@ -1096,11 +1103,13 @@ static int openbsd_set_device(struct wgdevice *dev)
 {
 	struct wg_set_serv wss;
 	struct wg_set_peer wsp;
+	struct ifreq ifr;
 	struct wgpeer *peer;
 	struct wgallowedip *aip;
 
 	strlcpy(wss.ss_name, dev->name, sizeof(wss.ss_name));
 	strlcpy(wsp.sp_name, dev->name, sizeof(wsp.sp_name));
+	strlcpy(ifr.ifr_name, dev->name, sizeof(ifr.ifr_name));
 
 	getsock();
 
@@ -1117,7 +1126,9 @@ static int openbsd_set_device(struct wgdevice *dev)
 	}
 
 	if (dev->flags & WGDEVICE_HAS_FWMARK) {
-		printf("FWMARK not supported\n");
+		ifr.ifr_rdomainid = dev->fwmark;
+		if (ioctl(s, SIOCSIFRDOMAIN, (caddr_t)&ifr) == -1)
+			return -1;
 	}
 
 	if (dev->flags & WGDEVICE_REPLACE_PEERS)
