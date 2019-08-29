@@ -22,7 +22,7 @@ int showconf_main(int argc, char *argv[])
 {
 	char base64[WG_KEY_LEN_BASE64];
 	char ip[INET6_ADDRSTRLEN];
-	struct wgdevice *device = NULL;
+	struct wgdevice *conf = NULL;
 	struct wgpeer *peer;
 	struct wgallowedip *allowedip;
 	int ret = 1;
@@ -32,22 +32,22 @@ int showconf_main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (ipc_get_device(&device, argv[1])) {
+	if (ipc_fetch_conf(&conf, argv[1])) {
 		perror("Unable to access interface");
 		goto cleanup;
 	}
 
 	printf("[Interface]\n");
-	if (device->listen_port)
-		printf("ListenPort = %u\n", device->listen_port);
-	if (device->fwmark)
-		printf("FwMark = 0x%x\n", device->fwmark);
-	if (device->flags & WGDEVICE_HAS_PRIVATE_KEY) {
-		key_to_base64(base64, device->private_key);
+	if (conf->listen_port)
+		printf("ListenPort = %u\n", conf->listen_port);
+	if (conf->fwmark)
+		printf("FwMark = 0x%x\n", conf->fwmark);
+	if (conf->flags & WGDEVICE_HAS_PRIVATE_KEY) {
+		key_to_base64(base64, conf->private_key);
 		printf("PrivateKey = %s\n", base64);
 	}
 	printf("\n");
-	for_each_wgpeer(device, peer) {
+	for_each_wgpeer(conf, peer) {
 		key_to_base64(base64, peer->public_key);
 		printf("[Peer]\nPublicKey = %s\n", base64);
 		if (peer->flags & WGPEER_HAS_PRESHARED_KEY) {
@@ -98,6 +98,6 @@ int showconf_main(int argc, char *argv[])
 	ret = 0;
 
 cleanup:
-	free_wgdevice(device);
+	free_conf(conf);
 	return ret;
 }

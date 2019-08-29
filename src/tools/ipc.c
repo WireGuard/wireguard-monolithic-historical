@@ -202,7 +202,7 @@ out:
 #include "wincompat/ipc.c"
 #endif
 
-static int userspace_set_device(struct wgdevice *dev)
+static int userspace_set_device(const struct wgdevice *newconf)
 {
 	char hex[WG_KEY_LEN_HEX], ip[INET6_ADDRSTRLEN], host[4096 + 1], service[512 + 1];
 	struct wgpeer *peer;
@@ -211,23 +211,23 @@ static int userspace_set_device(struct wgdevice *dev)
 	int ret;
 	socklen_t addr_len;
 
-	f = userspace_interface_file(dev->name);
+	f = userspace_interface_file(newconf->name);
 	if (!f)
 		return -errno;
 	fprintf(f, "set=1\n");
 
-	if (dev->flags & WGDEVICE_HAS_PRIVATE_KEY) {
-		key_to_hex(hex, dev->private_key);
+	if (newconf->flags & WGDEVICE_HAS_PRIVATE_KEY) {
+		key_to_hex(hex, newconf->private_key);
 		fprintf(f, "private_key=%s\n", hex);
 	}
-	if (dev->flags & WGDEVICE_HAS_LISTEN_PORT)
-		fprintf(f, "listen_port=%u\n", dev->listen_port);
-	if (dev->flags & WGDEVICE_HAS_FWMARK)
-		fprintf(f, "fwmark=%u\n", dev->fwmark);
-	if (dev->flags & WGDEVICE_REPLACE_PEERS)
+	if (newconf->flags & WGDEVICE_HAS_LISTEN_PORT)
+		fprintf(f, "listen_port=%u\n", newconf->listen_port);
+	if (newconf->flags & WGDEVICE_HAS_FWMARK)
+		fprintf(f, "fwmark=%u\n", newconf->fwmark);
+	if (newconf->flags & WGDEVICE_REPLACE_PEERS)
 		fprintf(f, "replace_peers=true\n");
 
-	for_each_wgpeer(dev, peer) {
+	for_each_wgpeer(newconf, peer) {
 		key_to_hex(hex, peer->public_key);
 		fprintf(f, "public_key=%s\n", hex);
 		if (peer->flags & WGPEER_REMOVE_ME) {
@@ -288,9 +288,9 @@ static int userspace_set_device(struct wgdevice *dev)
 	num; \
 })
 
-static int userspace_get_device(struct wgdevice **out, const char *interface)
+static int userspace_fetch_conf(struct wgdevice **out, const char *interface)
 {
-	struct wgdevice *dev;
+	struct wgdevice *conf;
 	struct wgpeer *peer = NULL;
 	struct wgallowedip *allowedip = NULL;
 	size_t line_buffer_len = 0, line_len;
@@ -298,8 +298,8 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 	FILE *f;
 	int ret = -EPROTO;
 
-	*out = dev = calloc(1, sizeof(*dev));
-	if (!dev)
+	*out = conf = calloc(1, sizeof(*conf));
+	if (!conf)
 		return -errno;
 
 	f = userspace_interface_file(interface);
@@ -309,8 +309,8 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 	fprintf(f, "get=1\n\n");
 	fflush(f);
 
-	strncpy(dev->name, interface, IFNAMSIZ - 1);
-	dev->name[IFNAMSIZ - 1] = '\0';
+	strncpy(conf->name, interface, IFNAMSIZ - 1);
+	conf->name[IFNAMSIZ - 1] = '\0';
 
 	while (getline(&key, &line_buffer_len, f) > 0) {
 		line_len = strlen(key);
@@ -325,16 +325,16 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 		*value++ = key[--line_len] = '\0';
 
 		if (!peer && !strcmp(key, "private_key")) {
-			if (!key_from_hex(dev->private_key, value))
+			if (!key_from_hex(conf->private_key, value))
 				break;
-			curve25519_generate_public(dev->public_key, dev->private_key);
-			dev->flags |= WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_PUBLIC_KEY;
+			curve25519_generate_public(conf->public_key, conf->private_key);
+			conf->flags |= WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_PUBLIC_KEY;
 		} else if (!peer && !strcmp(key, "listen_port")) {
-			dev->listen_port = NUM(0xffffU);
-			dev->flags |= WGDEVICE_HAS_LISTEN_PORT;
+			conf->listen_port = NUM(0xffffU);
+			conf->flags |= WGDEVICE_HAS_LISTEN_PORT;
 		} else if (!peer && !strcmp(key, "fwmark")) {
-			dev->fwmark = NUM(0xffffffffU);
-			dev->flags |= WGDEVICE_HAS_FWMARK;
+			conf->fwmark = NUM(0xffffffffU);
+			conf->flags |= WGDEVICE_HAS_FWMARK;
 		} else if (!strcmp(key, "public_key")) {
 			struct wgpeer *new_peer = calloc(1, sizeof(*new_peer));
 
@@ -346,7 +346,7 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 			if (peer)
 				peer->next_peer = new_peer;
 			else
-				dev->first_peer = new_peer;
+				conf->first_peer = new_peer;
 			peer = new_peer;
 			if (!key_from_hex(peer->public_key, value))
 				break;
@@ -437,7 +437,7 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 	ret = -EPROTO;
 err:
 	free(key);
-	free_wgdevice(dev);
+	free_conf(conf);
 	*out = NULL;
 	fclose(f);
 	errno = -ret;
@@ -555,7 +555,7 @@ cleanup:
 	return ret;
 }
 
-static int kernel_set_device(struct wgdevice *dev)
+static int kernel_set_device(const struct wgdevice *newconf)
 {
 	int ret = 0;
 	struct wgpeer *peer = NULL;
@@ -570,27 +570,27 @@ static int kernel_set_device(struct wgdevice *dev)
 
 again:
 	nlh = mnlg_msg_prepare(nlg, WG_CMD_SET_DEVICE, NLM_F_REQUEST | NLM_F_ACK);
-	mnl_attr_put_strz(nlh, WGDEVICE_A_IFNAME, dev->name);
+	mnl_attr_put_strz(nlh, WGDEVICE_A_IFNAME, newconf->name);
 
 	if (!peer) {
 		uint32_t flags = 0;
 
-		if (dev->flags & WGDEVICE_HAS_PRIVATE_KEY)
-			mnl_attr_put(nlh, WGDEVICE_A_PRIVATE_KEY, sizeof(dev->private_key), dev->private_key);
-		if (dev->flags & WGDEVICE_HAS_LISTEN_PORT)
-			mnl_attr_put_u16(nlh, WGDEVICE_A_LISTEN_PORT, dev->listen_port);
-		if (dev->flags & WGDEVICE_HAS_FWMARK)
-			mnl_attr_put_u32(nlh, WGDEVICE_A_FWMARK, dev->fwmark);
-		if (dev->flags & WGDEVICE_REPLACE_PEERS)
+		if (newconf->flags & WGDEVICE_HAS_PRIVATE_KEY)
+			mnl_attr_put(nlh, WGDEVICE_A_PRIVATE_KEY, sizeof(newconf->private_key), newconf->private_key);
+		if (newconf->flags & WGDEVICE_HAS_LISTEN_PORT)
+			mnl_attr_put_u16(nlh, WGDEVICE_A_LISTEN_PORT, newconf->listen_port);
+		if (newconf->flags & WGDEVICE_HAS_FWMARK)
+			mnl_attr_put_u32(nlh, WGDEVICE_A_FWMARK, newconf->fwmark);
+		if (newconf->flags & WGDEVICE_REPLACE_PEERS)
 			flags |= WGDEVICE_F_REPLACE_PEERS;
 		if (flags)
 			mnl_attr_put_u32(nlh, WGDEVICE_A_FLAGS, flags);
 	}
-	if (!dev->first_peer)
+	if (!newconf->first_peer)
 		goto send;
 	peers_nest = peer_nest = allowedips_nest = allowedip_nest = NULL;
 	peers_nest = mnl_attr_nest_start(nlh, WGDEVICE_A_PEERS);
-	for (peer = peer ? peer : dev->first_peer; peer; peer = peer->next_peer) {
+	for (peer = peer ? peer : newconf->first_peer; peer; peer = peer->next_peer) {
 		uint32_t flags = 0;
 
 		peer_nest = mnl_attr_nest_start_check(nlh, SOCKET_BUFFER_SIZE, 0);
@@ -889,21 +889,21 @@ static void coalesce_peers(struct wgdevice *device)
 	}
 }
 
-static int kernel_get_device(struct wgdevice **device, const char *interface)
+static int kernel_fetch_conf(struct wgdevice **conf, const char *interface)
 {
 	int ret = 0;
 	struct nlmsghdr *nlh;
 	struct mnlg_socket *nlg;
 
 try_again:
-	*device = calloc(1, sizeof(**device));
-	if (!*device)
+	*conf = calloc(1, sizeof(**conf));
+	if (!*conf)
 		return -errno;
 
 	nlg = mnlg_socket_open(WG_GENL_NAME, WG_GENL_VERSION);
 	if (!nlg) {
-		free_wgdevice(*device);
-		*device = NULL;
+		free_conf(*conf);
+		*conf = NULL;
 		return -errno;
 	}
 
@@ -914,20 +914,20 @@ try_again:
 		goto out;
 	}
 	errno = 0;
-	if (mnlg_socket_recv_run(nlg, read_device_cb, *device) < 0) {
+	if (mnlg_socket_recv_run(nlg, read_device_cb, *conf) < 0) {
 		ret = errno ? -errno : -EINVAL;
 		goto out;
 	}
-	coalesce_peers(*device);
+	coalesce_peers(*conf);
 
 out:
 	if (nlg)
 		mnlg_socket_close(nlg);
 	if (ret) {
-		free_wgdevice(*device);
+		free_conf(*conf);
 		if (ret == -EINTR)
 			goto try_again;
-		*device = NULL;
+		*conf = NULL;
 	}
 	errno = -ret;
 	return ret;
@@ -963,24 +963,36 @@ cleanup:
 	return buffer.buffer;
 }
 
-int ipc_get_device(struct wgdevice **dev, const char *interface)
+int ipc_fetch_conf(struct wgdevice **conf, const char *interface)
 {
 #ifdef __linux__
 	if (userspace_has_wireguard_interface(interface))
-		return userspace_get_device(dev, interface);
-	return kernel_get_device(dev, interface);
+		return userspace_fetch_conf(conf, interface);
+	return kernel_fetch_conf(conf, interface);
 #else
-	return userspace_get_device(dev, interface);
+	return userspace_fetch_conf(conf, interface);
 #endif
 }
 
-int ipc_set_device(struct wgdevice *dev)
+int ipc_set_device(const struct wgdevice *newconf)
 {
 #ifdef __linux__
-	if (userspace_has_wireguard_interface(dev->name))
-		return userspace_set_device(dev);
-	return kernel_set_device(dev);
+	if (userspace_has_wireguard_interface(newconf->name))
+		return userspace_set_device(newconf);
+	return kernel_set_device(newconf);
 #else
-	return userspace_set_device(dev);
+	return userspace_set_device(newconf);
 #endif
+}
+
+/**
+ * Free the memory block allocated by ipc_fetch_conf()
+ *
+ * free_conf() is implemented as an alias of free_wgdevice()
+ *
+ * @see ipc_fetch_conf() and ipc.h
+ */
+void free_conf(struct wgdevice *conf)
+{
+	free_wgdevice(conf);
 }
