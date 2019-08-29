@@ -45,7 +45,7 @@ struct wgpeer {
 	uint8_t public_key[WG_KEY_LEN];
 	uint8_t preshared_key[WG_KEY_LEN];
 
-	union {
+	union wgendpoint {
 		struct sockaddr addr;
 		struct sockaddr_in addr4;
 		struct sockaddr_in6 addr6;
