@@ -5,24 +5,31 @@
 
 #include <windows.h>
 #include <tlhelp32.h>
+#include <accctrl.h>
+#include <aclapi.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <fcntl.h>
 
-static FILE *userspace_interface_file(const char *interface)
+static FILE *userspace_interface_file(const char *iface)
 {
 	char fname[MAX_PATH], error_message[1024 * 128] = { 0 };
 	HANDLE thread_token, process_snapshot, winlogon_process, winlogon_token, duplicated_token, pipe_handle = INVALID_HANDLE_VALUE;
 	PROCESSENTRY32 entry = { .dwSize = sizeof(PROCESSENTRY32) };
+	PSECURITY_DESCRIPTOR pipe_sd;
+	PSID pipe_sid;
+	SID expected_sid;
 	BOOL ret;
 	int fd;
-	DWORD last_error = ERROR_SUCCESS;
+	DWORD last_error = ERROR_SUCCESS, bytes = sizeof(expected_sid);
 	TOKEN_PRIVILEGES privileges = {
 		.PrivilegeCount = 1,
 		.Privileges = {{ .Attributes = SE_PRIVILEGE_ENABLED }}
 	};
 
 	if (!LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &privileges.Privileges[0].Luid))
+		goto err;
+	if (!CreateWellKnownSid(WinLocalSystemSid, NULL, &expected_sid, &bytes))
 		goto err;
 
 	process_snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -63,13 +70,24 @@ static FILE *userspace_interface_file(const char *interface)
 		}
 		CloseHandle(duplicated_token);
 
-		snprintf(fname, sizeof(fname), "\\\\.\\pipe\\WireGuard\\%s", interface);
+		snprintf(fname, sizeof(fname), "\\\\.\\pipe\\ProtectedPrefix\\Administrators\\WireGuard\\%s", iface);
 		pipe_handle = CreateFile(fname, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 		last_error = GetLastError();
-		if (pipe_handle != INVALID_HANDLE_VALUE) {
-			last_error = ERROR_SUCCESS;
-			break;
+		if (pipe_handle == INVALID_HANDLE_VALUE)
+			continue;
+		last_error = GetSecurityInfo(pipe_handle, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION, &pipe_sid, NULL, NULL, NULL, &pipe_sd);
+		if (last_error != ERROR_SUCCESS) {
+			CloseHandle(pipe_handle);
+			continue;
 		}
+		last_error = EqualSid(&expected_sid, pipe_sid) ? ERROR_SUCCESS : ERROR_ACCESS_DENIED;
+		LocalFree(pipe_sd);
+		if (last_error != ERROR_SUCCESS) {
+			CloseHandle(pipe_handle);
+			continue;
+		}
+		last_error = ERROR_SUCCESS;
+		break;
 	}
 	RevertToSelf();
 	CloseHandle(process_snapshot);

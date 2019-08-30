@@ -96,7 +96,7 @@ static int add_next_to_inflatable_buffer(struct inflatable_buffer *buffer)
 }
 
 #ifndef WINCOMPAT
-static FILE *userspace_interface_file(const char *interface)
+static FILE *userspace_interface_file(const char *iface)
 {
 	struct stat sbuf;
 	struct sockaddr_un addr = { .sun_family = AF_UNIX };
@@ -104,9 +104,9 @@ static FILE *userspace_interface_file(const char *interface)
 	FILE *f = NULL;
 
 	errno = EINVAL;
-	if (strchr(interface, '/'))
+	if (strchr(iface, '/'))
 		goto out;
-	ret = snprintf(addr.sun_path, sizeof(addr.sun_path), SOCK_PATH "%s" SOCK_SUFFIX, interface);
+	ret = snprintf(addr.sun_path, sizeof(addr.sun_path), SOCK_PATH "%s" SOCK_SUFFIX, iface);
 	if (ret < 0)
 		goto out;
 	ret = stat(addr.sun_path, &sbuf);
@@ -140,15 +140,15 @@ out:
 	return f;
 }
 
-static bool userspace_has_wireguard_interface(const char *interface)
+static bool userspace_has_wireguard_interface(const char *iface)
 {
 	struct stat sbuf;
 	struct sockaddr_un addr = { .sun_family = AF_UNIX };
 	int fd, ret;
 
-	if (strchr(interface, '/'))
+	if (strchr(iface, '/'))
 		return false;
-	if (snprintf(addr.sun_path, sizeof(addr.sun_path), SOCK_PATH "%s" SOCK_SUFFIX, interface) < 0)
+	if (snprintf(addr.sun_path, sizeof(addr.sun_path), SOCK_PATH "%s" SOCK_SUFFIX, iface) < 0)
 		return false;
 	if (stat(addr.sun_path, &sbuf) < 0)
 		return false;
@@ -288,7 +288,7 @@ static int userspace_set_device(struct wgdevice *dev)
 	num; \
 })
 
-static int userspace_get_device(struct wgdevice **out, const char *interface)
+static int userspace_get_device(struct wgdevice **out, const char *iface)
 {
 	struct wgdevice *dev;
 	struct wgpeer *peer = NULL;
@@ -302,14 +302,14 @@ static int userspace_get_device(struct wgdevice **out, const char *interface)
 	if (!dev)
 		return -errno;
 
-	f = userspace_interface_file(interface);
+	f = userspace_interface_file(iface);
 	if (!f)
 		return -errno;
 
 	fprintf(f, "get=1\n\n");
 	fflush(f);
 
-	strncpy(dev->name, interface, IFNAMSIZ - 1);
+	strncpy(dev->name, iface, IFNAMSIZ - 1);
 	dev->name[IFNAMSIZ - 1] = '\0';
 
 	while (getline(&key, &line_buffer_len, f) > 0) {
@@ -889,7 +889,7 @@ static void coalesce_peers(struct wgdevice *device)
 	}
 }
 
-static int kernel_get_device(struct wgdevice **device, const char *interface)
+static int kernel_get_device(struct wgdevice **device, const char *iface)
 {
 	int ret = 0;
 	struct nlmsghdr *nlh;
@@ -908,7 +908,7 @@ try_again:
 	}
 
 	nlh = mnlg_msg_prepare(nlg, WG_CMD_GET_DEVICE, NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP);
-	mnl_attr_put_strz(nlh, WGDEVICE_A_IFNAME, interface);
+	mnl_attr_put_strz(nlh, WGDEVICE_A_IFNAME, iface);
 	if (mnlg_socket_send(nlg, nlh) < 0) {
 		ret = -errno;
 		goto out;
@@ -963,14 +963,14 @@ cleanup:
 	return buffer.buffer;
 }
 
-int ipc_get_device(struct wgdevice **dev, const char *interface)
+int ipc_get_device(struct wgdevice **dev, const char *iface)
 {
 #ifdef __linux__
-	if (userspace_has_wireguard_interface(interface))
-		return userspace_get_device(dev, interface);
-	return kernel_get_device(dev, interface);
+	if (userspace_has_wireguard_interface(iface))
+		return userspace_get_device(dev, iface);
+	return kernel_get_device(dev, iface);
 #else
-	return userspace_get_device(dev, interface);
+	return userspace_get_device(dev, iface);
 #endif
 }
 
