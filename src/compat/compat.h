@@ -21,6 +21,8 @@
 #ifdef UTS_UBUNTU_RELEASE_ABI
 #if LINUX_VERSION_CODE == KERNEL_VERSION(3, 13, 11)
 #define ISUBUNTU1404
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
+#define ISUBUNTU1604
 #endif
 #endif
 #ifdef CONFIG_SUSE_KERNEL
@@ -838,6 +840,13 @@ static inline void skb_mark_not_on_list(struct sk_buff *skb)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0) && defined(__aarch64__)
 #define cpu_have_named_feature(name) (elf_hwcap & (HWCAP_ ## name))
+#endif
+
+#if defined(ISUBUNTU1604)
+#include <linux/siphash.h>
+#define hsiphash_2u32 siphash_2u32
+#define hsiphash_3u32 siphash_3u32
+#define hsiphash_key_t siphash_key_t
 #endif
 
 #ifdef CONFIG_VE
