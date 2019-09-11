@@ -47,6 +47,7 @@
 #endif
 
 #include <linux/cache.h>
+#include <linux/init.h>
 #ifndef __ro_after_init
 #define __ro_after_init __read_mostly
 #endif
