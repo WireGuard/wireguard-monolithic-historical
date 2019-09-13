@@ -845,9 +845,11 @@ static inline void skb_mark_not_on_list(struct sk_buff *skb)
 
 #if defined(ISUBUNTU1604)
 #include <linux/siphash.h>
+#ifndef _WG_LINUX_SIPHASH_H
 #define hsiphash_2u32 siphash_2u32
 #define hsiphash_3u32 siphash_3u32
 #define hsiphash_key_t siphash_key_t
+#endif
 #endif
 
 #ifdef CONFIG_VE
