@@ -241,7 +241,7 @@ ip2 link del wg0
 # │  ┌─────┐             ┌─────┐           │    │    ┌──────┐              ┌──────┐              │     │  ┌─────┐            ┌─────┐            │
 # │  │ wg0 │─────────────│vethc│───────────┼────┼────│vethrc│              │vethrs│──────────────┼─────┼──│veths│────────────│ wg0 │            │
 # │  ├─────┴──────────┐  ├─────┴──────────┐│    │    ├──────┴─────────┐    ├──────┴────────────┐ │     │  ├─────┴──────────┐ ├─────┴──────────┐ │
-# │  │192.168.241.1/24│  │192.168.1.100/24││    │    │192.168.1.100/24│    │10.0.0.1/24        │ │     │  │10.0.0.100/24   │ │192.168.241.2/24│ │
+# │  │192.168.241.1/24│  │192.168.1.100/24││    │    │192.168.1.1/24  │    │10.0.0.1/24        │ │     │  │10.0.0.100/24   │ │192.168.241.2/24│ │
 # │  │fd00::1/24      │  │                ││    │    │                │    │SNAT:192.168.1.0/24│ │     │  │                │ │fd00::2/24      │ │
 # │  └────────────────┘  └────────────────┘│    │    └────────────────┘    └───────────────────┘ │     │  └────────────────┘ └────────────────┘ │
 # └────────────────────────────────────────┘    └────────────────────────────────────────────────┘     └────────────────────────────────────────┘
@@ -280,6 +280,26 @@ n2 ping -W 1 -c 1 192.168.241.1
 # Demonstrate n2 can still send packets to n1, since persistent-keepalive will prevent connection tracking entry from expiring (to see entries: `n0 conntrack -L`).
 pp sleep 3
 n2 ping -W 1 -c 1 192.168.241.1
+n1 wg set wg0 peer "$pub2" persistent-keepalive 0
+
+# Do a wg-quick(8)-style policy routing for the default route, making sure vethc has a v6 address to tease out bugs.
+ip1 -6 addr add fc00::9/96 dev vethc
+ip1 -6 route add default via fc00::1
+ip2 -4 addr add 192.168.99.7/32 dev wg0
+ip2 -6 addr add abab::1111/128 dev wg0
+n1 wg set wg0 fwmark 51820 peer "$pub2" allowed-ips 192.168.99.7,abab::1111
+ip1 -6 route add default dev wg0 table 51820
+ip1 -6 rule add not fwmark 51820 table 51820
+ip1 -6 rule add table main suppress_prefixlength 0
+ip1 -4 route add default dev wg0 table 51820
+ip1 -4 rule add not fwmark 51820 table 51820
+ip1 -4 rule add table main suppress_prefixlength 0
+# suppress_prefixlength only got added in 3.12, and we want to support 3.10+.
+if [[ $(ip1 -4 rule show all) == *suppress_prefixlength* ]]; then
+	# Flood the pings instead of sending just one, to trigger routing table reference counting bugs.
+	n1 ping -W 1 -c 100 -f 192.168.99.7
+	n1 ping -W 1 -c 100 -f abab::1111
+fi
 
 n0 iptables -t nat -F
 ip0 link del vethrc
