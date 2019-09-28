@@ -87,10 +87,12 @@
  *        0: NLA_NESTED
  *            WGPEER_A_PUBLIC_KEY: len WG_KEY_LEN
  *            WGPEER_A_FLAGS: NLA_U32, 0 and/or WGPEER_F_REMOVE_ME if the
- *                            specified peer should be removed rather than
- *                            added/updated and/or WGPEER_F_REPLACE_ALLOWEDIPS
- *                            if all current allowed IPs of this peer should be
- *                            removed prior to adding the list below.
+ *                            specified peer should not exist at the end of the
+ *                            operation, rather than added/updated and/or
+ *                            WGPEER_F_REPLACE_ALLOWEDIPS if all current allowed
+ *                            IPs of this peer should be removed prior to adding
+ *                            the list below and/or WGPEER_F_UPDATE_ONLY if the
+ *                            peer should only be set if it already exists.
  *            WGPEER_A_PRESHARED_KEY: len WG_KEY_LEN, all zeros to remove
  *            WGPEER_A_ENDPOINT: struct sockaddr_in or struct sockaddr_in6
  *            WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL: NLA_U16, 0 to disable
@@ -162,7 +164,9 @@ enum wgdevice_attribute {
 enum wgpeer_flag {
 	WGPEER_F_REMOVE_ME = 1U << 0,
 	WGPEER_F_REPLACE_ALLOWEDIPS = 1U << 1,
-	__WGPEER_F_ALL = WGPEER_F_REMOVE_ME | WGPEER_F_REPLACE_ALLOWEDIPS
+	WGPEER_F_UPDATE_ONLY = 1U << 2,
+	__WGPEER_F_ALL = WGPEER_F_REMOVE_ME | WGPEER_F_REPLACE_ALLOWEDIPS |
+			 WGPEER_F_UPDATE_ONLY
 };
 enum wgpeer_attribute {
 	WGPEER_A_UNSPEC,

@@ -389,10 +389,10 @@ static int set_peer(struct wg_device *wg, struct nlattr **attrs)
 
 	peer = wg_pubkey_hashtable_lookup(wg->peer_hashtable,
 					  nla_data(attrs[WGPEER_A_PUBLIC_KEY]));
+	ret = 0;
 	if (!peer) { /* Peer doesn't exist yet. Add a new one. */
-		ret = -ENODEV;
-		if (flags & WGPEER_F_REMOVE_ME)
-			goto out; /* Tried to remove a non-existing peer. */
+		if (flags & (WGPEER_F_REMOVE_ME | WGPEER_F_UPDATE_ONLY))
+			goto out;
 
 		/* The peer is new, so there aren't allowed IPs to remove. */
 		flags &= ~WGPEER_F_REPLACE_ALLOWEDIPS;
@@ -429,7 +429,6 @@ static int set_peer(struct wg_device *wg, struct nlattr **attrs)
 		wg_peer_get(peer);
 	}
 
-	ret = 0;
 	if (flags & WGPEER_F_REMOVE_ME) {
 		wg_peer_remove(peer);
 		goto out;
