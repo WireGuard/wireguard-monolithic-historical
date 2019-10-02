@@ -25,12 +25,25 @@
 #include <sys/wait.h>
 #include <sys/param.h>
 
+#include "dnsresolver.h"
+
 #ifndef WG_PACKAGE_NAME
 #define WG_PACKAGE_NAME "com.wireguard.android"
 #endif
 #ifndef WG_CONFIG_SEARCH_PATHS
 #define WG_CONFIG_SEARCH_PATHS "/data/misc/wireguard /data/data/" WG_PACKAGE_NAME "/files"
 #endif
+
+/*
+ * the following values are default values observed in AOSP
+ */
+#define WG_DNS_SAMPLE_VALIDITY 1800 /* sec  */
+#define WG_DNS_SUCCESS_THRESHOLD 25
+#define WG_DNS_MIN_SAMPLES 8
+#define WG_DNS_MAX_SAMPLES 8
+#define WG_DNS_BASE_TIMEOUT 5000    /* msec */
+#define WG_DNS_RETRY_COUNT 2
+
 
 #define _printf_(x, y) __attribute__((format(printf, x, y)))
 #define _cleanup_(x) __attribute__((cleanup(x)))
@@ -121,6 +134,15 @@ static void free_command_buffer(struct command_buffer *c)
 		pclose(c->stream);
 	free(c->line);
 }
+static void freenularr(void *p)
+{
+	void **a = *(void ***)p;
+	if (a) {
+		for (int i = 0; a[i]; ++i)
+			free(a[i]);
+	}
+	free(a);
+}
 
 static void freep(void *p)
 {
@@ -134,6 +156,7 @@ static void fclosep(FILE **f)
 #define _cleanup_free_ _cleanup_(freep)
 #define _cleanup_fclose_ _cleanup_(fclosep)
 #define _cleanup_regfree_ _cleanup_(regfree)
+#define _cleanup_freenularr_ _cleanup_(freenularr)
 
 #define DEFINE_CMD(name) _cleanup_(free_command_buffer) struct command_buffer name = { 0 };
 
@@ -442,6 +465,10 @@ static void set_dnses(unsigned int netid, const char *dnses)
 	_cleanup_free_ char *mutable = xstrdup(dnses);
 	_cleanup_free_ char *arglist = xmalloc(len * 4 + 1);
 	_cleanup_free_ char *arg = xmalloc(len + 4);
+	_cleanup_freenularr_ char **dns_list = xmalloc(len + 2);
+	size_t dns_list_size = 0;
+	_cleanup_free_ char *pretty_dns_list = NULL;
+	_cleanup_dnsresolver_ void *handle = NULL;
 
 	if (!len)
 		return;
@@ -452,7 +479,57 @@ static void set_dnses(unsigned int netid, const char *dnses)
 			continue;
 		snprintf(arg, len + 3, "'%s' ", dns);
 		strncat(arglist, arg, len * 4 - 1);
+		dns_list[dns_list_size++] = xstrdup(dns);
 	}
+	dns_list[dns_list_size] = NULL;
+
+	if ((handle = dnsresolver_get_handle())) {
+		if (!dns_list_size)
+			return;
+
+		int32_t status;
+
+		printf("[#] <binder>::dnsResolver::createNetworkCache(%u)\n", netid);
+		status = dnsresolver_create_network_cache(handle, netid);
+		if (status != 0) {
+			fprintf(stderr, "Error: unable to create network cache\n");
+			exit(ELIBACC);
+		}
+
+		struct resolver_params params = {
+			.netid = netid,
+			.sample_validity_seconds = WG_DNS_SAMPLE_VALIDITY,
+			.success_threshold = WG_DNS_SUCCESS_THRESHOLD,
+			.min_samples = WG_DNS_MIN_SAMPLES,
+			.max_samples = WG_DNS_MAX_SAMPLES,
+			.base_timeout_msec = WG_DNS_BASE_TIMEOUT,
+			.retry_count = WG_DNS_RETRY_COUNT,
+			.servers = dns_list,
+			.domains = (char *[]){NULL},
+			.tls_name = "",
+			.tls_servers = (char *[]){NULL},
+			.tls_fingerprints = (char *[]){NULL}
+		};
+
+		for (int i = 0; dns_list[i]; ++i)
+			pretty_dns_list = concat_and_free(pretty_dns_list, ", ", dns_list[i]);
+
+		printf("[#] <binder>::dnsResolver::setResolverConfiguration(%u, [%s], [], %d, %d, %d, %d, %d, %d, [], [])\n",
+		       netid, pretty_dns_list, WG_DNS_SAMPLE_VALIDITY, WG_DNS_SUCCESS_THRESHOLD,
+		       WG_DNS_MIN_SAMPLES, WG_DNS_MAX_SAMPLES, WG_DNS_BASE_TIMEOUT, WG_DNS_RETRY_COUNT);
+
+		status = dnsresolver_set_resolver_configuration(handle, &params);
+
+		if (status != 0) {
+			fprintf(stderr, "Error: unable to set DNS servers through Binder");
+			printf("[#] <binder>::dnsResolver::destroyNetworkCache(%u)\n", netid);
+			dnsresolver_destroy_network_cache(handle, netid);
+			exit(ELIBACC);
+		}
+
+		return;
+	}
+
 	if (!strlen(arglist))
 		return;
 	cndc("resolver setnetdns %u '' %s", netid, arglist);
