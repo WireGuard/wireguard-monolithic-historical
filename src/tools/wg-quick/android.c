@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <regex.h>
+#include <dlfcn.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -37,6 +38,7 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 static bool is_exiting = false;
+static bool binder_available = false;
 
 static void *xmalloc(size_t size)
 {
@@ -233,6 +235,373 @@ _printf_(1, 2) static void cndc(const char *cmd_fmt, ...)
 		fprintf(stderr, "Error: %s\n", ret);
 		exit(ENONET);
 	}
+}
+
+/* Values are from AOSP repository platform/frameworks/native in libs/binder/ndk/include_ndk/android/binder_status.h. */
+enum {
+	STATUS_OK = 0,
+	STATUS_UNKNOWN_ERROR = -2147483647 - 1,
+	STATUS_NO_MEMORY = -ENOMEM,
+	STATUS_INVALID_OPERATION = -ENOSYS,
+	STATUS_BAD_VALUE = -EINVAL,
+	STATUS_BAD_TYPE = STATUS_UNKNOWN_ERROR + 1,
+	STATUS_NAME_NOT_FOUND = -ENOENT,
+	STATUS_PERMISSION_DENIED = -EPERM,
+	STATUS_NO_INIT = -ENODEV,
+	STATUS_ALREADY_EXISTS = -EEXIST,
+	STATUS_DEAD_OBJECT = -EPIPE,
+	STATUS_FAILED_TRANSACTION = STATUS_UNKNOWN_ERROR + 2,
+	STATUS_BAD_INDEX = -EOVERFLOW,
+	STATUS_NOT_ENOUGH_DATA = -ENODATA,
+	STATUS_WOULD_BLOCK = -EWOULDBLOCK,
+	STATUS_TIMED_OUT = -ETIMEDOUT,
+	STATUS_UNKNOWN_TRANSACTION = -EBADMSG,
+	STATUS_FDS_NOT_ALLOWED = STATUS_UNKNOWN_ERROR + 7,
+	STATUS_UNEXPECTED_NULL = STATUS_UNKNOWN_ERROR + 8
+};
+enum {
+	EX_NONE = 0,
+	EX_SECURITY = -1,
+	EX_BAD_PARCELABLE = -2,
+	EX_ILLEGAL_ARGUMENT = -3,
+	EX_NULL_POINTER = -4,
+	EX_ILLEGAL_STATE = -5,
+	EX_NETWORK_MAIN_THREAD = -6,
+	EX_UNSUPPORTED_OPERATION = -7,
+	EX_SERVICE_SPECIFIC = -8,
+	EX_PARCELABLE = -9,
+	EX_TRANSACTION_FAILED = -129
+};
+enum {
+	FLAG_ONEWAY = 0x01,
+};
+enum {
+	FIRST_CALL_TRANSACTION = 0x00000001,
+	LAST_CALL_TRANSACTION = 0x00ffffff
+};
+struct AIBinder;
+struct AParcel;
+struct AStatus;
+struct AIBinder_Class;
+typedef struct AIBinder AIBinder;
+typedef struct AParcel AParcel;
+typedef struct AStatus AStatus;
+typedef struct AIBinder_Class AIBinder_Class;
+typedef int32_t binder_status_t;
+typedef int32_t binder_exception_t;
+typedef uint32_t transaction_code_t;
+typedef uint32_t binder_flags_t;
+typedef void *(*AIBinder_Class_onCreate)(void *args);
+typedef void (*AIBinder_Class_onDestroy)(void *userData);
+typedef binder_status_t (*AIBinder_Class_onTransact)(AIBinder *binder, transaction_code_t code, const AParcel *in, AParcel *out);
+typedef const char *(*AParcel_stringArrayElementGetter)(const void *arrayData, size_t index, int32_t *outLength);
+static AIBinder_Class *(*AIBinder_Class_define)(const char *interfaceDescriptor, AIBinder_Class_onCreate onCreate, AIBinder_Class_onDestroy onDestroy, AIBinder_Class_onTransact onTransact) __attribute__((warn_unused_result));
+static bool (*AIBinder_associateClass)(AIBinder *binder, const AIBinder_Class *clazz);
+static void (*AIBinder_decStrong)(AIBinder *binder);
+static binder_status_t (*AIBinder_prepareTransaction)(AIBinder *binder, AParcel **in);
+static binder_status_t (*AIBinder_transact)(AIBinder *binder, transaction_code_t code, AParcel **in, AParcel **out, binder_flags_t flags);
+static binder_status_t (*AIBinder_ping)(AIBinder *binder);
+static binder_status_t (*AIBinder_dump)(AIBinder *binder, int fd, const char **args, uint32_t numArgs);
+static binder_status_t (*AParcel_readStatusHeader)(const AParcel *parcel, AStatus **status);
+static binder_status_t (*AParcel_readBool)(const AParcel *parcel, bool *value);
+static void (*AParcel_delete)(AParcel *parcel);
+static binder_status_t (*AParcel_setDataPosition)(const AParcel *parcel, int32_t position);
+static int32_t (*AParcel_getDataPosition)(const AParcel *parcel);
+static binder_status_t (*AParcel_writeInt32)(AParcel *parcel, int32_t value);
+static binder_status_t (*AParcel_writeStringArray)(AParcel *parcel, const void *arrayData, int32_t length, AParcel_stringArrayElementGetter getter);
+static binder_status_t (*AParcel_writeString)(AParcel *parcel, const char *string, int32_t length);
+static bool (*AStatus_isOk)(const AStatus *status);
+static void (*AStatus_delete)(AStatus *status);
+static binder_exception_t (*AStatus_getExceptionCode)(const AStatus *status);
+static int32_t (*AStatus_getServiceSpecificError)(const AStatus *status);
+static const char* (*AStatus_getMessage)(const AStatus *status);
+static binder_status_t (*AStatus_getStatus)(const AStatus *status);
+static AIBinder *(*AServiceManager_getService)(const char *instance) __attribute__((__warn_unused_result__));
+
+static	__attribute__((__constructor__(65535))) void load_symbols(void)
+{
+	void *handle = dlopen("libbinder_ndk.so", RTLD_LAZY);
+	binder_available = !!handle;
+	if (!binder_available)
+		return;
+
+#define X(symb) do {												\
+			if (!((symb) = (typeof(symb))dlsym(handle, #symb))) {					\
+				fprintf(stderr, "Error: unable to import " #symb " from libbinder_ndk.so\n");	\
+				exit(ELIBACC);									\
+			}											\
+		} while (0)
+	X(AIBinder_Class_define);
+	X(AIBinder_associateClass);
+	X(AIBinder_decStrong);
+	X(AIBinder_prepareTransaction);
+	X(AIBinder_transact);
+	X(AIBinder_ping);
+	X(AIBinder_dump);
+	X(AParcel_readStatusHeader);
+	X(AParcel_readBool);
+	X(AParcel_delete);
+	X(AParcel_setDataPosition);
+	X(AParcel_getDataPosition);
+	X(AParcel_writeInt32);
+	X(AParcel_writeStringArray);
+	X(AParcel_writeString);
+	X(AStatus_isOk);
+	X(AStatus_delete);
+	X(AStatus_getExceptionCode);
+	X(AStatus_getServiceSpecificError);
+	X(AStatus_getMessage);
+	X(AStatus_getStatus);
+	X(AServiceManager_getService);
+#undef X
+}
+
+static void cleanup_binder(AIBinder **binder)
+{
+	AIBinder_decStrong(*binder);
+}
+static void cleanup_status(AStatus **status)
+{
+	AStatus_delete(*status);
+}
+static void cleanup_parcel(AParcel **parcel)
+{
+	AParcel_delete(*parcel);
+}
+
+#define _cleanup_status_ __attribute__((__cleanup__(cleanup_status)))
+#define _cleanup_parcel_ __attribute__((__cleanup__(cleanup_parcel)))
+#define _cleanup_binder_ __attribute__((__cleanup__(cleanup_binder)))
+
+static int32_t string_size(const char *str)
+{
+	return str ? strlen(str) : -1;
+}
+
+static int32_t string_array_size(char *const *array)
+{
+	int32_t size = -1;
+	if (!array)
+		return size;
+	for (size = 0; array[size]; ++size);
+	return size;
+}
+
+static const char *string_array_getter(const void *array_data, size_t index, int32_t *outlength)
+{
+	const char **array = (const char **)array_data;
+	*outlength = array[index] ? strlen(array[index]) : -1;
+	return array[index];
+}
+
+static binder_status_t meaningful_binder_status(const AStatus *status_out)
+{
+	binder_status_t status = STATUS_OK;
+	binder_exception_t exc_code;
+	int32_t exc_code_service;
+	const char *message;
+
+	if (!AStatus_isOk(status_out)) {
+		exc_code = AStatus_getExceptionCode(status_out);
+		if (exc_code == EX_TRANSACTION_FAILED) {
+			status = AStatus_getStatus(status_out);
+			fprintf(stderr, "Error: transaction failed: %d\n", status);
+		}
+		else {
+			message = AStatus_getMessage(status_out);
+
+			if (exc_code == EX_SERVICE_SPECIFIC) {
+				exc_code_service = AStatus_getServiceSpecificError(status_out);
+				fprintf(stderr, "Error: service specific exception code: %d%s%s\n", exc_code_service, message ? ": " : "", message ?: "");
+			}
+			else
+				fprintf(stderr, "Error: exception code: %d%s%s\n", exc_code, message ? ": " : "", message ?: "");
+
+			status = STATUS_FAILED_TRANSACTION;
+		}
+	}
+
+	return status;
+}
+
+/* These values are default values observed in AOSP. */
+enum {
+	DNSRESOLVER_SAMPLE_VALIDITY = 1800 /* sec */,
+	DNSRESOLVER_SUCCESS_THRESHOLD = 25,
+	DNSRESOLVER_MIN_SAMPLES = 8,
+	DNSRESOLVER_MAX_SAMPLES = 8,
+	DNSRESOLVER_BASE_TIMEOUT = 5000 /* msec */,
+	DNSRESOLVER_RETRY_COUNT = 2
+};
+
+struct dnsresolver_params {
+	int32_t netid;
+	int32_t sample_validity_seconds;
+	int32_t success_threshold;
+	int32_t min_samples;
+	int32_t max_samples;
+	int32_t base_timeout_msec;
+	int32_t retry_count;
+	char **servers;          /* NULL terminated array of zero-terminated UTF-8 strings */
+	char **domains;          /* NULL terminated array of zero-terminated UTF-8 strings */
+	char *tls_name;          /* zero-terminated UTF-8 string													 */
+	char **tls_servers;      /* NULL terminated array of zero-terminated UTF-8 strings */
+	char **tls_fingerprints; /* NULL terminated array of zero-terminated UTF-8 strings */
+};
+
+static void *on_create()
+{
+	fprintf(stderr, "Error: on_create called on proxy object\n");
+	exit(ENOTSUP);
+	return NULL;
+}
+
+static void on_destroy()
+{
+	fprintf(stderr, "Error: on_destroy called on proxy object\n");
+	exit(ENOTSUP);
+}
+
+static binder_status_t on_transact()
+{
+	fprintf(stderr, "Error: on_transact called on a proxy object\n");
+	exit(ENOTSUP);
+	return 0;
+}
+
+static AIBinder *dnsresolver_get_handle(void)
+{
+	AIBinder *binder;
+	AIBinder_Class *clazz;
+
+	if (!binder_available)
+		return NULL;
+
+	binder = AServiceManager_getService("dnsresolver");
+	if (!binder)
+		return NULL;
+	clazz = AIBinder_Class_define("android.net.IDnsResolver", &on_create, &on_destroy, &on_transact);
+	if (!clazz)
+		goto error;
+
+	if (!AIBinder_associateClass(binder, clazz))
+		goto error;
+
+	return binder;
+error:
+	AIBinder_decStrong(binder);
+	return NULL;
+}
+
+static int32_t dnsresolver_create_network_cache(void *handle, int32_t netid)
+{
+	AIBinder *const binder = handle;
+	binder_status_t status;
+	_cleanup_parcel_ AParcel *parcel_in = NULL;
+	_cleanup_parcel_ AParcel *parcel_out = NULL;
+	_cleanup_status_ AStatus *status_out = NULL;
+
+	status = AIBinder_prepareTransaction(binder, &parcel_in);
+	if (status != STATUS_OK)
+		return status;
+
+	status = AParcel_writeInt32(parcel_in, netid);
+	if (status != STATUS_OK)
+		return status;
+
+	status = AIBinder_transact(binder, FIRST_CALL_TRANSACTION + 7 /* createNetworkCache */, &parcel_in, &parcel_out, 0);
+	if (status != STATUS_OK)
+		return status;
+
+	status = AParcel_readStatusHeader(parcel_out, &status_out);
+	if (status != STATUS_OK)
+		return status;
+
+	if (!AStatus_isOk(status_out))
+		return meaningful_binder_status(status_out);
+
+	return STATUS_OK;
+}
+
+static int32_t dnsresolver_set_resolver_configuration(void *handle, const struct dnsresolver_params *params)
+{
+	AIBinder *const binder = handle;
+	binder_status_t status;
+	_cleanup_parcel_ AParcel *parcel_in = NULL;
+	_cleanup_parcel_ AParcel *parcel_out = NULL;
+	_cleanup_status_ AStatus *status_out = NULL;
+	int32_t start_position, end_position;
+
+	status = AIBinder_prepareTransaction(binder, &parcel_in);
+	if (status != STATUS_OK)
+		return status;
+
+	status = AParcel_writeInt32(parcel_in, 1);
+	if (status != STATUS_OK)
+		return status;
+
+	start_position = AParcel_getDataPosition(parcel_in);
+	status = AParcel_writeInt32(parcel_in, 0);
+	if (status != STATUS_OK)
+		return status;
+
+	status = AParcel_writeInt32(parcel_in, params->netid);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeInt32(parcel_in, params->sample_validity_seconds);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeInt32(parcel_in, params->success_threshold);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeInt32(parcel_in, params->min_samples);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeInt32(parcel_in, params->max_samples);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeInt32(parcel_in, params->base_timeout_msec);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeInt32(parcel_in, params->retry_count);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeStringArray(parcel_in, params->servers, string_array_size(params->servers), &string_array_getter);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeStringArray(parcel_in, params->domains, string_array_size(params->domains), &string_array_getter);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeString(parcel_in, params->tls_name, string_size(params->tls_name));
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeStringArray(parcel_in, params->tls_servers, string_array_size(params->tls_servers), &string_array_getter);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeStringArray(parcel_in, params->tls_fingerprints, string_array_size(params->tls_fingerprints), &string_array_getter);
+	if (status != STATUS_OK)
+		return status;
+
+	end_position = AParcel_getDataPosition(parcel_in);
+	status = AParcel_setDataPosition(parcel_in, start_position);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_writeInt32(parcel_in, end_position - start_position);
+	if (status != STATUS_OK)
+		return status;
+	status = AParcel_setDataPosition(parcel_in, end_position);
+	if (status != STATUS_OK)
+		return status;
+
+	status = AIBinder_transact(binder, FIRST_CALL_TRANSACTION + 2 /* setResolverConfiguration */, &parcel_in, &parcel_out, 0);
+	if (status != STATUS_OK)
+		return status;
+
+	status = AParcel_readStatusHeader(parcel_out, &status_out);
+	if (status != STATUS_OK)
+		return status;
+
+	return meaningful_binder_status(status_out);
 }
 
 static void auto_su(int argc, char *argv[])
@@ -440,22 +809,75 @@ static void set_dnses(unsigned int netid, const char *dnses)
 	if (len > (1<<16))
 		return;
 	_cleanup_free_ char *mutable = xstrdup(dnses);
-	_cleanup_free_ char *arglist = xmalloc(len * 4 + 1);
+	_cleanup_free_ char *shell_arglist = xmalloc(len * 4 + 1);
+	_cleanup_free_ char *function_arglist = xmalloc(len * 4 + 1);
 	_cleanup_free_ char *arg = xmalloc(len + 4);
+	_cleanup_free_ char **dns_list = NULL;
+	_cleanup_binder_ AIBinder *handle = NULL;
+	size_t dns_list_size = 0;
 
 	if (!len)
 		return;
-	arglist[0] = '\0';
+	for (char *dns = strtok(mutable, ", \t\n"); dns; dns = strtok(NULL, ", \t\n")) {
+		if (strchr(dns, '\'') || strchr(dns, '\\'))
+			continue;
+		++dns_list_size;
+	}
+	if (!dns_list_size)
+		return;
+	dns_list = xcalloc(dns_list_size + 1, sizeof(*dns_list));
+	free(mutable);
+	mutable = xstrdup(dnses);
 
+	shell_arglist[0] = '\0';
+	function_arglist[0] = '\0';
+	dns_list_size = 0;
 	for (char *dns = strtok(mutable, ", \t\n"); dns; dns = strtok(NULL, ", \t\n")) {
 		if (strchr(dns, '\'') || strchr(dns, '\\'))
 			continue;
 		snprintf(arg, len + 3, "'%s' ", dns);
-		strncat(arglist, arg, len * 4 - 1);
+		strncat(shell_arglist, arg, len * 4 - 1);
+		snprintf(arg, len + 2, function_arglist[0] == '\0' ? "%s" : ", %s", dns);
+		strncat(function_arglist, arg, len * 4 - 1);
+		dns_list[dns_list_size++] = dns;
 	}
-	if (!strlen(arglist))
-		return;
-	cndc("resolver setnetdns %u '' %s", netid, arglist);
+
+	if ((handle = dnsresolver_get_handle())) {
+		binder_status_t status;
+
+		printf("[#] <binder>::dnsResolver->createNetworkCache(%u)\n", netid);
+		status = dnsresolver_create_network_cache(handle, netid);
+		if (status != 0) {
+			fprintf(stderr, "Error: unable to create network cache\n");
+			exit(ENONET);
+		}
+
+		struct dnsresolver_params params = {
+			.netid = netid,
+			.sample_validity_seconds = DNSRESOLVER_SAMPLE_VALIDITY,
+			.success_threshold = DNSRESOLVER_SUCCESS_THRESHOLD,
+			.min_samples = DNSRESOLVER_MIN_SAMPLES,
+			.max_samples = DNSRESOLVER_MAX_SAMPLES,
+			.base_timeout_msec = DNSRESOLVER_BASE_TIMEOUT,
+			.retry_count = DNSRESOLVER_RETRY_COUNT,
+			.servers = dns_list,
+			.domains = (char *[]){NULL},
+			.tls_name = "",
+			.tls_servers = (char *[]){NULL},
+			.tls_fingerprints = (char *[]){NULL}
+		};
+
+		printf("[#] <binder>::dnsResolver->setResolverConfiguration(%u, [%s], [], %d, %d, %d, %d, %d, %d, [], [])\n",
+		       netid, function_arglist, DNSRESOLVER_SAMPLE_VALIDITY, DNSRESOLVER_SUCCESS_THRESHOLD,
+		       DNSRESOLVER_MIN_SAMPLES, DNSRESOLVER_MAX_SAMPLES, DNSRESOLVER_BASE_TIMEOUT, DNSRESOLVER_RETRY_COUNT);
+		status = dnsresolver_set_resolver_configuration(handle, &params);
+
+		if (status != 0) {
+			fprintf(stderr, "Error: unable to set DNS servers through Binder: %d\n", status);
+			exit(ENONET);
+		}
+	} else
+		cndc("resolver setnetdns %u '' %s", netid, shell_arglist);
 }
 
 static void add_addr(const char *iface, const char *addr)
@@ -662,8 +1084,8 @@ static void cmd_up(const char *iface, const char *config, unsigned int mtu, cons
 	add_if(iface);
 	set_config(iface, config);
 	listen_port = determine_listen_port(iface);
-	set_addr(iface, addrs);
 	up_if(&netid, iface, listen_port);
+	set_addr(iface, addrs);
 	set_dnses(netid, dnses);
 	set_routes(iface, netid);
 	set_mtu(iface, mtu);
