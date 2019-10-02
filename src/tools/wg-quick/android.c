@@ -662,8 +662,8 @@ static void cmd_up(const char *iface, const char *config, unsigned int mtu, cons
 	add_if(iface);
 	set_config(iface, config);
 	listen_port = determine_listen_port(iface);
-	set_addr(iface, addrs);
 	up_if(&netid, iface, listen_port);
+	set_addr(iface, addrs);
 	set_dnses(netid, dnses);
 	set_routes(iface, netid);
 	set_mtu(iface, mtu);
