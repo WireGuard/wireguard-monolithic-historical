@@ -982,8 +982,8 @@ out:
 static int openbsd_get_device(struct wgdevice **device, const char *interface)
 {
 	size_t num;
-	struct wg_get_serv wgs;
-	struct wg_get_peer wgp;
+	struct wg_serv_get wgs;
+	struct wg_peer_get wgp;
 	struct ifreq ifr;
 
 	strlcpy(wgs.gs_name, interface, sizeof(wgs.gs_name));
@@ -1017,35 +1017,37 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 		dev->flags |= WGDEVICE_HAS_LISTEN_PORT;
 	}
 
-	if (!IS_NULL_KEY(wgs.gs_pubkey)) {
-		if (IS_MASKED_KEY(wgs.gs_pubkey))
+	if (!IS_NULL_KEY(wgs.gs_keypair.pub.k)) {
+		if (IS_MASKED_KEY(wgs.gs_keypair.pub.k))
 			bzero(dev->public_key, WG_KEY_SIZE);
 		else
-			memcpy(dev->public_key, wgs.gs_pubkey, WG_KEY_SIZE);
+			memcpy(dev->public_key, wgs.gs_keypair.pub.k,
+			    WG_KEY_SIZE);
 		dev->flags |= WGDEVICE_HAS_PUBLIC_KEY;
 	}
 
-	if (!IS_NULL_KEY(wgs.gs_privkey)) {
-		if (IS_MASKED_KEY(wgs.gs_privkey))
+	if (!IS_NULL_KEY(wgs.gs_keypair.priv.k)) {
+		if (IS_MASKED_KEY(wgs.gs_keypair.priv.k))
 			bzero(dev->private_key, WG_KEY_SIZE);
 		else
-			memcpy(dev->private_key, wgs.gs_privkey, WG_KEY_SIZE);
+			memcpy(dev->private_key, wgs.gs_keypair.priv.k,
+			    WG_KEY_SIZE);
 		dev->flags |= WGDEVICE_HAS_PRIVATE_KEY;
 	}
 
 	dev->first_peer = dev->last_peer = NULL;
 
 	for (size_t i = 0; i < wgs.gs_num_peers; i++) {
-		memcpy(wgp.gp_pubkey, wgs.gs_peers[i], WG_KEY_SIZE);
-		wgp.gp_aip = NULL;
-		wgp.gp_num_aip = 16;
+		memcpy(wgp.gp_pubkey.k, wgs.gs_peers[i].k, WG_KEY_SIZE);
+		wgp.gp_routes = NULL;
+		wgp.gp_num_routes = 16;
 		do {
-			num = wgp.gp_num_aip;
-			wgp.gp_aip = reallocarray(wgp.gp_aip, wgp.gp_num_aip,
-			    sizeof(*wgp.gp_aip));
+			num = wgp.gp_num_routes;
+			wgp.gp_routes = reallocarray(wgp.gp_routes,
+			    wgp.gp_num_routes, sizeof(*wgp.gp_routes));
 			if (ioctl(s, SIOCGWGPEER, (caddr_t)&wgp) == -1)
 				return -1;
-		} while (wgp.gp_num_aip > num);
+		} while (wgp.gp_num_routes > num);
 
 		struct wgpeer *peer = calloc(1, sizeof(*peer));
 		if (dev->first_peer == NULL)
@@ -1054,16 +1056,17 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 			dev->last_peer->next_peer = peer;
 		dev->last_peer = peer;
 
-		if (!IS_NULL_KEY(wgp.gp_pubkey)) {
-			memcpy(peer->public_key, wgp.gp_pubkey, WG_KEY_SIZE);
+		if (!IS_NULL_KEY(wgp.gp_pubkey.k)) {
+			memcpy(peer->public_key, wgp.gp_pubkey.k, WG_KEY_SIZE);
 			peer->flags |= WGPEER_HAS_PUBLIC_KEY;
 		}
 
-		if (!IS_NULL_KEY(wgp.gp_psk)) {
-			if (IS_MASKED_KEY(wgs.gs_privkey))
+		if (!IS_NULL_KEY(wgp.gp_shared.k)) {
+			if (IS_MASKED_KEY(wgp.gp_shared.k))
 				bzero(peer->preshared_key, WG_KEY_SIZE);
 			else
-				memcpy(peer->preshared_key, wgp.gp_psk, WG_KEY_SIZE);
+				memcpy(peer->preshared_key, wgp.gp_shared.k,
+				    WG_KEY_SIZE);
 			peer->flags |= WGPEER_HAS_PRESHARED_KEY;
 		}
 
@@ -1084,8 +1087,8 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 		peer->rx_bytes = wgp.gp_rx_bytes;
 		peer->tx_bytes = wgp.gp_tx_bytes;
 
-		struct wg_cidr *ip = wgp.gp_aip;
-		for (size_t j = 0; j < wgp.gp_num_aip; j++) {
+		struct wg_cidr *ip = wgp.gp_routes;
+		for (size_t j = 0; j < wgp.gp_num_routes; j++) {
 			struct wgallowedip *aip = calloc(1, sizeof(*aip));
 			if (peer->first_allowedip == NULL)
 				peer->first_allowedip = aip;
@@ -1095,10 +1098,12 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 
 			aip->family = ip[j].c_af;
 			if (ip[j].c_af == AF_INET) {
-				memcpy(&aip->ip4, &ip[j].c_ip.ipv4, sizeof(aip->ip4));
+				memcpy(&aip->ip4, &ip[j].c_ip.ipv4,
+				    sizeof(aip->ip4));
 				aip->cidr = ip[j].c_mask;
 			} else if (ip[j].c_af == AF_INET6) {
-				memcpy(&aip->ip6, &ip[j].c_ip.ipv6, sizeof(aip->ip6));
+				memcpy(&aip->ip6, &ip[j].c_ip.ipv6,
+				    sizeof(aip->ip6));
 				aip->cidr = ip[j].c_mask;
 			}
 		}
@@ -1110,8 +1115,8 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 
 static int openbsd_set_device(struct wgdevice *dev)
 {
-	struct wg_set_serv wss;
-	struct wg_set_peer wsp;
+	struct wg_serv_set wss;
+	struct wg_peer_set wsp;
 	struct ifreq ifr;
 	struct wgpeer *peer;
 	struct wgallowedip *aip;
@@ -1123,7 +1128,7 @@ static int openbsd_set_device(struct wgdevice *dev)
 	getsock();
 
 	if (dev->flags & WGDEVICE_HAS_PRIVATE_KEY) {
-		memcpy(wss.ss_privkey, dev->private_key, WG_KEY_SIZE);
+		memcpy(wss.ss_privkey.k, dev->private_key, WG_KEY_SIZE);
 		if (ioctl(s, SIOCSWGSERVKEY, (caddr_t)&wss) == -1)
 			return -1;
 	}
@@ -1145,7 +1150,7 @@ static int openbsd_set_device(struct wgdevice *dev)
 			return -1;
 
 	for_each_wgpeer(dev, peer) {
-		memcpy(wsp.sp_pubkey, peer->public_key, WG_KEY_SIZE);
+		memcpy(wsp.sp_pubkey.k, peer->public_key, WG_KEY_SIZE);
 		if (peer->flags & WGPEER_REMOVE_ME) {
 			if (ioctl(s, SIOCDWGPEER, (caddr_t)&wsp) == -1)
 				return -1;
@@ -1153,7 +1158,8 @@ static int openbsd_set_device(struct wgdevice *dev)
 		}
 
 		if (peer->flags & WGPEER_HAS_PRESHARED_KEY) {
-			memcpy(wsp.sp_psk, peer->preshared_key, WG_KEY_SIZE);
+			memcpy(wsp.sp_shared.k, peer->preshared_key,
+			    WG_KEY_SIZE);
 			if (ioctl(s, SIOCSWGPEERPSK, (caddr_t)&wsp) == -1)
 				return -1;
 		}
@@ -1178,14 +1184,16 @@ static int openbsd_set_device(struct wgdevice *dev)
 				return -1;
 
 		for_each_wgallowedip(peer, aip) {
-			wsp.sp_aip.c_af = aip->family;
+			wsp.sp_route.c_af = aip->family;
 
 			if (aip->family == AF_INET) {
-				memcpy(&wsp.sp_aip.c_ip, &aip->ip4, sizeof(aip->ip4));
-				wsp.sp_aip.c_mask = aip->cidr;
+				memcpy(&wsp.sp_route.c_ip, &aip->ip4,
+				    sizeof(aip->ip4));
+				wsp.sp_route.c_mask = aip->cidr;
 			} else if (aip->family == AF_INET6) {
-				memcpy(&wsp.sp_aip.c_ip, &aip->ip6, sizeof(aip->ip6));
-				wsp.sp_aip.c_mask = aip->cidr;
+				memcpy(&wsp.sp_route.c_ip, &aip->ip6,
+				    sizeof(aip->ip6));
+				wsp.sp_route.c_mask = aip->cidr;
 			} else {
 				return -1;
 			}
