@@ -566,6 +566,7 @@ wg_noise_handshake_consume_initiation(struct message_handshake_initiation *src,
 	u8 s[NOISE_PUBLIC_KEY_LEN];
 	u8 e[NOISE_PUBLIC_KEY_LEN];
 	u8 t[NOISE_TIMESTAMP_LEN];
+	u64 initiation_consumption;
 
 	down_read(&wg->static_identity.lock);
 	if (unlikely(!wg->static_identity.has_identity))
@@ -614,11 +615,14 @@ wg_noise_handshake_consume_initiation(struct message_handshake_initiation *src,
 	/* Success! Copy everything to peer */
 	down_write(&handshake->lock);
 	memcpy(handshake->remote_ephemeral, e, NOISE_PUBLIC_KEY_LEN);
-	memcpy(handshake->latest_timestamp, t, NOISE_TIMESTAMP_LEN);
+	if (memcmp(t, handshake->latest_timestamp, NOISE_TIMESTAMP_LEN) > 0)
+		memcpy(handshake->latest_timestamp, t, NOISE_TIMESTAMP_LEN);
 	memcpy(handshake->hash, hash, NOISE_HASH_LEN);
 	memcpy(handshake->chaining_key, chaining_key, NOISE_HASH_LEN);
 	handshake->remote_index = src->sender_index;
-	handshake->last_initiation_consumption = ktime_get_coarse_boottime_ns();
+	if ((s64)(handshake->last_initiation_consumption -
+	    (initiation_consumption = ktime_get_coarse_boottime_ns())) < 0)
+		handshake->last_initiation_consumption = initiation_consumption;
 	handshake->state = HANDSHAKE_CONSUMED_INITIATION;
 	up_write(&handshake->lock);
 	ret_peer = peer;
