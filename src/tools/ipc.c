@@ -1140,6 +1140,7 @@ static int openbsd_set_device(struct wgdevice *dev)
 	}
 
 	if (dev->flags & WGDEVICE_HAS_FWMARK) {
+		/* TODO set socket rtable not interface */
 		ifr.ifr_rdomainid = dev->fwmark;
 		if (ioctl(s, SIOCSIFRDOMAIN, (caddr_t)&ifr) == -1)
 			return -1;
