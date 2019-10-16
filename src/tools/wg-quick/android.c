@@ -358,15 +358,18 @@ static	__attribute__((__constructor__(65535))) void load_symbols(void)
 
 static void cleanup_binder(AIBinder **binder)
 {
-	AIBinder_decStrong(*binder);
+	if (*binder)
+		AIBinder_decStrong(*binder);
 }
 static void cleanup_status(AStatus **status)
 {
-	AStatus_delete(*status);
+	if (*status)
+		AStatus_delete(*status);
 }
 static void cleanup_parcel(AParcel **parcel)
 {
-	AParcel_delete(*parcel);
+	if (*parcel)
+		AParcel_delete(*parcel);
 }
 
 #define _cleanup_status_ __attribute__((__cleanup__(cleanup_status)))
