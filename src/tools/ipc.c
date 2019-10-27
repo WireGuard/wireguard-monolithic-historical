@@ -957,7 +957,6 @@ static int openbsd_get_wireguard_interfaces(struct inflatable_buffer *buffer)
 	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == -1)
 		return errno;
 
-
 	len = ifgr.ifgr_len / sizeof(ifgr.ifgr_groups) - 1;
 	if ((ifgr.ifgr_groups = calloc(sizeof(ifgr.ifgr_groups), len)) == NULL)
 		return (-1);
@@ -981,130 +980,120 @@ out:
 
 static int openbsd_get_device(struct wgdevice **device, const char *interface)
 {
-	size_t num;
-	struct wg_serv_get wgs;
-	struct wg_peer_get wgp;
-	struct ifreq ifr;
-
-	strlcpy(wgs.gs_name, interface, sizeof(wgs.gs_name));
-	strlcpy(wgp.gp_name, interface, sizeof(wgp.gp_name));
-	strlcpy(ifr.ifr_name, interface, sizeof(ifr.ifr_name));
+	size_t num_peers = 0, num_cidrs = 0;
+	struct wg_device_io bdev;
+	struct wg_peer_io *bpeer;
+	struct wg_cidr_io *bcidr;
+	struct wgdevice *dev;
+	struct wgpeer *peer;
+	struct wgallowedip *aip;
 
 	getsock();
 
-	/* Load peers and interface stuff */
-	wgs.gs_peers = NULL;
-	wgs.gs_num_peers = 8;
-	do {
-		num = wgs.gs_num_peers;
-		/* wgs.gs_num_peers will be updated in the ioctl */
-		wgs.gs_peers = reallocarray(wgs.gs_peers, wgs.gs_num_peers,
-		    sizeof(*wgs.gs_peers));
-		if (ioctl(s, SIOCGWGSERV, (caddr_t)&wgs) == -1)
-			return -1;
-	} while (wgs.gs_num_peers > num);
+	bzero(&bdev, sizeof(bdev));
+	strlcpy(bdev.d_name, interface, sizeof(bdev.d_name));
 
-	struct wgdevice *dev = calloc(1, sizeof(*dev));
+	if (ioctl(s, SIOCGWG, (caddr_t)&bdev) == -1 && errno == ENOTTY)
+		return -1;
+
+	while (num_peers < bdev.d_num_peers || num_cidrs < bdev.d_num_cidrs) {
+		bdev.d_peers = recallocarray(bdev.d_peers, num_peers,
+				bdev.d_num_peers, sizeof(struct wg_peer_io));
+		bdev.d_cidrs = recallocarray(bdev.d_cidrs, num_cidrs,
+				bdev.d_num_cidrs, sizeof(struct wg_cidr_io));
+		num_peers = bdev.d_num_peers;
+		num_cidrs = bdev.d_num_cidrs;
+		if (ioctl(s, SIOCGWG, (caddr_t)&bdev) == -1)
+			printf("TODO SIOCGWG\n");
+			//TODO errx(1, "SIOCGWG");
+	}
+
+	dev = calloc(1, sizeof(*dev));
 	strlcpy(dev->name, interface, sizeof(dev->name));
 
-	if (ioctl(s, SIOCGIFRDOMAIN, (caddr_t)&ifr) != -1) {
-		dev->fwmark = ifr.ifr_rdomainid;
+	if (bdev.d_flags & WG_DEVICE_HAS_RDOMAIN) {
+		dev->fwmark = bdev.d_rdomain;
 		dev->flags |= WGDEVICE_HAS_FWMARK;
 	}
 
-	if (wgs.gs_port != 0) {
-		dev->listen_port = wgs.gs_port;
+	if (bdev.d_flags & WG_DEVICE_HAS_PORT) {
+		dev->listen_port = bdev.d_port;
 		dev->flags |= WGDEVICE_HAS_LISTEN_PORT;
 	}
 
-	if (!IS_NULL_KEY(wgs.gs_keypair.pub.k)) {
-		if (IS_MASKED_KEY(wgs.gs_keypair.pub.k))
-			bzero(dev->public_key, WG_KEY_SIZE);
-		else
-			memcpy(dev->public_key, wgs.gs_keypair.pub.k,
-			    WG_KEY_SIZE);
+	if (bdev.d_flags & WG_DEVICE_HAS_PUBKEY) {
+		memcpy(dev->public_key, bdev.d_pubkey, WG_KEY_SIZE);
 		dev->flags |= WGDEVICE_HAS_PUBLIC_KEY;
 	}
 
-	if (!IS_NULL_KEY(wgs.gs_keypair.priv.k)) {
-		if (IS_MASKED_KEY(wgs.gs_keypair.priv.k))
-			bzero(dev->private_key, WG_KEY_SIZE);
-		else
-			memcpy(dev->private_key, wgs.gs_keypair.priv.k,
-			    WG_KEY_SIZE);
+	if (bdev.d_flags & WG_DEVICE_HAS_PRIVKEY) {
+		memcpy(dev->private_key, bdev.d_privkey, WG_KEY_SIZE);
+		dev->flags |= WGDEVICE_HAS_PRIVATE_KEY;
+	}
+
+	if (bdev.d_flags & WG_DEVICE_HAS_MASKED_PRIVKEY) {
+		bzero(dev->private_key, WG_KEY_SIZE);
 		dev->flags |= WGDEVICE_HAS_PRIVATE_KEY;
 	}
 
 	dev->first_peer = dev->last_peer = NULL;
 
-	for (size_t i = 0; i < wgs.gs_num_peers; i++) {
-		memcpy(wgp.gp_pubkey.k, wgs.gs_peers[i].k, WG_KEY_SIZE);
-		wgp.gp_routes = NULL;
-		wgp.gp_num_routes = 16;
-		do {
-			num = wgp.gp_num_routes;
-			wgp.gp_routes = reallocarray(wgp.gp_routes,
-			    wgp.gp_num_routes, sizeof(*wgp.gp_routes));
-			if (ioctl(s, SIOCGWGPEER, (caddr_t)&wgp) == -1)
-				return -1;
-		} while (wgp.gp_num_routes > num);
+	WG_PEERS_FOREACH(bpeer, &bdev) {
+		peer = calloc(1, sizeof(*peer));
 
-		struct wgpeer *peer = calloc(1, sizeof(*peer));
 		if (dev->first_peer == NULL)
 			dev->first_peer = peer;
 		else
 			dev->last_peer->next_peer = peer;
 		dev->last_peer = peer;
 
-		if (!IS_NULL_KEY(wgp.gp_pubkey.k)) {
-			memcpy(peer->public_key, wgp.gp_pubkey.k, WG_KEY_SIZE);
+		if (bpeer->p_flags & WG_PEER_HAS_PUBKEY) {
+			memcpy(peer->public_key, bpeer->p_pubkey, WG_KEY_SIZE);
 			peer->flags |= WGPEER_HAS_PUBLIC_KEY;
 		}
 
-		if (!IS_NULL_KEY(wgp.gp_shared.k)) {
-			if (IS_MASKED_KEY(wgp.gp_shared.k))
-				bzero(peer->preshared_key, WG_KEY_SIZE);
-			else
-				memcpy(peer->preshared_key, wgp.gp_shared.k,
-				    WG_KEY_SIZE);
+		if (bpeer->p_flags & WG_PEER_HAS_SHAREDKEY) {
+			memcpy(peer->preshared_key, bpeer->p_sharedkey, WG_KEY_SIZE);
 			peer->flags |= WGPEER_HAS_PRESHARED_KEY;
 		}
 
-		if (wgp.gp_pka != 0) {
-			peer->persistent_keepalive_interval = wgp.gp_pka;
+		if (bpeer->p_flags & WG_PEER_HAS_MASKED_SHAREDKEY) {
+			bzero(peer->preshared_key, WG_KEY_SIZE);
+			peer->flags |= WGPEER_HAS_PRESHARED_KEY;
+		}
+
+		if (bpeer->p_flags & WG_PEER_HAS_PERSISTENTKEEPALIVE) {
+			peer->persistent_keepalive_interval =
+				bpeer->p_persistentkeepalive;
 			peer->flags |= WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL;
 		}
 
-		if (wgp.gp_ip.sa.sa_family != AF_UNSPEC)
-			memcpy(&peer->endpoint.addr, &wgp.gp_ip.sa,
-			    wgp.gp_ip.sa.sa_len);
+		if (bpeer->p_flags & WG_PEER_HAS_ENDPOINT)
+			memcpy(&peer->endpoint.addr, &bpeer->p_sa, bpeer->p_sa.sa_len);
 
-		peer->last_handshake_time.tv_sec =
-		    wgp.gp_last_handshake.tv_sec;
-		peer->last_handshake_time.tv_nsec =
-		    wgp.gp_last_handshake.tv_nsec;
+		peer->last_handshake_time.tv_sec = bpeer->p_last_handshake.tv_sec;
+		peer->last_handshake_time.tv_nsec = bpeer->p_last_handshake.tv_nsec;
 
-		peer->rx_bytes = wgp.gp_rx_bytes;
-		peer->tx_bytes = wgp.gp_tx_bytes;
+		peer->rx_bytes = bpeer->p_rx_bytes;
+		peer->tx_bytes = bpeer->p_tx_bytes;
 
-		struct wg_cidr *ip = wgp.gp_routes;
-		for (size_t j = 0; j < wgp.gp_num_routes; j++) {
-			struct wgallowedip *aip = calloc(1, sizeof(*aip));
+		WG_CIDRS_FOREACH(bcidr, bpeer) {
+			aip = calloc(1, sizeof(*aip));
 			if (peer->first_allowedip == NULL)
 				peer->first_allowedip = aip;
 			else
 				peer->last_allowedip->next_allowedip = aip;
 			peer->last_allowedip = aip;
 
-			aip->family = ip[j].c_af;
-			if (ip[j].c_af == AF_INET) {
-				memcpy(&aip->ip4, &ip[j].c_ip.ipv4,
+			aip->family = bcidr->c_af;
+			if (bcidr->c_af == AF_INET) {
+				memcpy(&aip->ip4, &bcidr->c_ip.ipv4,
 				    sizeof(aip->ip4));
-				aip->cidr = ip[j].c_mask;
-			} else if (ip[j].c_af == AF_INET6) {
-				memcpy(&aip->ip6, &ip[j].c_ip.ipv6,
+				aip->cidr = bcidr->c_mask;
+			} else if (bcidr->c_af == AF_INET6) {
+				memcpy(&aip->ip6, &bcidr->c_ip.ipv6,
 				    sizeof(aip->ip6));
-				aip->cidr = ip[j].c_mask;
+				aip->cidr = bcidr->c_mask;
 			}
 		}
 	}
@@ -1115,93 +1104,98 @@ static int openbsd_get_device(struct wgdevice **device, const char *interface)
 
 static int openbsd_set_device(struct wgdevice *dev)
 {
-	struct wg_serv_set wss;
-	struct wg_peer_set wsp;
-	struct ifreq ifr;
+	struct wg_device_io bdev;
+	struct wg_peer_io *bpeer;
+	struct wg_cidr_io *bcidr;
 	struct wgpeer *peer;
 	struct wgallowedip *aip;
 
-	strlcpy(wss.ss_name, dev->name, sizeof(wss.ss_name));
-	strlcpy(wsp.sp_name, dev->name, sizeof(wsp.sp_name));
-	strlcpy(ifr.ifr_name, dev->name, sizeof(ifr.ifr_name));
-
 	getsock();
 
+	bzero(&bdev, sizeof(bdev));
+	strlcpy(bdev.d_name, dev->name, sizeof(bdev.d_name));
+
 	if (dev->flags & WGDEVICE_HAS_PRIVATE_KEY) {
-		memcpy(wss.ss_privkey.k, dev->private_key, WG_KEY_SIZE);
-		if (ioctl(s, SIOCSWGSERVKEY, (caddr_t)&wss) == -1)
-			return -1;
+		memcpy(bdev.d_privkey, dev->private_key, WG_KEY_SIZE);
+		bdev.d_flags |= WG_DEVICE_HAS_PRIVKEY;
 	}
 
 	if (dev->flags & WGDEVICE_HAS_LISTEN_PORT) {
-		wss.ss_port = dev->listen_port;
-		if (ioctl(s, SIOCSWGSERVPORT, (caddr_t)&wss) == -1)
-			return -1;
+		bdev.d_port = dev->listen_port;
+		bdev.d_flags |= WG_DEVICE_HAS_PORT;
 	}
 
 	if (dev->flags & WGDEVICE_HAS_FWMARK) {
-		ifr.ifr_rdomainid = dev->fwmark;
-		if (ioctl(s, SIOCSLIFPHYRTABLE, (caddr_t)&ifr) == -1)
-			return -1;
+		bdev.d_rdomain = dev->fwmark;
+		bdev.d_flags |= WG_DEVICE_HAS_RDOMAIN;
 	}
 
 	if (dev->flags & WGDEVICE_REPLACE_PEERS)
-		if (ioctl(s, SIOCCWGPEERS, (caddr_t)&wss) == -1)
-			return -1;
+		bdev.d_flags |= WG_DEVICE_REPLACE_PEERS;
 
 	for_each_wgpeer(dev, peer) {
-		memcpy(wsp.sp_pubkey.k, peer->public_key, WG_KEY_SIZE);
-		if (peer->flags & WGPEER_REMOVE_ME) {
-			if (ioctl(s, SIOCDWGPEER, (caddr_t)&wsp) == -1)
-				return -1;
-			continue;
+		bdev.d_num_peers++;
+		for_each_wgallowedip(peer, aip) {
+			bdev.d_num_cidrs++;
 		}
+	}
+
+	bdev.d_peers = calloc(bdev.d_num_peers, sizeof(*bdev.d_peers));
+	bdev.d_cidrs = calloc(bdev.d_num_cidrs, sizeof(*bdev.d_cidrs));
+
+	bpeer = bdev.d_peers;
+	bcidr = bdev.d_cidrs;
+	for_each_wgpeer(dev, peer) {
+		bpeer->p_flags = WG_PEER_HAS_PUBKEY;
+		memcpy(bpeer->p_pubkey, peer->public_key, WG_KEY_SIZE);
+
+		if (peer->flags & WGPEER_REMOVE_ME)
+			bpeer->p_flags |= WG_PEER_REMOVE;
 
 		if (peer->flags & WGPEER_HAS_PRESHARED_KEY) {
-			memcpy(wsp.sp_shared.k, peer->preshared_key,
-			    WG_KEY_SIZE);
-			if (ioctl(s, SIOCSWGPEERPSK, (caddr_t)&wsp) == -1)
-				return -1;
+			memcpy(bpeer->p_sharedkey, peer->preshared_key, WG_KEY_SIZE);
+			bpeer->p_flags |= WG_PEER_REMOVE;
 		}
 
 		if (peer->endpoint.addr.sa_family == AF_INET ||
 		    peer->endpoint.addr.sa_family == AF_INET6) {
-			memcpy(&wsp.sp_ip.sa, &peer->endpoint.addr,
-			    peer->endpoint.addr.sa_len);
-
-			if (ioctl(s, SIOCSWGPEERIP, (caddr_t)&wsp) == -1)
-				return -1;
+			memcpy(&bpeer->p_sa, &peer->endpoint.addr, peer->endpoint.addr.sa_len);
+			bpeer->p_flags |= WG_PEER_HAS_ENDPOINT;
 		}
 
 		if (peer->flags & WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL) {
-			wsp.sp_pka = peer->persistent_keepalive_interval;
-			if (ioctl(s, SIOCSWGPEERPKA, (caddr_t)&wsp) == -1)
-				return -1;
+			bpeer->p_persistentkeepalive = peer->persistent_keepalive_interval;
+			bpeer->p_flags |= WG_PEER_HAS_PERSISTENTKEEPALIVE;
 		}
 
 		if (peer->flags & WGPEER_REPLACE_ALLOWEDIPS)
-			if (ioctl(s, SIOCCWGPEERAIP, (caddr_t)&wsp) == -1)
-				return -1;
+			bpeer->p_flags |= WG_PEER_REPLACE_CIDRS;
 
+		bpeer->p_num_cidrs = 0;
+		bpeer->p_cidrs = bcidr;
 		for_each_wgallowedip(peer, aip) {
-			wsp.sp_route.c_af = aip->family;
+			bcidr->c_af = aip->family;
 
 			if (aip->family == AF_INET) {
-				memcpy(&wsp.sp_route.c_ip, &aip->ip4,
-				    sizeof(aip->ip4));
-				wsp.sp_route.c_mask = aip->cidr;
+				memcpy(&bcidr->c_ip, &aip->ip4,
+						sizeof(aip->ip4));
+				bcidr->c_mask = aip->cidr;
 			} else if (aip->family == AF_INET6) {
-				memcpy(&wsp.sp_route.c_ip, &aip->ip6,
-				    sizeof(aip->ip6));
-				wsp.sp_route.c_mask = aip->cidr;
+				memcpy(&bcidr->c_ip, &aip->ip6,
+						sizeof(aip->ip6));
+				bcidr->c_mask = aip->cidr;
 			} else {
 				return -1;
 			}
-
-			if (ioctl(s, SIOCSWGPEERAIP, (caddr_t)&wsp) == -1)
-				return -1;
+			bcidr++;
+			bpeer->p_num_cidrs++;
 		}
+		bpeer++;
 	}
+
+	if (ioctl(s, SIOCSWG, (caddr_t)&bdev) == -1)
+		return -1;
+
 	return 0;
 }
 #endif /* OpenBSD */
