@@ -120,6 +120,7 @@ __le32 wg_index_hashtable_insert(struct index_hashtable *table,
 				 struct index_hashtable_entry *entry)
 {
 	struct index_hashtable_entry *existing_entry;
+	unsigned int tries = 0;
 
 	spin_lock_bh(&table->lock);
 	hlist_del_init_rcu(&entry->index_hash);
@@ -129,7 +130,10 @@ __le32 wg_index_hashtable_insert(struct index_hashtable *table,
 
 search_unused_slot:
 	/* First we try to find an unused slot, randomly, while unlocked. */
-	entry->index = (__force __le32)get_random_u32();
+	if (++tries > 32) /* Work around AMD Ryzen 3000 RDRAND bug. */
+		get_random_bytes(&entry->index, sizeof(entry->index));
+	else
+		entry->index = (__force __le32)get_random_u32();
 	hlist_for_each_entry_rcu_bh(existing_entry,
 				    index_bucket(table, entry->index),
 				    index_hash) {
