@@ -95,6 +95,7 @@ add_if() {
 del_if() {
 	local table
 	[[ $HAVE_SET_DNS -eq 0 ]] || unset_dns
+	[[ $HAVE_SET_IPTABLES -eq 0 ]] || remove_iptables
 	if [[ -z $TABLE || $TABLE == auto ]] && get_fwmark table && [[ $(wg show "$INTERFACE" allowed-ips) =~ /0(\ |$'\n'|$) ]]; then
 		while [[ $(ip -4 rule show) == *"lookup $table"* ]]; do
 			cmd ip -4 rule delete table $table
@@ -180,8 +181,22 @@ get_fwmark() {
 	return 0
 }
 
+remove_iptables() {
+	local line iptables found restore
+	for iptables in iptables ip6tables; do
+		restore="" found=0
+		while read -r line; do
+			[[ $line == "*"* || $line == COMMIT || $line == "-A "*"-m comment --comment \"wg-quick(8) rule for $INTERFACE\""* ]] || continue
+			[[ $line == "-A"* ]] && found=1
+			printf -v restore '%s\n%s' "$restore" "${line/#-A/-D}"
+		done < <($iptables-save)
+		[[ $found -eq 1 ]] && echo "$restore" | cmd $iptables-restore -nw
+	done
+}
+
+HAVE_SET_IPTABLES=0
 add_default() {
-	local table proto key value
+	local table proto i iptables
 	if ! get_fwmark table; then
 		table=51820
 		while [[ -n $(ip -4 route show table $table) || -n $(ip -6 route show table $table) ]]; do
@@ -189,16 +204,21 @@ add_default() {
 		done
 		cmd wg set "$INTERFACE" fwmark $table
 	fi
-	proto=-4
-	[[ $1 == *:* ]] && proto=-6
+	proto=-4 iptables=iptables
+	[[ $1 == *:* ]] && proto=-6 iptables=ip6tables
 	cmd ip $proto route add "$1" dev "$INTERFACE" table $table
 	cmd ip $proto rule add not fwmark $table table $table
 	cmd ip $proto rule add table main suppress_prefixlength 0
-	if [[ $proto == -4 ]]; then
-		while read -r key _ value; do
-			[[ $value -eq 1 ]] && sysctl -q "$key=2"
-		done < <(sysctl -a -r '^net\.ipv4.conf\.[^ .=]+\.rp_filter$')
-	fi
+
+	local marker="-m comment --comment \"wg-quick(8) rule for $INTERFACE\"" restore="*raw"
+	for i in "${ADDRESSES[@]}"; do
+		[[ ( $proto == -4 && $i != *:* ) || ( $proto == -6 && $i == *:* ) ]] || continue
+		printf -v restore '%s\n-I PREROUTING ! -i %s -d %s -m addrtype ! --src-type LOCAL -j DROP %s\n' "$restore" "$INTERFACE" "${i%/*}" "$marker"
+	done
+	printf -v restore '%s\nCOMMIT\n*mangle\n-I POSTROUTING -m mark --mark %d -p udp -j CONNMARK --save-mark %s\n-I PREROUTING -p udp -j CONNMARK --restore-mark %s\nCOMMIT\n' "$restore" $table "$marker" "$marker"
+	[[ $proto == -4 ]] && cmd sysctl -q net.ipv4.conf.all.src_valid_mark=1
+	echo "$restore" | cmd $iptables-restore -nw
+	HAVE_SET_IPTABLES=1
 	return 0
 }
 
@@ -303,6 +323,7 @@ cmd_down() {
 	[[ $SAVE_CONFIG -eq 0 ]] || save_config
 	del_if
 	unset_dns
+	remove_iptables
 	execute_hooks "${POST_DOWN[@]}"
 }
 
