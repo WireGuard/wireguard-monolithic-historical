@@ -299,14 +299,18 @@ void wg_allowedips_free(struct allowedips *table, struct mutex *lock)
 	RCU_INIT_POINTER(table->root4, NULL);
 	RCU_INIT_POINTER(table->root6, NULL);
 	if (rcu_access_pointer(old4)) {
-		root_remove_peer_lists(old4);
-		call_rcu(&rcu_dereference_protected(old4,
-				lockdep_is_held(lock))->rcu, root_free_rcu);
+		struct allowedips_node *node = rcu_dereference_protected(old4,
+							lockdep_is_held(lock));
+
+		root_remove_peer_lists(node);
+		call_rcu(&node->rcu, root_free_rcu);
 	}
 	if (rcu_access_pointer(old6)) {
-		root_remove_peer_lists(old6);
-		call_rcu(&rcu_dereference_protected(old6,
-				lockdep_is_held(lock))->rcu, root_free_rcu);
+		struct allowedips_node *node = rcu_dereference_protected(old6,
+							lockdep_is_held(lock));
+
+		root_remove_peer_lists(node);
+		call_rcu(&node->rcu, root_free_rcu);
 	}
 }
 
