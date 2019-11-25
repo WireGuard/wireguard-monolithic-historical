@@ -307,12 +307,12 @@ static __init bool randomized_test(void)
 		if (wg_allowedips_insert_v4(&t, (struct in_addr *)ip, cidr,
 					    peer, &mutex) < 0) {
 			pr_err("allowedips random self-test malloc: FAIL\n");
-			goto free;
+			goto free_locked;
 		}
 		if (horrible_allowedips_insert_v4(&h, (struct in_addr *)ip,
 						  cidr, peer) < 0) {
 			pr_err("allowedips random self-test malloc: FAIL\n");
-			goto free;
+			goto free_locked;
 		}
 		for (j = 0; j < NUM_MUTATED_ROUTES; ++j) {
 			memcpy(mutated, ip, 4);
@@ -334,12 +334,12 @@ static __init bool randomized_test(void)
 						    (struct in_addr *)mutated,
 						    cidr, peer, &mutex) < 0) {
 				pr_err("allowedips random malloc: FAIL\n");
-				goto free;
+				goto free_locked;
 			}
 			if (horrible_allowedips_insert_v4(&h,
 				(struct in_addr *)mutated, cidr, peer)) {
 				pr_err("allowedips random self-test malloc: FAIL\n");
-				goto free;
+				goto free_locked;
 			}
 		}
 	}
@@ -351,12 +351,12 @@ static __init bool randomized_test(void)
 		if (wg_allowedips_insert_v6(&t, (struct in6_addr *)ip, cidr,
 					    peer, &mutex) < 0) {
 			pr_err("allowedips random self-test malloc: FAIL\n");
-			goto free;
+			goto free_locked;
 		}
 		if (horrible_allowedips_insert_v6(&h, (struct in6_addr *)ip,
 						  cidr, peer) < 0) {
 			pr_err("allowedips random self-test malloc: FAIL\n");
-			goto free;
+			goto free_locked;
 		}
 		for (j = 0; j < NUM_MUTATED_ROUTES; ++j) {
 			memcpy(mutated, ip, 16);
@@ -378,13 +378,13 @@ static __init bool randomized_test(void)
 						    (struct in6_addr *)mutated,
 						    cidr, peer, &mutex) < 0) {
 				pr_err("allowedips random self-test malloc: FAIL\n");
-				goto free;
+				goto free_locked;
 			}
 			if (horrible_allowedips_insert_v6(
 				    &h, (struct in6_addr *)mutated, cidr,
 				    peer)) {
 				pr_err("allowedips random self-test malloc: FAIL\n");
-				goto free;
+				goto free_locked;
 			}
 		}
 	}
@@ -417,6 +417,7 @@ static __init bool randomized_test(void)
 
 free:
 	mutex_lock(&mutex);
+free_locked:
 	wg_allowedips_free(&t, &mutex);
 	mutex_unlock(&mutex);
 	horrible_allowedips_free(&h);
