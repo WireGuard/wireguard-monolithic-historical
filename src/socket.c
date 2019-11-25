@@ -410,7 +410,7 @@ retry:
 	}
 #endif
 
-	wg_socket_reinit(wg, new4 ? new4->sk : NULL, new6 ? new6->sk : NULL);
+	wg_socket_reinit(wg, new4->sk, new6 ? new6->sk : NULL);
 	return 0;
 }
 
