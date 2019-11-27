@@ -94,8 +94,8 @@ static int get_allowedips(struct sk_buff *skb, const u8 *ip, u8 cidr,
 struct dump_ctx {
 	struct wg_device *wg;
 	struct wg_peer *next_peer;
-	struct allowedips_node *next_allowedip;
 	u64 allowedips_seq;
+	struct allowedips_node *next_allowedip;
 };
 
 #define DUMP_CTX(cb) ((struct dump_ctx *)(cb)->args)
@@ -196,15 +196,9 @@ err:
 
 static int wg_get_device_start(struct netlink_callback *cb)
 {
-	struct nlattr **attrs = genl_family_attrbuf(&genl_family);
 	struct wg_device *wg;
-	int ret;
 
-	ret = nlmsg_parse(cb->nlh, GENL_HDRLEN + genl_family.hdrsize, attrs,
-			  genl_family.maxattr, device_policy, NULL);
-	if (ret < 0)
-		return ret;
-	wg = lookup_interface(attrs, cb->skb);
+	wg = lookup_interface(genl_dumpit_info(cb)->attrs, cb->skb);
 	if (IS_ERR(wg))
 		return PTR_ERR(wg);
 	DUMP_CTX(cb)->wg = wg;
