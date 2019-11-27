@@ -199,7 +199,7 @@ add_default() {
 	local table proto i iptables
 	if ! get_fwmark table; then
 		table=51820
-		while [[ -n $(ip -4 route show table $table) || -n $(ip -6 route show table $table) ]]; do
+		while [[ -n $(ip -4 route show table $table 2>/dev/null) || -n $(ip -6 route show table $table 2>/dev/null) ]]; do
 			((table++))
 		done
 		cmd wg set "$INTERFACE" fwmark $table
