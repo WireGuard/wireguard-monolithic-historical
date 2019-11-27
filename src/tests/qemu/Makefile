@@ -6,7 +6,7 @@ PWD := $(shell pwd)
 
 CHOST := $(shell gcc -dumpmachine)
 ifneq (,$(ARCH))
-CBUILD := $(subst -gcc,,$(lastword $(subst /, ,$(firstword $(filter-out android,$(wildcard /usr/bin/$(ARCH)-*-gcc))))))
+CBUILD := $(subst -gcc,,$(lastword $(subst /, ,$(firstword $(filter-out android,$(wildcard $(foreach bindir,$(subst :, ,$(PATH)),$(bindir)/$(ARCH)-*-gcc)))))))
 endif
 ifeq (,$(CBUILD))
 CBUILD := $(CHOST)
