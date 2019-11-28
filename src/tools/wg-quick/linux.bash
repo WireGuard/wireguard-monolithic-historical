@@ -190,7 +190,7 @@ remove_iptables() {
 			[[ $line == "-A"* ]] && found=1
 			printf -v restore '%s\n%s' "$restore" "${line/#-A/-D}"
 		done < <($iptables-save)
-		[[ $found -eq 1 ]] && echo "$restore" | cmd $iptables-restore -nw
+		[[ $found -ne 1 ]] || echo "$restore" | cmd $iptables-restore -nw
 	done
 }
 
