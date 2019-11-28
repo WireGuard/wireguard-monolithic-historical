@@ -322,8 +322,8 @@ cmd_down() {
 	execute_hooks "${PRE_DOWN[@]}"
 	[[ $SAVE_CONFIG -eq 0 ]] || save_config
 	del_if
-	unset_dns
-	remove_iptables
+	unset_dns || true
+	remove_iptables || true
 	execute_hooks "${POST_DOWN[@]}"
 }
 
