@@ -171,8 +171,8 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 		skb = segs;
 	}
-	do {
-		next = skb->next;
+
+	skb_list_walk_safe(skb, skb, next) {
 		skb_mark_not_on_list(skb);
 
 		skb = skb_share_check(skb, GFP_ATOMIC);
@@ -187,7 +187,7 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 		PACKET_CB(skb)->mtu = mtu;
 
 		__skb_queue_tail(&packets, skb);
-	} while ((skb = next) != NULL);
+	}
 
 	spin_lock_bh(&peer->staged_packet_queue.lock);
 	/* If the queue is getting too big, we start removing the oldest packets

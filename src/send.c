@@ -233,10 +233,6 @@ void wg_packet_send_keepalive(struct wg_peer *peer)
 	wg_packet_send_staged_packets(peer);
 }
 
-#define skb_walk_null_queue_safe(first, skb, next)                             \
-	for (skb = first, next = skb->next; skb;                               \
-	     skb = next, next = skb ? skb->next : NULL)
-
 static void wg_packet_create_data_done(struct sk_buff *first,
 				       struct wg_peer *peer)
 {
@@ -245,7 +241,7 @@ static void wg_packet_create_data_done(struct sk_buff *first,
 
 	wg_timers_any_authenticated_packet_traversal(peer);
 	wg_timers_any_authenticated_packet_sent(peer);
-	skb_walk_null_queue_safe(first, skb, next) {
+	skb_list_walk_safe(first, skb, next) {
 		is_keepalive = skb->len == message_data_len(0);
 		if (likely(!wg_socket_send_skb_to_peer(peer, skb,
 				PACKET_CB(skb)->ds) && !is_keepalive))
@@ -295,7 +291,7 @@ void wg_packet_encrypt_worker(struct work_struct *work)
 	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
-		skb_walk_null_queue_safe(first, skb, next) {
+		skb_list_walk_safe(first, skb, next) {
 			if (likely(encrypt_packet(skb,
 						  PACKET_CB(first)->keypair,
 						  &simd_context))) {
