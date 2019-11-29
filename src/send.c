@@ -236,13 +236,6 @@ void wg_packet_send_keepalive(struct wg_peer *peer)
 #define skb_walk_null_queue_safe(first, skb, next)                             \
 	for (skb = first, next = skb->next; skb;                               \
 	     skb = next, next = skb ? skb->next : NULL)
-static void skb_free_null_queue(struct sk_buff *first)
-{
-	struct sk_buff *skb, *next;
-
-	skb_walk_null_queue_safe(first, skb, next)
-		dev_kfree_skb(skb);
-}
 
 static void wg_packet_create_data_done(struct sk_buff *first,
 				       struct wg_peer *peer)
@@ -284,7 +277,7 @@ void wg_packet_tx_worker(struct work_struct *work)
 		if (likely(state == PACKET_STATE_CRYPTED))
 			wg_packet_create_data_done(first, peer);
 		else
-			skb_free_null_queue(first);
+			kfree_skb_list(first);
 
 		wg_noise_keypair_put(keypair, false);
 		wg_peer_put(peer);
@@ -343,7 +336,7 @@ err:
 		return;
 	wg_noise_keypair_put(PACKET_CB(first)->keypair, false);
 	wg_peer_put(peer);
-	skb_free_null_queue(first);
+	kfree_skb_list(first);
 }
 
 void wg_packet_purge_staged_packets(struct wg_peer *peer)
