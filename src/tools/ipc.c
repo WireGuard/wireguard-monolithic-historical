@@ -303,8 +303,12 @@ static int userspace_get_device(struct wgdevice **out, const char *iface)
 		return -errno;
 
 	f = userspace_interface_file(iface);
-	if (!f)
-		return -errno;
+	if (!f) {
+		ret = -errno;
+		free(dev);
+		*out = NULL;
+		return ret;
+	}
 
 	fprintf(f, "get=1\n\n");
 	fflush(f);
@@ -314,11 +318,8 @@ static int userspace_get_device(struct wgdevice **out, const char *iface)
 
 	while (getline(&key, &line_buffer_len, f) > 0) {
 		line_len = strlen(key);
-		if (line_len == 1 && key[0] == '\n') {
-			free(key);
-			fclose(f);
-			return ret;
-		}
+		if (line_len == 1 && key[0] == '\n')
+			goto err;
 		value = strchr(key, '=');
 		if (!value || line_len == 0 || key[line_len - 1] != '\n')
 			break;
@@ -382,7 +383,7 @@ static int userspace_get_device(struct wgdevice **out, const char *iface)
 				*end++ = '\0';
 			}
 			if (getaddrinfo(begin, end, &hints, &resolved) != 0) {
-				errno = ENETUNREACH;
+				ret = ENETUNREACH;
 				goto err;
 			}
 			if ((resolved->ai_family == AF_INET && resolved->ai_addrlen == sizeof(struct sockaddr_in)) ||
@@ -437,8 +438,10 @@ static int userspace_get_device(struct wgdevice **out, const char *iface)
 	ret = -EPROTO;
 err:
 	free(key);
-	free_wgdevice(dev);
-	*out = NULL;
+	if (ret) {
+		free_wgdevice(dev);
+		*out = NULL;
+	}
 	fclose(f);
 	errno = -ret;
 	return ret;

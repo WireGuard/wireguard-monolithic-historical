@@ -45,8 +45,10 @@ static bool sync_conf(struct wgdevice *file)
 		return false;
 	}
 
-	if (!runtime->first_peer)
+	if (!runtime->first_peer) {
+		free_wgdevice(runtime);
 		return true;
+	}
 
 	file->flags &= ~WGDEVICE_REPLACE_PEERS;
 
