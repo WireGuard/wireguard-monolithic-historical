@@ -188,9 +188,9 @@ remove_iptables() {
 		while read -r line; do
 			[[ $line == "*"* || $line == COMMIT || $line == "-A "*"-m comment --comment \"wg-quick(8) rule for $INTERFACE\""* ]] || continue
 			[[ $line == "-A"* ]] && found=1
-			printf -v restore '%s\n%s' "$restore" "${line/#-A/-D}"
+			printf -v restore '%s%s\n' "$restore" "${line/#-A/-D}"
 		done < <($iptables-save)
-		[[ $found -ne 1 ]] || echo "$restore" | cmd $iptables-restore -n
+		[[ $found -ne 1 ]] || echo -n "$restore" | cmd $iptables-restore -n
 	done
 }
 
@@ -210,14 +210,14 @@ add_default() {
 	cmd ip $proto rule add not fwmark $table table $table
 	cmd ip $proto rule add table main suppress_prefixlength 0
 
-	local marker="-m comment --comment \"wg-quick(8) rule for $INTERFACE\"" restore="*raw"
+	local marker="-m comment --comment \"wg-quick(8) rule for $INTERFACE\"" restore=$'*raw\n'
 	for i in "${ADDRESSES[@]}"; do
 		[[ ( $proto == -4 && $i != *:* ) || ( $proto == -6 && $i == *:* ) ]] || continue
-		printf -v restore '%s\n-I PREROUTING ! -i %s -d %s -m addrtype ! --src-type LOCAL -j DROP %s\n' "$restore" "$INTERFACE" "${i%/*}" "$marker"
+		printf -v restore '%s-I PREROUTING ! -i %s -d %s -m addrtype ! --src-type LOCAL -j DROP %s\n' "$restore" "$INTERFACE" "${i%/*}" "$marker"
 	done
-	printf -v restore '%s\nCOMMIT\n*mangle\n-I POSTROUTING -m mark --mark %d -p udp -j CONNMARK --save-mark %s\n-I PREROUTING -p udp -j CONNMARK --restore-mark %s\nCOMMIT\n' "$restore" $table "$marker" "$marker"
+	printf -v restore '%sCOMMIT\n*mangle\n-I POSTROUTING -m mark --mark %d -p udp -j CONNMARK --save-mark %s\n-I PREROUTING -p udp -j CONNMARK --restore-mark %s\nCOMMIT\n' "$restore" $table "$marker" "$marker"
 	[[ $proto == -4 ]] && cmd sysctl -q net.ipv4.conf.all.src_valid_mark=1
-	echo "$restore" | cmd $iptables-restore -n
+	echo -n "$restore" | cmd $iptables-restore -n
 	HAVE_SET_IPTABLES=1
 	return 0
 }
