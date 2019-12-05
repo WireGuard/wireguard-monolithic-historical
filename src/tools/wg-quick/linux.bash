@@ -190,7 +190,7 @@ remove_iptables() {
 			[[ $line == "-A"* ]] && found=1
 			printf -v restore '%s\n%s' "$restore" "${line/#-A/-D}"
 		done < <($iptables-save)
-		[[ $found -ne 1 ]] || echo "$restore" | cmd $iptables-restore -nw
+		[[ $found -ne 1 ]] || echo "$restore" | cmd $iptables-restore -n
 	done
 }
 
@@ -217,7 +217,7 @@ add_default() {
 	done
 	printf -v restore '%s\nCOMMIT\n*mangle\n-I POSTROUTING -m mark --mark %d -p udp -j CONNMARK --save-mark %s\n-I PREROUTING -p udp -j CONNMARK --restore-mark %s\nCOMMIT\n' "$restore" $table "$marker" "$marker"
 	[[ $proto == -4 ]] && cmd sysctl -q net.ipv4.conf.all.src_valid_mark=1
-	echo "$restore" | cmd $iptables-restore -nw
+	echo "$restore" | cmd $iptables-restore -n
 	HAVE_SET_IPTABLES=1
 	return 0
 }
