@@ -207,9 +207,10 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
 	if (skb_to_sgvec(skb, sg, sizeof(struct message_data),
 			 noise_encrypted_len(plaintext_len)) <= 0)
 		return false;
-	return chacha20poly1305_encrypt_sg(sg, sg, plaintext_len, NULL, 0,
-					   PACKET_CB(skb)->nonce,
-					   keypair->sending.key, simd_context);
+	return chacha20poly1305_encrypt_sg_inplace(sg, plaintext_len, NULL, 0,
+						   PACKET_CB(skb)->nonce,
+						   keypair->sending.key,
+						   simd_context);
 }
 
 void wg_packet_send_keepalive(struct wg_peer *peer)
