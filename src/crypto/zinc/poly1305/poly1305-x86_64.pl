@@ -109,7 +109,7 @@ sub declare_function() {
 	my ($name, $align, $nargs) = @_;
 	if($kernel) {
 		$code .= ".align $align\n";
-		$code .= "ENTRY($name)\n";
+		$code .= "SYM_FUNC_START($name)\n";
 		$code .= ".L$name:\n";
 	} else {
 		$code .= ".globl	$name\n";
@@ -122,7 +122,7 @@ sub declare_function() {
 sub end_function() {
 	my ($name) = @_;
 	if($kernel) {
-		$code .= "ENDPROC($name)\n";
+		$code .= "SYM_FUNC_END($name)\n";
 	} else {
 		$code .= ".size   $name,.-$name\n";
 	}

@@ -394,7 +394,7 @@
  * void chacha20_arm(u8 *out, const u8 *in, size_t len, const u32 key[8],
  *		     const u32 iv[4]);
  */
-ENTRY(chacha20_arm)
+SYM_FUNC_START(chacha20_arm)
 	cmp		r2, #0			// len == 0?
 	reteq		lr
 
@@ -428,12 +428,12 @@ ENTRY(chacha20_arm)
 
 	add		sp, #76
 	pop		{r4-r11, pc}
-ENDPROC(chacha20_arm)
+SYM_FUNC_END(chacha20_arm)
 
 /*
  * void hchacha20_arm(const u32 state[16], u32 out[8]);
  */
-ENTRY(hchacha20_arm)
+SYM_FUNC_START(hchacha20_arm)
 	push		{r1,r4-r11,lr}
 
 	mov		r14, r0
@@ -458,4 +458,4 @@ ENTRY(hchacha20_arm)
 	stm		r4, {X0,X1,X2,X3,X12,X13,X14,X15}
 
 	pop		{r4-r11,pc}
-ENDPROC(hchacha20_arm)
+SYM_FUNC_END(hchacha20_arm)
