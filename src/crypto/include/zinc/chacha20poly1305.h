@@ -22,9 +22,9 @@ void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			      const u64 nonce,
 			      const u8 key[CHACHA20POLY1305_KEY_SIZE]);
 
-bool __must_check chacha20poly1305_encrypt_sg(
-	struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
-	const u8 *ad, const size_t ad_len, const u64 nonce,
+bool __must_check chacha20poly1305_encrypt_sg_inplace(
+	struct scatterlist *src, const size_t src_len, const u8 *ad,
+	const size_t ad_len, const u64 nonce,
 	const u8 key[CHACHA20POLY1305_KEY_SIZE], simd_context_t *simd_context);
 
 bool __must_check
@@ -32,9 +32,9 @@ chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 			 const u8 *ad, const size_t ad_len, const u64 nonce,
 			 const u8 key[CHACHA20POLY1305_KEY_SIZE]);
 
-bool __must_check chacha20poly1305_decrypt_sg(
-	struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
-	const u8 *ad, const size_t ad_len, const u64 nonce,
+bool __must_check chacha20poly1305_decrypt_sg_inplace(
+	struct scatterlist *src, size_t src_len, const u8 *ad,
+	const size_t ad_len, const u64 nonce,
 	const u8 key[CHACHA20POLY1305_KEY_SIZE], simd_context_t *simd_context);
 
 void xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,

@@ -18,16 +18,7 @@
 #include <linux/init.h>
 #include <crypto/scatterwalk.h> // For blkcipher_walk.
 
-static const u8 pad0[16] = { 0 };
-
-static struct blkcipher_desc desc = { .tfm = &(struct crypto_blkcipher){
-	.base = { .__crt_alg = &(struct crypto_alg){
-		.cra_blocksize = 1,
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-		.cra_alignmask = sizeof(u32) - 1
-#endif
-	} }
-} };
+static const u8 pad0[CHACHA20_BLOCK_SIZE] = { 0 };
 
 static inline void
 __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
@@ -82,22 +73,25 @@ void chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 }
 EXPORT_SYMBOL(chacha20poly1305_encrypt);
 
-bool chacha20poly1305_encrypt_sg(struct scatterlist *dst,
-				 struct scatterlist *src, const size_t src_len,
-				 const u8 *ad, const size_t ad_len,
-				 const u64 nonce,
-				 const u8 key[CHACHA20POLY1305_KEY_SIZE],
-				 simd_context_t *simd_context)
+bool chacha20poly1305_encrypt_sg_inplace(struct scatterlist *src,
+					 const size_t src_len,
+					 const u8 *ad, const size_t ad_len,
+					 const u64 nonce,
+					 const u8 key[CHACHA20POLY1305_KEY_SIZE],
+					 simd_context_t *simd_context)
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
-	int ret = 0;
-	struct blkcipher_walk walk;
+	struct sg_mapping_iter miter;
+	size_t partial = 0;
+	ssize_t sl;
 	union {
+		u8 chacha20_stream[CHACHA20_BLOCK_SIZE];
 		u8 block0[POLY1305_KEY_SIZE];
 		u8 mac[POLY1305_MAC_SIZE];
 		__le64 lens[2];
-	} b = { { 0 } };
+	} b __aligned(16) = { { 0 } };
+
 
 	chacha20_init(&chacha20_state, key, nonce);
 	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0),
@@ -108,32 +102,43 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst,
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf,
 			simd_context);
 
-	if (likely(src_len)) {
-		blkcipher_walk_init(&walk, dst, src, src_len);
-		ret = blkcipher_walk_virt_block(&desc, &walk,
-						CHACHA20_BLOCK_SIZE);
-		while (walk.nbytes >= CHACHA20_BLOCK_SIZE) {
-			size_t chunk_len =
-				rounddown(walk.nbytes, CHACHA20_BLOCK_SIZE);
+	sg_miter_start(&miter, src, sg_nents(src), SG_MITER_TO_SG | SG_MITER_ATOMIC);
+	for (sl = src_len; sl > 0 && sg_miter_next(&miter); sl -= miter.length) {
+		u8 *addr = miter.addr;
+		size_t length = min_t(size_t, sl, miter.length);
 
-			chacha20(&chacha20_state, walk.dst.virt.addr,
-				 walk.src.virt.addr, chunk_len, simd_context);
-			poly1305_update(&poly1305_state, walk.dst.virt.addr,
-					chunk_len, simd_context);
-			simd_relax(simd_context);
-			ret = blkcipher_walk_done(&desc, &walk,
-					walk.nbytes % CHACHA20_BLOCK_SIZE);
+		if (unlikely(partial)) {
+			size_t l = min(length, CHACHA20_BLOCK_SIZE - partial);
+
+			crypto_xor(addr, b.chacha20_stream + partial, l);
+			partial = (partial + l) & (CHACHA20_BLOCK_SIZE - 1);
+
+			addr += l;
+			length -= l;
 		}
-		if (walk.nbytes) {
-			chacha20(&chacha20_state, walk.dst.virt.addr,
-				 walk.src.virt.addr, walk.nbytes, simd_context);
-			poly1305_update(&poly1305_state, walk.dst.virt.addr,
-					walk.nbytes, simd_context);
-			ret = blkcipher_walk_done(&desc, &walk, 0);
+
+		if (likely(length >= CHACHA20_BLOCK_SIZE || length == sl)) {
+			size_t l = length;
+
+			if (unlikely(length < sl))
+				l &= ~(CHACHA20_BLOCK_SIZE - 1);
+			chacha20(&chacha20_state, addr, addr, l, simd_context);
+			addr += l;
+			length -= l;
 		}
+
+		if (unlikely(length > 0)) {
+			chacha20(&chacha20_state, b.chacha20_stream, pad0,
+				 CHACHA20_BLOCK_SIZE, simd_context);
+			crypto_xor(addr, b.chacha20_stream, length);
+			partial = length;
+		}
+
+		poly1305_update(&poly1305_state, miter.addr,
+				min_t(size_t, sl, miter.length), simd_context);
+
+		simd_relax(simd_context);
 	}
-	if (unlikely(ret))
-		goto err;
 
 	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf,
 			simd_context);
@@ -143,14 +148,22 @@ bool chacha20poly1305_encrypt_sg(struct scatterlist *dst,
 	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens),
 			simd_context);
 
-	poly1305_final(&poly1305_state, b.mac, simd_context);
-	scatterwalk_map_and_copy(b.mac, dst, src_len, sizeof(b.mac), 1);
-err:
+	if (likely(sl <= -POLY1305_MAC_SIZE))
+		poly1305_final(&poly1305_state, miter.addr + miter.length + sl,
+			       simd_context);
+
+	sg_miter_stop(&miter);
+
+	if (unlikely(sl > -POLY1305_MAC_SIZE)) {
+		poly1305_final(&poly1305_state, b.mac, simd_context);
+		scatterwalk_map_and_copy(b.mac, src, src_len, sizeof(b.mac), 1);
+	}
+
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 	memzero_explicit(&b, sizeof(b));
-	return !ret;
+	return true;
 }
-EXPORT_SYMBOL(chacha20poly1305_encrypt_sg);
+EXPORT_SYMBOL(chacha20poly1305_encrypt_sg_inplace);
 
 static inline bool
 __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
@@ -217,29 +230,32 @@ bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 }
 EXPORT_SYMBOL(chacha20poly1305_decrypt);
 
-bool chacha20poly1305_decrypt_sg(struct scatterlist *dst,
-				 struct scatterlist *src, const size_t src_len,
-				 const u8 *ad, const size_t ad_len,
-				 const u64 nonce,
-				 const u8 key[CHACHA20POLY1305_KEY_SIZE],
-				 simd_context_t *simd_context)
+bool chacha20poly1305_decrypt_sg_inplace(struct scatterlist *src,
+					 size_t src_len,
+					 const u8 *ad, const size_t ad_len,
+					 const u64 nonce,
+					 const u8 key[CHACHA20POLY1305_KEY_SIZE],
+					 simd_context_t *simd_context)
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
-	struct blkcipher_walk walk;
-	int ret = 0;
-	size_t dst_len;
+	struct sg_mapping_iter miter;
+	size_t partial = 0;
+	ssize_t sl;
 	union {
+		u8 chacha20_stream[CHACHA20_BLOCK_SIZE];
 		u8 block0[POLY1305_KEY_SIZE];
 		struct {
 			u8 read_mac[POLY1305_MAC_SIZE];
 			u8 computed_mac[POLY1305_MAC_SIZE];
 		};
 		__le64 lens[2];
-	} b = { { 0 } };
+	} b __aligned(16) = { { 0 } };
+	bool ret = false;
 
 	if (unlikely(src_len < POLY1305_MAC_SIZE))
-		return false;
+		return ret;
+	src_len -= POLY1305_MAC_SIZE;
 
 	chacha20_init(&chacha20_state, key, nonce);
 	chacha20(&chacha20_state, b.block0, b.block0, sizeof(b.block0),
@@ -250,52 +266,74 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst,
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf,
 			simd_context);
 
-	dst_len = src_len - POLY1305_MAC_SIZE;
-	if (likely(dst_len)) {
-		blkcipher_walk_init(&walk, dst, src, dst_len);
-		ret = blkcipher_walk_virt_block(&desc, &walk,
-						CHACHA20_BLOCK_SIZE);
-		while (walk.nbytes >= CHACHA20_BLOCK_SIZE) {
-			size_t chunk_len =
-				rounddown(walk.nbytes, CHACHA20_BLOCK_SIZE);
+	sg_miter_start(&miter, src, sg_nents(src), SG_MITER_TO_SG | SG_MITER_ATOMIC);
+	for (sl = src_len; sl > 0 && sg_miter_next(&miter); sl -= miter.length) {
+		u8 *addr = miter.addr;
+		size_t length = min_t(size_t, sl, miter.length);
 
-			poly1305_update(&poly1305_state, walk.src.virt.addr,
-					chunk_len, simd_context);
-			chacha20(&chacha20_state, walk.dst.virt.addr,
-				 walk.src.virt.addr, chunk_len, simd_context);
-			simd_relax(simd_context);
-			ret = blkcipher_walk_done(&desc, &walk,
-					walk.nbytes % CHACHA20_BLOCK_SIZE);
+		poly1305_update(&poly1305_state, addr, length, simd_context);
+
+		if (unlikely(partial)) {
+			size_t l = min(length, CHACHA20_BLOCK_SIZE - partial);
+
+			crypto_xor(addr, b.chacha20_stream + partial, l);
+			partial = (partial + l) & (CHACHA20_BLOCK_SIZE - 1);
+
+			addr += l;
+			length -= l;
 		}
-		if (walk.nbytes) {
-			poly1305_update(&poly1305_state, walk.src.virt.addr,
-					walk.nbytes, simd_context);
-			chacha20(&chacha20_state, walk.dst.virt.addr,
-				 walk.src.virt.addr, walk.nbytes, simd_context);
-			ret = blkcipher_walk_done(&desc, &walk, 0);
+
+		if (likely(length >= CHACHA20_BLOCK_SIZE || length == sl)) {
+			size_t l = length;
+
+			if (unlikely(length < sl))
+				l &= ~(CHACHA20_BLOCK_SIZE - 1);
+			chacha20(&chacha20_state, addr, addr, l, simd_context);
+			addr += l;
+			length -= l;
 		}
+
+		if (unlikely(length > 0)) {
+			chacha20(&chacha20_state, b.chacha20_stream, pad0,
+				 CHACHA20_BLOCK_SIZE, simd_context);
+			crypto_xor(addr, b.chacha20_stream, length);
+			partial = length;
+		}
+
+		simd_relax(simd_context);
 	}
-	if (unlikely(ret))
-		goto err;
 
-	poly1305_update(&poly1305_state, pad0, (0x10 - dst_len) & 0xf,
+	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf,
 			simd_context);
 
 	b.lens[0] = cpu_to_le64(ad_len);
-	b.lens[1] = cpu_to_le64(dst_len);
+	b.lens[1] = cpu_to_le64(src_len);
 	poly1305_update(&poly1305_state, (u8 *)b.lens, sizeof(b.lens),
 			simd_context);
 
-	poly1305_final(&poly1305_state, b.computed_mac, simd_context);
+	if (likely(sl <= -POLY1305_MAC_SIZE)) {
+		poly1305_final(&poly1305_state, b.computed_mac, simd_context);
+		ret = !crypto_memneq(b.computed_mac,
+				     miter.addr + miter.length + sl,
+				     POLY1305_MAC_SIZE);
+	}
 
-	scatterwalk_map_and_copy(b.read_mac, src, dst_len, POLY1305_MAC_SIZE, 0);
-	ret = crypto_memneq(b.read_mac, b.computed_mac, POLY1305_MAC_SIZE);
-err:
+	sg_miter_stop(&miter);
+
+	if (unlikely(sl > -POLY1305_MAC_SIZE)) {
+		poly1305_final(&poly1305_state, b.computed_mac, simd_context);
+		scatterwalk_map_and_copy(b.read_mac, src, src_len,
+					 sizeof(b.read_mac), 0);
+		ret = !crypto_memneq(b.read_mac, b.computed_mac,
+				     POLY1305_MAC_SIZE);
+
+	}
+
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
 	memzero_explicit(&b, sizeof(b));
-	return !ret;
+	return ret;
 }
-EXPORT_SYMBOL(chacha20poly1305_decrypt_sg);
+EXPORT_SYMBOL(chacha20poly1305_decrypt_sg_inplace);
 
 void xchacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 			       const u8 *ad, const size_t ad_len,
