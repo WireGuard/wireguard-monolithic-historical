@@ -97,16 +97,16 @@ del_if() {
 	[[ $HAVE_SET_DNS -eq 0 ]] || unset_dns
 	[[ $HAVE_SET_IPTABLES -eq 0 ]] || remove_iptables
 	if [[ -z $TABLE || $TABLE == auto ]] && get_fwmark table && [[ $(wg show "$INTERFACE" allowed-ips) =~ /0(\ |$'\n'|$) ]]; then
-		while [[ $(ip -4 rule show) == *"lookup $table"* ]]; do
+		while [[ $(ip -4 rule show 2>/dev/null) == *"lookup $table"* ]]; do
 			cmd ip -4 rule delete table $table
 		done
-		while [[ $(ip -4 rule show) == *"from all lookup main suppress_prefixlength 0"* ]]; do
+		while [[ $(ip -4 rule show 2>/dev/null) == *"from all lookup main suppress_prefixlength 0"* ]]; do
 			cmd ip -4 rule delete table main suppress_prefixlength 0
 		done
-		while [[ $(ip -6 rule show) == *"lookup $table"* ]]; do
+		while [[ $(ip -6 rule show 2>/dev/null) == *"lookup $table"* ]]; do
 			cmd ip -6 rule delete table $table
 		done
-		while [[ $(ip -6 rule show) == *"from all lookup main suppress_prefixlength 0"* ]]; do
+		while [[ $(ip -6 rule show 2>/dev/null) == *"from all lookup main suppress_prefixlength 0"* ]]; do
 			cmd ip -6 rule delete table main suppress_prefixlength 0
 		done
 	fi
