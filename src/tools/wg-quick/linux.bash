@@ -189,7 +189,7 @@ remove_iptables() {
 			[[ $line == "*"* || $line == COMMIT || $line == "-A "*"-m comment --comment \"wg-quick(8) rule for $INTERFACE\""* ]] || continue
 			[[ $line == "-A"* ]] && found=1
 			printf -v restore '%s%s\n' "$restore" "${line/#-A/-D}"
-		done < <($iptables-save)
+		done < <($iptables-save 2>/dev/null)
 		[[ $found -ne 1 ]] || echo -n "$restore" | cmd $iptables-restore -n
 	done
 }
