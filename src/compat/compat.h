@@ -861,6 +861,10 @@ static inline void skb_mark_not_on_list(struct sk_buff *skb)
 })
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
+#define ipv6_dst_lookup_flow(a, b, c, d) ipv6_dst_lookup(a, b, &dst, c) + (void *)0 ?: dst
+#endif
+
 #if defined(ISUBUNTU1604)
 #include <linux/siphash.h>
 #ifndef _WG_LINUX_SIPHASH_H
