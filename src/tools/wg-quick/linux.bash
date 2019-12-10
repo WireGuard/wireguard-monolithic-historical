@@ -187,7 +187,7 @@ remove_firewall() {
 		while read -r table; do
 			[[ $table == *" wg-quick-$INTERFACE" ]] && printf -v nftcmd '%sdelete %s\n' "$nftcmd" "$table"
 		done < <(nft list tables 2>/dev/null)
-		[[ -z $nftcmd ]] || echo -n "$nftcmd" | cmd nft -f -
+		[[ -z $nftcmd ]] || cmd nft -f <(echo -n "$nftcmd")
 	else
 		local line iptables found restore
 		for iptables in iptables ip6tables; do
@@ -220,9 +220,9 @@ add_default() {
 
 	local marker="-m comment --comment \"wg-quick(8) rule for $INTERFACE\"" restore=$'*raw\n' nftable="wg-quick-$INTERFACE" nftcmd 
 	printf -v nftcmd '%sadd table %s %s\n' "$nftcmd" "$pf" "$nftable"
-	printf -v nftcmd '%sadd chain %s %s preraw { type filter hook prerouting priority raw; }\n' "$nftcmd" "$pf" "$nftable"
-	printf -v nftcmd '%sadd chain %s %s premangle { type filter hook prerouting priority mangle; }\n' "$nftcmd" "$pf" "$nftable"
-	printf -v nftcmd '%sadd chain %s %s postmangle { type filter hook postrouting priority mangle; }\n' "$nftcmd" "$pf" "$nftable"
+	printf -v nftcmd '%sadd chain %s %s preraw { type filter hook prerouting priority -300; }\n' "$nftcmd" "$pf" "$nftable"
+	printf -v nftcmd '%sadd chain %s %s premangle { type filter hook prerouting priority -150; }\n' "$nftcmd" "$pf" "$nftable"
+	printf -v nftcmd '%sadd chain %s %s postmangle { type filter hook postrouting priority -150; }\n' "$nftcmd" "$pf" "$nftable"
 	for i in "${ADDRESSES[@]}"; do
 		[[ ( $proto == -4 && $i != *:* ) || ( $proto == -6 && $i == *:* ) ]] || continue
 		printf -v restore '%s-I PREROUTING ! -i %s -d %s -m addrtype ! --src-type LOCAL -j DROP %s\n' "$restore" "$INTERFACE" "${i%/*}" "$marker"
@@ -233,7 +233,7 @@ add_default() {
 	printf -v nftcmd '%sadd rule %s %s premangle meta l4proto udp meta mark set ct mark \n' "$nftcmd" "$pf" "$nftable"
 	[[ $proto == -4 ]] && cmd sysctl -q net.ipv4.conf.all.src_valid_mark=1
 	if type -p nft >/dev/null; then
-		echo -n "$nftcmd" | cmd nft -f -
+		cmd nft -f <(echo -n "$nftcmd")
 	else
 		echo -n "$restore" | cmd $iptables-restore -n
 	fi
