@@ -390,10 +390,10 @@ static int32_t string_array_size(char *const *array)
 	return size;
 }
 
-static const char *string_array_getter(const void *array_data, size_t index, int32_t *outlength)
+static const char *string_array_getter(const void *array_data, size_t index, int32_t *out_length)
 {
 	const char **array = (const char **)array_data;
-	*outlength = array[index] ? strlen(array[index]) : -1;
+	*out_length = array[index] ? strlen(array[index]) : -1;
 	return array[index];
 }
 

@@ -35,7 +35,7 @@
 # Skylake-X system performance. Since we are likely to suppress
 # AVX512F capability flag [at least on Skylake-X], conversion serves
 # as kind of "investment protection". Note that next *lake processor,
-# Cannolake, has AVX512IFMA code path to execute...
+# Cannonlake, has AVX512IFMA code path to execute...
 #
 # Numbers are cycles per processed byte with poly1305_blocks alone,
 # measured with rdtsc at fixed clock frequency.

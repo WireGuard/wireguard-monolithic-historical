@@ -9,8 +9,8 @@ Compile with:
 
 
 Server is 1.2.3.4 and is on the public internet accepting UDP:49918.
-Client A is NAT'd and doesnt't know its IP address.
-Client B is NAT'd and doesnt't know its IP address.
+Client A is NAT'd and doesn't know its IP address.
+Client B is NAT'd and doesn't know its IP address.
 
 
 Server runs:
