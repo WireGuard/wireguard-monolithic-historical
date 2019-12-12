@@ -188,7 +188,8 @@ remove_firewall() {
 			[[ $table == *" wg-quick-$INTERFACE" ]] && printf -v nftcmd '%sdelete %s\n' "$nftcmd" "$table"
 		done < <(nft list tables 2>/dev/null)
 		[[ -z $nftcmd ]] || cmd nft -f <(echo -n "$nftcmd")
-	else
+	fi
+	if type -p iptables >/dev/null; then
 		local line iptables found restore
 		for iptables in iptables ip6tables; do
 			restore="" found=0
