@@ -12,7 +12,6 @@
 #include "uapi/wireguard.h"
 #include "crypto/zinc.h"
 
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/genetlink.h>
