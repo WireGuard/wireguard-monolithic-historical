@@ -22,6 +22,8 @@
 #include "chacha20-arm-glue.c"
 #elif defined(CONFIG_ZINC_ARCH_MIPS)
 #include "chacha20-mips-glue.c"
+#elif defined(CONFIG_ZINC_ARCH_PPC32) || defined(CONFIG_ZINC_ARCH_PPC64)
+#include "chacha20-ppc-glue.c"
 #else
 static bool *const chacha20_nobs[] __initconst = { };
 static void __init chacha20_fpu_init(void)

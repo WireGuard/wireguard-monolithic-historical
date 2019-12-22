@@ -16,12 +16,81 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
+#if defined(CONFIG_ZINC_ARCH_ARM) || defined(CONFIG_ZINC_ARCH_ARM64) || defined(CONFIG_ZINC_ARCH_PPC32) || defined(CONFIG_ZINC_ARCH_PPC64)
+#if defined(CONFIG_ZINC_ARCH_ARM64) || defined(CONFIG_ZINC_ARCH_PPC64)
+struct poly1305_arch_internal {
+	union {
+		u32 h[5];
+		struct {
+			u64 h0, h1, h2;
+		};
+	};
+	u64 is_base2_26;
+	u64 r[2];
+};
+#elif defined(CONFIG_ZINC_ARCH_ARM) || defined(CONFIG_ZINC_ARCH_PPC32)
+struct poly1305_arch_internal {
+	union {
+		u32 h[5];
+		struct {
+			u64 h0, h1;
+			u32 h2;
+		} __packed;
+	};
+	u32 r[4];
+	u32 is_base2_26;
+};
+#endif
+/* The NEON and AVX code uses base 2^26, while the scalar code uses base 2^64 on 64-bit
+ * and base 2^32 on 32-bit. If we hit the unfortunate situation of using NEON or AVX
+ * and then having to go back to scalar -- because the user is silly and has
+ * called the update function from two separate contexts -- then we need to
+ * convert back to the original base before proceeding. The below function is
+ * written for 64-bit integers, and so we have to swap words at the end on
+ * big-endian 32-bit. It is possible to reason that the initial reduction below
+ * is sufficient given the implementation invariants. However, for an avoidance
+ * of doubt and because this is not performance critical, we do the full
+ * reduction anyway.
+ */
+static void convert_to_base2_64(void *ctx)
+{
+	struct poly1305_arch_internal *state = ctx;
+	u32 cy;
+
+	if (!(IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || IS_ENABLED(CONFIG_AVX)) || !state->is_base2_26)
+		return;
+
+	cy = state->h[0] >> 26; state->h[0] &= 0x3ffffff; state->h[1] += cy;
+	cy = state->h[1] >> 26; state->h[1] &= 0x3ffffff; state->h[2] += cy;
+	cy = state->h[2] >> 26; state->h[2] &= 0x3ffffff; state->h[3] += cy;
+	cy = state->h[3] >> 26; state->h[3] &= 0x3ffffff; state->h[4] += cy;
+	state->h0 = ((u64)state->h[2] << 52) | ((u64)state->h[1] << 26) | state->h[0];
+	state->h1 = ((u64)state->h[4] << 40) | ((u64)state->h[3] << 14) | (state->h[2] >> 12);
+	state->h2 = state->h[4] >> 24;
+	if ((IS_ENABLED(CONFIG_ZINC_ARCH_ARM) || IS_ENABLED(CONFIG_ZINC_ARCH_PPC32)) &&
+	    IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
+		state->h0 = rol64(state->h0, 32);
+		state->h1 = rol64(state->h1, 32);
+	}
+#define ULT(a, b) ((a ^ ((a ^ b) | ((a - b) ^ b))) >> (sizeof(a) * 8 - 1))
+	cy = (state->h2 >> 2) + (state->h2 & ~3ULL);
+	state->h2 &= 3;
+	state->h0 += cy;
+	state->h1 += (cy = ULT(state->h0, cy));
+	state->h2 += ULT(state->h1, cy);
+#undef ULT
+	state->is_base2_26 = 0;
+}
+#endif
+
 #if defined(CONFIG_ZINC_ARCH_X86_64)
 #include "poly1305-x86_64-glue.c"
 #elif defined(CONFIG_ZINC_ARCH_ARM) || defined(CONFIG_ZINC_ARCH_ARM64)
 #include "poly1305-arm-glue.c"
 #elif defined(CONFIG_ZINC_ARCH_MIPS) || defined(CONFIG_ZINC_ARCH_MIPS64)
 #include "poly1305-mips-glue.c"
+#elif defined(CONFIG_ZINC_ARCH_PPC32) || defined(CONFIG_ZINC_ARCH_PPC64)
+#include "poly1305-ppc-glue.c"
 #else
 static inline bool poly1305_init_arch(void *ctx,
 				      const u8 key[POLY1305_KEY_SIZE])
